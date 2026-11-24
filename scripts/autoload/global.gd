@@ -569,7 +569,10 @@ func _setup_inputs() -> void:
 	_add_mouse("attack", MOUSE_BUTTON_LEFT)
 	_add_keys("skill", [KEY_SPACE, KEY_K])
 	_add_mouse("skill", MOUSE_BUTTON_RIGHT)
-	_add_keys("swap", [KEY_E, KEY_Q])
+	_add_keys("swap_weapon", [KEY_Q])
+	_add_mouse("swap_weapon", MOUSE_BUTTON_WHEEL_UP)
+	_add_mouse("swap_weapon", MOUSE_BUTTON_WHEEL_DOWN)
+	_add_keys("interact", [KEY_E])
 	_add_keys("pause", [KEY_ESCAPE, KEY_P])
 	# Tay cầm (để sau này bán trên Steam)
 	_add_axis("move_left", JOY_AXIS_LEFT_X, -1.0)
@@ -579,7 +582,8 @@ func _setup_inputs() -> void:
 	_add_pad("attack", JOY_BUTTON_A)
 	_add_axis("attack", JOY_AXIS_TRIGGER_RIGHT, 1.0)
 	_add_pad("skill", JOY_BUTTON_B)
-	_add_pad("swap", JOY_BUTTON_Y)
+	_add_pad("swap_weapon", JOY_BUTTON_LEFT_SHOULDER)
+	_add_pad("interact", JOY_BUTTON_Y)
 	_add_pad("pause", JOY_BUTTON_START)
 
 

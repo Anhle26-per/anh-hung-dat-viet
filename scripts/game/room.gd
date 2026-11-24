@@ -251,7 +251,7 @@ func _draw() -> void:
 		lines = ["Cần gạt trái: di chuyển (tự ngắm giặc gần nhất)",
 			"Nút phải: Đánh - Kỹ năng - Đổi/Nhặt vũ khí"]
 	else:
-		lines = ["WASD: di chuyển  -  Chuột trái: tấn công",
-			"Chuột phải / Space: kỹ năng  -  E: nhặt/đổi vũ khí  -  Esc: dừng"]
+		lines = ["WASD: di chuyển  -  Chuột trái: tấn công  -  Chuột phải / Space: kỹ năng",
+			"Lăn chuột / Q: đổi vũ khí  -  E: nhặt / dùng  -  Esc: dừng"]
 	for i in lines.size():
 		Art.draw_text(self, c + Vector2(0, 62 + i * 13), lines[i], 13, Color(1, 1, 1, 0.6))

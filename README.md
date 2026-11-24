@@ -32,7 +32,8 @@ Game roguelike bắn quái góc nhìn từ trên xuống, đồ họa pixel. Ng�
 | Tấn công | Giữ chuột trái (hoặc J) | Giữ nút vũ khí | A / cò phải |
 | Ngắm | Theo chuột | Tự ngắm | Tự ngắm |
 | Kỹ năng | Chuột phải / Space | Nút kỹ năng | B |
-| Nhặt / đổi vũ khí | E hoặc Q | Nút **Đổi** | Y |
+| Đổi vũ khí | Lăn chuột / Q | Nút **Đổi** | LB |
+| Nhặt / dùng | E | Nút **Nhặt / Dùng** | Y |
 | Tạm dừng | Esc / P | Nút **II** | Start |
 
 ## 10 vị tướng và chiêu thức

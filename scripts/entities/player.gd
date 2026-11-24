@@ -171,6 +171,10 @@ func current_weapon() -> Dictionary:
 	return WeaponData.get_data(weapons[slot])
 
 
+const SWAP_COOLDOWN := 0.15
+var _swap_cd := 0.0
+
+
 func _refresh_weapon_sprite() -> void:
 	var id: String = weapons[slot]
 	if id == "":
@@ -187,6 +191,7 @@ func _physics_process(delta: float) -> void:
 	_fire_timer -= delta
 	_invuln -= delta
 	_msg_cd -= delta
+	_swap_cd = maxf(_swap_cd - delta, 0.0)
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	buff_timer = maxf(buff_timer - delta, 0.0)
 	twin_timer = maxf(twin_timer - delta, 0.0)
@@ -230,9 +235,20 @@ func _physics_process(delta: float) -> void:
 
 	if nearby_pickup != null and not is_instance_valid(nearby_pickup):
 		nearby_pickup = null
-	if Input.is_action_just_pressed("swap") or Global.touch_swap:
+	if Global.touch_swap:
 		Global.touch_swap = false
 		_swap_or_pickup()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if dead or get_tree().paused or not is_physics_processing():
+		return
+	if event.is_action_pressed("swap_weapon"):
+		if swap_weapon():
+			get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("interact"):
+		if interact_only():
+			get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
@@ -696,6 +712,34 @@ func _dash_damage() -> void:
 
 
 # ------------------------------------------------------------------ Vũ khí
+
+func swap_weapon() -> bool:
+	if dead or get_tree().paused or not is_physics_processing() or _swap_cd > 0.0 or weapons[1 - slot] == "":
+		return false
+	var g = get_tree().get_first_node_in_group("game")
+	if g != null and not g.can_pause():
+		return false
+	slot = 1 - slot
+	_swap_cd = SWAP_COOLDOWN
+	_fire_timer = 0.1
+	_refresh_weapon_sprite()
+	stats_changed.emit()
+	return true
+
+
+func interact_only() -> bool:
+	if dead or get_tree().paused or not is_physics_processing():
+		return false
+	if interact_target != null and is_instance_valid(interact_target):
+		interact_target.interact()
+		return true
+	if nearby_pickup != null and is_instance_valid(nearby_pickup):
+		pick_weapon(nearby_pickup.weapon_id)
+		nearby_pickup.queue_free()
+		nearby_pickup = null
+		return true
+	return false
+
 
 func _swap_or_pickup() -> void:
 	if interact_target != null and is_instance_valid(interact_target):

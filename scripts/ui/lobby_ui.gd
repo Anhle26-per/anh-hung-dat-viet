@@ -29,7 +29,7 @@ func _ready() -> void:
 	_coin_label.size = Vector2(112, 20)
 	_coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top.add_child(_coin_label)
-	var hint := UI.label("Đến gần rồi bấm E / nút DÙNG để tương tác  -  Bước vào cổng xanh để xuất trận", 13, Color(0.95, 0.9, 0.8))
+	var hint := UI.label("Lăn chuột / Q: đổi vũ khí  -  E: nhặt / dùng  -  Bước vào cổng xanh để xuất trận", 13, Color(0.95, 0.9, 0.8))
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	hint.position.y = -18
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
