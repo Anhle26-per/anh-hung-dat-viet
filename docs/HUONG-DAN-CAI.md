@@ -25,6 +25,15 @@ Trên Windows 11 bật chính sách **Smart App Control**, tệp `.exe` tự xu�
 3. Khi Android hỏi quyền cài ngoài Play Store: vào **Cài đặt → Cho phép từ nguồn này (Cho phép nguồn không xác định)** rồi bấm **Cài đặt**.
 4. Nếu Google Play Protect hỏi khi cài bản debug nội bộ, chọn **"Vẫn cài đặt"**.
 
+### Trên máy tính MacBook (`AnhHungDatViet-macOS.zip`)
+Hỗ trợ cả chip **Apple Silicon (M1–M4)** và **Intel**. Vì đây là bản thử nội bộ chưa ký số/công chứng với Apple:
+1. Giải nén `AnhHungDatViet-macOS.zip` để lấy `Anh Hùng Đất Việt.app` (có thể kéo vào thư mục *Applications* hoặc để ngay ngoài *Downloads*).
+2. Mở **Terminal** tại thư mục chứa tệp `.app` (hoặc gõ `xattr -cr ` rồi kéo biểu tượng `Anh Hùng Đất Việt.app` vào cửa sổ Terminal) và chạy:
+   ```bash
+   xattr -cr "Anh Hùng Đất Việt.app"
+   ```
+3. Nhấp chuột phải vào `Anh Hùng Đất Việt.app` → chọn **Open** (nếu macOS vẫn hỏi, vào **System Settings → Privacy & Security → Open Anyway**).
+
 ---
 
 ## 2. Bảng phím điều khiển
@@ -95,5 +104,7 @@ Mỗi khi kết thúc một lượt chơi (kể cả khi bỏ lượt), game t�
 - **Đường dẫn lưu trên Windows:**
   `%APPDATA%\Godot\app_userdata\Anh Hùng Đất Việt\`
   *(Trong đó có `save.json`, `run.json` và `nhat_ky.csv`.)*
+- **Đường dẫn lưu trên macOS:**
+  `~/Library/Application Support/Godot/app_userdata/Anh Hùng Đất Việt/`
 - **Cách mở nhanh ngay trong game:** bấm `Esc` (tạm dừng) → **Cài đặt** → bấm nút **"Mở thư mục nhật ký"**.
 - Sau vài trận chơi thử, bạn chỉ cần nén hoặc gửi trực tiếp tệp `nhat_ky.csv` lại cho nhóm phát triển để cân bằng độ khó ở bản cập nhật sau!
