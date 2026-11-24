@@ -8,6 +8,7 @@ const TouchControls = preload("res://scripts/ui/touch_controls.gd")
 const PauseMenu = preload("res://scripts/ui/pause_menu.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
+const WeaponData = preload("res://scripts/data/weapons.gd")
 const BuffSelect = preload("res://scripts/ui/buff_select.gd")
 
 var world: Node2D
@@ -37,6 +38,11 @@ func _ready() -> void:
 	var resuming := not Global.resume_data.is_empty()
 	if resuming:
 		player.restore(Global.resume_data)    # "Chơi tiếp": máu, giáp, vũ khí như lúc lưu
+	else:
+		var fw: String = Global.consume_forged()
+		if fw != "" and WeaponData.DATA.has(fw):
+			player.weapons[1] = fw
+			Global.discover(fw)
 	world.add_child(player)
 	player.died.connect(_on_player_died)
 	player.hurt.connect(func(): add_shake(4.0))

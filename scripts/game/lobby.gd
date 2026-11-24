@@ -16,6 +16,8 @@ const Ambience = preload("res://scripts/game/ambience.gd")
 const LobbyUI = preload("res://scripts/ui/lobby_ui.gd")
 const TouchControls = preload("res://scripts/ui/touch_controls.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
+const WeaponData = preload("res://scripts/data/weapons.gd")
+const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
 
 const SIZE := Vector2(416, 240)
@@ -28,6 +30,7 @@ var touch
 var stations: Array = []
 var _hero_npcs := {}
 var _leaving := false
+var _forged_icon: Sprite2D
 
 
 func _ready() -> void:
@@ -216,11 +219,17 @@ func _build_stations() -> void:
 	forge.sprite_frames = Art.strip("world/forge.png", 32, 28, 8.0, true)
 	forge.play("play")
 	forge.position = Vector2(0, -8)
-	_add_station("forge", "", "Lò rèn", "Nâng cấp", Vector2(34, 132), forge)
+	_add_station("forge", "", "Lò rèn", "Nâng cấp & Rèn", Vector2(34, 132), forge)
 	var fl := Art.light(Color(1, 0.6, 0.3), 1.2, 0.9)
 	fl.position = Vector2(28, 132)
 	world.add_child(fl)
-	_add_station("rack", "", "Giá binh khí", "Xem kho vũ khí", Vector2(112, 128), _sprite("world/weapon_rack.png", Vector2(0, -8)))
+	var rack := _add_station("rack", "", "Giá binh khí", "Xem kho vũ khí", Vector2(112, 128), _sprite("world/weapon_rack.png", Vector2(0, -8)))
+	_forged_icon = Sprite2D.new()
+	_forged_icon.position = Vector2(0, -14)
+	_forged_icon.scale = Vector2(0.75, 0.75)
+	_forged_icon.z_index = 2
+	rack.add_child(_forged_icon)
+	refresh_forged_display()
 	for x in [56.0, 100.0]:
 		var dm := Dummy.new()
 		dm.position = Vector2(x, 182)
@@ -304,6 +313,24 @@ func select_hero(id: String) -> void:
 	Global.save_game()
 	_spawn_player(Vector2.ZERO)
 	_refresh_heroes()
+
+
+func refresh_forged_display() -> void:
+	if _forged_icon == null:
+		return
+	if Global.forged != "" and WeaponData.DATA.has(Global.forged):
+		_forged_icon.texture = Art.tex("weapons/%s.png" % Global.forged)
+		_forged_icon.visible = true
+	else:
+		_forged_icon.texture = null
+		_forged_icon.visible = false
+
+
+func on_forged() -> void:
+	refresh_forged_display()
+	if world != null:
+		Fx.particles(world, Vector2(34, 124), Color(1, 0.72, 0.25), 14, 70.0, 0.55, -25.0, 2.0)
+		Fx.particles(world, Vector2(34, 124), Color(1, 0.94, 0.55), 10, 50.0, 0.4, -30.0, 1.5)
 
 
 func set_player_active(on: bool) -> void:

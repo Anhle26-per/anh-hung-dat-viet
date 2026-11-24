@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -135,29 +136,141 @@ func open_hero(id: String) -> void:
 
 # ------------------------------------------------------------------ Lò rèn
 
-func open_forge() -> void:
-	var box := _begin("Lò rèn - Nâng cấp vĩnh viễn")
-	box.add_child(UI.label("Xu hiện có: %d" % Global.coins, 16, Color(1, 0.88, 0.45)))
-	for id in Global.UPGRADES:
-		var u: Dictionary = Global.UPGRADES[id]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		box.add_child(row)
-		var lv := Global.upgrade(id)
-		var name_l := UI.label("%s  (%d/%d)" % [u.name, lv, int(u.max)], 17, Color(1, 0.9, 0.6))
-		name_l.custom_minimum_size = Vector2(180, 0)
-		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		row.add_child(name_l)
-		var d := UI.label(u.desc, 14, Color(0.9, 0.88, 0.85))
-		d.custom_minimum_size = Vector2(220, 0)
-		d.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		row.add_child(d)
-		if lv >= int(u.max):
-			row.add_child(UI.label("Đã tối đa", 15, Color(0.6, 0.9, 0.6)))
+func _mat_icon(mid: String, px: float = 12.0) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = Art.tex(MaterialData.DATA[mid].icon)
+	icon.custom_minimum_size = Vector2(px, px)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	return icon
+
+
+func _do_craft(wid: String) -> void:
+	if Global.try_craft(wid):
+		Sfx.play("forge")
+		if lobby != null:
+			lobby.on_forged()
+		open_forge("craft")
+
+
+func open_forge(tab: String = "upgrade") -> void:
+	var title := "Lò rèn - Nâng cấp vĩnh viễn" if tab == "upgrade" else "Lò rèn - Rèn binh khí"
+	var box := _begin(title)
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	box.add_child(tabs)
+	var b_up := UI.button("Nâng cấp", open_forge.bind("upgrade"), 14, 120.0)
+	b_up.disabled = (tab == "upgrade")
+	var b_cr := UI.button("Rèn binh khí", open_forge.bind("craft"), 14, 130.0)
+	b_cr.disabled = (tab == "craft")
+	tabs.add_child(b_up)
+	tabs.add_child(b_cr)
+	if tab == "upgrade":
+		box.add_child(UI.label("Xu hiện có: %d" % Global.coins, 16, Color(1, 0.88, 0.45)))
+		for id in Global.UPGRADES:
+			var u: Dictionary = Global.UPGRADES[id]
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 10)
+			box.add_child(row)
+			var lv := Global.upgrade(id)
+			var name_l := UI.label("%s  (%d/%d)" % [u.name, lv, int(u.max)], 17, Color(1, 0.9, 0.6))
+			name_l.custom_minimum_size = Vector2(180, 0)
+			name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(name_l)
+			var d := UI.label(u.desc, 14, Color(0.9, 0.88, 0.85))
+			d.custom_minimum_size = Vector2(220, 0)
+			d.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(d)
+			if lv >= int(u.max):
+				row.add_child(UI.label("Đã tối đa", 15, Color(0.6, 0.9, 0.6)))
+			else:
+				row.add_child(UI.button("%d xu" % Global.upgrade_cost(id), func():
+					if Global.try_upgrade(id):
+						open_forge("upgrade"), 15, 100.0))
+	else:
+		var inv := HBoxContainer.new()
+		inv.alignment = BoxContainer.ALIGNMENT_CENTER
+		inv.add_theme_constant_override("separation", 8)
+		box.add_child(inv)
+		inv.add_child(UI.label("Xu: %d" % Global.coins, 13, Color(1, 0.88, 0.45)))
+		for mid in MaterialData.ORDER:
+			var md: Dictionary = MaterialData.DATA[mid]
+			var cell := HBoxContainer.new()
+			cell.add_theme_constant_override("separation", 3)
+			cell.add_child(_mat_icon(str(mid), 13.0))
+			var cnt: int = Global.material_count(str(mid))
+			var col: Color = md.color if cnt > 0 else Color(0.55, 0.55, 0.55)
+			cell.add_child(UI.label(str(cnt), 13, col))
+			inv.add_child(cell)
+		if Global.forged != "" and WeaponData.DATA.has(Global.forged):
+			var pend := HBoxContainer.new()
+			pend.alignment = BoxContainer.ALIGNMENT_CENTER
+			pend.add_theme_constant_override("separation", 6)
+			var pw := TextureRect.new()
+			pw.texture = Art.tex("weapons/%s.png" % Global.forged)
+			pw.custom_minimum_size = Vector2(24, 14)
+			pw.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pw.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			pend.add_child(UI.label("Chờ ra trận:", 13, Color(0.65, 0.95, 0.65)))
+			pend.add_child(pw)
+			pend.add_child(UI.label(WeaponData.DATA[Global.forged].name, 13, WeaponData.tier_color(Global.forged)))
+			box.add_child(pend)
+		var wids: Array = Global.forgeable_weapons()
+		if wids.is_empty():
+			box.add_child(UI.label("Chưa có công thức. Hãy thu thập binh khí cấp 2 trở lên trong hầm ngục!", 13, Color(0.85, 0.82, 0.78)))
 		else:
-			row.add_child(UI.button("%d xu" % Global.upgrade_cost(id), func():
-				if Global.try_upgrade(id):
-					open_forge(), 15, 100.0))
+			var scroll := ScrollContainer.new()
+			scroll.custom_minimum_size = Vector2(572, 165)
+			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			box.add_child(scroll)
+			var list := VBoxContainer.new()
+			list.add_theme_constant_override("separation", 4)
+			scroll.add_child(list)
+			for wid in wids:
+				var w: Dictionary = WeaponData.DATA[wid]
+				var rec: Dictionary = MaterialData.recipe_for(str(wid))
+				var row := HBoxContainer.new()
+				row.add_theme_constant_override("separation", 6)
+				list.add_child(row)
+				var wicon := TextureRect.new()
+				wicon.texture = Art.tex("weapons/%s.png" % wid)
+				wicon.custom_minimum_size = Vector2(26, 16)
+				wicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				wicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				row.add_child(wicon)
+				var nl := UI.label(w.name, 13, WeaponData.tier_color(str(wid)))
+				nl.custom_minimum_size = Vector2(118, 0)
+				nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+				row.add_child(nl)
+				var reqs := HBoxContainer.new()
+				reqs.add_theme_constant_override("separation", 6)
+				reqs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(reqs)
+				var mats: Dictionary = rec.mats
+				for mid in MaterialData.ORDER:
+					if not mats.has(mid):
+						continue
+					var need: int = int(mats[mid])
+					var have: int = Global.material_count(str(mid))
+					var ok: bool = have >= need
+					var mc := HBoxContainer.new()
+					mc.add_theme_constant_override("separation", 2)
+					mc.add_child(_mat_icon(str(mid), 11.0))
+					var ml := UI.label("%d/%d" % [have, need], 12, Color(0.88, 0.92, 0.88) if ok else Color(1, 0.35, 0.35))
+					mc.add_child(ml)
+					reqs.add_child(mc)
+				var need_c: int = int(rec.coins)
+				var ok_c: bool = Global.coins >= need_c
+				reqs.add_child(UI.label("%d xu" % need_c, 12, Color(1, 0.88, 0.45) if ok_c else Color(1, 0.35, 0.35)))
+				if Global.forged != "":
+					var wb := UI.button("Đã có binh khí chờ ra trận", func(): pass, 11, 152.0)
+					wb.disabled = true
+					row.add_child(wb)
+				else:
+					var cb := UI.button("Rèn", _do_craft.bind(str(wid)), 13, 64.0)
+					cb.disabled = not Global.can_craft(str(wid))
+					row.add_child(cb)
 	_end(box)
 
 

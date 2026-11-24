@@ -4,6 +4,7 @@ extends CanvasLayer
 
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 
@@ -97,6 +98,26 @@ func draw_hud(ci: Control) -> void:
 	ci.draw_texture_rect_region(_icons.coin, Rect2(w - 92, 25, 9, 9), Rect2(0, 0, 9, 9))
 	Art.draw_text(ci, Vector2(w - 79, 34), str(Global.run_coins), 16, Color(1, 0.88, 0.45), false)
 	_draw_minimap(ci, Vector2(w - 96, 40), Vector2(88, 64))
+	if not Global.run_materials.is_empty():
+		var items: Array = []
+		for mid in MaterialData.ORDER:
+			var cnt: int = int(Global.run_materials.get(mid, 0))
+			if cnt > 0:
+				items.append([mid, cnt])
+		if not items.is_empty():
+			var rows: int = (items.size() + 1) / 2
+			_panel(ci, Rect2(w - 100, 110, 96, rows * 14 + 6))
+			for idx in items.size():
+				var pair: Array = items[idx]
+				var mid: String = str(pair[0])
+				var cnt: int = int(pair[1])
+				var md: Dictionary = MaterialData.DATA[mid]
+				var col_idx: int = idx % 2
+				var row_idx: int = idx / 2
+				var mx: float = w - 95.0 + col_idx * 46.0
+				var my: float = 114.0 + row_idx * 14.0
+				ci.draw_texture_rect(Art.tex(md.icon), Rect2(mx, my, 10, 10), false)
+				Art.draw_text(ci, Vector2(mx + 12, my + 9), str(cnt), 13, md.color, false)
 
 	# --- Thanh máu trùm
 	var boss = get_tree().get_first_node_in_group("boss")
