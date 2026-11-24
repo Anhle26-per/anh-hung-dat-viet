@@ -662,6 +662,10 @@ func abandon_run() -> int:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED:
 		save_on_exit()
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_inside_tree():
+		var sfx: Node = get_tree().root.get_node_or_null("Sfx")
+		if sfx != null and sfx.has_method("cleanup"):
+			sfx.cleanup()
 
 
 func save_on_exit() -> void:

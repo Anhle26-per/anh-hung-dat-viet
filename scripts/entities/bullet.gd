@@ -46,6 +46,7 @@ var _returning := false
 var _start_life := 1.0
 var _spr: Node2D
 var _trail_t := 0.0
+var _floor_chk_t := 0.0
 
 
 func setup(player_owned: bool, pos: Vector2, direction: Vector2, spd: float, dmg: int, lifetime: float, kind: String) -> void:
@@ -133,6 +134,15 @@ func _physics_process(delta: float) -> void:
 	life -= delta
 	if life <= 0.0:
 		_finish()
+		return
+	_floor_chk_t += delta
+	if _floor_chk_t >= 0.1:
+		_floor_chk_t = 0.0
+		var d = get_tree().get_first_node_in_group("dungeon")
+		if d != null and d.tiles != null:
+			var cell: Vector2i = d.tiles.local_to_map(d.tiles.to_local(global_position))
+			if d.tiles.get_cell_source_id(cell) == -1:
+				_finish()
 
 
 func _nearest_enemy():

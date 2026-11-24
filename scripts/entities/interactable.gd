@@ -45,5 +45,8 @@ func _exit_tree() -> void:
 func draw_hint(y: float) -> void:
 	if not near or hint() == "":
 		return
+	var p = get_tree().get_first_node_in_group("player")
+	if p == null or not is_instance_valid(p) or p.interact_target != self:
+		return
 	var key := "DÙNG" if Global.touch_mode else "E"
 	Art.draw_text(self, Vector2(0, y), "%s: %s" % [key, hint()], 13, Color(1, 0.95, 0.75))

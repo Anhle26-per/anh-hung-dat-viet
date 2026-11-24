@@ -78,7 +78,9 @@ func _process(delta: float) -> void:
 		"weapon":
 			_near = d < 22.0
 			if _near:
-				p.nearby_pickup = self
+				if p.nearby_pickup == null or not is_instance_valid(p.nearby_pickup) or p.nearby_pickup == self \
+						or d < p.global_position.distance_to(p.nearby_pickup.global_position):
+					p.nearby_pickup = self
 			elif p.nearby_pickup == self:
 				p.nearby_pickup = null
 
@@ -133,7 +135,7 @@ func _draw() -> void:
 	# mũi tên nhấp nhô chỉ vào vũ khí
 	var ay := -20.0 - absf(sin(_t * 5.0)) * 4.0
 	draw_colored_polygon(PackedVector2Array([Vector2(-4, ay), Vector2(4, ay), Vector2(0, ay + 5)]), col)
-	if _near:
+	if is_showing_label():
 		var p = get_tree().get_first_node_in_group("player")
 		var syn_line: String = ""
 		var syn_c := Color(0.8, 0.9, 1.0)
@@ -154,3 +156,10 @@ func _draw() -> void:
 		Art.draw_text(self, Vector2(0, -34), "[%s] %s" % [WeaponData.TIER_NAMES[tier], w.desc], 12, Color(0.95, 0.9, 0.8))
 		var stats := "Sát thương %d   Tốc độ %.2fs   Năng lượng %d" % [int(w.damage) * int(w.get("count", 1)), float(w.cooldown), int(w.get("energy", 0))]
 		Art.draw_text(self, Vector2(0, -25), stats, 12, Color(0.7, 0.88, 1.0))
+
+
+func is_showing_label() -> bool:
+	if not _near or not is_inside_tree():
+		return false
+	var p = get_tree().get_first_node_in_group("player")
+	return p != null and is_instance_valid(p) and p.nearby_pickup == self

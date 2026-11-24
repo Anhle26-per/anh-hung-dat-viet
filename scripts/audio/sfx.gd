@@ -167,6 +167,20 @@ func stop_all_sfx() -> void:
 	_last_play_ms.clear()
 
 
+func cleanup() -> void:
+	stop_music()
+	stop_all_sfx()
+	if _music_player != null and is_instance_valid(_music_player):
+		_music_player.stream = null
+	for p in _pool:
+		if is_instance_valid(p):
+			p.stream = null
+			p.queue_free()
+	_pool.clear()
+	_sfx_streams.clear()
+	_music_streams.clear()
+
+
 func play_count(id: String) -> int:
 	return int(_play_counts.get(id, 0))
 

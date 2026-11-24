@@ -13,6 +13,7 @@ const EnemyData = preload("res://scripts/data/enemies.gd")
 var player = null
 var _banner := ""
 var _banner_t := 0.0
+var _banner_queue: Array[String] = []
 var _chapter: Dictionary = {}
 var _chapter_num := 0
 var _chapter_t := 0.0
@@ -45,8 +46,12 @@ func _ready() -> void:
 
 
 func show_banner(text: String) -> void:
-	_banner = text
-	_banner_t = 2.4
+	if _banner_t > 0.0:
+		if _banner_queue.size() < 3:
+			_banner_queue.append(text)
+	else:
+		_banner = text
+		_banner_t = 2.0
 
 
 func show_chapter(num: int, ch: Dictionary) -> void:
@@ -62,6 +67,9 @@ func show_cutin(hero_id: String) -> void:
 
 func _process(delta: float) -> void:
 	_banner_t -= delta
+	if _banner_t <= 0.0 and not _banner_queue.is_empty():
+		_banner = _banner_queue.pop_front()
+		_banner_t = 2.0
 	_chapter_t -= delta
 	_cutin_t -= delta
 
