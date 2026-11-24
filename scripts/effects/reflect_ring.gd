@@ -8,6 +8,8 @@ const TEXT := "NAM QUỐC SƠN HÀ NAM ĐẾ CƯ  "
 
 var life := 5.0
 var radius := 30.0
+var damage_mult := 1.0
+var pierce_bonus := 0
 var _t := 0.0
 
 
@@ -26,7 +28,8 @@ func _process(delta: float) -> void:
 		if global_position.distance_to(b.global_position) < radius + 3.0:
 			var nb := Bullet.new()
 			var dir: Vector2 = (b.global_position - global_position).normalized()
-			nb.setup(true, b.global_position, dir, 320.0, 4, 0.8, b.proj)
+			nb.setup(true, b.global_position, dir, 320.0, int(round(4.0 * damage_mult)), 0.8, b.proj)
+			nb.pierce = pierce_bonus
 			nb.color = Color(1, 0.85, 0.4)
 			world.add_child(nb)
 			b.destroy()

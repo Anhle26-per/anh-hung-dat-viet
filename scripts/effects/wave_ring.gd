@@ -5,6 +5,7 @@ const Art = preload("res://scripts/art/art.gd")
 
 var radius := 110.0
 var damage := 5
+var knock := 120.0
 var stun := 0.0
 var color := Color(1.0, 0.8, 0.4)
 var notes := false
@@ -27,7 +28,7 @@ func _process(delta: float) -> void:
 			continue
 		if global_position.distance_to(e.global_position) <= _r + e.radius:
 			_hit.append(e)
-			e.take_damage(damage, (e.global_position - global_position).normalized() * 120.0)
+			e.take_damage(damage, (e.global_position - global_position).normalized() * knock)
 			if stun > 0.0 and e.has_method("apply_stun"):
 				e.apply_stun(stun)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):

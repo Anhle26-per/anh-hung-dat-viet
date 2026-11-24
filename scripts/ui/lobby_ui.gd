@@ -4,6 +4,7 @@ extends CanvasLayer
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
+const SynergyData = preload("res://scripts/data/synergy.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -104,14 +105,26 @@ func open_hero(id: String) -> void:
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(pic)
 	var info := VBoxContainer.new()
-	info.custom_minimum_size = Vector2(300, 0)
+	info.custom_minimum_size = Vector2(360, 0)
 	row.add_child(info)
 	var w := WeaponData.get_data(h.weapon)
-	for l in [UI.label(h.era, 15, Color(0.85, 0.8, 0.75)),
-			UI.label("Vũ khí cơ bản: %s" % w.name, 16, Color(0.9, 0.9, 0.95)),
-			UI.label("Chiêu: %s" % h.skill_name, 17, Color(0.6, 0.88, 1.0)),
-			UI.label(h.skill_desc, 14, Color(0.9, 0.88, 0.85), true),
-			UI.label("Máu %d   Giáp %d   Năng lượng %d" % [h.hp, h.armor, h.energy], 14, Color(0.95, 0.8, 0.65))]:
+	var fam: String = SynergyData.family(h.weapon)
+	var sig: String = SynergyData.signature_for(id)
+	var hd: Dictionary = SynergyData.HERO_DESC.get(id, {})
+	var lines: Array = [
+		UI.label(h.era, 14, Color(0.85, 0.8, 0.75)),
+		UI.label("Khởi đầu: %s [%s]" % [w.name, SynergyData.family_name(fam)], 15, Color(0.9, 0.9, 0.95)),
+	]
+	if sig != "" and WeaponData.DATA.has(sig):
+		lines.append(UI.label("Định mệnh (★★): %s" % WeaponData.DATA[sig].name, 14, Color(1.0, 0.85, 0.35)))
+	lines.append(UI.label("Chiêu: %s" % h.skill_name, 16, Color(0.6, 0.88, 1.0)))
+	lines.append(UI.label(h.skill_desc, 13, Color(0.9, 0.88, 0.85), true))
+	if not hd.is_empty():
+		lines.append(UI.label("★ Cùng hệ: %s" % str(hd.get("lv1", "")), 12, Color(0.84, 0.88, 0.96), true))
+		lines.append(UI.label("★★ Tâm đắc: %s" % str(hd.get("lv2", "")), 12, Color(1.0, 0.88, 0.38), true))
+	lines.append(UI.label(SynergyData.IMPRINT_INTRO, 12, Color(0.75, 0.92, 0.78), true))
+	lines.append(UI.label("Máu %d   Giáp %d   Năng lượng %d" % [h.hp, h.armor, h.energy], 13, Color(0.95, 0.8, 0.65)))
+	for l in lines:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		info.add_child(l)
 	var msg := UI.label("", 14, Color(1, 0.6, 0.5))

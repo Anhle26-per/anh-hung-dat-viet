@@ -37,6 +37,8 @@ var knock := 60.0
 var homing := 0.0
 var boomerang := false
 var owner_node = null
+var stun_duration := 0.0
+var burn_duration := 2.2
 var _hit: Array = []
 var _done := false
 var _t := 0.0
@@ -155,9 +157,13 @@ func _on_body_entered(body: Node) -> void:
 		_hit.append(body)
 		Sfx.play("hit_bullet")
 		body.take_damage(damage, dir * knock)
+		if stun_duration > 0.0 and is_instance_valid(body) and not body.dead and body.has_method("apply_stun"):
+			body.apply_stun(stun_duration)
+		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_hit_enemy") and is_instance_valid(body):
+			owner_node.on_hit_enemy(body)
 		var st: String = PROJ.get(proj, {}).get("status", "")
 		if st != "" and is_instance_valid(body):
-			body.apply_status(st, 2.2)
+			body.apply_status(st, burn_duration if st == "burn" else 2.2)
 		Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, color.lerp(Color(1, 0.9, 0.6), 0.5), true)
 		if pierce > 0:
 			pierce -= 1

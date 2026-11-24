@@ -5,6 +5,8 @@ const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
 const LIFE := 6.0
+var life_time := LIFE
+var stun_time := 0.0
 var _life := LIFE
 var _cd := {}
 var _spr: AnimatedSprite2D
@@ -12,6 +14,7 @@ var _sinking := false
 
 
 func _ready() -> void:
+	_life = life_time
 	z_index = 1
 	_spr = AnimatedSprite2D.new()
 	_spr.sprite_frames = Art.frames("fx/stake.png", 14, 26, {
@@ -46,6 +49,8 @@ func _process(delta: float) -> void:
 			if _cd.get(id, 0.0) <= 0.0:
 				_cd[id] = 0.5
 				e.take_damage(3, (e.global_position - global_position).normalized() * 160.0)
+				if stun_time > 0.0 and is_instance_valid(e) and not e.dead and e.has_method("apply_stun"):
+					e.apply_stun(stun_time)
 				Fx.particles(get_parent(), global_position + Vector2(0, -6), Color(0.6, 0.85, 1.0), 4, 50.0, 0.3)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if global_position.distance_to(b.global_position) < 9.0:

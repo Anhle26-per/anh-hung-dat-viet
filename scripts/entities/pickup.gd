@@ -3,6 +3,7 @@ extends Node2D
 
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
+const SynergyData = preload("res://scripts/data/synergy.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
@@ -133,6 +134,22 @@ func _draw() -> void:
 	var ay := -20.0 - absf(sin(_t * 5.0)) * 4.0
 	draw_colored_polygon(PackedVector2Array([Vector2(-4, ay), Vector2(4, ay), Vector2(0, ay + 5)]), col)
 	if _near:
+		var p = get_tree().get_first_node_in_group("player")
+		var syn_line: String = ""
+		var syn_c := Color(0.8, 0.9, 1.0)
+		var imp_name: String = SynergyData.imprint_name(weapon_id)
+		if p != null:
+			var slv: int = SynergyData.level(p.hero_id, weapon_id)
+			if slv == 2:
+				syn_line = "★★ Binh khí định mệnh  |  Ấn: %s" % imp_name
+				syn_c = Color(1.0, 0.88, 0.35)
+			elif slv == 1:
+				syn_line = "★ Hợp chiêu  |  Ấn: %s" % imp_name
+				syn_c = Color(0.84, 0.9, 0.98)
+			else:
+				syn_line = "Ấn: %s" % imp_name
+				syn_c = SynergyData.family_color(SynergyData.family(weapon_id))
+			Art.draw_text(self, Vector2(0, -54), syn_line, 11, syn_c)
 		Art.draw_text(self, Vector2(0, -44), w.name, 16, col)
 		Art.draw_text(self, Vector2(0, -34), "[%s] %s" % [WeaponData.TIER_NAMES[tier], w.desc], 12, Color(0.95, 0.9, 0.8))
 		var stats := "Sát thương %d   Tốc độ %.2fs   Năng lượng %d" % [int(w.damage) * int(w.get("count", 1)), float(w.cooldown), int(w.get("energy", 0))]

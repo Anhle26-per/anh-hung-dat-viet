@@ -3,6 +3,7 @@ extends Control
 
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const SynergyData = preload("res://scripts/data/synergy.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -91,7 +92,7 @@ func _ready() -> void:
 	for id in HeroData.ORDER:
 		row.add_child(_make_card(id))
 
-	_msg_label = UI.label("Vuốt / lăn chuột để xem thêm tướng", 14, Color(0.8, 0.75, 0.7))
+	_msg_label = UI.label("Vuốt / lăn chuột để xem thêm tướng  |  " + SynergyData.IMPRINT_INTRO, 12, Color(0.82, 0.8, 0.74))
 	root.add_child(_msg_label)
 	var bottom := HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -105,25 +106,31 @@ func _ready() -> void:
 func _make_card(id: String) -> Control:
 	var h: Dictionary = HeroData.DATA[id]
 	var w := WeaponData.get_data(h.weapon)
+	var fam: String = SynergyData.family(h.weapon)
+	var sig: String = SynergyData.signature_for(id)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(150, 0)
+	panel.custom_minimum_size = Vector2(184, 0)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
 	panel.add_child(box)
 	var p := Portrait.new()
 	p.hero_id = id
 	p.hero = h
-	p.custom_minimum_size = Vector2(0, 72)
+	p.custom_minimum_size = Vector2(0, 62)
 	box.add_child(p)
-	box.add_child(UI.label(h.name, 20, Color(1, 0.85, 0.4)))
-	box.add_child(UI.label(h.era, 12, Color(0.78, 0.74, 0.72), true))
-	box.add_child(UI.label("Vũ khí: %s" % w.name, 15, WeaponData.tier_color(h.weapon)))
-	box.add_child(UI.label("Chiêu: %s" % h.skill_name, 15, Color(0.6, 0.88, 1.0)))
-	var desc := UI.label(h.skill_desc, 12, Color(0.85, 0.82, 0.8), true)
+	box.add_child(UI.label(h.name, 19, Color(1, 0.85, 0.4)))
+	box.add_child(UI.label(h.era, 11, Color(0.78, 0.74, 0.72), true))
+	box.add_child(UI.label("%s [%s]" % [w.name, SynergyData.family_name(fam)], 13, WeaponData.tier_color(h.weapon)))
+	if sig != "" and WeaponData.DATA.has(sig):
+		box.add_child(UI.label("Định mệnh: %s" % WeaponData.DATA[sig].name, 11, Color(1.0, 0.82, 0.35)))
+	box.add_child(UI.label("Chiêu: %s" % h.skill_name, 14, Color(0.6, 0.88, 1.0)))
+	var desc := UI.label(h.skill_desc, 11, Color(0.85, 0.82, 0.8), true)
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(desc)
-	box.add_child(UI.label("Máu %d  Giáp %d  NL %d" % [h.hp, h.armor, h.energy], 13, Color(0.9, 0.78, 0.65)))
-	var btn := UI.button("", _on_card_pressed.bind(id), 16, 128.0)
+	var syn_s := UI.label(str(h.get("synergy_desc", "")), 11, Color(0.95, 0.86, 0.55), true)
+	box.add_child(syn_s)
+	box.add_child(UI.label("Máu %d  Giáp %d  NL %d" % [h.hp, h.armor, h.energy], 12, Color(0.9, 0.78, 0.65)))
+	var btn := UI.button("", _on_card_pressed.bind(id), 15, 128.0)
 	box.add_child(UI.center(btn))
 	_cards[id] = {"panel": panel, "button": btn, "portrait": p}
 	return panel

@@ -5,6 +5,7 @@ extends CanvasLayer
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
+const SynergyData = preload("res://scripts/data/synergy.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 
@@ -89,6 +90,10 @@ func draw_hud(ci: Control) -> void:
 		if bx0 > 140.0:
 			bx0 = 6.0
 			by0 += 18.0
+	if player.rapid_reload_timer > 0.0:
+		var ry: float = by0 + (20.0 if not Global.run_buffs.is_empty() else 0.0)
+		_panel(ci, Rect2(4, ry, 118, 16))
+		Art.draw_text(ci, Vector2(10, ry + 12), "Nạp nhanh %.1fs" % player.rapid_reload_timer, 12, SynergyData.family_color("sung"), false)
 
 	# --- Màn + xu + bản đồ nhỏ
 	_panel(ci, Rect2(w - 100, 4, 96, 104))
@@ -132,25 +137,32 @@ func draw_hud(ci: Control) -> void:
 
 	# --- Vũ khí + kỹ năng (máy tính). Trên điện thoại thì nằm trên nút ảo.
 	if not Global.touch_mode:
-		_panel(ci, Rect2(w - 214, h - 62, 210, 58))
+		_panel(ci, Rect2(w - 234, h - 76, 230, 72))
 		for i in 2:
 			var id: String = player.weapons[i]
-			var y := h - 56 + i * 18
+			var y := h - 70 + i * 18
 			var sel: bool = i == player.slot
 			if sel:
-				ci.draw_rect(Rect2(w - 210, y - 1, 202, 17), Color(1, 0.85, 0.4, 0.15))
+				ci.draw_rect(Rect2(w - 230, y - 1, 222, 17), Color(1, 0.85, 0.4, 0.15))
 			if id == "":
-				Art.draw_text(ci, Vector2(w - 170, y + 12), "(trống)", 14, Color(0.6, 0.6, 0.6), false)
+				Art.draw_text(ci, Vector2(w - 190, y + 12), "(trống)", 14, Color(0.6, 0.6, 0.6), false)
 				continue
 			var wd := WeaponData.get_data(id)
 			var tex := Art.tex("weapons/%s.png" % id)
 			var sc := minf(36.0 / tex.get_width(), 16.0 / tex.get_height())
-			ci.draw_texture_rect(tex, Rect2(w - 208, y + 8 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
+			ci.draw_texture_rect(tex, Rect2(w - 228, y + 8 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
 			var txt: String = wd.name + ("" if int(wd.get("energy", 0)) == 0 else "  %d" % int(wd.energy))
-			Art.draw_text(ci, Vector2(w - 168, y + 12), txt, 15, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
+			Art.draw_text(ci, Vector2(w - 188, y + 12), txt, 15, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
 		var ready: bool = player.skill_timer <= 0.0
 		var sk := "Sẵn sàng" if ready else "%.1fs" % player.skill_timer
-		Art.draw_text(ci, Vector2(w - 208, h - 9), "[Space] %s: %s" % [player.hero.skill_name, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)
+		Art.draw_text(ci, Vector2(w - 228, h - 22), "[Space] %s: %s" % [player.hero.skill_name, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)
+		var cur_wid: String = player.weapons[player.slot]
+		var syn_lv: int = SynergyData.level(player.hero_id, cur_wid)
+		var syn_fam: String = SynergyData.family(cur_wid)
+		var syn_txt: String = "★★ Tâm đắc" if syn_lv == 2 else ("★ Cùng hệ" if syn_lv == 1 else "Chưa đồng điệu")
+		var syn_col: Color = Color(1.0, 0.88, 0.35) if syn_lv == 2 else (Color(0.84, 0.88, 0.96) if syn_lv == 1 else Color(0.62, 0.62, 0.66))
+		Art.draw_text(ci, Vector2(w - 228, h - 7), syn_txt, 12, syn_col, false)
+		Art.draw_text(ci, Vector2(w - 118, h - 7), "Ấn: %s" % SynergyData.imprint_name(cur_wid), 12, SynergyData.family_color(syn_fam), false)
 
 	# --- Gợi ý nhặt vũ khí
 	if player.nearby_pickup != null and is_instance_valid(player.nearby_pickup):

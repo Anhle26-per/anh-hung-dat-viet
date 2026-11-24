@@ -7,6 +7,7 @@ const Fx = preload("res://scripts/effects/fx.gd")
 var target := Vector2.ZERO
 var radius := 20.0
 var life := 4.0
+var instant := false
 var _burning := false
 var _cd := {}
 var _pt := 0.0
@@ -18,6 +19,9 @@ func _ready() -> void:
 	_pot = Sprite2D.new()
 	_pot.texture = Art.tex("fx/fire_pot.png")
 	add_child(_pot)
+	if instant:
+		_ignite()
+		return
 	var tw := create_tween()
 	tw.tween_property(self, "position", target, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(_pot, "position:y", -14.0, 0.17).set_ease(Tween.EASE_OUT)
