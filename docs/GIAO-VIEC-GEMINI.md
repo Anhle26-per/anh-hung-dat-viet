@@ -22,7 +22,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G03 | Menu cài đặt và độ khó | 1 | G02 (âm lượng) | **Xong** 24/11/2026 (Gemini làm, đã qua K1, settings, run_save, audio, K2) |
 | G15 | Âm thanh va chạm | 1 | G02, G03 | **Xong** 24/11/2026 (Gemini làm, đã qua K1, audio, settings, K2) |
 | G14 | Gọn nhịp hầm ngục | 1 | — | **Xong** 24/11/2026 (Gemini làm, đã qua K1, pacing, K2) |
-| G16 | Nguyên liệu rơi và Lò rèn binh khí | 1 | G01, G02 | Chưa làm |
+| G16 | Nguyên liệu rơi và Lò rèn binh khí | 1 | G01, G02 | **Xong** 24/11/2026 (Gemini làm, đã qua K1, craft, run_save, settings, audio, K2) |
 | G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | Chưa làm |
 | G05 | Sửa lỗi nhỏ (đạn bay vùng tối, chữ chồng nhau) | 1 | — | Chưa làm |
 | N1 | Menu mạng và phòng chờ LAN | 2 | G04 | Chưa làm |
