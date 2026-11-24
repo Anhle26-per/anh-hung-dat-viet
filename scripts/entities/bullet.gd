@@ -153,6 +153,7 @@ func _on_body_entered(body: Node) -> void:
 		if _hit.has(body):
 			return
 		_hit.append(body)
+		Sfx.play("hit_bullet")
 		body.take_damage(damage, dir * knock)
 		var st: String = PROJ.get(proj, {}).get("status", "")
 		if st != "" and is_instance_valid(body):
@@ -169,6 +170,7 @@ func _on_body_entered(body: Node) -> void:
 			body.status.apply(st2, 1.6 if st2 == "burn" else 2.8)
 		_finish()
 	elif body is TileMapLayer or body is StaticBody2D:
+		Sfx.play("hit_wall")
 		if boomerang:
 			_returning = true
 			return

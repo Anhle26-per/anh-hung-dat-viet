@@ -24,6 +24,13 @@ Tên tệp được giữ cố định để có thể thay thế trực tiếp 
 - `ui_click.wav` — bấm nút giao diện
 - `player_die.wav` — người chơi ngã xuống
 - `skill.wav` — tung kỹ năng tướng / sóng trống đồng
+- `hit_flesh.wav` — chém hoặc đâm trúng giặc
+- `hit_bullet.wav` — đạn hoặc tên trúng giặc
+- `hit_metal.wav` — trúng khiên hoặc giáp (keng)
+- `hit_wall.wav` — đạn chạm tường hoặc đá
+- `hit_wood.wav` — đánh trúng gỗ / hình nhân rơm / cọc / rương
+- `hit_crit.wav` — đòn chí mạng
+- `hit_boss.wav` — đòn trúng trùm / Tam Yêu
 
 ### Nhạc nền (`assets/audio/music/`)
 - `lobby.wav` — nhạc nền menu chính và sảnh Doanh trại (85 BPM, ngũ cung Việt)

@@ -43,6 +43,7 @@ func take_damage(amount: int, _knock := Vector2.ZERO) -> void:
 	_hits.append([Time.get_ticks_msec() / 1000.0, dmg])
 	_hit_t = 0.12
 	_spr.play("hit")
+	Sfx.play("hit_wood")
 	Fx.float_text(get_parent(), global_position + Vector2(randf_range(-6, 6), -26), ("%d!" % dmg) if crit else str(dmg), Color(1, 0.85, 0.3) if crit else Color.WHITE, 14)
 
 

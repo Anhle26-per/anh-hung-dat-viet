@@ -106,8 +106,9 @@ func _run() -> void:
 	print("== (c) Phát 20 tiếng cùng lúc, số tiếng đang kêu <= 8")
 	Sfx.stop_all_sfx()
 	await _frames(1)
+	var keys: Array = Sfx.SFX_FILES.keys()
 	for i in 20:
-		Sfx.play("boss_appear")
+		Sfx.play(str(keys[i % keys.size()]))
 	var playing_now: int = Sfx.active_sfx_count()
 	print("   active_sfx_count sau 20 lần play = %d" % playing_now)
 	_check(playing_now > 0, "không có tiếng nào phát ở chế độ headless")
@@ -133,3 +134,44 @@ func _run() -> void:
 		_check(AudioServer.is_bus_mute(sfx_idx), "set_sfx_volume(0) không tắt tiếng bus SFX")
 		Sfx.set_sfx_volume(0.85)
 		_check(not AudioServer.is_bus_mute(sfx_idx), "set_sfx_volume(0.85) không mở lại tiếng bus SFX")
+
+	print("== (g) Đủ 7 tiếng va chạm mới")
+	for nid in ["hit_flesh", "hit_bullet", "hit_metal", "hit_wall", "hit_wood", "hit_crit", "hit_boss"]:
+		_check(Sfx.SFX_FILES.has(nid), "thiếu khóa mới: " + nid)
+		var npath: String = str(Sfx.SFX_FILES.get(nid, ""))
+		_check(FileAccess.file_exists(npath), "thiếu tệp mới: " + npath)
+		_check(load(npath) is AudioStreamWAV, "không nạp được AudioStreamWAV: " + npath)
+
+	print("== (h) Chống ồn: gọi hit_bullet 30 lần trong 1 khung chỉ phát 1 tiếng")
+	Sfx.stop_all_sfx()
+	await _frames(1)
+	Sfx.reset_play_counts()
+	for i in 30:
+		Sfx.play("hit_bullet")
+	_check(Sfx.play_count("hit_bullet") == 1, "hit_bullet phát %d lần trong 1 khung (phải là 1)" % Sfx.play_count("hit_bullet"))
+	_check(Sfx.active_sfx_count() == 1, "số kênh kêu = %d (phải là 1)" % Sfx.active_sfx_count())
+	Sfx.stop_all_sfx()
+
+	print("== (i) Bắn 1 viên đạn trúng giặc phát hit_bullet")
+	await _frames(1)
+	Sfx.reset_play_counts()
+	var EnemyScript = load("res://scripts/entities/enemy.gd")
+	var BulletScript = load("res://scripts/entities/bullet.gd")
+	var arena := Node2D.new()
+	add_child(arena)
+	var foe = EnemyScript.new()
+	foe.setup("bo_binh", 1, null)
+	foe.position = Vector2(200, 200)
+	arena.add_child(foe)
+	foe._spawn_t = 0.0
+	var proj = BulletScript.new()
+	proj.setup(true, Vector2(170, 200), Vector2.RIGHT, 420.0, 1, 1.0, "bullet")
+	arena.add_child(proj)
+	for f in 20:
+		await get_tree().physics_frame
+		if Sfx.play_count("hit_bullet") >= 1:
+			break
+	_check(Sfx.play_count("hit_bullet") >= 1, "bắn đạn trúng giặc không phát hit_bullet")
+	arena.queue_free()
+	await _frames(2)
+	Sfx.stop_all_sfx()

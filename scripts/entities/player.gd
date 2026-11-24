@@ -444,6 +444,8 @@ func _melee(w: Dictionary, offset := Vector2.ZERO) -> void:
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if _in_arc(b.global_position - offset, reach + 4.0, arc, 4.0):
 			b.destroy()
+	if first_hit != null and offset == Vector2.ZERO:
+		Sfx.play("hit_flesh")
 	if offset != Vector2.ZERO:
 		Fx.slash(get_parent(), global_position + offset, aim_dir, reach, arc, Color(1, 0.7, 0.85), style)
 		return

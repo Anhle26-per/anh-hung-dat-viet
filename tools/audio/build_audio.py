@@ -332,6 +332,92 @@ def gen_sfx() -> dict[str, list[float]]:
     add_tone_seq(buf, [(0.0, 0.10, "tri", PENTA["C5"]), (0.07, 0.12, "tri", PENTA["G5"]), (0.14, 0.24, "sq25", PENTA["C6"])], 0.35)
     out["skill"] = normalize(buf, 0.82)
 
+    # 20. hit_flesh: chém hoặc đâm trúng giặc
+    rng = random.Random(120)
+    n = int(0.11 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 290.0 * (0.3 ** (t / 0.11)) + 65.0
+        ph += f / SAMPLE_RATE
+        lp = lp * 0.55 + rng.uniform(-1.0, 1.0) * 0.45
+        buf.append((0.55 * math.sin(2.0 * math.pi * ph) + 0.5 * lp) * env_ad(t, 0.11, 0.002, 1.9))
+    out["hit_flesh"] = normalize(buf, 0.8)
+
+    # 21. hit_bullet: đạn, tên trúng giặc
+    rng = random.Random(121)
+    n = int(0.08 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 520.0 * (0.25 ** (t / 0.08)) + 90.0
+        ph += f / SAMPLE_RATE
+        w = 0.65 * triangle(ph) + 0.35 * rng.uniform(-1.0, 1.0) * max(0.0, 1.0 - t / 0.03)
+        buf.append(w * env_ad(t, 0.08, 0.001, 2.0))
+    out["hit_bullet"] = normalize(buf, 0.76)
+
+    # 22. hit_metal: "keng", trúng khiên hoặc giáp
+    n = int(0.22 * SAMPLE_RATE)
+    buf = []
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        w = (
+            0.45 * math.sin(2.0 * math.pi * 1180.0 * t)
+            + 0.32 * math.sin(2.0 * math.pi * 1790.0 * t)
+            + 0.23 * square(2520.0 * t, 0.35) * max(0.0, 1.0 - t / 0.06)
+        )
+        buf.append(w * env_ad(t, 0.22, 0.001, 2.3))
+    out["hit_metal"] = normalize(buf, 0.8)
+
+    # 23. hit_wall: đạn chạm tường hoặc đá
+    rng = random.Random(123)
+    n = int(0.09 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 190.0 * (0.35 ** (t / 0.09)) + 55.0
+        ph += f / SAMPLE_RATE
+        lp = lp * 0.68 + rng.uniform(-1.0, 1.0) * 0.32
+        buf.append((0.5 * math.sin(2.0 * math.pi * ph) + 0.55 * lp) * env_ad(t, 0.09, 0.002, 2.4))
+    out["hit_wall"] = normalize(buf, 0.72)
+
+    # 24. hit_wood: trúng gỗ (hình nhân rơm, cọc, rương)
+    rng = random.Random(124)
+    n = int(0.11 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 330.0 * (0.55 ** (t / 0.11)) + 140.0
+        ph += f / SAMPLE_RATE
+        w = 0.75 * math.sin(2.0 * math.pi * ph) + 0.25 * rng.uniform(-1.0, 1.0) * max(0.0, 1.0 - t / 0.025)
+        buf.append(w * env_ad(t, 0.11, 0.002, 2.5))
+    out["hit_wood"] = normalize(buf, 0.78)
+
+    # 25. hit_crit: chí mạng, nghe "đanh" và sáng
+    buf = [0.0] * int(0.15 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.055, "sq25", PENTA["A5"]), (0.04, 0.11, "sq25", PENTA["E6"])], 0.58)
+    out["hit_crit"] = normalize(buf, 0.85)
+
+    # 26. hit_boss: trúng trùm, trầm và nặng hơn
+    rng = random.Random(126)
+    n = int(0.13 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 165.0 * (0.35 ** (t / 0.13)) + 45.0
+        ph += f / SAMPLE_RATE
+        lp = lp * 0.75 + rng.uniform(-1.0, 1.0) * 0.25
+        buf.append((0.7 * math.sin(2.0 * math.pi * ph) + 0.35 * lp) * env_ad(t, 0.13, 0.002, 1.8))
+    out["hit_boss"] = normalize(buf, 0.82)
+
     return out
 
 

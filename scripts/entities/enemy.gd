@@ -901,20 +901,32 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 		if randf() < player.crit_chance():
 			dmg *= 2
 			crit = true
+	var blocked: bool = false
 	if data.ai == "tank" and knock != Vector2.ZERO and _stun_t <= 0.0:
 		# đòn đánh từ phía trước bị khiên đỡ bớt
 		var facing := Vector2(_face, 0)
 		if facing.dot(-knock.normalized()) > 0.2:
 			dmg = maxi(1, int(amount * 0.35))
+			blocked = true
 			if randf() < 0.3:
 				Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 10), "Đỡ!", Color(0.7, 0.8, 1.0), 12)
 	if _special in ["ong_dong", "ham_chi_huy", "rung_gia"] and _special_t > 0.0:
 		dmg = maxi(1, int(amount * 0.2))
+		blocked = true
+	if _special == "tran_khien" and _special_t > 0.0:
+		blocked = true
 	if _slowed:
 		dmg = int(dmg * 1.5)
 	hp -= dmg
 	_flash = 1.0
-	Sfx.play("enemy_hurt")
+	if blocked:
+		Sfx.play("hit_metal")
+	elif crit:
+		Sfx.play("hit_crit")
+	elif is_boss():
+		Sfx.play("hit_boss")
+	else:
+		Sfx.play("enemy_hurt")
 	_knock += knock * (0.08 if is_boss() else (0.4 if data.ai == "tank" else 1.0))
 	Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 6.0), ("%d!" % dmg) if crit else str(dmg), Color(1, 1, 1) if dmg < 10 else Color(1, 0.85, 0.3), 14 if dmg < 10 else 18)
 	if hp <= 0:

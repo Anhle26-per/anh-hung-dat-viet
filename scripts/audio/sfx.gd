@@ -3,6 +3,7 @@ extends Node
 ## Tạo 2 bus "Music" và "SFX" bằng mã, giới hạn tối đa 8 tiếng SFX phát cùng lúc.
 
 const MAX_VOICES: int = 8
+const MIN_INTERVAL_MS: int = 50
 const BUS_MUSIC: String = "Music"
 const BUS_SFX: String = "SFX"
 
@@ -26,6 +27,13 @@ const SFX_FILES: Dictionary = {
 	"ui_click": "res://assets/audio/sfx/ui_click.wav",
 	"player_die": "res://assets/audio/sfx/player_die.wav",
 	"skill": "res://assets/audio/sfx/skill.wav",
+	"hit_flesh": "res://assets/audio/sfx/hit_flesh.wav",
+	"hit_bullet": "res://assets/audio/sfx/hit_bullet.wav",
+	"hit_metal": "res://assets/audio/sfx/hit_metal.wav",
+	"hit_wall": "res://assets/audio/sfx/hit_wall.wav",
+	"hit_wood": "res://assets/audio/sfx/hit_wood.wav",
+	"hit_crit": "res://assets/audio/sfx/hit_crit.wav",
+	"hit_boss": "res://assets/audio/sfx/hit_boss.wav",
 }
 
 const MUSIC_FILES: Dictionary = {
@@ -42,6 +50,8 @@ var _music_player: AudioStreamPlayer = null
 var _current_music: String = ""
 var _music_volume: float = 0.65
 var _sfx_volume: float = 0.85
+var _last_play_ms: Dictionary = {}
+var _play_counts: Dictionary = {}
 
 
 func _ready() -> void:
@@ -92,10 +102,15 @@ func _ensure_bus(bus_name: String) -> int:
 	return idx
 
 
-func play(id: String, volume_db: float = 0.0, pitch_jitter: float = 0.06) -> void:
+func play(id: String, volume_db: float = 0.0, pitch_jitter: float = 0.08) -> void:
 	var stream_val: Variant = _sfx_streams.get(id, null)
 	if stream_val == null:
 		return
+	var now_ms: int = Time.get_ticks_msec()
+	if MIN_INTERVAL_MS > 0 and _last_play_ms.has(id):
+		if now_ms - int(_last_play_ms[id]) < MIN_INTERVAL_MS:
+			return
+	_last_play_ms[id] = now_ms
 	var stream: AudioStream = stream_val as AudioStream
 	var chosen: AudioStreamPlayer = null
 	for p in _pool:
@@ -120,6 +135,7 @@ func play(id: String, volume_db: float = 0.0, pitch_jitter: float = 0.06) -> voi
 	chosen.volume_db = volume_db
 	chosen.pitch_scale = randf_range(1.0 - pitch_jitter, 1.0 + pitch_jitter) if pitch_jitter > 0.0 else 1.0
 	chosen.play()
+	_play_counts[id] = int(_play_counts.get(id, 0)) + 1
 
 
 func play_music(id: String) -> void:
@@ -146,6 +162,15 @@ func stop_all_sfx() -> void:
 	for p in _pool:
 		if is_instance_valid(p):
 			p.stop()
+	_last_play_ms.clear()
+
+
+func play_count(id: String) -> int:
+	return int(_play_counts.get(id, 0))
+
+
+func reset_play_counts() -> void:
+	_play_counts.clear()
 
 
 func active_sfx_count() -> int:
