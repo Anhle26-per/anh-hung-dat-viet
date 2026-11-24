@@ -16,7 +16,7 @@ Xem bảng theo dõi ở mục 0b của tệp đó để biết thẻ nào đã 
 - Godot **4.7** (bản Standard), GDScript 2.0, renderer "GL Compatibility".
 - Màn hình gốc 640×360, chế độ stretch canvas_items. Autoload duy nhất là `Global`.
 - KHÔNG BAO GIỜ viết mã Godot 3. Không chắc một API thì tra tài liệu Godot 4.
-- Python 3 + Pillow cho công cụ vẽ hình trong `tools/sprites/` (trên Windows dùng lệnh `python` thay cho `python3`).
+- Python 3 + Pillow cho công cụ vẽ hình trong `tools/sprites/` (trên máy này dùng lệnh `py` để chạy Python).
 - Lệnh Godot trên máy này: `D:\Games\Godot\Godot_v4.7.2-stable_win64_console.exe`.
 
 ## 2. Bản đồ thư mục

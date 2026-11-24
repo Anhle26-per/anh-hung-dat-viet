@@ -20,6 +20,9 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G01 | Lưu giữa lượt, giữ xu khi thoát | 1 | — | **Xong** 24/11/2026 (Claude làm, đã qua K1, run_save, K2) |
 | G02 | Âm thanh và nhạc nền (CC0) | 1 | — | **Xong** 24/11/2026 (Gemini làm, tự sinh WAV, đã qua K1, audio, K2) |
 | G03 | Menu cài đặt và độ khó | 1 | G02 (âm lượng) | Chưa làm |
+| G15 | Âm thanh va chạm | 1 | G02, G03 | Chưa làm |
+| G14 | Gọn nhịp hầm ngục | 1 | — | Chưa làm |
+| G16 | Nguyên liệu rơi và Lò rèn binh khí | 1 | G01, G02 | Chưa làm |
 | G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | Chưa làm |
 | G05 | Sửa lỗi nhỏ (đạn bay vùng tối, chữ chồng nhau) | 1 | — | Chưa làm |
 | N1 | Menu mạng và phòng chờ LAN | 2 | G04 | Chưa làm |
@@ -35,6 +38,8 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G08 | Vẽ lại tướng đầu to kiểu chibi | 3 | — | Chưa làm |
 | G09 | Nội dung mới theo ý nhóm (mỗi món một thẻ) | 3 | — | Chưa làm |
 | G10 | Hoạt ảnh tấn công, kỹ năng, chết riêng cho từng tướng | 3 | G08 (nên làm sau) | Chưa làm |
+| G12 | Vật cản che đạn thuần Việt | 3 | G15 | Chưa làm |
+| G13 | Phúc lành Hộ tâm kính | 3 | — | Chưa làm |
 | G11 | Cân bằng độ khó theo phản hồi của nhóm chơi | 1–3 | G03, G04 | Chưa làm |
 
 **Đã xong trước khi giao cho Gemini** (không cần làm lại):
@@ -174,12 +179,16 @@ python3 tools/sprites/artbook.py
 | Thẻ | Lệnh test bắt buộc | Dòng phải thấy |
 |---|---|---|
 | G01 | K1 → `run_tests run_save` → K2 | `RUN SAVE TEST OK`, `SMOKE TEST OK` |
-| G02 | `--import` → K1 → K2 | `0 lỗi`, `SMOKE TEST OK`, và tự nghe thử |
-| G03, G05 | K1 → K2 | `0 lỗi`, `SMOKE TEST OK` |
+| G02 | `--import` → K1 → `audio` → K2 | `0 lỗi`, `AUDIO TEST OK`, `SMOKE TEST OK` |
+| G03 | K1 → `settings` → `run_save` → `audio` → K2 | `SETTINGS TEST OK`, `RUN SAVE TEST OK`, `AUDIO TEST OK`, `SMOKE TEST OK` |
+| G15 | `py tools/audio/build_audio.py` → `--import` → K1 → `audio` → `settings` → K2 | `AUDIO TEST OK`, `SETTINGS TEST OK`, `SMOKE TEST OK` |
+| G14, G05 | K1 → K2 | `0 lỗi`, `SMOKE TEST OK` |
+| G16 | `build_all.py` → `build_audio.py` → `--import` → K1 → `craft` → K2 | `CRAFT TEST OK`, `SMOKE TEST OK` |
 | G04 | K1 → lệnh xuất bản bên dưới | Có tệp `build/AnhHungDatViet.exe` và `build/AnhHungDatViet.apk` |
 | N1 → N8 | K1 → `run_tests lan` → K2 → **thử LAN bằng tay** | `LAN TEST OK`, `SMOKE TEST OK` |
 | G06 | K1 → `run_tests challenge` → K2 | `CHALLENGE TEST OK` (cùng mã thì cùng bản đồ) |
-| G07, G09, G11 | K1 → K2 | `0 lỗi`, `SMOKE TEST OK` |
+| G07, G09, G11, G13 | K1 → K2 | `0 lỗi`, `SMOKE TEST OK` |
+| G12 | K1 → `cover` → K2 | `COVER TEST OK`, `SMOKE TEST OK` |
 | G10 | `build_all.py` → `artbook.py` → `--import` → K1 → K2 | Xem ảnh `docs/artbook/`, tự chơi thử từng tướng |
 | G08 | `build_all.py` → `artbook.py` → `--import` → K1 → K2 | Xem ảnh `docs/artbook/` trước khi duyệt |
 
@@ -217,7 +226,7 @@ Bản Android (khóa debug):
 
 | Đợt | Thẻ việc | Mục đích |
 |---|---|---|
-| **Đợt 1: Nền tảng** | G01 → G02 → G03 → G04 → G05 | Chơi một mình thoải mái, gửi được cho bạn bè |
+| **Đợt 1: Nền tảng** | G01 → G02 → G03 → G15 → G14 → G16 → G04 → G05 | Chơi một mình thoải mái, gửi được cho bạn bè |
 | **Đợt 2: Chơi LAN** | N1 → N2 → N3 → N4 → N5 → N6 → N7 → N8 | Chơi chung qua wifi nhà. **Phải làm đúng thứ tự**, thẻ sau dựa trên thẻ trước |
 | **Đợt 3: Thêm vui** | G06 → G07 → G08 → G10 → G09 | So tài, hướng dẫn, đẹp hơn, nội dung mới |
 | **Xen kẽ** | G11 | Làm sau khi nhóm đã chơi bản `.exe` / `.apk` được 1–2 tuần. Lặp lại mỗi khi có phản hồi mới |
@@ -283,6 +292,39 @@ Chơi LAN là phần lớn nhất từ trước tới giờ, ước khoảng 1.5
 | Lệnh kiểm tra | K1; K2 |
 | Độ lớn | S |
 
+### G14: Gọn nhịp hầm ngục
+
+| Mục | Nội dung |
+|---|---|
+| Mục tiêu | Rút gọn độ dài từng màn từ màn 5 trở đi để hành trình 30 màn bớt mệt, dồn cao trào vào trùm và Tam Yêu. |
+| File liên quan | `scripts/game/dungeon.gd`, `scripts/game/room.gd` |
+| Tiêu chí nghiệm thu | 1. Số phòng mỗi màn = `5 + mini(level, 3)`. 2. Số đợt giặc trong phòng thường (`combat`): màn 1 có `1` đợt, màn `2–12` có `2` đợt, từ màn `13` trở đi có `3` đợt. |
+| Lệnh kiểm tra | K1; K2 |
+| Không được đụng | Số liệu cân bằng máu/sát thương, test |
+| Độ lớn | S |
+
+### G15: Âm thanh va chạm
+
+| Mục | Nội dung |
+|---|---|
+| Mục tiêu | Có tiếng va chạm phân biệt chất liệu (thịt, đạn, kim loại/khiên, tường, gỗ, chí mạng, trùm) và chống ồn khi bắn nhanh. |
+| File liên quan | `tools/audio/build_audio.py`, `scripts/audio/sfx.gd`, `scripts/entities/bullet.gd`, `scripts/entities/player.gd`, `scripts/entities/enemy.gd`, `scripts/game/dummy.gd`, `tests/audio_test.gd`, `CREDITS.md` |
+| Tiêu chí nghiệm thu | 1. Sinh thêm 7 tiếng bằng `build_audio.py` (thư viện chuẩn, hạt giống cố định): `hit_flesh`, `hit_bullet`, `hit_metal`, `hit_wall`, `hit_wood`, `hit_crit`, `hit_boss`. 2. Gắn đúng ngữ cảnh va chạm: đạn trúng giặc (`hit_bullet`), đạn chạm tường/đá (`hit_wall`), cận chiến trúng giặc mỗi nhát 1 tiếng (`hit_flesh`), đỡ đòn/chiêu giáp (`hit_metal`), chí mạng (`hit_crit`), trúng trùm (`hit_boss`), hình nhân rơm (`hit_wood`). 3. Chống ồn: khoảng cách tối thiểu `0,05` giây cho mỗi tên tiếng, tổng tối đa vẫn 8 tiếng cùng lúc, lệch cao độ ngẫu nhiên `±8%`. 4. `tests/audio_test` kiểm tra đủ 7 tệp mới, 30 lần `hit_bullet` cùng 1 khung chỉ phát 1 tiếng, bắn đạn vào giặc trong cảnh thử có phát `hit_bullet`. |
+| Lệnh kiểm tra | `py tools/audio/build_audio.py` → `--import` → K1 → `audio` → `settings` → K2 |
+| Không được đụng | Logic chiến đấu, sát thương |
+| Độ lớn | M |
+
+### G16: Nguyên liệu rơi và Lò rèn binh khí
+
+| Mục | Nội dung |
+|---|---|
+| Mục tiêu | Giặc, trùm, Tam Yêu và rương rơi nguyên liệu rèn vũ khí; Lò rèn trong sảnh cho phép rèn vũ khí đã khám phá (cấp ≥ 2) để mang sang lượt chơi kế tiếp. |
+| File liên quan | Tạo mới: `scripts/data/materials.gd`, `tests/craft_test.gd` + `.tscn`. Sửa: `scripts/entities/enemy.gd` (chỉ `_drop_loot`), `scripts/entities/pickup.gd`, `scripts/entities/loot_chest.gd`, `scripts/autoload/global.gd`, `scripts/game/lobby.gd`, `scripts/ui/lobby_ui.gd`, `scripts/game/game.gd`, `scripts/ui/hud.gd`, `tools/sprites/art_world.py`, `tools/audio/build_audio.py`. |
+| Tiêu chí nghiệm thu | 1. `scripts/data/materials.gd` khai báo 6 nguyên liệu: `dong` (Đồng), `sat` (Sắt), `go_lim` (Gỗ lim), `hoa_duoc` (Hỏa dược) từ lính; `yeu_hon` (Yêu hồn) từ yêu quái; `ngoc_than` (Ngọc thần) hiếm từ trùm và Tam Yêu. Các tỉ lệ rơi và bảng giá rèn để thành hằng số/bảng trong `materials.gd`. 2. Tỉ lệ rơi: lính thường `8%` rơi 1 món theo đạo quân (thời cổ ra đồng/sắt/gỗ lim, từ 1861 ra sắt/hỏa dược); tinh nhuệ `40%`; yêu quái `15%` rơi `yeu_hon`; trùm rơi `2–3` món + `50%` ra `ngoc_than`; Tam Yêu chắc chắn rơi `1 ngoc_than` + `2 yeu_hon`; rương sơn mài `20%` kèm `1–2` món. 3. Vật phẩm kiểu `"material"` tự bay về người chơi như xu, hiện tên nguyên liệu, có tiếng nhặt; gom vào `run_materials`, kết thúc lượt (`end_run` / `abandon_run`) cộng vào khóa mới `"materials"` trong `save.json`, lưu kèm trong `run.json` (thiếu khóa coi là rỗng). 4. Lò rèn có thẻ "Rèn binh khí": chỉ rèn vũ khí đã khám phá, cấp `>= 2`, không gồm vũ khí cơ bản. Giá theo bảng: cấp 2 (`3` đồng + `2` sắt + `50` xu), cấp 3 (`4` sắt + `3` gỗ lim hoặc hỏa dược + `1` yêu hồn + `120` xu), cấp 4 (`5` sắt + `4` đồng + `2` yêu hồn + `1` ngọc thần + `250` xu), cấp 5 (`6` sắt + `3` yêu hồn + `3` ngọc thần + `400` xu). Rèn xong bày lên giá binh khí, lượt kế tiếp mang vào ô thứ 2 (dùng 1 lần, khóa mới `"forged"`), có tiếng búa rèn `"forge"` sinh bằng `build_audio.py` và tia lửa. 5. Hình 6 nguyên liệu vẽ bằng `art_world.py` (`items/mat_<mã>.png`) qua `polish()`, không sửa tay PNG. 6. `tests/craft_test` in `CRAFT TEST OK`, kiểm đủ: cộng kho cuối lượt, `run.json` giữ nguyên liệu, trừ nguyên liệu/xu khi rèn, thiếu không rèn được, vũ khí rèn vào ô 2 lượt sau rồi biến mất, save cũ thiếu `"materials"` và `"forged"` vẫn nạp được. |
+| Lệnh kiểm tra | `py tools/sprites/build_all.py` → `py tools/audio/build_audio.py` → `--import` → K1 → `craft` → K2 |
+| Không được đụng | Số liệu cân bằng chiến đấu, test cũ |
+| Độ lớn | L (chia 2 phiên) |
+
 ---
 
 ## 4. Đợt 2: Chơi chung qua LAN
@@ -332,7 +374,7 @@ Chơi LAN là phần lớn nhất từ trước tới giờ, ước khoảng 1.5
 |---|---|
 | Mục tiêu | Giặc và trùm chỉ "suy nghĩ" ở host, máy khách thấy giống hệt. |
 | File liên quan | `scripts/entities/enemy.gd` (nhánh "bản sao": không chạy AI, chỉ nhận trạng thái), `scripts/game/room.gd` (host sinh đợt giặc rồi gửi sự kiện sinh), tạo mới: `scripts/net/net_sync.gd` (gom trạng thái giặc gửi đi theo lô). |
-| Tiêu chí nghiệm thu | 1. Host gửi lô trạng thái (net_id, vị trí, máu, hoạt ảnh, hướng mặt, cờ biến hình hoặc lặn) 15 lần/giây. 2. Giặc ngắm và đuổi **người chơi gần nhất**. 3. Trùm hiện nguyên hình, nổi giận, chiêu đặc biệt và thông báo hiện ở mọi máy. 4. Sinh và chết là sự kiện `reliable`, có hiệu ứng ở mọi máy. 5. Máu giặc theo số người: ×(1 + 0,6 × (số người − 1)). |
+| Tiêu chí nghiệm thu | 1. Host gửi lô trạng thái (net_id, vị trí, máu, hoạt ảnh, hướng mặt, cờ biến hình hoặc lặn) 15 lần/giây. 2. Giặc ngắm và đuổi **người chơi gần nhất**. 3. Trùm hiện nguyên hình, nổi giận, chiêu đặc biệt và thông báo hiện ở mọi máy. 4. Sinh và chết là sự kiện `reliable`, có hiệu ứng ở mọi máy. 5. Máu giặc theo số người: ×(1 + 0,5 × (số người − 1)). |
 | Lệnh kiểm tra | K1; lan_test (host sinh giặc, khách thấy đủ số lượng); K2 |
 | Độ lớn | L |
 
@@ -352,7 +394,7 @@ Chơi LAN là phần lớn nhất từ trước tới giờ, ước khoảng 1.5
 | Mục | Nội dung |
 |---|---|
 | Mục tiêu | Mọi thứ trên bản đồ đồng bộ. |
-| Tiêu chí nghiệm thu | 1. Cửa phòng đóng khi **bất kỳ ai** bước vào phòng chưa đánh. Người ở ngoài được dịch chuyển vào trong. 2. Rương: ai bấm mở cũng được, host quyết định đồ rơi. 3. **Xu và năng lượng:** mỗi người thấy và nhặt phần riêng của mình. **Vũ khí và hồ lô:** ai nhặt trước được trước, host khóa vật phẩm để không ai nhặt trùng. 4. Gánh hàng rong: mỗi món chỉ bán 1 lần, ai mua thì trừ xu người đó. 5. Cổng qua màn mở khi mọi người còn sống đều đứng trong cổng, hoặc sau 10 giây đếm ngược từ khi người đầu tiên vào. 6. Phúc lành: mỗi người tự chọn trên máy mình; màn mới bắt đầu khi tất cả đã chọn. |
+| Tiêu chí nghiệm thu | 1. Cửa phòng đóng khi **bất kỳ ai** bước vào phòng chưa đánh. Người ở ngoài được dịch chuyển vào trong. 2. Rương: ai bấm mở cũng được, host quyết định đồ rơi. 3. **Xu, năng lượng và nguyên liệu rơi:** mỗi người thấy và nhặt phần riêng của mình. **Vũ khí và hồ lô:** ai nhặt trước được trước, host khóa vật phẩm để không ai nhặt trùng. 4. Gánh hàng rong có `3 + (số người − 1)` kệ: mỗi món chỉ bán 1 lần, ai mua thì trừ xu người đó. 5. Cổng qua màn mở khi mọi người còn sống đều đứng trong cổng, hoặc sau 10 giây đếm ngược từ khi người đầu tiên vào. 6. Phúc lành: mỗi người tự chọn trên máy mình; màn mới bắt đầu khi tất cả đã chọn. |
 | File liên quan | `room.gd`, `loot_chest.gd`, `pickup.gd`, `shop.gd`, `shop_stand.gd`, `portal.gd`, `game.gd`, `buff_select.gd` |
 | Lệnh kiểm tra | K1; lan_test (đi hết 1 màn với 2 người); K2 |
 | Độ lớn | L |
@@ -372,7 +414,7 @@ Chơi LAN là phần lớn nhất từ trước tới giờ, ước khoảng 1.5
 | Mục | Nội dung |
 |---|---|
 | Mục tiêu | Chơi chung có tình đồng đội như Soul Knight. |
-| Tiêu chí nghiệm thu | 1. Hết máu thì **gục**: nằm xuống, có vòng đếm 20 giây. 2. Đồng đội đứng cạnh 3 giây thì cứu dậy với 50% máu. 3. Tất cả cùng gục thì thua; màn thua hiện ở mọi máy. 4. "Thuốc hồi sinh" ở lò rèn dùng cho chính mình. 5. Cuối lượt, xu nhặt của ai cộng vào save trên máy người đó. Thành tích tính riêng từng người. |
+| Tiêu chí nghiệm thu | 1. Hết máu thì **gục**: nằm xuống, **không giới hạn thời gian** khi còn đồng đội đứng. 2. Đồng đội đứng cạnh 3 giây thì cứu dậy với **2 máu, 0 giáp và 1,5 giây bất tử**. 3. Tất cả cùng gục thì thua; màn thua hiện ở mọi máy. 4. "Thuốc hồi sinh" ở lò rèn dùng cho chính mình. 5. Cuối lượt, xu nhặt của ai cộng vào save trên máy người đó. Thành tích tính riêng từng người. |
 | File liên quan | `player.gd`, `game.gd`, `hud.gd` |
 | Lệnh kiểm tra | K1; lan_test; K2 |
 | Độ lớn | M |
@@ -396,7 +438,9 @@ Chơi LAN là phần lớn nhất từ trước tới giờ, ước khoảng 1.5
 | **G07** | **Hướng dẫn chơi lần đầu** trong sảnh: 5 bước ngắn (đi, đánh, nhặt, kỹ năng, vào cổng), bỏ qua được. | S–M |
 | **G08** | **Vẽ lại tướng đầu to kiểu chibi** trong `tools/sprites/art_heroes.py`: đầu chiếm khoảng 55% chiều cao, giữ nhận diện từng tướng, chạy `build_all.py`. Chủ dự án duyệt ảnh trong `docs/artbook/` trước khi gộp. | L |
 | **G10** | **Hoạt ảnh riêng cho từng tướng** trong `tools/sprites/art_heroes.py`: 2 khung tấn công, 2 khung tung kỹ năng, 3 khung gục ngã. Thêm tên hoạt ảnh `attack`, `skill`, `down` trong `player.gd`. Chơi lúc tấn công, dùng kỹ năng, và lúc gục (dùng chung với N7). Giữ khung cũ 0–8, chỉ thêm khung mới phía sau. | L |
-| **G11** | **Cân bằng độ khó** (xem mô tả ngay dưới bảng) | M, lặp lại |
+| **G12** | **Vật cản che đạn thuần Việt** (theo đề xuất số 4 trong `docs/PHAN-TICH-SOUL-KNIGHT.md`): thời cổ có chum gốm, cọc gỗ; từ năm 1861 có bao cát, thùng đạn. Chặn đạn cả hai phe, vỡ sau 3–5 đòn (có hiệu ứng và tiếng). Không sinh trên cửa, lối đi giữa các cửa, phòng đầu, phòng trùm. Tạo `cover.gd`, sửa `room.gd`, `bullet.gd`, `art_world.py`, thêm `tests/cover_test.gd` + `.tscn` (`COVER TEST OK`). | M |
+| **G13** | **Phúc lành Hộ tâm kính** (trong `buffs.gd`, `player.gd`, `art_buffs.py`): khi giáp đã vỡ, chặn trọn đòn đầu tiên làm tràn sang máu, hồi lại sau 8 giây. Biểu tượng vẽ bằng `tools/sprites/art_buffs.py`. | S |
+| **G11** | **Cân bằng độ khó** (xem mô tả ngay dưới bảng). *Lưu ý:* đề xuất số 1 (trễ hồi giáp, thời gian bất tử) và số 3 (giá hồ lô, tỉ lệ rơi) trong `docs/PHAN-TICH-SOUL-KNIGHT.md` chỉ xét khi có nhật ký trận. | M, lặp lại |
 | **G09** | **Nội dung mới theo ý nhóm bạn**, ví dụ tướng Thánh Gióng, sự kiện Tết (bánh chưng, pháo hoa trong sảnh), trùm Sơn Tinh – Thủy Tinh. Mỗi món một thẻ riêng. | tùy món |
 
 ### G11: Cân bằng độ khó theo phản hồi
