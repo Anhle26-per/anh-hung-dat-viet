@@ -120,6 +120,9 @@ static func afterimage(parent: Node, spr: AnimatedSprite2D, pos: Vector2, color:
 
 static func shake(tree: SceneTree, amount: float) -> void:
 	if tree:
+		var g: Node = tree.root.get_node_or_null("Global")
+		if g != null and not bool(g.settings.get("shake", true)):
+			return
 		tree.call_group("game", "add_shake", amount)
 
 

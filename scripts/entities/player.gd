@@ -768,6 +768,9 @@ func take_damage(amount: int) -> void:
 		_invuln = 0.3
 		Fx.float_text(get_parent(), global_position + Vector2(0, -22), "Né!", Color(0.7, 0.9, 1.0), 16)
 		return
+	var dmg: int = Global.scale_enemy_damage(amount)
+	if dmg <= 0:
+		return
 	if buff("khien_chan") > 0:
 		var ring := WaveRing.new()
 		ring.position = global_position
@@ -778,13 +781,13 @@ func take_damage(amount: int) -> void:
 	_invuln = 0.7
 	_flash = 1.0
 	_armor_regen = ARMOR_REGEN_DELAY
-	var absorbed := mini(armor, amount)
+	var absorbed := mini(armor, dmg)
 	armor -= absorbed
-	hp -= amount - absorbed
+	hp -= dmg - absorbed
 	body.play("hurt")
 	hurt.emit()
 	Sfx.play("player_hurt")
-	Fx.particles(get_parent(), global_position, Color(1, 0.3, 0.3) if absorbed < amount else Color(0.7, 0.8, 1.0), 8, 80.0, 0.35)
+	Fx.particles(get_parent(), global_position, Color(1, 0.3, 0.3) if absorbed < dmg else Color(0.7, 0.8, 1.0), 8, 80.0, 0.35)
 	_check_death()
 
 
@@ -792,12 +795,15 @@ func take_damage(amount: int) -> void:
 func dot_damage(amount: int, kind: String) -> void:
 	if dead or _dash_time > 0.0:
 		return
+	var dmg: int = Global.scale_enemy_damage(amount)
+	if dmg <= 0:
+		return
 	_flash = 0.6
 	_armor_regen = ARMOR_REGEN_DELAY
-	var absorbed := mini(armor, amount)
+	var absorbed := mini(armor, dmg)
 	armor -= absorbed
-	hp -= amount - absorbed
-	Fx.float_text(get_parent(), global_position + Vector2(randf_range(-6, 6), -20), "-%d" % amount, Color(1, 0.6, 0.25) if kind == "burn" else Color(0.6, 1.0, 0.35), 12)
+	hp -= dmg - absorbed
+	Fx.float_text(get_parent(), global_position + Vector2(randf_range(-6, 6), -20), "-%d" % dmg, Color(1, 0.6, 0.25) if kind == "burn" else Color(0.6, 1.0, 0.35), 12)
 	_check_death()
 
 

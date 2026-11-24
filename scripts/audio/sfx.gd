@@ -74,6 +74,10 @@ func _ready() -> void:
 			elif st is AudioStream:
 				_music_streams[str(id)] = st
 
+	var g: Node = get_tree().root.get_node_or_null("Global")
+	if g != null:
+		_music_volume = float(g.settings.get("music", 0.8))
+		_sfx_volume = float(g.settings.get("sfx", 0.9))
 	set_music_volume(_music_volume)
 	set_sfx_volume(_sfx_volume)
 

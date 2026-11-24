@@ -23,6 +23,16 @@ var discovered: Array = []        # vũ khí đã sưu tầm
 var stats: Dictionary = {"runs": 0, "kills": 0, "bosses": 0}
 var free_revives := 0             # lượt hồi sinh miễn phí còn lại trong lượt chơi
 
+const DEFAULT_SETTINGS: Dictionary = {
+	"music": 0.8,
+	"sfx": 0.9,
+	"shake": true,
+	"fullscreen": false,
+	"touch_scale": 1.0,
+	"difficulty": "thuong",
+}
+var settings: Dictionary = DEFAULT_SETTINGS.duplicate()
+
 # Nâng cấp ở Lò rèn
 const UPGRADES := {
 	"mau": {"name": "Rèn thân", "desc": "+1 máu tối đa", "max": 3, "cost": 150},
@@ -63,6 +73,7 @@ func _ready() -> void:
 	# Chủ đề giao diện chung: font pixel tiếng Việt + khung sơn mài
 	get_tree().root.theme = UI.make_theme()
 	Art.preload_all()
+	apply_settings.call_deferred()
 
 
 func _input(event: InputEvent) -> void:
@@ -182,6 +193,77 @@ func show_rewarded_ad(on_reward: Callable) -> void:
 	on_reward.call()
 
 
+# ------------------------------------------------------------------ Cài đặt & Độ khó
+
+func set_setting(key: String, value: Variant) -> void:
+	match key:
+		"music", "sfx":
+			settings[key] = clampf(float(value), 0.0, 1.0)
+		"shake", "fullscreen":
+			settings[key] = bool(value)
+		"touch_scale":
+			var ts: float = float(value)
+			if ts < 0.9:
+				ts = 0.8
+			elif ts > 1.1:
+				ts = 1.25
+			else:
+				ts = 1.0
+			settings["touch_scale"] = ts
+		"difficulty":
+			var d: String = str(value)
+			if d in ["de", "thuong", "kho"]:
+				settings["difficulty"] = d
+	apply_settings()
+
+
+func apply_settings() -> void:
+	if is_inside_tree():
+		var sfx: Node = get_tree().root.get_node_or_null("Sfx")
+		if sfx != null:
+			sfx.set_music_volume(float(settings.get("music", 0.8)))
+			sfx.set_sfx_volume(float(settings.get("sfx", 0.9)))
+	if DisplayServer.get_name() != "headless" and not OS.has_feature("mobile") and not OS.has_feature("web"):
+		var want_fs: bool = bool(settings.get("fullscreen", false))
+		var target_mode: int = DisplayServer.WINDOW_MODE_FULLSCREEN if want_fs else DisplayServer.WINDOW_MODE_WINDOWED
+		if DisplayServer.window_get_mode() != target_mode:
+			DisplayServer.window_set_mode(target_mode)
+
+
+func difficulty_hp_mult() -> float:
+	match str(settings.get("difficulty", "thuong")):
+		"de":
+			return 0.7
+		"kho":
+			return 1.4
+		_:
+			return 1.0
+
+
+func difficulty_dmg_mult() -> float:
+	match str(settings.get("difficulty", "thuong")):
+		"de":
+			return 0.75
+		"kho":
+			return 1.25
+		_:
+			return 1.0
+
+
+func scale_enemy_damage(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var m: float = difficulty_dmg_mult()
+	if is_equal_approx(m, 1.0):
+		return amount
+	var raw: float = float(amount) * m
+	var base_dmg: int = int(floor(raw))
+	var frac: float = raw - float(base_dmg)
+	if frac > 0.0 and randf() < frac:
+		base_dmg += 1
+	return base_dmg
+
+
 # ------------------------------------------------------------------ Lưu game
 
 func save_game() -> void:
@@ -193,6 +275,7 @@ func save_game() -> void:
 		"upgrades": upgrades,
 		"discovered": discovered,
 		"stats": stats,
+		"settings": settings,
 	})
 
 
@@ -343,8 +426,10 @@ func save_on_exit() -> void:
 
 
 func load_game() -> void:
+	settings = DEFAULT_SETTINGS.duplicate()
 	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
+		apply_settings()
 		return
 	coins = int(data.get("coins", 0))
 	best_level = int(data.get("best_level", 0))
@@ -364,6 +449,13 @@ func load_game() -> void:
 	var sel: String = str(data.get("selected_hero", selected_hero))
 	if unlocked.has(sel):
 		selected_hero = sel
+	var cfg: Variant = data.get("settings", null)
+	if typeof(cfg) == TYPE_DICTIONARY:
+		var cfg_dict: Dictionary = cfg
+		for k in cfg_dict:
+			set_setting(str(k), cfg_dict[k])
+	else:
+		apply_settings()
 
 
 # ------------------------------------------------------------------ Phím bấm

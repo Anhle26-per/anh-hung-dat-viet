@@ -187,7 +187,9 @@ static func info(id: String, level: int) -> Dictionary:
 		d["army"] = home.army
 		d["summon"] = "%s@%s" % [b.summon, home.army]
 		d["power"] = power
-		d["hp"] = int(round(BOSS_BASE_HP * (1.0 + BOSS_HP_STEP * power)))
+		var boss_hp: int = int(round(BOSS_BASE_HP * (1.0 + BOSS_HP_STEP * power)))
+		var hp_mult: float = Global.difficulty_hp_mult()
+		d["hp"] = boss_hp if is_equal_approx(hp_mult, 1.0) else maxi(1, int(round(float(boss_hp) * hp_mult)))
 		# hình ma tướng: phóng to gấp đôi + chừa chỗ cho sừng và hào quang
 		var sz: Vector2i = d.size
 		d["sheet2"] = "enemies/boss_%s_2.png" % bid
@@ -208,7 +210,9 @@ static func info(id: String, level: int) -> Dictionary:
 		d["sheet2"] = "enemies/boss_%s_2.png" % lid
 		d["radius2"] = d.radius
 		d["power"] = lp
-		d["hp"] = int(round(LEGEND_BASE_HP * (1.0 + BOSS_HP_STEP * lp)))
+		var leg_hp: int = int(round(LEGEND_BASE_HP * (1.0 + BOSS_HP_STEP * lp)))
+		var hp_mult_l: float = Global.difficulty_hp_mult()
+		d["hp"] = leg_hp if is_equal_approx(hp_mult_l, 1.0) else maxi(1, int(round(float(leg_hp) * hp_mult_l)))
 		return d
 	elif FOLK.has(id):
 		d = FOLK[id].duplicate()
@@ -224,7 +228,9 @@ static func info(id: String, level: int) -> Dictionary:
 		d["name"] = "%s (%s)" % [d.name, army_name(army)]
 	# chỉ số tăng theo chương (độ khó) và theo màn
 	var depth := float((level - 1) % (3 * CHAPTERS.size()))
-	d["hp"] = int(float(d.hp) * (1.0 + 0.12 * depth) * loop_mult(level))
+	var unit_hp: int = int(float(d.hp) * (1.0 + 0.12 * depth) * loop_mult(level))
+	var hp_mult_u: float = Global.difficulty_hp_mult()
+	d["hp"] = unit_hp if is_equal_approx(hp_mult_u, 1.0) else maxi(1, int(round(float(unit_hp) * hp_mult_u)))
 	return d
 
 

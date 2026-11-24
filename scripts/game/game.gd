@@ -76,6 +76,9 @@ func _start_buff() -> void:
 
 
 func add_shake(amount: float) -> void:
+	if not bool(Global.settings.get("shake", true)):
+		_shake = 0.0
+		return
 	_shake = maxf(_shake, amount)
 
 

@@ -5,6 +5,9 @@ const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
+const SettingsMenu = preload("res://scripts/ui/settings_menu.gd")
+
+var _settings: CanvasLayer = null
 
 
 class Backdrop extends Control:
@@ -93,9 +96,12 @@ func _ready() -> void:
 		box.add_child(UI.center(UI.button("Chơi tiếp (Màn %s - %s)" % [stage, hero_name], _on_continue, 22)))
 		box.add_child(UI.center(UI.button("Bỏ lượt (nhận %d xu)" % int(run.get("run_coins", 0)), _on_abandon, 16)))
 	box.add_child(UI.center(UI.button("Vào doanh trại", _on_play, 22)))
+	box.add_child(UI.center(UI.button("Cài đặt", _on_settings, 18)))
 	if not OS.has_feature("mobile") and not OS.has_feature("web"):
 		box.add_child(UI.center(UI.button("Thoát", func(): get_tree().quit(), 18)))
 	box.add_child(UI.label("Xu: %d   -   Màn cao nhất: %d" % [Global.coins, Global.best_level], 16, Color(1, 0.88, 0.5)))
+	_settings = SettingsMenu.new()
+	add_child(_settings)
 
 
 func _on_continue() -> void:
@@ -112,3 +118,8 @@ func _on_abandon() -> void:
 
 func _on_play() -> void:
 	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+
+func _on_settings() -> void:
+	if _settings != null:
+		_settings.open()

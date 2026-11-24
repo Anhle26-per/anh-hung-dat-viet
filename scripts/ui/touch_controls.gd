@@ -7,13 +7,15 @@ signal pause_pressed
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
-const JOY_R := 40.0
+const BASE_JOY_R := 40.0
+const BASE_RADII := {"attack": 30.0, "skill": 22.0, "swap": 18.0, "pause": 13.0}
 
 var player = null
 var _joy_finger := -1
 var _joy_center := Vector2.ZERO
 var _joy_pos := Vector2.ZERO
 var _buttons := {}
+var _last_scale := 1.0
 
 
 class PadView extends Node2D:
@@ -41,11 +43,23 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
 
 
+func _scale_val() -> float:
+	return float(Global.settings.get("touch_scale", 1.0))
+
+
+func _joy_r() -> float:
+	return BASE_JOY_R * _scale_val()
+
+
 func _layout() -> void:
 	var s := get_viewport().get_visible_rect().size
-	_buttons.attack.pos = Vector2(s.x - 62, s.y - 62)
-	_buttons.skill.pos = Vector2(s.x - 130, s.y - 38)
-	_buttons.swap.pos = Vector2(s.x - 38, s.y - 128)
+	var sc := _scale_val()
+	_last_scale = sc
+	for id in _buttons:
+		_buttons[id].r = float(BASE_RADII[id]) * sc
+	_buttons.attack.pos = Vector2(s.x - 62 * sc, s.y - 62 * sc)
+	_buttons.skill.pos = Vector2(s.x - 130 * sc, s.y - 38 * sc)
+	_buttons.swap.pos = Vector2(s.x - 38 * sc, s.y - 128 * sc)
 	_buttons.pause.pos = Vector2(s.x - 118, 20)
 
 
@@ -81,11 +95,12 @@ func _input(event: InputEvent) -> void:
 					_on_button(id, false)
 	elif event is InputEventScreenDrag and event.index == _joy_finger:
 		_joy_pos = event.position
-		var v: Vector2 = (_joy_pos - _joy_center) / JOY_R
+		var jr := _joy_r()
+		var v: Vector2 = (_joy_pos - _joy_center) / jr
 		if v.length() > 1.0:
 			# Cần gạt đi theo ngón tay khi kéo quá xa
 			v = v.normalized()
-			_joy_center = _joy_pos - v * JOY_R
+			_joy_center = _joy_pos - v * jr
 		Global.joy_vector = v
 
 
@@ -108,15 +123,19 @@ func _on_button(id: String, pressed: bool) -> void:
 func draw_pad(ci: Node2D) -> void:
 	if not Global.touch_mode:
 		return
+	if not is_equal_approx(_last_scale, _scale_val()):
+		_layout()
 	var s := get_viewport().get_visible_rect().size
+	var ui_sc := _scale_val()
+	var jr := _joy_r()
 	var active := _joy_finger != -1
-	var center := _joy_center if active else Vector2(80, s.y - 80)
+	var center := _joy_center if active else Vector2(80 * ui_sc, s.y - 80 * ui_sc)
 	var knob := _joy_pos if active else center
-	if active and knob.distance_to(center) > JOY_R:
-		knob = center + (knob - center).normalized() * JOY_R
-	ci.draw_circle(center, JOY_R, Color(1, 1, 1, 0.10))
-	ci.draw_arc(center, JOY_R, 0.0, TAU, 32, Color(1, 1, 1, 0.35), 2.0)
-	ci.draw_circle(knob, 16.0, Color(1, 1, 1, 0.35 if active else 0.2))
+	if active and knob.distance_to(center) > jr:
+		knob = center + (knob - center).normalized() * jr
+	ci.draw_circle(center, jr, Color(1, 1, 1, 0.10))
+	ci.draw_arc(center, jr, 0.0, TAU, 32, Color(1, 1, 1, 0.35), 2.0)
+	ci.draw_circle(knob, 16.0 * ui_sc, Color(1, 1, 1, 0.35 if active else 0.2))
 
 	for id in _buttons:
 		var b: Dictionary = _buttons[id]
