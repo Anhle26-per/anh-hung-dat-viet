@@ -6,6 +6,8 @@ const Fx = preload("res://scripts/effects/fx.gd")
 const Bullet = preload("res://scripts/entities/bullet.gd")
 
 var life := 9.0
+var fire_cd := 0.7
+var use_marked := false
 var _cd := 0.4
 var _spr: AnimatedSprite2D
 
@@ -32,21 +34,36 @@ func _process(delta: float) -> void:
 	_cd -= delta
 	var target = null
 	var best := 260.0
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if e.is_spawning():
-			continue
-		var d := global_position.distance_to(e.global_position)
-		if d < best:
-			best = d
-			target = e
+	var now_ms: int = Time.get_ticks_msec()
+	var target_marked := false
+	if use_marked:
+		var m_best := 340.0
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.is_spawning():
+				continue
+			if e.has_meta("marked_until") and int(e.get_meta("marked_until")) > now_ms:
+				var dm := global_position.distance_to(e.global_position)
+				if dm < m_best:
+					m_best = dm
+					target = e
+					target_marked = true
+	if target == null:
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e.is_spawning():
+				continue
+			var d := global_position.distance_to(e.global_position)
+			if d < best:
+				best = d
+				target = e
 	if target == null:
 		return
 	var dir: Vector2 = (target.global_position - global_position).normalized()
 	_spr.flip_h = dir.x < 0.0
 	if _cd <= 0.0:
-		_cd = 0.7
+		_cd = fire_cd
+		var dmg: int = 15 if target_marked else 10
 		var b := Bullet.new()
-		b.setup(true, global_position + dir * 14.0 + Vector2(0, -4), dir, 340.0, 10, 1.0, "cannonball")
+		b.setup(true, global_position + dir * 14.0 + Vector2(0, -4), dir, 340.0, dmg, 1.0, "cannonball")
 		b.explode_radius = 30.0
 		get_parent().add_child(b)
 		_spr.play("fire")

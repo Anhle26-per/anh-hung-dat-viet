@@ -55,6 +55,25 @@ Tướng được vẽ ở khung 32x32, có 4 khung thở, 4 khung đi, 1 khung 
 
 Khi tung chiêu, một băng chân dung tướng trượt ngang màn hình.
 
+## Đồng điệu binh khí và Ấn hệ (G18)
+
+Khi tung chiêu, game tính **mức đồng điệu** và **Ấn hệ** theo vũ khí đang cầm trên tay (hiệu ứng kéo dài giữ mức lúc tung):
+
+- **★★ Tâm đắc (Mức 2):** Dùng đúng vũ khí khởi đầu của tướng hoặc **binh khí định mệnh** (`no_lien_chau` cho Lý Thường Kiệt, `thuan_thien` cho Lê Lợi, `hoa_ho` cho Quang Trung, `hoa_mai` cho Hoàng Hoa Thám). Kỹ năng nhận nâng cấp mạnh nhất kèm hiệu ứng phụ riêng.
+- **★ Cùng hệ (Mức 1):** Dùng vũ khí cùng hệ với vũ khí khởi đầu hoặc vũ khí **Thần khí**. Kỹ năng được tăng cường vừa phải.
+- **Chưa đồng điệu (Mức 0):** Giữ nguyên chiêu gốc.
+
+Ngoài ra, mỗi lần tung chiêu **luôn kích hoạt thêm Ấn hệ** theo hệ vũ khí đang cầm:
+
+| Hệ vũ khí | Ấn hệ | Hiệu ứng cộng thêm |
+|---|---|---|
+| Đao kiếm (`kiem`) | **Kiếm khí** | Phóng 6 sóng kiếm tỏa 360° (sát thương = vũ khí đang cầm, tối thiểu 4) |
+| Côn thương (`truong`) | **Trấn địa** | Sóng chấn địa bán kính 60, sát thương 4, đẩy lùi mạnh, choáng 0,6s |
+| Cung nỏ (`cung_no`) | **Mưa tên** | Trong 1,5s có 12 mũi tên rơi quanh mình bán kính 90 (ưu tiên giặc, 3 dmg/mũi) |
+| Hỏa khí (`hoa_khi`) | **Hỏa ấn** | Đặt 3 vùng lửa nhỏ (bán kính 14, 2s) hình tam giác quanh mình |
+| Súng (`sung`) | **Nạp đạn thần tốc** | Trong 4s tốc độ bắn +30%, đạn xuyên thêm 1 giặc |
+| Thần khí (`than_khi`) | **Linh khí** | Hồi 40 năng lượng, lần hồi chiêu này ngắn hơn 30% |
+
 ## 10 chương lịch sử (năm 40 đến năm 1954)
 
 Có hư cấu cho kịch tính: pháp sư giặc dùng tà thuật gọi yêu quái dân gian ra trợ chiến.

@@ -156,7 +156,10 @@ func _on_body_entered(body: Node) -> void:
 			return
 		_hit.append(body)
 		Sfx.play("hit_bullet")
-		body.take_damage(damage, dir * knock)
+		var hit_dmg: int = damage
+		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("burn_bonus_mult"):
+			hit_dmg *= int(owner_node.burn_bonus_mult(body))
+		body.take_damage(hit_dmg, dir * knock)
 		if stun_duration > 0.0 and is_instance_valid(body) and not body.dead and body.has_method("apply_stun"):
 			body.apply_stun(stun_duration)
 		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_hit_enemy") and is_instance_valid(body):

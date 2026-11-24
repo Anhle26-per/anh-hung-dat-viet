@@ -59,6 +59,12 @@ var _dash_syn := 0
 var _dash_armor_gained := 0
 var _reflect_timer := 0.0
 var _reflect_syn := 0
+var _than_toc_syn := 0
+var _trail_fire_cd := 0.0
+var _burn_double_timer := 0.0
+var _free_shots := 0
+var _stun_shot := 0.0
+var _mark_timer := 0.0
 var twin: AnimatedSprite2D
 var _regen_acc := 0.0
 var _fire_timer := 0.0
@@ -207,6 +213,18 @@ func _physics_process(delta: float) -> void:
 	twin_timer = maxf(twin_timer - delta, 0.0)
 	rapid_reload_timer = maxf(rapid_reload_timer - delta, 0.0)
 	_reflect_timer = maxf(_reflect_timer - delta, 0.0)
+	_burn_double_timer = maxf(_burn_double_timer - delta, 0.0)
+	_mark_timer = maxf(_mark_timer - delta, 0.0)
+	_trail_fire_cd = maxf(_trail_fire_cd - delta, 0.0)
+	if buff_timer > 0.0 and _than_toc_syn == 2 and velocity.length() > 10.0 and _trail_fire_cd <= 0.0 and get_parent() != null:
+		_trail_fire_cd = 0.2
+		var tf := FireZone.new()
+		tf.instant = true
+		tf.radius = 12.0
+		tf.life = 1.5
+		tf.position = global_position
+		tf.target = global_position
+		get_parent().add_child(tf)
 
 	if buff("ngoc_bich") > 0 and energy < max_energy:
 		_regen_acc += delta * 2.0 * buff("ngoc_bich")
@@ -363,8 +381,10 @@ func _try_attack() -> void:
 	var w := current_weapon()
 	if w.is_empty():
 		return
+	var is_free: bool = _free_shots > 0
+	var shot_stun: float = _stun_shot if is_free else 0.0
 	var cost: int = w.get("energy", 0)
-	if buff_timer > 0.0:
+	if buff_timer > 0.0 or is_free:
 		cost = 0
 	if cost > energy:
 		_fire_timer = 0.25
@@ -375,16 +395,24 @@ func _try_attack() -> void:
 	energy -= cost
 	var cd: float = w.cooldown
 	var rate_mult: float = float(SynergyData.IMPRINTS["sung"].fire_rate_mult) if rapid_reload_timer > 0.0 else 1.0
-	_fire_timer = cd * (0.5 if buff_timer > 0.0 else 1.0) * pow(0.87, buff("giay_co")) / rate_mult
+	if is_free:
+		_free_shots -= 1
+		if _free_shots > 0:
+			_fire_timer = 0.0
+		else:
+			_fire_timer = cd * (0.5 if buff_timer > 0.0 else 1.0) * pow(0.87, buff("giay_co")) / rate_mult
+			_stun_shot = 0.0
+	else:
+		_fire_timer = cd * (0.5 if buff_timer > 0.0 else 1.0) * pow(0.87, buff("giay_co")) / rate_mult
 	match w.type:
 		"melee":
-			_melee(w)
+			_melee(w, Vector2.ZERO, shot_stun)
 			if twin_timer > 0.0:
-				_melee(w, _twin_offset())
+				_melee(w, _twin_offset(), shot_stun)
 		"ranged":
-			_shoot(w)
+			_shoot(w, Vector2.ZERO, shot_stun)
 			if twin_timer > 0.0:
-				_shoot(w, _twin_offset())
+				_shoot(w, _twin_offset(), shot_stun)
 		"beam":
 			_beam(w)
 		"wave":
@@ -415,7 +443,7 @@ func _twin_offset() -> Vector2:
 	return Vector2(14.0 if body.flip_h else -14.0, 6.0)
 
 
-func _shoot(w: Dictionary, offset := Vector2.ZERO) -> void:
+func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> void:
 	if offset == Vector2.ZERO:
 		var proj_kind: String = str(w.get("proj", "bullet"))
 		Sfx.play("arrow" if proj_kind in ["arrow", "stone", "dart", "axe"] else "shoot")
@@ -425,6 +453,9 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO) -> void:
 		spread = deg_to_rad(10.0 * buff("ten_doi"))
 	var inacc := deg_to_rad(w.get("inaccuracy", 3.0))
 	var start := _muzzle_pos() + offset
+	var life_mult: float = 1.0
+	if buff_timer > 0.0 and SynergyData.family(weapons[slot]) == "hoa_khi" and _than_toc_syn >= 1:
+		life_mult = 2.0 if _than_toc_syn == 2 else 1.5
 	for i in count:
 		var a := aim_dir.angle()
 		if count > 1:
@@ -432,12 +463,13 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO) -> void:
 		a += randf_range(-inacc, inacc)
 		var dir := Vector2.from_angle(a)
 		var b := Bullet.new()
-		b.setup(true, start - aim_dir * 4.0, dir, w.speed, w.damage, w.life, w.get("proj", "bullet"))
+		b.setup(true, start - aim_dir * 4.0, dir, w.speed, w.damage, float(w.life) * life_mult, w.get("proj", "bullet"))
 		b.pierce = int(w.get("pierce", 0)) + (int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0)
 		b.explode_radius = w.get("explode", 0.0) * (1.0 + 0.35 * buff("hoa_duoc"))
 		b.knock = w.get("knock", 60.0)
 		b.homing = w.get("homing", 0.0)
 		b.color = w.get("color", Color.WHITE)
+		b.stun_duration = shot_stun
 		b.owner_node = self
 		if w.get("boomerang", false):
 			b.boomerang = true
@@ -461,7 +493,7 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO) -> void:
 			Fx.particles(get_parent(), start, Color(1, 0.7, 0.3), 2, 60.0, 0.25, -60.0, 1.5, 40.0, aim_dir, Color(0.8, 0.2, 0.1))
 
 
-func _melee(w: Dictionary, offset := Vector2.ZERO) -> void:
+func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> void:
 	if offset == Vector2.ZERO:
 		Sfx.play("slash")
 	var reach: float = w.reach * (1.0 + 0.2 * buff("da_mai"))
@@ -473,8 +505,11 @@ func _melee(w: Dictionary, offset := Vector2.ZERO) -> void:
 	var first_hit = null
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if _in_arc(e.global_position - offset, reach + e.radius, arc, e.radius):
+			var hit_dmg: int = dmg * burn_bonus_mult(e)
 			for i in hits:
-				e.take_damage(dmg, (e.global_position - global_position).normalized() * knock)
+				e.take_damage(hit_dmg, (e.global_position - global_position).normalized() * knock)
+			if hit_stun > 0.0 and is_instance_valid(e) and not e.dead and e.has_method("apply_stun"):
+				e.apply_stun(hit_stun)
 			on_hit_enemy(e)
 			if first_hit == null:
 				first_hit = e
@@ -484,6 +519,9 @@ func _melee(w: Dictionary, offset := Vector2.ZERO) -> void:
 			b.destroy()
 	if first_hit != null and offset == Vector2.ZERO:
 		Sfx.play("hit_flesh")
+		for ch in get_children():
+			if ch is OrbitBlades:
+				ch.trigger_launch(first_hit)
 	if twin_timer > 0.0 and _twin_syn == 2:
 		var tw_b := Bullet.new()
 		tw_b.setup(true, global_position + offset + aim_dir * 14.0, aim_dir, 300.0, maxi(1, int(round(float(dmg) * 0.5))), 0.7, "sword_wave")
@@ -727,17 +765,26 @@ func _use_skill() -> void:
 			Fx.burst(parent, global_position, Color(1, 0.85, 0.35), 50.0, 0.5)
 		"thuan_thien_kiem":
 			var ob := OrbitBlades.new()
+			ob.count = 5 if syn == 2 else (4 if syn == 1 else 3)
+			ob.launch_on_melee = (syn == 2)
 			add_child(ob)
 			Fx.burst(parent, global_position, Color(1, 0.95, 0.6), 44.0, 0.45)
 			Fx.particles(parent, global_position, Color(1, 0.95, 0.6), 22, 120.0, 0.6)
 		"hoa_hong":
-			for i in 8:
+			var pot_cnt: int = 12 if syn == 2 else (10 if syn == 1 else 8)
+			if syn == 2:
+				_burn_double_timer = 4.0
+			for i in pot_cnt:
 				var fz := FireZone.new()
 				fz.position = global_position
-				fz.target = global_position + Vector2.from_angle(TAU * i / 8.0) * 54.0
+				fz.target = global_position + Vector2.from_angle(TAU * float(i) / float(pot_cnt)) * 54.0
 				parent.add_child(fz)
 			Fx.shake(get_tree(), 2.0)
 		"hum_thieng":
+			if syn >= 1:
+				_free_shots = 3 if syn == 2 else 2
+				_stun_shot = 0.8 if syn == 2 else 0.0
+				_fire_timer = 0.0
 			var roar := WaveRing.new()
 			roar.position = global_position
 			roar.radius = 120.0
@@ -753,9 +800,14 @@ func _use_skill() -> void:
 			Fx.shake(get_tree(), 4.0)
 		"keo_phao":
 			var tu := Turret.new()
+			tu.fire_cd = 0.7 / 1.4 if syn == 2 else (0.7 / 1.2 if syn == 1 else 0.7)
+			tu.use_marked = (syn == 2)
+			if syn == 2:
+				_mark_timer = 9.0
 			tu.position = global_position + aim_dir * 16.0
 			parent.add_child(tu)
 		"than_toc":
+			_than_toc_syn = syn
 			buff_timer = 5.0
 			Fx.burst(parent, global_position, Color(1, 0.9, 0.3), 36.0, 0.35)
 			Fx.particles(parent, global_position, Color(1, 0.95, 0.5), 18, 140.0, 0.5, 0.0, 2.0)
@@ -1089,6 +1141,14 @@ func on_kill() -> void:
 		heal(1)
 
 
+func burn_bonus_mult(target) -> int:
+	if _burn_double_timer > 0.0 and target != null and is_instance_valid(target) and target.get("status") != null and target.status.has("burn"):
+		return 2
+	return 1
+
+
 func on_hit_enemy(e) -> void:
 	if is_instance_valid(e) and not e.dead:
 		last_hit_enemy = e
+		if _mark_timer > 0.0:
+			e.set_meta("marked_until", Time.get_ticks_msec() + 3000)

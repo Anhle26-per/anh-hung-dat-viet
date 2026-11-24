@@ -3,17 +3,21 @@ extends Node2D
 
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
+const Bullet = preload("res://scripts/entities/bullet.gd")
 
 var life := 6.0
 var radius := 30.0
+var count := 3
+var launch_on_melee := false
 var _blades: Array = []
 var _cd := {}
+var _launch_cd := 0.0
 var _t := 0.0
 
 
 func _ready() -> void:
 	z_index = 5
-	for i in 3:
+	for i in count:
 		var s := Sprite2D.new()
 		s.texture = Art.tex("weapons/thuan_thien.png")
 		s.material = Art.additive()
@@ -22,8 +26,27 @@ func _ready() -> void:
 		_blades.append(s)
 
 
+func trigger_launch(target) -> void:
+	if not launch_on_melee or _launch_cd > 0.0 or target == null or not is_instance_valid(target) or target.dead:
+		return
+	var owner_p := get_parent()
+	if owner_p == null or owner_p.get_parent() == null:
+		return
+	_launch_cd = 0.5
+	var dir: Vector2 = (target.global_position - global_position).normalized()
+	if dir == Vector2.ZERO:
+		dir = Vector2.RIGHT
+	var b := Bullet.new()
+	b.setup(true, global_position + dir * 14.0, dir, 340.0, 6, 0.6, "sword_wave")
+	b.pierce = 2
+	b.color = Color(1, 0.95, 0.55)
+	b.owner_node = owner_p
+	owner_p.get_parent().add_child(b)
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	_launch_cd = maxf(_launch_cd - delta, 0.0)
 	life -= delta
 	if life <= 0.0:
 		Fx.particles(get_parent().get_parent(), global_position, Color(1, 0.9, 0.5), 16, 100.0, 0.5)
@@ -31,8 +54,8 @@ func _process(delta: float) -> void:
 		return
 	for k in _cd.keys():
 		_cd[k] -= delta
-	for i in 3:
-		var ang := _t * 5.0 + TAU * i / 3.0
+	for i in _blades.size():
+		var ang := _t * 5.0 + TAU * float(i) / float(maxi(1, _blades.size()))
 		var s: Sprite2D = _blades[i]
 		s.position = Vector2.from_angle(ang) * radius
 		s.rotation = ang + PI / 2.0
