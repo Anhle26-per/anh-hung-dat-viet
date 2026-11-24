@@ -1,6 +1,7 @@
 # Anh Hùng Đất Việt
 
 > Game chỉ để chơi trong nhóm bạn: chơi một mình hoặc chơi chung qua LAN.
+> - **Bàn giao cho Antigravity/Gemini: [docs/BAN-GIAO.md](docs/BAN-GIAO.md)**
 > - Tiến độ và kế hoạch: [docs/TIEN-DO-VA-KE-HOACH.md](docs/TIEN-DO-VA-KE-HOACH.md)
 > - Việc còn lại giao cho Gemini: [docs/GIAO-VIEC-GEMINI.md](docs/GIAO-VIEC-GEMINI.md) (luật làm việc: `AGENTS.md`)
 > - Chạy test: `tools\run_tests.bat` (Windows) hoặc `bash tools/run_tests.sh` (Linux/Mac)

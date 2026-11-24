@@ -8,6 +8,7 @@ Bạn là lập trình viên hỗ trợ cho game "Anh Hùng Đất Việt": rogu
 
 Không làm quảng cáo, mua trong game, đăng nhập tài khoản, máy chủ Internet hay gửi dữ liệu ra ngoài.
 
+Phiên đầu tiên: đọc `docs/BAN-GIAO.md` (biên bản bàn giao: kiến trúc, quyết định đã chốt, bẫy kỹ thuật).
 Đọc hết tệp này trước khi làm. Mỗi phiên chỉ làm MỘT thẻ việc trong `docs/GIAO-VIEC-GEMINI.md`.
 Xem bảng theo dõi ở mục 0b của tệp đó để biết thẻ nào đã xong và thẻ nào phải làm trước. KHÔNG tự sửa cột Trạng thái; chủ dự án sửa.
 
