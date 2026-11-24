@@ -26,7 +26,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G17 | Đổi vũ khí bằng lăn chuột | 1 | — | **Xong** 24/11/2026 (Gemini làm, đã qua K1, input, K2) |
 | G18 | Đồng điệu binh khí và Ấn hệ | 1 | G17 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, synergy, input, craft, K2) |
 | G19 | Tu luyện tướng và rèn binh khí khởi đầu | 1 | G16, G18 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, progression, synergy, craft, run_save, K2) |
-| G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | Chưa làm |
+| G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | **Xong** 25/11/2026 (Gemini làm, đã xuất .exe, .pck chạy thử trên Godot, .apk, đã qua K1, K2) |
 | G05 | Sửa lỗi nhỏ (đạn bay vùng tối, chữ chồng nhau) | 1 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, bugfix, audio, craft, synergy, progression, K2) |
 | N1 | Menu mạng và phòng chờ LAN | 2 | G04 | Chưa làm |
 | N2 | Nhiều người chơi trong cùng màn | 2 | N1 | Chưa làm |
