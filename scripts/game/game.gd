@@ -34,6 +34,9 @@ func _ready() -> void:
 
 	player = Player.new()
 	player.setup(Global.selected_hero)
+	var resuming := not Global.resume_data.is_empty()
+	if resuming:
+		player.restore(Global.resume_data)    # "Chơi tiếp": máu, giáp, vũ khí như lúc lưu
 	world.add_child(player)
 	player.died.connect(_on_player_died)
 	player.hurt.connect(func(): add_shake(4.0))
@@ -62,7 +65,7 @@ func _ready() -> void:
 
 	_build_level()
 	# Lễ xuất quân: chọn 1 phúc lành ngay từ đầu
-	if Global.upgrade("khoi_dau") > 0 and Global.level == 1 and Global.run_buffs.is_empty():
+	if not resuming and Global.upgrade("khoi_dau") > 0 and Global.level == 1 and Global.run_buffs.is_empty():
 		_start_buff.call_deferred()
 
 
@@ -98,6 +101,7 @@ func _build_level() -> void:
 	player.global_position = dungeon.start_position()
 	player.nearby_pickup = null
 	camera.reset_smoothing()
+	Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
 	var stage := (Global.level - 1) % 3 + 1
 	if stage == 1:
 		hud.show_chapter(EnemyData.chapter_index(Global.level) + 1, ch)
@@ -122,6 +126,7 @@ func _on_buff_chosen(id: String) -> void:
 	player.apply_buff(id)
 	if _start_bonus:
 		_start_bonus = false
+		Global.save_run(player)
 		return
 	_advance.call_deferred()
 

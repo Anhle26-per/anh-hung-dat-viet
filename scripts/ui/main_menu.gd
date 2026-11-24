@@ -4,6 +4,7 @@ extends Control
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
 
 
 class Backdrop extends Control:
@@ -82,10 +83,30 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 10)
 	box.add_child(spacer)
+	# Lượt chơi dở: Chơi tiếp hoặc Bỏ lượt (nhận xu đã nhặt)
+	var run := Global.peek_run()
+	if not run.is_empty():
+		var lv: int = int(run.level)
+		var hero_name: String = HeroData.DATA[str(run.hero)].name
+		var stage := "%d-%d" % [EnemyData.chapter_index(lv) + 1, (lv - 1) % 3 + 1]
+		box.add_child(UI.center(UI.button("Chơi tiếp (Màn %s - %s)" % [stage, hero_name], _on_continue, 22)))
+		box.add_child(UI.center(UI.button("Bỏ lượt (nhận %d xu)" % int(run.get("run_coins", 0)), _on_abandon, 16)))
 	box.add_child(UI.center(UI.button("Vào doanh trại", _on_play, 22)))
 	if not OS.has_feature("mobile") and not OS.has_feature("web"):
 		box.add_child(UI.center(UI.button("Thoát", func(): get_tree().quit(), 18)))
 	box.add_child(UI.label("Xu: %d   -   Màn cao nhất: %d" % [Global.coins, Global.best_level], 16, Color(1, 0.88, 0.5)))
+
+
+func _on_continue() -> void:
+	if Global.load_run():
+		get_tree().change_scene_to_file("res://scenes/game.tscn")
+	else:
+		get_tree().reload_current_scene()
+
+
+func _on_abandon() -> void:
+	Global.abandon_run()
+	get_tree().reload_current_scene()
 
 
 func _on_play() -> void:

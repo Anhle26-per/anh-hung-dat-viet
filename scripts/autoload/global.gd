@@ -4,7 +4,12 @@ extends Node
 
 const SAVE_PATH := "user://save.json"
 var save_path := SAVE_PATH        # bài kiểm thử đổi sang tệp riêng để không đụng tệp lưu thật
+const RUN_SAVE_PATH := "user://run.json"   # điểm lưu lượt chơi dở (Chơi tiếp)
+const RUN_VERSION := 1
+var run_save_path := ""           # để trống: tự suy ra từ save_path (test dùng tệp riêng)
+var resume_data: Dictionary = {}  # trạng thái nhân vật chờ nạp lại khi "Chơi tiếp"
 const HeroData = preload("res://scripts/data/heroes.gd")
+const WeaponData = preload("res://scripts/data/weapons.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -85,6 +90,12 @@ func auto_aim() -> bool:
 # ------------------------------------------------------------------ Lượt chơi
 
 func start_run() -> void:
+	# còn lượt chơi dở chưa xử lý: cộng xu của lượt đó vào kho trước khi bắt đầu lượt mới
+	if has_run():
+		var keep := selected_hero     # giữ tướng vừa chọn, không lấy tướng của lượt cũ
+		abandon_run()
+		selected_hero = keep
+	resume_data = {}
 	level = 1
 	boss_order = []
 	legend_last = ""
@@ -150,6 +161,7 @@ func end_run() -> void:
 	coins += run_coins
 	run_coins = 0
 	best_level = maxi(best_level, level)
+	clear_run()
 	save_game()
 
 
@@ -173,10 +185,7 @@ func show_rewarded_ad(on_reward: Callable) -> void:
 # ------------------------------------------------------------------ Lưu game
 
 func save_game() -> void:
-	var f := FileAccess.open(save_path, FileAccess.WRITE)
-	if f == null:
-		return
-	f.store_string(JSON.stringify({
+	_write_json_atomic(save_path, {
 		"coins": coins,
 		"best_level": best_level,
 		"unlocked": unlocked,
@@ -184,16 +193,157 @@ func save_game() -> void:
 		"upgrades": upgrades,
 		"discovered": discovered,
 		"stats": stats,
-	}))
+	})
+
+
+## Ghi JSON an toàn: ghi ra tệp .tmp trước rồi mới đổi tên đè lên tệp thật,
+## nên tắt máy / đóng game giữa chừng không làm hỏng tệp lưu.
+func _write_json_atomic(path: String, data: Dictionary) -> bool:
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(JSON.stringify(data))
+	f.close()
+	var abs_tmp := ProjectSettings.globalize_path(tmp)
+	var abs_path := ProjectSettings.globalize_path(path)
+	if DirAccess.rename_absolute(abs_tmp, abs_path) == OK:
+		return true
+	# Windows không cho đổi tên đè lên tệp đã có: xóa tệp cũ rồi đổi tên lại
+	DirAccess.remove_absolute(abs_path)
+	return DirAccess.rename_absolute(abs_tmp, abs_path) == OK
+
+
+func _read_json(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return null
+	var j := JSON.new()
+	if j.parse(f.get_as_text()) != OK:
+		return null      # tệp hỏng: bỏ qua, không văng game
+	return j.data
+
+
+# ------------------------------------------------------------------ Lượt chơi dở (Chơi tiếp)
+
+## Đường dẫn tệp lưu lượt chơi. Khi test đổi save_path thì tệp này cũng tự tách riêng.
+func run_path() -> String:
+	if run_save_path != "":
+		return run_save_path
+	if save_path == SAVE_PATH:
+		return RUN_SAVE_PATH
+	return save_path.get_basename() + "_run.json"
+
+
+func has_run() -> bool:
+	return FileAccess.file_exists(run_path())
+
+
+## Lưu lượt đang chơi. p = người chơi (có hàm snapshot()); null thì giữ trạng thái nhân vật cũ.
+func save_run(p = null) -> bool:
+	var who: Dictionary = resume_data
+	if p != null and is_instance_valid(p):
+		who = p.snapshot()
+	if who.is_empty():
+		return false
+	return _write_json_atomic(run_path(), {
+		"version": RUN_VERSION,
+		"hero": selected_hero,
+		"level": level,
+		"player": who,
+		"run_buffs": run_buffs,
+		"run_coins": run_coins,
+		"boss_order": boss_order,
+		"legend_last": legend_last,
+		"revived": revived,
+		"free_revives": free_revives,
+	})
+
+
+## Đọc thử tệp lượt chơi (để hiện nút "Chơi tiếp"). Tệp hỏng / sai phiên bản -> {}.
+func peek_run() -> Dictionary:
+	var data: Variant = _read_json(run_path())
+	if typeof(data) != TYPE_DICTIONARY:
+		return {}
+	var d: Dictionary = data
+	if int(d.get("version", 0)) != RUN_VERSION:
+		return {}
+	if not HeroData.DATA.has(str(d.get("hero", ""))):
+		return {}
+	if int(d.get("level", 0)) < 1 or typeof(d.get("player", null)) != TYPE_DICTIONARY:
+		return {}
+	return d
+
+
+## Nạp lượt chơi dở vào Global (game.gd sẽ nạp tiếp trạng thái nhân vật từ resume_data).
+func load_run() -> bool:
+	var d := peek_run()
+	if d.is_empty():
+		return false
+	selected_hero = str(d.hero)
+	level = int(d.level)
+	run_coins = int(d.get("run_coins", 0))
+	revived = bool(d.get("revived", false))
+	free_revives = int(d.get("free_revives", 0))
+	legend_last = str(d.get("legend_last", ""))
+	boss_order = []
+	for b in d.get("boss_order", []):
+		boss_order.append(str(b))
+	run_buffs = {}
+	var rb: Variant = d.get("run_buffs", {})
+	if typeof(rb) == TYPE_DICTIONARY:
+		for k in rb:
+			run_buffs[str(k)] = int(rb[k])
+	var pl: Dictionary = d.player
+	resume_data = {}
+	for k in pl:
+		resume_data[str(k)] = pl[k]
+	var ws: Array = []
+	for w in pl.get("weapons", []):
+		var wid := str(w)
+		ws.append(wid if (wid == "" or WeaponData.DATA.has(wid)) else "")
+	resume_data["weapons"] = ws
+	return true
+
+
+func clear_run() -> void:
+	resume_data = {}
+	if FileAccess.file_exists(run_path()):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(run_path()))
+
+
+## Bỏ lượt chơi dở: nhận số xu đã nhặt trong lượt đó.
+func abandon_run() -> int:
+	var got := 0
+	if load_run():
+		got = run_coins
+		end_run()
+	else:
+		clear_run()
+	return got
+
+
+## Đóng cửa sổ (máy tính) hoặc ẩn ứng dụng (điện thoại): giữ lại tiến trình.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED:
+		save_on_exit()
+
+
+func save_on_exit() -> void:
+	if is_inside_tree():
+		var g = get_tree().get_first_node_in_group("game")
+		if g != null and g.player != null and is_instance_valid(g.player):
+			if g.player.dead:
+				end_run()      # đã ngã: kết thúc lượt, cộng xu
+			else:
+				save_run(g.player)
+	save_game()
 
 
 func load_game() -> void:
-	if not FileAccess.file_exists(save_path):
-		return
-	var f := FileAccess.open(save_path, FileAccess.READ)
-	if f == null:
-		return
-	var data = JSON.parse_string(f.get_as_text())
+	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
 		return
 	coins = int(data.get("coins", 0))

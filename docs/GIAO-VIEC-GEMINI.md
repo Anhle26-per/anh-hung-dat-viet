@@ -17,7 +17,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 
 | Thẻ | Việc | Đợt | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
-| G01 | Lưu giữa lượt, giữ xu khi thoát | 1 | — | Chưa làm |
+| G01 | Lưu giữa lượt, giữ xu khi thoát | 1 | — | **Xong** 24/11/2026 (Claude làm, đã qua K1, run_save, K2) |
 | G02 | Âm thanh và nhạc nền (CC0) | 1 | — | Chưa làm |
 | G03 | Menu cài đặt và độ khó | 1 | G02 (âm lượng) | Chưa làm |
 | G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | Chưa làm |

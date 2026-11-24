@@ -701,6 +701,32 @@ func _swap_or_pickup() -> void:
 		stats_changed.emit()
 
 
+## Trạng thái nhân vật để lưu lượt chơi dở
+func snapshot() -> Dictionary:
+	return {
+		"hp": hp, "max_hp": max_hp,
+		"armor": armor, "max_armor": max_armor,
+		"energy": energy, "max_energy": max_energy,
+		"weapons": weapons.duplicate(), "slot": slot,
+	}
+
+
+## Nạp lại trạng thái đã lưu (gọi sau setup(), trước khi thêm vào cây cảnh)
+func restore(d: Dictionary) -> void:
+	max_hp = maxi(1, int(d.get("max_hp", max_hp)))
+	hp = clampi(int(d.get("hp", max_hp)), 1, max_hp)
+	max_armor = maxi(0, int(d.get("max_armor", max_armor)))
+	armor = clampi(int(d.get("armor", max_armor)), 0, max_armor)
+	max_energy = maxi(1, int(d.get("max_energy", max_energy)))
+	energy = clampi(int(d.get("energy", max_energy)), 0, max_energy)
+	var ws: Array = d.get("weapons", [])
+	if ws.size() == 2 and str(ws[0]) != "":
+		weapons = [str(ws[0]), str(ws[1])]
+	slot = clampi(int(d.get("slot", 0)), 0, 1)
+	if weapons[slot] == "":
+		slot = 0
+
+
 func pick_weapon(id: String) -> void:
 	if weapons[1] == "":
 		weapons[1] = id
