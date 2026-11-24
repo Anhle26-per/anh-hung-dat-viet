@@ -33,6 +33,7 @@ var _leaving := false
 func _ready() -> void:
 	add_to_group("lobby")
 	get_tree().paused = false
+	Sfx.play_music("lobby")
 	world = Node2D.new()
 	add_child(world)
 	var dark := CanvasModulate.new()
@@ -315,6 +316,7 @@ func _start_run() -> void:
 	if _leaving:
 		return
 	_leaving = true
+	Sfx.play("level_clear")
 	Global.save_game()
 	Global.start_run()
 	get_tree().change_scene_to_file("res://scenes/game.tscn")

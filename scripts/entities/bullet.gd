@@ -180,6 +180,7 @@ func _finish() -> void:
 		return
 	_done = true
 	if explode_radius > 0.0:
+		Sfx.play("explode")
 		if from_player:
 			for e in get_tree().get_nodes_in_group("enemies"):
 				if global_position.distance_to(e.global_position) < explode_radius + e.radius:

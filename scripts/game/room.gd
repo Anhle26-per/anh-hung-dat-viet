@@ -79,6 +79,8 @@ func _enter() -> void:
 		"boss":
 			state = "fighting"
 			_lock()
+			Sfx.play("boss_appear")
+			Sfx.play_music("boss")
 			spawn_enemy("boss", rect.get_center() + Vector2(0, -20))
 			var bid := EnemyData.boss_id(level)
 			var b: Dictionary = EnemyData.BOSSES[bid]
@@ -87,12 +89,15 @@ func _enter() -> void:
 		"legend":
 			state = "fighting"
 			_lock()
+			Sfx.play("boss_appear")
+			Sfx.play_music("boss")
 			spawn_enemy("legend:" + legend_id, rect.get_center() + Vector2(0, -20))
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
 			get_tree().call_group("hud", "show_banner", "Tam Yêu xuất hiện: %s - %s" % [lg.name, lg.title])
 		"treasure":
 			state = "done"
 			_chest.play("open")
+			Sfx.play("chest_open")
 			var c := rect.get_center()
 			_spawn_weapon(c + Vector2(0, 18), 2)
 			_drop("potion", 2, c + Vector2(-16, 16))
@@ -170,10 +175,14 @@ func _clear() -> void:
 	for i in 3:
 		_drop("energy", 5, near)
 	if kind == "boss":
+		Sfx.play("level_clear")
+		Sfx.play_music("battle")
 		_spawn_portal(c + Vector2(0, -30))
 		_spawn_weapon(c + Vector2(0, 24), 3)
 		get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 	elif kind == "legend":
+		Sfx.play("level_clear")
+		Sfx.play_music("battle")
 		_spawn_portal(c + Vector2(0, -30))
 		_spawn_weapon(c + Vector2(0, 24), 2)
 		for i in 12:
@@ -188,6 +197,8 @@ func _clear() -> void:
 
 
 func _lock() -> void:
+	if not door_rects.is_empty():
+		Sfx.play("door_close")
 	for r in door_rects:
 		var d := Door.new()
 		d.size = r.size

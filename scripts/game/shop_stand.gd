@@ -49,6 +49,7 @@ func interact() -> void:
 	if p == null:
 		return
 	if Global.run_coins < price:
+		Sfx.play("buy_fail")
 		Fx.float_text(get_parent().get_parent(), global_position + Vector2(0, -30), "Không đủ xu!", Color(1, 0.5, 0.4), 13)
 		bought.emit(false)
 		return
@@ -75,6 +76,7 @@ func interact() -> void:
 			p.apply_buff(item)
 			Fx.float_text(par, p.global_position + Vector2(0, -30), BuffData.DATA[item].name, Color(1, 0.85, 0.4), 15)
 	Fx.particles(par, global_position, Color(1, 0.85, 0.35), 14, 70.0, 0.5, -40.0, 2.0)
+	Sfx.play("buy")
 	p.stats_changed.emit()
 	bought.emit(true)
 	queue_redraw()

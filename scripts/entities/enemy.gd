@@ -266,6 +266,7 @@ func _physics_process(delta: float) -> void:
 					if dist < radius + 12.0 and player.global_position.distance_to(global_position) < 26.0:
 						player.take_damage(1)
 					Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 20.0, 0.7, 0.0, Color(0.6, 0.85, 1.0))
+					Sfx.play("explode")
 					die(false)
 					return
 			"ngu":
@@ -706,6 +707,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 
 func _start_morph() -> void:
 	_morph_t = 1.4
+	Sfx.play("boss_morph")
 	_burst_left = 0
 	_charge_state = ""
 	_submerged = false
@@ -912,6 +914,7 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 		dmg = int(dmg * 1.5)
 	hp -= dmg
 	_flash = 1.0
+	Sfx.play("enemy_hurt")
 	_knock += knock * (0.08 if is_boss() else (0.4 if data.ai == "tank" else 1.0))
 	Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 6.0), ("%d!" % dmg) if crit else str(dmg), Color(1, 1, 1) if dmg < 10 else Color(1, 0.85, 0.3), 14 if dmg < 10 else 18)
 	if hp <= 0:
@@ -941,6 +944,7 @@ func die(drop := true) -> void:
 	if dead:
 		return
 	dead = true
+	Sfx.play("explode" if is_boss() else "enemy_die")
 	if drop:
 		Global.add_stat("kills")
 		if is_boss():

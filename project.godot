@@ -17,6 +17,7 @@ theme/custom_font="res://assets/fonts/VT323-Regular.ttf"
 [autoload]
 
 Global="*res://scripts/autoload/global.gd"
+Sfx="*res://scripts/audio/sfx.gd"
 
 [display]
 

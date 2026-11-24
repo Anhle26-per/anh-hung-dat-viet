@@ -387,6 +387,9 @@ func _twin_offset() -> Vector2:
 
 
 func _shoot(w: Dictionary, offset := Vector2.ZERO) -> void:
+	if offset == Vector2.ZERO:
+		var proj_kind: String = str(w.get("proj", "bullet"))
+		Sfx.play("arrow" if proj_kind in ["arrow", "stone", "dart", "axe"] else "shoot")
 	var count: int = w.get("count", 1) + buff("ten_doi")
 	var spread := deg_to_rad(w.get("spread", 0.0))
 	if buff("ten_doi") > 0 and spread == 0.0:
@@ -422,6 +425,8 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO) -> void:
 
 
 func _melee(w: Dictionary, offset := Vector2.ZERO) -> void:
+	if offset == Vector2.ZERO:
+		Sfx.play("slash")
 	var reach: float = w.reach * (1.0 + 0.2 * buff("da_mai"))
 	var arc := deg_to_rad(w.arc)
 	var dmg: int = int(w.damage * (1.0 + 0.15 * buff("da_mai")))
@@ -501,6 +506,7 @@ func _chain_lightning(start, count: int, dmg: int) -> void:
 
 
 func _beam(w: Dictionary) -> void:
+	Sfx.play("shoot")
 	var start := _muzzle_pos()
 	var length: float = w.length
 	var end := start + aim_dir * length
@@ -532,6 +538,7 @@ func _beam(w: Dictionary) -> void:
 
 
 func _wave(w: Dictionary) -> void:
+	Sfx.play("skill")
 	var r := WaveRing.new()
 	r.position = global_position
 	r.radius = w.get("radius", 110.0)
@@ -544,6 +551,7 @@ func _wave(w: Dictionary) -> void:
 
 
 func _spikes(w: Dictionary) -> void:
+	Sfx.play("explode")
 	var count: int = w.get("count", 6)
 	var spacing: float = w.get("spacing", 18.0)
 	var dir := aim_dir
@@ -577,6 +585,7 @@ func _use_skill() -> void:
 	if skill_timer > 0.0 or dead:
 		return
 	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen"))
+	Sfx.play("skill")
 	var parent := get_parent()
 	var wr: WeakRef = weakref(parent)
 	match hero.skill:
@@ -745,6 +754,7 @@ func pick_weapon(id: String) -> void:
 	Fx.float_text(get_parent(), global_position + Vector2(0, -24), w.name, WeaponData.tier_color(id), 16)
 	if int(w.tier) >= 4:
 		Fx.particles(get_parent(), global_position, WeaponData.tier_color(id), 16, 90.0, 0.6, -40.0, 2.0)
+	Sfx.play("pickup_weapon")
 	_refresh_weapon_sprite()
 	stats_changed.emit()
 
@@ -773,6 +783,7 @@ func take_damage(amount: int) -> void:
 	hp -= amount - absorbed
 	body.play("hurt")
 	hurt.emit()
+	Sfx.play("player_hurt")
 	Fx.particles(get_parent(), global_position, Color(1, 0.3, 0.3) if absorbed < amount else Color(0.7, 0.8, 1.0), 8, 80.0, 0.35)
 	_check_death()
 
@@ -805,6 +816,7 @@ func _check_death() -> void:
 		tw.tween_property(body, "rotation", PI / 2.0 * (-1.0 if body.flip_h else 1.0), 0.25)
 		body.modulate = Color(0.7, 0.6, 0.7)
 		Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 14.0, 1.5)
+		Sfx.play("player_die")
 		died.emit()
 	stats_changed.emit()
 

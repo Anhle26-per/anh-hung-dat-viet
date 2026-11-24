@@ -53,6 +53,12 @@ static func button(text: String, on_press: Callable, font_size := 20, width := 2
 	b.custom_minimum_size = Vector2(width, 30)
 	b.add_theme_font_size_override("font_size", font_size)
 	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(func():
+		var ml: MainLoop = Engine.get_main_loop()
+		if ml is SceneTree:
+			var sfx: Node = (ml as SceneTree).root.get_node_or_null("Sfx")
+			if sfx != null:
+				sfx.play("ui_click"))
 	b.pressed.connect(on_press)
 	return b
 

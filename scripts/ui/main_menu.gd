@@ -53,6 +53,7 @@ class Backdrop extends Control:
 func _ready() -> void:
 	theme = UI.make_theme()
 	get_tree().paused = false
+	Sfx.play_music("lobby")
 	var bg := Backdrop.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)

@@ -45,6 +45,7 @@ func interact() -> void:
 	enabled = false
 	near = false
 	_spr.play("open")
+	Sfx.play("chest_open")
 	var par := get_parent()
 	var c := global_position + Vector2(0, 14)
 	Fx.particles(par, global_position, Color(1, 0.85, 0.35), 18, 90.0, 0.6, -50.0, 2.0)

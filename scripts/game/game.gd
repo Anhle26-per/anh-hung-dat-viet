@@ -93,6 +93,7 @@ func _build_level() -> void:
 			c.queue_free()
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
+	Sfx.play_music("battle")
 	dungeon = Dungeon.new()
 	world.add_child(dungeon)
 	world.move_child(dungeon, 0)
@@ -111,6 +112,7 @@ func _build_level() -> void:
 
 func _on_portal() -> void:
 	# qua màn: chọn 1 phúc lành rồi mới sang màn mới
+	Sfx.play("level_clear")
 	touch.reset()
 	var nxt := EnemyData.chapter(Global.level + 1)
 	var title := "%s - %s" % [nxt.name, nxt.year]
