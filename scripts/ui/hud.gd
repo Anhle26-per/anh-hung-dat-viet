@@ -6,6 +6,7 @@ const WeaponData = preload("res://scripts/data/weapons.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
+const ProgressionData = preload("res://scripts/data/progression.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 
@@ -71,15 +72,16 @@ func draw_hud(ci: Control) -> void:
 	var w := ci.size.x
 	var h := ci.size.y
 
-	# --- Máu / Giáp / Năng lượng
-	_panel(ci, Rect2(4, 4, 150, 52))
-	_bar(ci, Vector2(10, 9), player.hp, player.max_hp, Color("d83a3a"), _icons.heart)
-	_bar(ci, Vector2(10, 24), player.armor, player.max_armor, Color("9aa4bc"), _icons.shield)
-	_bar(ci, Vector2(10, 39), player.energy, player.max_energy, Color("3a8ae8"), _icons.energy)
+	# --- Máu / Giáp / Năng lượng + tên tướng & cấp
+	_panel(ci, Rect2(4, 4, 162, 66))
+	Art.draw_text(ci, Vector2(10, 16), "%s  Cấp %d" % [player.hero.name, Global.hero_level(player.hero_id)], 13, Color(1, 0.88, 0.45), false)
+	_bar(ci, Vector2(10, 21), player.hp, player.max_hp, Color("d83a3a"), _icons.heart)
+	_bar(ci, Vector2(10, 36), player.armor, player.max_armor, Color("9aa4bc"), _icons.shield)
+	_bar(ci, Vector2(10, 51), player.energy, player.max_energy, Color("3a8ae8"), _icons.energy)
 
 	# --- Phúc lành đang có
 	var bx0 := 6.0
-	var by0 := 60.0
+	var by0 := 74.0
 	for id in Global.run_buffs:
 		var icon := Art.tex("ui/buff_%s.png" % id)
 		ci.draw_texture(icon, Vector2(bx0, by0))
@@ -147,12 +149,15 @@ func draw_hud(ci: Control) -> void:
 			if id == "":
 				Art.draw_text(ci, Vector2(w - 190, y + 12), "(trống)", 14, Color(0.6, 0.6, 0.6), false)
 				continue
-			var wd := WeaponData.get_data(id)
-			var tex := Art.tex("weapons/%s.png" % id)
+			var wd: Dictionary = player.effective_weapon(id) if player.has_method("effective_weapon") else WeaponData.get_data(id)
+			var is_starter: bool = (id == str(player.hero.get("weapon", "")))
+			var wr: int = Global.weapon_rank(player.hero_id) if is_starter else 1
+			var tex := Art.tex(ProgressionData.weapon_texture_path(id, wr))
 			var sc := minf(36.0 / tex.get_width(), 16.0 / tex.get_height())
 			ci.draw_texture_rect(tex, Rect2(w - 228, y + 8 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
-			var txt: String = wd.name + ("" if int(wd.get("energy", 0)) == 0 else "  %d" % int(wd.energy))
-			Art.draw_text(ci, Vector2(w - 188, y + 12), txt, 15, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
+			var wname: String = str(wd.name) + (" (Bậc %d)" % wr if is_starter else "")
+			var txt: String = wname + ("" if int(wd.get("energy", 0)) == 0 else "  %d" % int(wd.energy))
+			Art.draw_text(ci, Vector2(w - 188, y + 12), txt, 14, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
 		var ready: bool = player.skill_timer <= 0.0
 		var sk := "Sẵn sàng" if ready else "%.1fs" % player.skill_timer
 		Art.draw_text(ci, Vector2(w - 228, h - 22), "[Space] %s: %s" % [player.hero.skill_name, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)

@@ -40,6 +40,17 @@ Game roguelike bắn quái góc nhìn từ trên xuống, đồ họa pixel. Ng�
 
 Tướng được vẽ ở khung 32x32, có 4 khung thở, 4 khung đi, 1 khung trúng đòn. Mỗi tướng khởi đầu bằng một vũ khí cơ bản riêng: cấp Thường, không tốn năng lượng, không rơi ngẫu nhiên.
 
+### Tu luyện tướng và rèn binh khí khởi đầu (G19)
+
+Đứng cạnh tượng tướng trong sảnh (bấm `E` -> thẻ **Tu luyện**) để nâng cấp riêng cho từng tướng đã mở khóa (cộng dồn với nâng cấp chung ở Lò rèn):
+
+- **Tu luyện tướng (Cấp 1–5):** Cấp 2 `+1 máu` (`150 xu`), Cấp 3 `+1 giáp` (`300 xu`), Cấp 4 `+30 năng lượng` (`500 xu + 2 yeu_hon`), Cấp 5 `hồi kỹ năng ×0,85` (`800 xu + 1 ngoc_than`).
+- **Rèn binh khí khởi đầu (Bậc 1–5):**
+  - Bậc 2 (`100 xu + 3 dong`): sát thương `×1,25`.
+  - Bậc 3 (`220 xu + 5 sat + 2 dong`): sát thương `×1,5`, hồi đòn `×0,92`, mở **Đặc tính 1** (viền xanh lam).
+  - Bậc 4 (`400 xu + 6 sat + 2 yeu_hon`): sát thương `×1,8`, hồi đòn `×0,88`.
+  - Bậc 5 **Thức tỉnh** (`700 xu + 8 sat + 3 yeu_hon + 2 ngoc_than`): sát thương `×2,2`, hồi đòn `×0,85`, mở **Đặc tính 2** (viền vàng lấp lánh).
+
 | Tướng | Vũ khí cơ bản | Chiêu | Hiệu ứng | Mở khóa |
 |---|---|---|---|---|
 | Hai Bà Trưng | Kiếm đồng Mê Linh | **Song Trưng** | Trưng Nhị hiện ra, đánh theo mọi đòn trong 8 giây | Có sẵn |

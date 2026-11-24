@@ -11,6 +11,7 @@ var resume_data: Dictionary = {}  # trạng thái nhân vật chờ nạp lại 
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
+const ProgressionData = preload("res://scripts/data/progression.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -25,6 +26,8 @@ var stats: Dictionary = {"runs": 0, "kills": 0, "bosses": 0}
 var free_revives := 0             # lượt hồi sinh miễn phí còn lại trong lượt chơi
 var materials: Dictionary = {}    # kho nguyên liệu: mã -> số lượng
 var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lượt kế tiếp ("" nếu trống)
+var hero_levels: Dictionary = {}  # mã tướng -> cấp (1..5)
+var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu (1..5)
 
 const DEFAULT_SETTINGS: Dictionary = {
 	"music": 0.8,
@@ -206,25 +209,17 @@ func forgeable_weapons() -> Array:
 	return out
 
 
-func can_craft(wid: String) -> bool:
-	if forged != "" or not discovered.has(wid) or not MaterialData.can_forge_weapon(wid):
+func _has_cost(coins_need: int, mats: Dictionary) -> bool:
+	if coins < coins_need:
 		return false
-	var rec: Dictionary = MaterialData.recipe_for(wid)
-	if rec.is_empty() or coins < int(rec.coins):
-		return false
-	var mats: Dictionary = rec.mats
 	for mid in mats:
 		if material_count(str(mid)) < int(mats[mid]):
 			return false
 	return true
 
 
-func try_craft(wid: String) -> bool:
-	if not can_craft(wid):
-		return false
-	var rec: Dictionary = MaterialData.recipe_for(wid)
-	coins -= int(rec.coins)
-	var mats: Dictionary = rec.mats
+func _spend_cost(coins_need: int, mats: Dictionary) -> void:
+	coins -= coins_need
 	for mid in mats:
 		var k: String = str(mid)
 		var left: int = material_count(k) - int(mats[mid])
@@ -232,7 +227,73 @@ func try_craft(wid: String) -> bool:
 			materials[k] = left
 		else:
 			materials.erase(k)
+
+
+func can_craft(wid: String) -> bool:
+	if forged != "" or not discovered.has(wid) or not MaterialData.can_forge_weapon(wid):
+		return false
+	var rec: Dictionary = MaterialData.recipe_for(wid)
+	if rec.is_empty():
+		return false
+	return _has_cost(int(rec.coins), rec.mats)
+
+
+func try_craft(wid: String) -> bool:
+	if not can_craft(wid):
+		return false
+	var rec: Dictionary = MaterialData.recipe_for(wid)
+	_spend_cost(int(rec.coins), rec.mats)
 	forged = wid
+	save_game()
+	return true
+
+
+func hero_level(id: String) -> int:
+	return clampi(int(hero_levels.get(id, 1)), 1, 5)
+
+
+func weapon_rank(id: String) -> int:
+	return clampi(int(weapon_ranks.get(id, 1)), 1, 5)
+
+
+func can_upgrade_hero(id: String) -> bool:
+	if not HeroData.DATA.has(id) or not unlocked.has(id):
+		return false
+	var cur: int = hero_level(id)
+	if cur >= 5:
+		return false
+	var nxt: Dictionary = ProgressionData.HERO_LEVELS[cur + 1]
+	return _has_cost(int(nxt.coins), nxt.mats)
+
+
+func try_upgrade_hero(id: String) -> bool:
+	if not can_upgrade_hero(id):
+		return false
+	var cur: int = hero_level(id)
+	var nxt: Dictionary = ProgressionData.HERO_LEVELS[cur + 1]
+	_spend_cost(int(nxt.coins), nxt.mats)
+	hero_levels[id] = cur + 1
+	save_game()
+	return true
+
+
+func can_upgrade_weapon(id: String) -> bool:
+	if not HeroData.DATA.has(id) or not unlocked.has(id):
+		return false
+	var cur: int = weapon_rank(id)
+	if cur >= 5:
+		return false
+	var nxt: Dictionary = ProgressionData.WEAPON_RANKS[cur + 1]
+	return _has_cost(int(nxt.coins), nxt.mats)
+
+
+func try_upgrade_weapon(id: String) -> bool:
+	if not can_upgrade_weapon(id):
+		return false
+	var cur: int = weapon_rank(id)
+	var nxt: Dictionary = ProgressionData.WEAPON_RANKS[cur + 1]
+	_spend_cost(int(nxt.coins), nxt.mats)
+	weapon_ranks[id] = cur + 1
 	save_game()
 	return true
 
@@ -356,6 +417,8 @@ func save_game() -> void:
 		"settings": settings,
 		"materials": materials,
 		"forged": forged,
+		"hero_levels": hero_levels,
+		"weapon_ranks": weapon_ranks,
 	})
 
 
@@ -556,6 +619,22 @@ func load_game() -> void:
 				materials[mk] = mv
 	var fg: String = str(data.get("forged", ""))
 	forged = fg if MaterialData.can_forge_weapon(fg) else ""
+	hero_levels = {}
+	var hl: Variant = data.get("hero_levels", null)
+	if typeof(hl) == TYPE_DICTIONARY:
+		var hld: Dictionary = hl
+		for k in hld:
+			var hk: String = str(k)
+			if HeroData.DATA.has(hk):
+				hero_levels[hk] = clampi(int(hld[k]), 1, 5)
+	weapon_ranks = {}
+	var wr: Variant = data.get("weapon_ranks", null)
+	if typeof(wr) == TYPE_DICTIONARY:
+		var wrd: Dictionary = wr
+		for k in wrd:
+			var wk: String = str(k)
+			if HeroData.DATA.has(wk):
+				weapon_ranks[wk] = clampi(int(wrd[k]), 1, 5)
 
 
 # ------------------------------------------------------------------ Phím bấm

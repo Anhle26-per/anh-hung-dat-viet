@@ -137,6 +137,11 @@ Các tệp `.tscn` chỉ có 1 nút gốc gắn script. **Mọi thứ khác đ�
 - **Đồng điệu (0 / 1 / 2):** Mức `2` (Tâm đắc) khi cầm đúng vũ khí khởi đầu hoặc binh khí định mệnh (`ly_thuong_kiet -> no_lien_chau`, `le_loi -> thuan_thien`, `quang_trung -> hoa_ho`, `hoang_hoa_tham -> hoa_mai`); Mức `1` khi cùng hệ hoặc cầm `than_khi`; Mức `0` giữ nguyên chiêu gốc. Hiệu ứng kéo dài giữ mức lúc tung.
 - **6 Ấn hệ** (luôn cộng thêm khi tung chiêu): `kiem` (*Kiếm khí*: 6 sóng kiếm 360°), `truong` (*Trấn địa*: `WaveRing` r=60, choáng 0,6s), `cung_no` (*Mưa tên*: 12 mũi trong 1,5s), `hoa_khi` (*Hỏa ấn*: 3 `FireZone` tam giác), `sung` (*Nạp đạn thần tốc*: bắn nhanh +30%, +1 xuyên trong 4s), `than_khi` (*Linh khí*: +40 NL, giảm 30% hồi chiêu lần đó).
 
+### Tu luyện tướng & Rèn binh khí khởi đầu (`scripts/data/progression.gd`)
+
+- `hero_levels` (1–5) cộng dồn với nâng cấp Lò rèn: `+1 HP`, `+1 Giáp`, `+30 NL`, hồi chiêu `×0,85`.
+- `weapon_ranks` (1–5) áp qua `player.effective_weapon(id)` chỉ cho vũ khí khởi đầu của tướng đang chơi (sát thương làm tròn lên `×1,25..×2,2`, cooldown `×0,92..×0,85`, bậc 3 dùng `_b3.png`, bậc 5 dùng `_b5.png` kèm ánh sáng). Vẫn tính Đồng điệu mức 2.
+
 ## 5. Hệ thống đồ họa (`tools/sprites/`)
 
 - **Vẽ lại toàn bộ:** chạy `python3 tools/sprites/build_all.py`, rồi `python3 tools/sprites/artbook.py` (sách tranh trong `docs/artbook/`), rồi `godot --headless --path . --import`.

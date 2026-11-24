@@ -25,6 +25,7 @@ const Tiger = preload("res://scripts/effects/tiger.gd")
 const Turret = preload("res://scripts/effects/turret.gd")
 const StatusFx = preload("res://scripts/effects/status_fx.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
+const ProgressionData = preload("res://scripts/data/progression.gd")
 
 const RADIUS := 7.0
 const AUTO_AIM_RANGE := 230.0
@@ -65,6 +66,9 @@ var _burn_double_timer := 0.0
 var _free_shots := 0
 var _stun_shot := 0.0
 var _mark_timer := 0.0
+var _melee_swing_count: int = 0
+var _ranged_shot_count: int = 0
+var _weapon_light: PointLight2D = null
 var twin: AnimatedSprite2D
 var _regen_acc := 0.0
 var _fire_timer := 0.0
@@ -105,12 +109,13 @@ func setup(id: String) -> void:
 	speed = hero.speed
 	weapons = [hero.weapon, ""]
 	slot = 0
-	# nâng cấp vĩnh viễn từ Lò rèn
-	max_hp += Global.upgrade("mau")
+	# nâng cấp vĩnh viễn từ Lò rèn + Tu luyện tướng (cộng dồn)
+	var hb: Dictionary = ProgressionData.hero_bonuses(Global.hero_level(id))
+	max_hp += Global.upgrade("mau") + int(hb.hp)
 	hp = max_hp
-	max_armor += Global.upgrade("giap")
+	max_armor += Global.upgrade("giap") + int(hb.armor)
 	armor = max_armor
-	max_energy += 40 * Global.upgrade("nang_luong")
+	max_energy += 40 * Global.upgrade("nang_luong") + int(hb.energy)
 	energy = max_energy
 	Global.discover(hero.weapon)
 
@@ -183,8 +188,17 @@ func _ready() -> void:
 	add_child(status)
 
 
+func effective_weapon(id: String) -> Dictionary:
+	var base: Dictionary = WeaponData.get_data(id)
+	if base.is_empty():
+		return base
+	if id == str(hero.get("weapon", "")):
+		return ProgressionData.apply_weapon_rank(id, base, Global.weapon_rank(hero_id))
+	return base
+
+
 func current_weapon() -> Dictionary:
-	return WeaponData.get_data(weapons[slot])
+	return effective_weapon(weapons[slot])
 
 
 const SWAP_COOLDOWN := 0.15
@@ -192,11 +206,25 @@ var _swap_cd := 0.0
 
 
 func _refresh_weapon_sprite() -> void:
+	if weapon_sprite == null:
+		return
 	var id: String = weapons[slot]
 	if id == "":
 		weapon_sprite.texture = null
+		if _weapon_light != null:
+			_weapon_light.visible = false
 		return
-	weapon_sprite.texture = Art.tex("weapons/%s.png" % id)
+	var is_starter: bool = (id == str(hero.get("weapon", "")))
+	var r: int = Global.weapon_rank(hero_id) if is_starter else 1
+	weapon_sprite.texture = Art.tex(ProgressionData.weapon_texture_path(id, r))
+	if is_starter and r >= 5:
+		if _weapon_light == null and weapon_pivot != null:
+			_weapon_light = Art.light(Color(1.0, 0.86, 0.35), 0.75, 0.6)
+			weapon_pivot.add_child(_weapon_light)
+		if _weapon_light != null:
+			_weapon_light.visible = true
+	elif _weapon_light != null:
+		_weapon_light.visible = false
 
 
 # ------------------------------------------------------------------ Vòng lặp
@@ -456,6 +484,12 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 	var life_mult: float = 1.0
 	if buff_timer > 0.0 and SynergyData.family(weapons[slot]) == "hoa_khi" and _than_toc_syn >= 1:
 		life_mult = 2.0 if _than_toc_syn == 2 else 1.5
+	var burn_mult: float = float(w.get("burn_mult", 1.0))
+	var extra_explode: float = 0.0
+	if offset == Vector2.ZERO and bool(w.get("trait_explode4", false)):
+		_ranged_shot_count += 1
+		if _ranged_shot_count % 4 == 0:
+			extra_explode = 24.0 * (1.0 + 0.35 * buff("hoa_duoc"))
 	for i in count:
 		var a := aim_dir.angle()
 		if count > 1:
@@ -465,11 +499,12 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		var b := Bullet.new()
 		b.setup(true, start - aim_dir * 4.0, dir, w.speed, w.damage, float(w.life) * life_mult, w.get("proj", "bullet"))
 		b.pierce = int(w.get("pierce", 0)) + (int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0)
-		b.explode_radius = w.get("explode", 0.0) * (1.0 + 0.35 * buff("hoa_duoc"))
+		b.explode_radius = maxf(w.get("explode", 0.0) * (1.0 + 0.35 * buff("hoa_duoc")), extra_explode)
 		b.knock = w.get("knock", 60.0)
 		b.homing = w.get("homing", 0.0)
 		b.color = w.get("color", Color.WHITE)
 		b.stun_duration = shot_stun
+		b.burn_duration = 2.2 * burn_mult
 		b.owner_node = self
 		if w.get("boomerang", false):
 			b.boomerang = true
@@ -557,6 +592,16 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		b.knock = knock
 		b.color = _tier_color(w)
 		get_parent().add_child(b)
+	if bool(w.get("trait_wave3", false)):
+		_melee_swing_count += 1
+		if _melee_swing_count % 3 == 0:
+			var bw := Bullet.new()
+			bw.setup(true, global_position + aim_dir * 14.0, aim_dir, 300.0, maxi(1, int(ceil(float(dmg) * 0.6))), 0.7, "sword_wave")
+			bw.pierce = 99
+			bw.knock = knock
+			bw.color = Color(1.0, 0.88, 0.35)
+			bw.owner_node = self
+			get_parent().add_child(bw)
 	if w.get("fire", false):
 		for i in 5:
 			var p := global_position + Vector2.from_angle(aim_dir.angle() + lerpf(-arc / 2.0, arc / 2.0, i / 4.0)) * reach * 0.8
@@ -676,7 +721,8 @@ func _use_skill() -> void:
 	var cw: Dictionary = current_weapon()
 	last_skill_syn = syn
 	last_skill_imprint = fam
-	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen"))
+	var hb: Dictionary = ProgressionData.hero_bonuses(Global.hero_level(hero_id))
+	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult)
 	Sfx.play("skill")
 	var parent := get_parent()
 	var wr: WeakRef = weakref(parent)
@@ -925,6 +971,8 @@ func swap_weapon() -> bool:
 	slot = 1 - slot
 	_swap_cd = SWAP_COOLDOWN
 	_fire_timer = 0.1
+	_ranged_shot_count = 0
+	_melee_swing_count = 0
 	_refresh_weapon_sprite()
 	stats_changed.emit()
 	return true

@@ -5,6 +5,7 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
+const ProgressionData = preload("res://scripts/data/progression.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -89,9 +90,152 @@ func close() -> void:
 
 # ------------------------------------------------------------------ Tướng
 
-func open_hero(id: String) -> void:
+func _do_train_hero(id: String) -> void:
+	if Global.try_upgrade_hero(id):
+		Sfx.play("forge")
+		if lobby != null:
+			lobby.on_progressed(id, "Cấp %d!" % Global.hero_level(id))
+		open_hero(id, "train")
+
+
+func _do_train_weapon(id: String) -> void:
+	if Global.try_upgrade_weapon(id):
+		Sfx.play("forge")
+		if lobby != null:
+			var r: int = Global.weapon_rank(id)
+			lobby.on_progressed(id, "Thức tỉnh!" if r >= 5 else "Bậc %d!" % r)
+		open_hero(id, "train")
+
+
+func _add_cost_row(parent: Control, coins_need: int, mats: Dictionary) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+	for mid in MaterialData.ORDER:
+		if not mats.has(mid):
+			continue
+		var need: int = int(mats[mid])
+		var have: int = Global.material_count(str(mid))
+		var ok: bool = have >= need
+		var mc := HBoxContainer.new()
+		mc.add_theme_constant_override("separation", 2)
+		mc.add_child(_mat_icon(str(mid), 11.0))
+		mc.add_child(UI.label("%d/%d" % [have, need], 12, Color(0.88, 0.92, 0.88) if ok else Color(1, 0.35, 0.35)))
+		row.add_child(mc)
+	var ok_c: bool = Global.coins >= coins_need
+	row.add_child(UI.label("%d xu" % coins_need, 12, Color(1, 0.88, 0.45) if ok_c else Color(1, 0.35, 0.35)))
+
+
+func open_hero(id: String, tab: String = "info") -> void:
 	var h: Dictionary = HeroData.DATA[id]
+	var unlocked: bool = Global.unlocked.has(id)
+	if not unlocked:
+		tab = "info"
 	var box := _begin(h.name)
+	if unlocked:
+		var tabs := HBoxContainer.new()
+		tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+		tabs.add_theme_constant_override("separation", 10)
+		box.add_child(tabs)
+		var b_info := UI.button("Thông tin", open_hero.bind(id, "info"), 14, 120.0)
+		b_info.disabled = (tab == "info")
+		var b_tr := UI.button("Tu luyện", open_hero.bind(id, "train"), 14, 120.0)
+		b_tr.disabled = (tab == "train")
+		tabs.add_child(b_info)
+		tabs.add_child(b_tr)
+	if tab == "train":
+		var inv := HBoxContainer.new()
+		inv.alignment = BoxContainer.ALIGNMENT_CENTER
+		inv.add_theme_constant_override("separation", 8)
+		box.add_child(inv)
+		inv.add_child(UI.label("Xu: %d" % Global.coins, 13, Color(1, 0.88, 0.45)))
+		for mid in MaterialData.ORDER:
+			var md: Dictionary = MaterialData.DATA[mid]
+			var cell := HBoxContainer.new()
+			cell.add_theme_constant_override("separation", 3)
+			cell.add_child(_mat_icon(str(mid), 12.0))
+			var cnt: int = Global.material_count(str(mid))
+			cell.add_child(UI.label(str(cnt), 13, md.color if cnt > 0 else Color(0.55, 0.55, 0.55)))
+			inv.add_child(cell)
+		# Phần 1: Tu luyện tướng
+		var hlv: int = Global.hero_level(id)
+		var sec1 := PanelContainer.new()
+		sec1.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
+		box.add_child(sec1)
+		var hrow := HBoxContainer.new()
+		hrow.add_theme_constant_override("separation", 10)
+		sec1.add_child(hrow)
+		var hleft := VBoxContainer.new()
+		hleft.custom_minimum_size = Vector2(360, 0)
+		hleft.add_theme_constant_override("separation", 2)
+		hrow.add_child(hleft)
+		var t1 := UI.label("Tu luyện tướng  -  Cấp %d / 5" % hlv, 15, Color(1, 0.86, 0.4))
+		t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		hleft.add_child(t1)
+		if hlv >= 5:
+			var done1 := UI.label("Cấp tối đa: +1 máu, +1 giáp, +30 năng lượng, hồi chiêu ×0,85.", 12, Color(0.6, 0.95, 0.6), true)
+			done1.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			hleft.add_child(done1)
+			var bmax1 := UI.button("Đã viên mãn", func(): pass, 13, 130.0)
+			bmax1.disabled = true
+			hrow.add_child(bmax1)
+		else:
+			var nh: Dictionary = ProgressionData.HERO_LEVELS[hlv + 1]
+			var d1 := UI.label("Cấp %d: %s" % [hlv + 1, str(nh.desc)], 12, Color(0.9, 0.9, 0.88), true)
+			d1.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			hleft.add_child(d1)
+			_add_cost_row(hleft, int(nh.coins), nh.mats)
+			var bh := UI.button("Tu luyện", _do_train_hero.bind(id), 14, 130.0)
+			bh.disabled = not Global.can_upgrade_hero(id)
+			hrow.add_child(bh)
+		# Phần 2: Binh khí khởi đầu
+		var wr: int = Global.weapon_rank(id)
+		var wid: String = str(h.weapon)
+		var wd: Dictionary = WeaponData.get_data(wid)
+		var tr: Dictionary = ProgressionData.TRAITS.get(wid, {})
+		var sec2 := PanelContainer.new()
+		sec2.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
+		box.add_child(sec2)
+		var wrow := HBoxContainer.new()
+		wrow.add_theme_constant_override("separation", 10)
+		sec2.add_child(wrow)
+		var wleft := VBoxContainer.new()
+		wleft.custom_minimum_size = Vector2(360, 0)
+		wleft.add_theme_constant_override("separation", 2)
+		wrow.add_child(wleft)
+		var wtitle := HBoxContainer.new()
+		wtitle.add_theme_constant_override("separation", 6)
+		var wpic := TextureRect.new()
+		wpic.texture = Art.tex(ProgressionData.weapon_texture_path(wid, wr))
+		wpic.custom_minimum_size = Vector2(28, 16)
+		wpic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		wpic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		wtitle.add_child(wpic)
+		wtitle.add_child(UI.label("Binh khí: %s  (%s)" % [wd.name, "Thức tỉnh" if wr >= 5 else "Bậc %d / 5" % wr], 15, Color(1.0, 0.85, 0.35) if wr >= 5 else Color(0.75, 0.9, 1.0)))
+		wleft.add_child(wtitle)
+		if not tr.is_empty():
+			var tr_line := "Đ1: %s  |  Đ2: %s" % [str(tr.d1), str(tr.d2)]
+			var tl := UI.label(tr_line, 11, Color(0.82, 0.86, 0.92), true)
+			tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			wleft.add_child(tl)
+		if wr >= 5:
+			var done2 := UI.label("Sát thương ×2,2, hồi đòn ×0,85, đủ 2 Đặc tính.", 12, Color(0.6, 0.95, 0.6), true)
+			done2.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			wleft.add_child(done2)
+			var bmax2 := UI.button("Đã thức tỉnh", func(): pass, 13, 130.0)
+			bmax2.disabled = true
+			wrow.add_child(bmax2)
+		else:
+			var nw: Dictionary = ProgressionData.WEAPON_RANKS[wr + 1]
+			var d2 := UI.label("Lên bậc %d: %s" % [wr + 1, str(nw.desc)], 12, Color(0.9, 0.9, 0.88), true)
+			d2.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			wleft.add_child(d2)
+			_add_cost_row(wleft, int(nw.coins), nw.mats)
+			var bw := UI.button("Rèn binh khí", _do_train_weapon.bind(id), 14, 130.0)
+			bw.disabled = not Global.can_upgrade_weapon(id)
+			wrow.add_child(bw)
+		_end(box)
+		return
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
@@ -111,9 +255,12 @@ func open_hero(id: String) -> void:
 	var fam: String = SynergyData.family(h.weapon)
 	var sig: String = SynergyData.signature_for(id)
 	var hd: Dictionary = SynergyData.HERO_DESC.get(id, {})
+	var hlv2: int = Global.hero_level(id)
+	var wr2: int = Global.weapon_rank(id)
+	var hb2: Dictionary = ProgressionData.hero_bonuses(hlv2)
 	var lines: Array = [
 		UI.label(h.era, 14, Color(0.85, 0.8, 0.75)),
-		UI.label("Khởi đầu: %s [%s]" % [w.name, SynergyData.family_name(fam)], 15, Color(0.9, 0.9, 0.95)),
+		UI.label("Khởi đầu: %s Bậc %d [%s]" % [w.name, wr2, SynergyData.family_name(fam)], 15, Color(0.9, 0.9, 0.95)),
 	]
 	if sig != "" and WeaponData.DATA.has(sig):
 		lines.append(UI.label("Định mệnh (★★): %s" % WeaponData.DATA[sig].name, 14, Color(1.0, 0.85, 0.35)))
@@ -123,7 +270,9 @@ func open_hero(id: String) -> void:
 		lines.append(UI.label("★ Cùng hệ: %s" % str(hd.get("lv1", "")), 12, Color(0.84, 0.88, 0.96), true))
 		lines.append(UI.label("★★ Tâm đắc: %s" % str(hd.get("lv2", "")), 12, Color(1.0, 0.88, 0.38), true))
 	lines.append(UI.label(SynergyData.IMPRINT_INTRO, 12, Color(0.75, 0.92, 0.78), true))
-	lines.append(UI.label("Máu %d   Giáp %d   Năng lượng %d" % [h.hp, h.armor, h.energy], 13, Color(0.95, 0.8, 0.65)))
+	lines.append(UI.label("Cấp %d  |  Máu %d   Giáp %d   Năng lượng %d" % [hlv2, int(h.hp) + int(hb2.hp), int(h.armor) + int(hb2.armor), int(h.energy) + int(hb2.energy)], 13, Color(0.95, 0.8, 0.65)))
+	if not unlocked:
+		lines.append(UI.label("Cần mở khóa tướng để tu luyện.", 12, Color(0.85, 0.7, 0.65)))
 	for l in lines:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		info.add_child(l)
@@ -133,7 +282,7 @@ func open_hero(id: String) -> void:
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 10)
 	box.add_child(btns)
-	if Global.unlocked.has(id):
+	if unlocked:
 		btns.add_child(UI.button("Chọn tướng này", func():
 			lobby.select_hero(id)
 			close(), 18, 180.0))

@@ -315,6 +315,19 @@ func select_hero(id: String) -> void:
 	_refresh_heroes()
 
 
+func on_progressed(hero_id: String, msg: String) -> void:
+	var pos := Vector2.ZERO
+	if _hero_npcs.has(hero_id) and _hero_npcs[hero_id].visible:
+		pos = _hero_npcs[hero_id].global_position
+	elif player != null and is_instance_valid(player):
+		pos = player.global_position
+	if hero_id == Global.selected_hero:
+		_spawn_player(Vector2.ZERO)
+	if world != null:
+		Fx.particles(world, pos, Color(1, 0.85, 0.3), 18, 80.0, 0.6, -30.0, 2.0)
+		Fx.float_text(world, pos + Vector2(0, -24), msg, Color(1, 0.9, 0.4), 16)
+
+
 func refresh_forged_display() -> void:
 	if _forged_icon == null:
 		return

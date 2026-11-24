@@ -582,6 +582,10 @@ def tiers():
 
 TIER_EDGE = {4: hexc("4a1a6a"), 5: hexc("7a3a00")}
 TIER_GLOW = {4: hexc("c070ff", 110), 5: hexc("ffc040", 140)}
+BASIC_WEAPONS = (
+    "kiem_dong", "doan_dao", "giao_tre", "no_tay", "guom_lenh",
+    "con_lam_son", "ong_lua", "dao_rua", "hoa_mai_yen_the", "sung_truong_bo_binh",
+)
 
 
 def finalize(img, tier):
@@ -594,21 +598,50 @@ def finalize(img, tier):
     return outline(pad), 2
 
 
+def finalize_rank(img, rank):
+    """Biến thể vũ khí khởi đầu: bậc 3 viền xanh lam, bậc 5 viền vàng lấp lánh (giữ cùng kích thước và grip)."""
+    pad = Image.new("RGBA", (img.width + 4, img.height + 4), (0, 0, 0, 0))
+    pad.alpha_composite(img, (2, 2))
+    if rank == 3:
+        out = outline(pad, hexc("1b4b8c"))
+        return outline(out, hexc("4aa8ff", 150))
+    out = outline(pad, hexc("7a3a00"))
+    res = outline(out, hexc("ffe055", 175))
+    px = res.load()
+    pts = []
+    for x in range(1, res.width - 1):
+        for y in range(1, res.height - 1):
+            if px[x, y][3] >= 220 and (x * 5 + y * 3) % 13 == 0:
+                pts.append((x, y))
+    for i, (sx, sy) in enumerate(pts[:4]):
+        px[sx, sy] = (255, 255, 225, 255)
+        if i < 2 and sx + 1 < res.width and px[sx + 1, sy][3] == 0:
+            px[sx + 1, sy] = (255, 240, 140, 220)
+    return res
+
+
 def build():
     tier = tiers()
     grips = {}
+    raw_imgs = {}
     for wid, (grip, rows) in art_chars.WEAPONS.items():
         w = max(len(r) for r in rows)
-        img = grid(rows, art_chars.W, w)
-        img, off = finalize(img, tier.get(wid, 1))
+        raw = grid(rows, art_chars.W, w)
+        raw_imgs[wid] = raw
+        img, off = finalize(raw, tier.get(wid, 1))
         save(img, f"weapons/{wid}.png")
         grips[wid] = (grip[0] + off, grip[1] + off)
     for wid, fn in PROC.items():
         res = fn()
-        img, g = res
-        img, off = finalize(img, tier.get(wid, 1))
+        raw, g = res
+        raw_imgs[wid] = raw
+        img, off = finalize(raw, tier.get(wid, 1))
         save(img, f"weapons/{wid}.png")
         grips[wid] = (g[0] + off, g[1] + off)
+    for wid in BASIC_WEAPONS:
+        if wid in raw_imgs:
+            save(finalize_rank(raw_imgs[wid], 3), f"weapons/{wid}_b3.png")
+            save(finalize_rank(raw_imgs[wid], 5), f"weapons/{wid}_b5.png")
     path = os.path.join(OUT, "weapons", "grips.json")
     with open(path, "w") as f:
         json.dump({k: list(v) for k, v in sorted(grips.items())}, f, indent=1)

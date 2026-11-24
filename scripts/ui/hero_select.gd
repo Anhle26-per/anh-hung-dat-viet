@@ -4,6 +4,7 @@ extends Control
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
+const ProgressionData = preload("res://scripts/data/progression.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -18,6 +19,7 @@ class Portrait extends Control:
 	## Tướng phóng to 3 lần, đứng thở, cầm vũ khí; biểu tượng kỹ năng ở góc.
 	const Art = preload("res://scripts/art/art.gd")
 	const WeaponData = preload("res://scripts/data/weapons.gd")
+	const ProgressionData = preload("res://scripts/data/progression.gd")
 	var hero_id := ""
 	var hero: Dictionary
 	var locked := false
@@ -29,7 +31,7 @@ class Portrait extends Control:
 	func _ready() -> void:
 		# nạp ảnh trước khi vẽ (nạp trong _draw sẽ hiện ô trắng ở khung đầu)
 		tex = Art.tex("heroes/%s.png" % hero_id)
-		wt = Art.tex("weapons/%s.png" % hero.weapon)
+		wt = Art.tex(ProgressionData.weapon_texture_path(hero.weapon, Global.weapon_rank(hero_id)))
 		icon = Art.tex("ui/skill_%s.png" % hero.skill)
 
 	func _process(delta: float) -> void:
@@ -118,9 +120,12 @@ func _make_card(id: String) -> Control:
 	p.hero = h
 	p.custom_minimum_size = Vector2(0, 62)
 	box.add_child(p)
-	box.add_child(UI.label(h.name, 19, Color(1, 0.85, 0.4)))
+	var hlv: int = Global.hero_level(id)
+	var wrk: int = Global.weapon_rank(id)
+	var hb: Dictionary = ProgressionData.hero_bonuses(hlv)
+	box.add_child(UI.label("%s  Cấp %d" % [h.name, hlv], 18, Color(1, 0.85, 0.4)))
 	box.add_child(UI.label(h.era, 11, Color(0.78, 0.74, 0.72), true))
-	box.add_child(UI.label("%s [%s]" % [w.name, SynergyData.family_name(fam)], 13, WeaponData.tier_color(h.weapon)))
+	box.add_child(UI.label("%s Bậc %d [%s]" % [w.name, wrk, SynergyData.family_name(fam)], 12, WeaponData.tier_color(h.weapon)))
 	if sig != "" and WeaponData.DATA.has(sig):
 		box.add_child(UI.label("Định mệnh: %s" % WeaponData.DATA[sig].name, 11, Color(1.0, 0.82, 0.35)))
 	box.add_child(UI.label("Chiêu: %s" % h.skill_name, 14, Color(0.6, 0.88, 1.0)))
@@ -129,7 +134,7 @@ func _make_card(id: String) -> Control:
 	box.add_child(desc)
 	var syn_s := UI.label(str(h.get("synergy_desc", "")), 11, Color(0.95, 0.86, 0.55), true)
 	box.add_child(syn_s)
-	box.add_child(UI.label("Máu %d  Giáp %d  NL %d" % [h.hp, h.armor, h.energy], 12, Color(0.9, 0.78, 0.65)))
+	box.add_child(UI.label("Máu %d  Giáp %d  NL %d" % [int(h.hp) + int(hb.hp), int(h.armor) + int(hb.armor), int(h.energy) + int(hb.energy)], 12, Color(0.9, 0.78, 0.65)))
 	var btn := UI.button("", _on_card_pressed.bind(id), 15, 128.0)
 	box.add_child(UI.center(btn))
 	_cards[id] = {"panel": panel, "button": btn, "portrait": p}
