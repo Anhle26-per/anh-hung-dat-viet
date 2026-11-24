@@ -1,0 +1,270 @@
+{
+ "bua_thien_loi": [
+  7,
+  12
+ ],
+ "chuy_dong": [
+  8,
+  10
+ ],
+ "con_lam_son": [
+  9,
+  5
+ ],
+ "con_nhi_khuc": [
+  6,
+  7
+ ],
+ "cung": [
+  11,
+  11
+ ],
+ "cung_dai": [
+  11,
+  15
+ ],
+ "cung_rong": [
+  11,
+  15
+ ],
+ "cung_vang": [
+  12,
+  15
+ ],
+ "dai_bac_than_cong": [
+  6,
+  10
+ ],
+ "dan_than": [
+  8,
+  10
+ ],
+ "dao": [
+  9,
+  8
+ ],
+ "dao_gam": [
+  5,
+  7
+ ],
+ "dao_rua": [
+  5,
+  8
+ ],
+ "dinh_ba_thuy_tinh": [
+  9,
+  9
+ ],
+ "doan_dao": [
+  5,
+  7
+ ],
+ "gay_son_tinh": [
+  9,
+  9
+ ],
+ "gay_tre": [
+  9,
+  5
+ ],
+ "giao": [
+  9,
+  5
+ ],
+ "giao_tre": [
+  10,
+  9
+ ],
+ "guom_lenh": [
+  5,
+  7
+ ],
+ "hoa_ho": [
+  6,
+  5
+ ],
+ "hoa_mai": [
+  14,
+  9
+ ],
+ "hoa_mai_yen_the": [
+  14,
+  9
+ ],
+ "hoa_tien": [
+  6,
+  6
+ ],
+ "kich": [
+  10,
+  9
+ ],
+ "kiem": [
+  4,
+  5
+ ],
+ "kiem_dong": [
+  5,
+  7
+ ],
+ "kiem_rong_tien": [
+  5,
+  7
+ ],
+ "kiem_tia_sang": [
+  6,
+  6
+ ],
+ "liem": [
+  6,
+  11
+ ],
+ "ma_tau": [
+  5,
+  7
+ ],
+ "mac": [
+  10,
+  9
+ ],
+ "na": [
+  5,
+  9
+ ],
+ "no": [
+  7,
+  7
+ ],
+ "no_lien_chau": [
+  7,
+  9
+ ],
+ "no_tay": [
+  6,
+  8
+ ],
+ "ong_lua": [
+  5,
+  9
+ ],
+ "phao_dong": [
+  6,
+  9
+ ],
+ "phi_tieu": [
+  6,
+  8
+ ],
+ "quat_thep": [
+  5,
+  12
+ ],
+ "riu_chien": [
+  8,
+  10
+ ],
+ "riu_da": [
+  8,
+  9
+ ],
+ "riu_thach_sanh": [
+  7,
+  11
+ ],
+ "roi_sat_giong": [
+  9,
+  5
+ ],
+ "song_kiem": [
+  5,
+  11
+ ],
+ "sung_ban_tia": [
+  14,
+  12
+ ],
+ "sung_dien_tu": [
+  14,
+  12
+ ],
+ "sung_hai_nong": [
+  14,
+  9
+ ],
+ "sung_kip": [
+  7,
+  12
+ ],
+ "sung_laze": [
+  14,
+  12
+ ],
+ "sung_luc": [
+  7,
+  12
+ ],
+ "sung_may": [
+  14,
+  12
+ ],
+ "sung_ngan": [
+  7,
+  12
+ ],
+ "sung_phong_luu": [
+  14,
+  12
+ ],
+ "sung_phong_ten_lua": [
+  5,
+  12
+ ],
+ "sung_phun_lua": [
+  5,
+  12
+ ],
+ "sung_plasma": [
+  7,
+  12
+ ],
+ "sung_san": [
+  14,
+  12
+ ],
+ "sung_truong": [
+  14,
+  9
+ ],
+ "sung_truong_bo_binh": [
+  14,
+  9
+ ],
+ "sung_truong_tan_cong": [
+  14,
+  12
+ ],
+ "than_co_sang": [
+  6,
+  6
+ ],
+ "thuan_thien": [
+  6,
+  7
+ ],
+ "tieu_lien": [
+  13,
+  12
+ ],
+ "tre_tram_dot": [
+  7,
+  6
+ ],
+ "trong_dong": [
+  4,
+  11
+ ],
+ "truong_thuong": [
+  10,
+  9
+ ]
+}

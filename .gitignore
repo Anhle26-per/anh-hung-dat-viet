@@ -1,0 +1,8 @@
+.godot/
+build/
+logs/
+*.keystore
+*.jks
+export_credentials.cfg
+tools/sprites/__pycache__/
+__pycache__/

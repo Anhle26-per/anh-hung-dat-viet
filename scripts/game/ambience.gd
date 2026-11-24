@@ -1,0 +1,113 @@
+extends Node2D
+## Không khí sống động cho doanh trại: vệt nắng xiên, bụi lấp lánh, bướm bay, lá và cánh hoa rơi.
+
+const Art = preload("res://scripts/art/art.gd")
+
+var area := Rect2(0, 0, 544, 304)
+var _t := 0.0
+var _butterflies: Array = []
+var _rays: Node2D
+
+
+class Rays extends Node2D:
+	## Vệt nắng chiếu xiên từ trên xuống, nhấp nháy nhẹ
+	var area: Rect2
+	var t := 0.0
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		for i in 4:
+			var x := area.position.x + area.size.x * (0.14 + i * 0.24)
+			var a := 0.035 + 0.02 * sin(t * 0.7 + i * 1.7)
+			var w := 26.0 + 8.0 * float(i % 3)
+			var tilt := 50.0
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(x, area.position.y), Vector2(x + w, area.position.y),
+				Vector2(x + w + tilt, area.end.y), Vector2(x + tilt, area.end.y)]), Color(1.0, 0.92, 0.7, a))
+
+
+func _ready() -> void:
+	z_index = 9
+	_rays = Rays.new()
+	_rays.area = area
+	_rays.material = Art.additive()
+	add_child(_rays)
+	add_child(_falling("fx/leaf.png", 10, 11.0, [Color(0.95, 0.65, 0.2), Color(0.85, 0.45, 0.15), Color(0.55, 0.75, 0.3)]))
+	add_child(_falling("fx/petal.png", 18, 9.0, [Color(1, 0.8, 0.88), Color(1, 0.7, 0.8)]))
+	add_child(_motes())
+	for i in 3:
+		_butterflies.append({"p": Vector2.ZERO, "seed": randf() * 10.0, "col": [Color(1, 0.85, 0.3), Color(0.6, 0.85, 1.0), Color(1, 0.6, 0.8)][i]})
+
+
+func _falling(tex: String, amount: int, life: float, colors: Array) -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.texture = Art.tex(tex)
+	p.position = Vector2(area.get_center().x, area.position.y - 10)
+	p.amount = amount
+	p.lifetime = life
+	p.preprocess = life
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(area.size.x * 0.6, 4)
+	p.direction = Vector2(0.4, 1)
+	p.spread = 25.0
+	p.gravity = Vector2(5, 9)
+	p.initial_velocity_min = 6.0
+	p.initial_velocity_max = 16.0
+	p.angular_velocity_min = -160.0
+	p.angular_velocity_max = 160.0
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.orbit_velocity_min = -0.02
+	p.orbit_velocity_max = 0.02
+	p.scale_amount_min = 0.8
+	p.scale_amount_max = 1.3
+	var g := Gradient.new()
+	g.set_color(0, colors[0])
+	g.set_color(1, colors[colors.size() - 1])
+	p.color_initial_ramp = g
+	return p
+
+
+func _motes() -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.position = area.get_center()
+	p.amount = 24
+	p.lifetime = 5.0
+	p.preprocess = 5.0
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = area.size / 2.0
+	p.direction = Vector2.UP
+	p.spread = 180.0
+	p.gravity = Vector2(0, -2)
+	p.initial_velocity_min = 2.0
+	p.initial_velocity_max = 5.0
+	p.scale_amount_min = 1.0
+	p.scale_amount_max = 1.5
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 0.95, 0.75, 0.0))
+	g.add_point(0.5, Color(1, 0.95, 0.75, 0.8))
+	g.set_color(g.get_point_count() - 1, Color(1, 0.95, 0.75, 0.0))
+	p.color_ramp = g
+	p.material = Art.additive()
+	return p
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	queue_redraw()
+
+
+func _draw() -> void:
+	# bướm bay lượn theo đường cong, đập cánh
+	for b in _butterflies:
+		var s: float = b.seed
+		var c := area.get_center()
+		var p := c + Vector2(sin(_t * 0.31 + s) * area.size.x * 0.4, sin(_t * 0.53 + s * 2.0) * area.size.y * 0.35 + sin(_t * 3.0 + s) * 4.0)
+		var flap := absf(sin(_t * 14.0 + s))
+		var col: Color = b.col
+		draw_colored_polygon(PackedVector2Array([p, p + Vector2(-3, -3.0 * flap - 1), p + Vector2(-3, 1)]), col)
+		draw_colored_polygon(PackedVector2Array([p, p + Vector2(3, -3.0 * flap - 1), p + Vector2(3, 1)]), col.darkened(0.15))
+		draw_rect(Rect2(p - Vector2(0.5, 1), Vector2(1, 3)), Color(0.15, 0.1, 0.15))
