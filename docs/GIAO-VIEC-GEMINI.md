@@ -20,7 +20,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G01 | Lưu giữa lượt, giữ xu khi thoát | 1 | — | **Xong** 24/11/2026 (Claude làm, đã qua K1, run_save, K2) |
 | G02 | Âm thanh và nhạc nền (CC0) | 1 | — | **Xong** 24/11/2026 (Gemini làm, tự sinh WAV, đã qua K1, audio, K2) |
 | G03 | Menu cài đặt và độ khó | 1 | G02 (âm lượng) | **Xong** 24/11/2026 (Gemini làm, đã qua K1, settings, run_save, audio, K2) |
-| G15 | Âm thanh va chạm | 1 | G02, G03 | Chưa làm |
+| G15 | Âm thanh va chạm | 1 | G02, G03 | **Xong** 24/11/2026 (Gemini làm, đã qua K1, audio, settings, K2) |
 | G14 | Gọn nhịp hầm ngục | 1 | — | Chưa làm |
 | G16 | Nguyên liệu rơi và Lò rèn binh khí | 1 | G01, G02 | Chưa làm |
 | G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | Chưa làm |
