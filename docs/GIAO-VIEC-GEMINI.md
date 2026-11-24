@@ -43,7 +43,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G10 | Hoạt ảnh tấn công, kỹ năng, chết riêng cho từng tướng | 3 | G08 (nên làm sau) | Chưa làm |
 | G12 | Vật cản che đạn thuần Việt | 3 | G15 | Chưa làm |
 | G13 | Phúc lành Hộ tâm kính | 3 | — | Chưa làm |
-| G11 | Cân bằng độ khó theo phản hồi của nhóm chơi | 1–3 | G03, G04 | Chưa làm |
+| G11 | Cân bằng độ khó theo phản hồi của nhóm chơi | 1–3 | G03, G04 | Bước 1 xong, chờ số liệu |
 
 **Đã xong trước khi giao cho Gemini** (không cần làm lại):
 - Toàn bộ lối chơi một mình: 10 tướng, 67 vũ khí, 30 màn, 10 trùm có hiện nguyên hình, Tam Yêu.
