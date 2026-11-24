@@ -69,12 +69,20 @@ func _process(_delta: float) -> void:
 		_enter()
 
 
+static func waves_for_level(lv: int) -> int:
+	if lv <= 1:
+		return 1
+	if lv <= 12:
+		return 2
+	return 3
+
+
 func _enter() -> void:
 	match kind:
 		"combat":
 			state = "fighting"
 			_lock()
-			_waves_left = 1 if level == 1 else (2 if level < 7 else 3)
+			_waves_left = waves_for_level(level)
 			_spawn_wave()
 		"boss":
 			state = "fighting"

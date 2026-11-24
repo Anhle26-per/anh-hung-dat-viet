@@ -34,7 +34,7 @@ func generate(level: int) -> void:
 	add_child(tiles)
 
 	# 1) Chọn vị trí các phòng trên lưới
-	var count := 5 + mini(level, 5)
+	var count := 5 + mini(level, 3)
 	var cells: Array = [Vector2i.ZERO]
 	var guard := 0
 	while cells.size() < count and guard < 2000:
