@@ -127,6 +127,31 @@ func _run() -> void:
 	print("   avg_easy = %.3f" % avg_easy)
 	_check(absf(avg_easy - 3.0) <= 0.2, "trung bình Dễ lệch 3.0: %.3f" % avg_easy)
 
+	print("== (d2) Làm tròn ngẫu nhiên với phần lẻ (2000 lần)")
+	seed(2026032)
+	Global.set_setting("difficulty", "kho")
+	var sum_h1: int = 0
+	for i in 2000:
+		sum_h1 += Global.scale_enemy_damage(1)
+	var avg_h1: float = float(sum_h1) / 2000.0
+	print("   avg_kho_1 = %.3f" % avg_h1)
+	_check(absf(avg_h1 - 1.25) <= 0.05, "trung bình Khó (1 dmg) lệch 1.25: %.3f" % avg_h1)
+
+	Global.set_setting("difficulty", "de")
+	var sum_e1: int = 0
+	for i in 2000:
+		sum_e1 += Global.scale_enemy_damage(1)
+	var avg_e1: float = float(sum_e1) / 2000.0
+	print("   avg_de_1 = %.3f" % avg_e1)
+	_check(absf(avg_e1 - 0.75) <= 0.05, "trung bình Dễ (1 dmg) lệch 0.75: %.3f" % avg_e1)
+
+	var sum_e3: int = 0
+	for i in 2000:
+		sum_e3 += Global.scale_enemy_damage(3)
+	var avg_e3: float = float(sum_e3) / 2000.0
+	print("   avg_de_3 = %.3f" % avg_e3)
+	_check(absf(avg_e3 - 2.25) <= 0.08, "trung bình Dễ (3 dmg) lệch 2.25: %.3f" % avg_e3)
+
 	print("== (e) Âm lượng nhạc = 0 tắt tiếng bus Music")
 	var music_idx: int = AudioServer.get_bus_index("Music")
 	_check(music_idx != -1, "thiếu bus Music")
