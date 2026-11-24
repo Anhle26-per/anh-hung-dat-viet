@@ -24,6 +24,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G14 | Gọn nhịp hầm ngục | 1 | — | **Xong** 24/11/2026 (Gemini làm, đã qua K1, pacing, K2) |
 | G16 | Nguyên liệu rơi và Lò rèn binh khí | 1 | G01, G02 | **Xong** 24/11/2026 (Gemini làm, đã qua K1, craft, run_save, settings, audio, K2) |
 | G17 | Đổi vũ khí bằng lăn chuột | 1 | — | **Xong** 24/11/2026 (Gemini làm, đã qua K1, input, K2) |
+| G18 | Đồng điệu binh khí và Ấn hệ | 1 | G17 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, synergy, input, craft, K2) |
 | G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | Chưa làm |
 | G05 | Sửa lỗi nhỏ (đạn bay vùng tối, chữ chồng nhau) | 1 | — | Chưa làm |
 | N1 | Menu mạng và phòng chờ LAN | 2 | G04 | Chưa làm |
