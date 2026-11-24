@@ -8,6 +8,7 @@ extends CharacterBody2D
 signal killed(enemy)
 
 const EnemyData = preload("res://scripts/data/enemies.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Bullet = preload("res://scripts/entities/bullet.gd")
@@ -996,6 +997,20 @@ func _drop_loot() -> void:
 		_spawn_pickup("energy", 5)
 	if not is_boss() and randf() < 0.04:
 		_spawn_pickup("potion", 2)
+	var is_legend: bool = bool(data.get("legend", false))
+	var is_folk: bool = EnemyData.FOLK.has(kind)
+	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
+	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern):
+		_spawn_material(str(mid))
+
+
+func _spawn_material(mid: String) -> void:
+	var p := Pickup.new()
+	p.kind = "material"
+	p.material_id = mid
+	p.amount = 1
+	p.position = global_position
+	get_parent().add_child(p)
 
 
 func _spawn_pickup(k: String, amount: int) -> void:

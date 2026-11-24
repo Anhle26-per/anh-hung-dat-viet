@@ -2,12 +2,14 @@ extends Node2D
 ## Vật phẩm rơi: xu cổ, tinh thể năng lượng, bầu hồ lô hồi máu, vũ khí (có cột sáng theo cấp).
 
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
-var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon
+var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon, material
 var amount := 1
 var weapon_id := ""
+var material_id := ""
 var _t := 0.0
 var _vel := Vector2.ZERO
 var _near := false
@@ -25,6 +27,10 @@ func _ready() -> void:
 		"potion", "potion_big", "potion_energy":
 			_spr = Sprite2D.new()
 			_spr.texture = Art.tex("items/%s.png" % kind)
+		"material":
+			_spr = Sprite2D.new()
+			var minfo: Dictionary = MaterialData.DATA.get(material_id, {})
+			_spr.texture = Art.tex(str(minfo.get("icon", "items/mat_dong.png")))
 		"weapon":
 			_spr = Sprite2D.new()
 			_spr.texture = Art.tex("weapons/%s.png" % weapon_id)
@@ -34,7 +40,7 @@ func _ready() -> void:
 				var l := Art.light(WeaponData.tier_color(weapon_id), 0.9, 0.9)
 				add_child(l)
 	add_child(_spr)
-	if kind == "coin" or kind == "energy":
+	if kind == "coin" or kind == "energy" or kind == "material":
 		_vel = Vector2.from_angle(randf() * TAU) * randf_range(40.0, 90.0)
 
 
@@ -57,7 +63,7 @@ func _process(delta: float) -> void:
 	var to: Vector2 = p.global_position - global_position
 	var d := to.length()
 	match kind:
-		"coin", "energy":
+		"coin", "energy", "material":
 			if _t > 0.35 and d < 80.0:
 				_vel = to.normalized() * 240.0
 			else:
@@ -97,6 +103,14 @@ func _collect(p) -> void:
 			p.add_energy(amount)
 			Fx.float_text(get_parent(), global_position + Vector2(0, -16), "+%d linh khí" % amount, Color(0.5, 0.8, 1.0))
 			Fx.particles(get_parent(), global_position, Color(0.5, 0.8, 1.0), 10, 50.0, 0.6, -60.0, 2.0)
+		"material":
+			var minfo: Dictionary = MaterialData.DATA.get(material_id, {})
+			var mname: String = str(minfo.get("name", material_id))
+			var mcol: Color = minfo.get("color", Color(0.9, 0.9, 1.0))
+			Global.add_run_material(material_id, amount)
+			Sfx.play("pickup_material")
+			Fx.float_text(get_parent(), global_position + Vector2(0, -14), "+%d %s" % [amount, mname], mcol, 12)
+			Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 30.0, 0.6, 0.0, mcol, true)
 	queue_free()
 
 

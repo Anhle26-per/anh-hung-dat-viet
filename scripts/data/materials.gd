@@ -1,0 +1,99 @@
+extends RefCounted
+## Dữ liệu 6 nguyên liệu rơi từ giặc/rương và bảng công thức rèn binh khí tại Lò rèn.
+
+const WeaponData = preload("res://scripts/data/weapons.gd")
+
+const ORDER: Array = ["dong", "sat", "go_lim", "hoa_duoc", "yeu_hon", "ngoc_than"]
+
+const DATA: Dictionary = {
+	"dong": {"name": "Đồng", "color": Color(0.92, 0.62, 0.28), "icon": "items/mat_dong.png"},
+	"sat": {"name": "Sắt", "color": Color(0.72, 0.78, 0.88), "icon": "items/mat_sat.png"},
+	"go_lim": {"name": "Gỗ lim", "color": Color(0.76, 0.48, 0.28), "icon": "items/mat_go_lim.png"},
+	"hoa_duoc": {"name": "Hỏa dược", "color": Color(0.96, 0.42, 0.22), "icon": "items/mat_hoa_duoc.png"},
+	"yeu_hon": {"name": "Yêu hồn", "color": Color(0.78, 0.45, 1.0), "icon": "items/mat_yeu_hon.png"},
+	"ngoc_than": {"name": "Ngọc thần", "color": Color(0.32, 0.96, 0.75), "icon": "items/mat_ngoc_than.png"},
+}
+
+# Tỉ lệ rơi (tách thành hằng số để thẻ G11 dễ cân bằng sau này)
+const DROP_NORMAL: float = 0.08
+const DROP_ELITE: float = 0.40
+const DROP_FOLK: float = 0.15
+const DROP_BOSS_NGOC: float = 0.50
+const DROP_CHEST: float = 0.20
+
+const ANCIENT_POOL: Array = ["dong", "sat", "go_lim"]
+const MODERN_POOL: Array = ["sat", "hoa_duoc"]
+const FIREARM_PROJS: Array = ["bullet", "pellet", "rocket", "grenade", "cannonball", "plasma"]
+
+const RECIPES: Dictionary = {
+	2: {"coins": 50, "mats": {"dong": 3, "sat": 2}},
+	3: {"coins": 120, "mats": {"sat": 4, "yeu_hon": 1}},
+	4: {"coins": 250, "mats": {"sat": 5, "dong": 4, "yeu_hon": 2, "ngoc_than": 1}},
+	5: {"coins": 400, "mats": {"sat": 6, "yeu_hon": 3, "ngoc_than": 3}},
+}
+
+
+static func can_forge_weapon(wid: String) -> bool:
+	if not WeaponData.DATA.has(wid):
+		return false
+	var w: Dictionary = WeaponData.DATA[wid]
+	if bool(w.get("basic", false)):
+		return false
+	return int(w.get("tier", 1)) >= 2
+
+
+static func recipe_for(wid: String) -> Dictionary:
+	if not can_forge_weapon(wid):
+		return {}
+	var w: Dictionary = WeaponData.DATA[wid]
+	var tier: int = int(w.get("tier", 1))
+	if not RECIPES.has(tier):
+		return {}
+	var base: Dictionary = RECIPES[tier]
+	var mats: Dictionary = (base.mats as Dictionary).duplicate()
+	if tier == 3:
+		var proj: String = str(w.get("proj", ""))
+		if proj in FIREARM_PROJS:
+			mats["hoa_duoc"] = 3
+		else:
+			mats["go_lim"] = 3
+	return {"coins": int(base.coins), "mats": mats}
+
+
+static func roll_enemy_drops(is_boss: bool, is_legend: bool, is_folk: bool, elite: bool, modern: bool) -> Array:
+	var out: Array = []
+	var pool: Array = MODERN_POOL if modern else ANCIENT_POOL
+	if is_legend:
+		out.append("ngoc_than")
+		out.append("yeu_hon")
+		out.append("yeu_hon")
+		return out
+	if is_boss:
+		var count: int = randi_range(2, 3)
+		for i in count:
+			out.append(str(pool.pick_random()))
+		if randf() < DROP_BOSS_NGOC:
+			out.append("ngoc_than")
+		return out
+	if elite:
+		if randf() < DROP_ELITE:
+			out.append("yeu_hon" if is_folk else str(pool.pick_random()))
+		return out
+	if is_folk:
+		if randf() < DROP_FOLK:
+			out.append("yeu_hon")
+		return out
+	if randf() < DROP_NORMAL:
+		out.append(str(pool.pick_random()))
+	return out
+
+
+static func roll_chest_drops(modern: bool) -> Array:
+	var out: Array = []
+	if randf() >= DROP_CHEST:
+		return out
+	var pool: Array = MODERN_POOL if modern else ANCIENT_POOL
+	var count: int = randi_range(1, 2)
+	for i in count:
+		out.append(str(pool.pick_random()))
+	return out

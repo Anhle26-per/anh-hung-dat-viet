@@ -20,7 +20,9 @@ art_buffs.build()
 art_tiles.build()     # gạch nền + tường 2 tầng (ghi đè bản cũ)
 art_lobby.build()     # tranh nền doanh trại
 # biểu tượng Hịch tướng sĩ = mặt trống đồng nhỏ có viền
-raw = Image.open(os.path.join(OUT, "ui/skill_hich_tuong_si_raw.png"))
+with Image.open(os.path.join(OUT, "ui/skill_hich_tuong_si_raw.png")) as f_raw:
+	f_raw.load()
+	raw = f_raw.copy()
 os.remove(os.path.join(OUT, "ui/skill_hich_tuong_si_raw.png"))
 img = Image.new("RGBA", (22, 22), (0, 0, 0, 0))
 img.alpha_composite(raw, (1, 1))

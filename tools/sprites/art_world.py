@@ -1,7 +1,7 @@
 """Gạch nền 4 chương, đồ trang trí, giao diện (khung, nút, biểu tượng)."""
 import math
 import random
-from px import hexc, grid, outline, sheet, save, canvas, auto_shade, Image, ImageDraw
+from px import hexc, grid, outline, sheet, save, canvas, auto_shade, polish, Image, ImageDraw
 
 T = 16
 
@@ -538,6 +538,48 @@ def ui():
         save(outline(img), f"ui/tier_{i + 1}.png")
 
 
+def materials_art():
+    # 6 nguyên liệu rèn binh khí (14x14, qua bước polish())
+    # 1. Đồng: thỏi đồng vàng ấm
+    img, d = canvas(14, 14)
+    d.polygon([(3, 4), (10, 4), (12, 9), (1, 9)], fill=_c("d88438"))
+    d.polygon([(3, 4), (10, 4), (9, 6), (4, 6)], fill=_c("f2b05e"))
+    save(polish(img), "items/mat_dong.png")
+
+    # 2. Sắt: thỏi sắt xám xanh
+    img, d = canvas(14, 14)
+    d.polygon([(3, 4), (10, 4), (12, 9), (1, 9)], fill=_c("7a869c"))
+    d.polygon([(3, 4), (10, 4), (9, 6), (4, 6)], fill=_c("b0bcd0"))
+    save(polish(img), "items/mat_sat.png")
+
+    # 3. Gỗ lim: khúc gỗ nâu sẫm có vân
+    img, d = canvas(14, 14)
+    d.rounded_rectangle([2, 4, 11, 10], 2, fill=_c("7a4424"))
+    d.ellipse([2, 4, 5, 10], fill=_c("b87846"))
+    d.point([3, 7], fill=_c("5e3218"))
+    save(polish(img), "items/mat_go_lim.png")
+
+    # 4. Hỏa dược: bọc thuốc nổ đỏ cam có dây cháy
+    img, d = canvas(14, 14)
+    d.ellipse([3, 4, 10, 12], fill=_c("c83428"))
+    d.rectangle([5, 3, 8, 5], fill=_c("8a5a32"))
+    d.line([(6, 3), (8, 1)], fill=_c("e8c878"))
+    d.point([9, 1], fill=_c("ffe050"))
+    save(polish(img), "items/mat_hoa_duoc.png")
+
+    # 5. Yêu hồn: đốm hồn tím ma quái
+    img, d = canvas(14, 14)
+    d.polygon([(7, 1), (11, 6), (9, 12), (5, 12), (3, 6)], fill=_c("9640e8"))
+    d.ellipse([5, 5, 8, 9], fill=_c("e0b0ff"))
+    save(polish(img), "items/mat_yeu_hon.png")
+
+    # 6. Ngọc thần: viên ngọc bích lục lấp lánh
+    img, d = canvas(14, 14)
+    d.polygon([(7, 1), (11, 5), (11, 9), (7, 13), (3, 9), (3, 5)], fill=_c("28b888"))
+    d.polygon([(7, 3), (9, 5), (7, 8), (5, 5)], fill=_c("90ffe0"))
+    save(polish(img), "items/mat_ngoc_than.png")
+
+
 def build():
     tiles()
     decor()
@@ -546,6 +588,7 @@ def build():
     lobby_decor()
     ambient_art()
     loot_art()
+    materials_art()
     ui()
 
 

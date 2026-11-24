@@ -3,6 +3,8 @@ extends "res://scripts/entities/interactable.gd"
 ## Mở ra ngẫu nhiên theo tỉ lệ: xu + linh khí (nhiều nhất), hồ lô thuốc, hoặc vũ khí.
 
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const Pickup = preload("res://scripts/entities/pickup.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
@@ -72,6 +74,14 @@ func interact() -> void:
 		p.position = c
 		par.add_child(p)
 		Fx.burst(par, global_position, WeaponData.tier_color(p.weapon_id), 40.0, 0.5)
+	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
+	for mid in MaterialData.roll_chest_drops(modern):
+		var mp := Pickup.new()
+		mp.kind = "material"
+		mp.material_id = str(mid)
+		mp.amount = 1
+		mp.position = c
+		par.add_child(mp)
 	queue_redraw()
 	# rương mở xong mờ dần
 	var tw := create_tween()

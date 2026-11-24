@@ -31,6 +31,8 @@ Tên tệp được giữ cố định để có thể thay thế trực tiếp 
 - `hit_wood.wav` — đánh trúng gỗ / hình nhân rơm / cọc / rương
 - `hit_crit.wav` — đòn chí mạng
 - `hit_boss.wav` — đòn trúng trùm / Tam Yêu
+- `pickup_material.wav` — nhặt nguyên liệu rèn
+- `forge.wav` — tiếng búa rèn binh khí tại Lò rèn
 
 ### Nhạc nền (`assets/audio/music/`)
 - `lobby.wav` — nhạc nền menu chính và sảnh Doanh trại (85 BPM, ngũ cung Việt)

@@ -10,6 +10,7 @@ var run_save_path := ""           # để trống: tự suy ra từ save_path (t
 var resume_data: Dictionary = {}  # trạng thái nhân vật chờ nạp lại khi "Chơi tiếp"
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -22,6 +23,8 @@ var upgrades: Dictionary = {}     # nâng cấp vĩnh viễn ở Lò rèn: mã -
 var discovered: Array = []        # vũ khí đã sưu tầm
 var stats: Dictionary = {"runs": 0, "kills": 0, "bosses": 0}
 var free_revives := 0             # lượt hồi sinh miễn phí còn lại trong lượt chơi
+var materials: Dictionary = {}    # kho nguyên liệu: mã -> số lượng
+var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lượt kế tiếp ("" nếu trống)
 
 const DEFAULT_SETTINGS: Dictionary = {
 	"music": 0.8,
@@ -50,6 +53,7 @@ var boss_order: Array = []
 var legend_chance := 0.4         # tỉ lệ màn giữa chương có trùm Tam Yêu
 var legend_last := ""      # thứ tự trùm ngẫu nhiên của lượt chơi này
 var run_buffs: Dictionary = {}   # phúc lành đã chọn trong lượt: mã -> số lần
+var run_materials: Dictionary = {} # nguyên liệu nhặt được trong lượt chơi hiện tại
 
 # --- Điều khiển ---
 var touch_mode: bool = false     # true trên điện thoại: hiện cần gạt + nút ảo, tự ngắm
@@ -113,6 +117,7 @@ func start_run() -> void:
 	run_coins = 0
 	revived = false
 	run_buffs = {}
+	run_materials = {}
 	free_revives = upgrade("hoi_sinh")
 	stats["runs"] = int(stats.get("runs", 0)) + 1
 
@@ -168,9 +173,82 @@ func coin_mult() -> float:
 	return 1.0 + 0.5 * int(run_buffs.get("boi_thu", 0))
 
 
+func material_count(id: String) -> int:
+	return int(materials.get(id, 0))
+
+
+func add_run_material(id: String, n: int = 1) -> void:
+	if n > 0 and MaterialData.DATA.has(id):
+		run_materials[id] = int(run_materials.get(id, 0)) + n
+
+
+func _commit_run_materials() -> void:
+	for id in run_materials:
+		var k: String = str(id)
+		var v: int = int(run_materials[id])
+		if v > 0 and MaterialData.DATA.has(k):
+			materials[k] = material_count(k) + v
+	run_materials = {}
+
+
+func forgeable_weapons() -> Array:
+	var out: Array = []
+	for wid in discovered:
+		var w: String = str(wid)
+		if MaterialData.can_forge_weapon(w) and not out.has(w):
+			out.append(w)
+	out.sort_custom(func(a: String, b: String) -> bool:
+		var ta: int = int(WeaponData.DATA[a].tier)
+		var tb: int = int(WeaponData.DATA[b].tier)
+		if ta != tb:
+			return ta < tb
+		return str(WeaponData.DATA[a].name) < str(WeaponData.DATA[b].name))
+	return out
+
+
+func can_craft(wid: String) -> bool:
+	if forged != "" or not discovered.has(wid) or not MaterialData.can_forge_weapon(wid):
+		return false
+	var rec: Dictionary = MaterialData.recipe_for(wid)
+	if rec.is_empty() or coins < int(rec.coins):
+		return false
+	var mats: Dictionary = rec.mats
+	for mid in mats:
+		if material_count(str(mid)) < int(mats[mid]):
+			return false
+	return true
+
+
+func try_craft(wid: String) -> bool:
+	if not can_craft(wid):
+		return false
+	var rec: Dictionary = MaterialData.recipe_for(wid)
+	coins -= int(rec.coins)
+	var mats: Dictionary = rec.mats
+	for mid in mats:
+		var k: String = str(mid)
+		var left: int = material_count(k) - int(mats[mid])
+		if left > 0:
+			materials[k] = left
+		else:
+			materials.erase(k)
+	forged = wid
+	save_game()
+	return true
+
+
+func consume_forged() -> String:
+	var out: String = forged
+	if out != "":
+		forged = ""
+		save_game()
+	return out
+
+
 func end_run() -> void:
 	coins += run_coins
 	run_coins = 0
+	_commit_run_materials()
 	best_level = maxi(best_level, level)
 	clear_run()
 	save_game()
@@ -276,6 +354,8 @@ func save_game() -> void:
 		"discovered": discovered,
 		"stats": stats,
 		"settings": settings,
+		"materials": materials,
+		"forged": forged,
 	})
 
 
@@ -337,6 +417,7 @@ func save_run(p = null) -> bool:
 		"level": level,
 		"player": who,
 		"run_buffs": run_buffs,
+		"run_materials": run_materials,
 		"run_coins": run_coins,
 		"boss_order": boss_order,
 		"legend_last": legend_last,
@@ -379,6 +460,14 @@ func load_run() -> bool:
 	if typeof(rb) == TYPE_DICTIONARY:
 		for k in rb:
 			run_buffs[str(k)] = int(rb[k])
+	run_materials = {}
+	var rm: Variant = d.get("run_materials", {})
+	if typeof(rm) == TYPE_DICTIONARY:
+		for k in rm:
+			var mk: String = str(k)
+			var mv: int = int(rm[k])
+			if mv > 0 and MaterialData.DATA.has(mk):
+				run_materials[mk] = mv
 	var pl: Dictionary = d.player
 	resume_data = {}
 	for k in pl:
@@ -456,6 +545,17 @@ func load_game() -> void:
 			set_setting(str(k), cfg_dict[k])
 	else:
 		apply_settings()
+	materials = {}
+	var mat_val: Variant = data.get("materials", null)
+	if typeof(mat_val) == TYPE_DICTIONARY:
+		var md: Dictionary = mat_val
+		for k in md:
+			var mk: String = str(k)
+			var mv: int = int(md[k])
+			if mv > 0 and MaterialData.DATA.has(mk):
+				materials[mk] = mv
+	var fg: String = str(data.get("forged", ""))
+	forged = fg if MaterialData.can_forge_weapon(fg) else ""
 
 
 # ------------------------------------------------------------------ Phím bấm

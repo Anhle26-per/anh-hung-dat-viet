@@ -418,6 +418,31 @@ def gen_sfx() -> dict[str, list[float]]:
         buf.append((0.7 * math.sin(2.0 * math.pi * ph) + 0.35 * lp) * env_ad(t, 0.13, 0.002, 1.8))
     out["hit_boss"] = normalize(buf, 0.82)
 
+    # 27. pickup_material: nhặt nguyên liệu (2 nốt ấm rõ nét)
+    buf = [0.0] * int(0.22 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.07, "tri", PENTA["E5"]), (0.06, 0.15, "sq25", PENTA["A5"])], 0.52)
+    out["pickup_material"] = normalize(buf, 0.76)
+
+    # 28. forge: tiếng búa nện đe + lóe sáng khi rèn binh khí
+    rng = random.Random(128)
+    n = int(0.55 * SAMPLE_RATE)
+    buf = [0.0] * n
+    for hit_t, pitch_m in ((0.0, 1.0), (0.16, 1.08)):
+        i0 = int(hit_t * SAMPLE_RATE)
+        hn = int(0.26 * SAMPLE_RATE)
+        for j in range(hn):
+            if i0 + j >= n:
+                break
+            t = j / SAMPLE_RATE
+            clang = (
+                0.45 * math.sin(2.0 * math.pi * 1040.0 * pitch_m * t)
+                + 0.30 * math.sin(2.0 * math.pi * 1620.0 * pitch_m * t)
+                + 0.25 * rng.uniform(-1.0, 1.0) * max(0.0, 1.0 - t / 0.04)
+            )
+            buf[i0 + j] += clang * env_ad(t, 0.26, 0.001, 2.2) * 0.65
+    add_tone_seq(buf, [(0.22, 0.10, "tri", PENTA["G5"]), (0.30, 0.24, "sq25", PENTA["C6"])], 0.36)
+    out["forge"] = normalize(buf, 0.84)
+
     return out
 
 

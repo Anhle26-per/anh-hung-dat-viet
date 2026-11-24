@@ -34,6 +34,8 @@ const SFX_FILES: Dictionary = {
 	"hit_wood": "res://assets/audio/sfx/hit_wood.wav",
 	"hit_crit": "res://assets/audio/sfx/hit_crit.wav",
 	"hit_boss": "res://assets/audio/sfx/hit_boss.wav",
+	"pickup_material": "res://assets/audio/sfx/pickup_material.wav",
+	"forge": "res://assets/audio/sfx/forge.wav",
 }
 
 const MUSIC_FILES: Dictionary = {
