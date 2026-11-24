@@ -721,6 +721,8 @@ func _use_skill() -> void:
 	var cw: Dictionary = current_weapon()
 	last_skill_syn = syn
 	last_skill_imprint = fam
+	if syn >= 0 and syn <= 2:
+		Global.run_syn_counts[syn] = int(Global.run_syn_counts[syn]) + 1
 	var hb: Dictionary = ProgressionData.hero_bonuses(Global.hero_level(hero_id))
 	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult)
 	Sfx.play("skill")
@@ -1058,7 +1060,22 @@ func pick_weapon(id: String) -> void:
 
 # ------------------------------------------------------------------ Máu, giáp
 
-func take_damage(amount: int) -> void:
+func _nearest_attacker_name() -> String:
+	var best = null
+	var best_d := 260.0
+	if is_inside_tree():
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if not e.dead:
+				var d: float = global_position.distance_to(e.global_position)
+				if d < best_d:
+					best_d = d
+					best = e
+	if best != null and best.has_method("display_name"):
+		return best.display_name()
+	return "Giặc"
+
+
+func take_damage(amount: int, source: String = "") -> void:
 	if dead or _invuln > 0.0 or _dash_time > 0.0:
 		return
 	if randf() < minf(0.12 * buff("bua_ho_menh"), 0.45):
@@ -1068,6 +1085,7 @@ func take_damage(amount: int) -> void:
 	var dmg: int = Global.scale_enemy_damage(amount)
 	if dmg <= 0:
 		return
+	Global.run_last_hit = source if source != "" else _nearest_attacker_name()
 	if buff("khien_chan") > 0:
 		var ring := WaveRing.new()
 		ring.position = global_position
@@ -1095,6 +1113,7 @@ func dot_damage(amount: int, kind: String) -> void:
 	var dmg: int = Global.scale_enemy_damage(amount)
 	if dmg <= 0:
 		return
+	Global.run_last_hit = "Cháy" if kind == "burn" else "Độc"
 	_flash = 0.6
 	_armor_regen = ARMOR_REGEN_DELAY
 	var absorbed := mini(armor, dmg)
@@ -1138,6 +1157,7 @@ func add_energy(amount: int) -> void:
 
 func revive() -> void:
 	dead = false
+	Global.run_last_hit = ""
 	hp = max_hp
 	armor = max_armor
 	energy = maxi(energy, max_energy / 2)

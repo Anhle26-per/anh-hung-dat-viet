@@ -89,6 +89,8 @@ func add_shake(amount: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if player != null and is_instance_valid(player) and not player.dead and not get_tree().paused:
+		Global.run_elapsed += delta
 	if _shake > 0.0:
 		camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake
 		_shake = move_toward(_shake, 0.0, delta * 22.0)
@@ -205,6 +207,6 @@ func _on_restart() -> void:
 
 
 func _on_menu() -> void:
-	Global.end_run()
+	Global.end_run("" if (player != null and is_instance_valid(player) and player.dead) else "bo_luot")
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/lobby.tscn")

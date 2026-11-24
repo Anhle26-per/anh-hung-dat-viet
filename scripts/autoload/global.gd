@@ -28,6 +28,7 @@ var materials: Dictionary = {}    # kho nguyên liệu: mã -> số lượng
 var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lượt kế tiếp ("" nếu trống)
 var hero_levels: Dictionary = {}  # mã tướng -> cấp (1..5)
 var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu (1..5)
+var log_path: String = "user://nhat_ky.csv"
 
 const DEFAULT_SETTINGS: Dictionary = {
 	"music": 0.8,
@@ -57,6 +58,13 @@ var legend_chance := 0.4         # tỉ lệ màn giữa chương có trùm Tam 
 var legend_last := ""      # thứ tự trùm ngẫu nhiên của lượt chơi này
 var run_buffs: Dictionary = {}   # phúc lành đã chọn trong lượt: mã -> số lần
 var run_materials: Dictionary = {} # nguyên liệu nhặt được trong lượt chơi hiện tại
+var _run_active: bool = false
+var run_elapsed: float = 0.0
+var run_kills: int = 0
+var run_boss_hp: Array = []
+var run_last_hit: String = ""
+var run_syn_counts: Array = [0, 0, 0]
+var run_cap_bac: String = "1/1"
 
 # --- Điều khiển ---
 var touch_mode: bool = false     # true trên điện thoại: hiện cần gạt + nút ảo, tự ngắm
@@ -121,6 +129,13 @@ func start_run() -> void:
 	revived = false
 	run_buffs = {}
 	run_materials = {}
+	_run_active = true
+	run_elapsed = 0.0
+	run_kills = 0
+	run_boss_hp = []
+	run_last_hit = ""
+	run_syn_counts = [0, 0, 0]
+	run_cap_bac = "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]
 	free_revives = upgrade("hoi_sinh")
 	stats["runs"] = int(stats.get("runs", 0)) + 1
 
@@ -170,6 +185,13 @@ func discover(weapon_id: String) -> void:
 
 func add_stat(key: String, n := 1) -> void:
 	stats[key] = int(stats.get(key, 0)) + n
+	if key == "kills" and _run_active:
+		run_kills += n
+
+
+func on_boss_killed(player_hp: int) -> void:
+	if _run_active:
+		run_boss_hp.append(player_hp)
 
 
 func coin_mult() -> float:
@@ -306,7 +328,65 @@ func consume_forged() -> String:
 	return out
 
 
-func end_run() -> void:
+func _csv_cell(v: Variant) -> String:
+	var s: String = str(v).replace("\r", " ").replace("\n", " ")
+	if s.contains(",") or s.contains("\""):
+		s = "\"" + s.replace("\"", "\"\"") + "\""
+	return s
+
+
+func _write_run_log(outcome: String) -> void:
+	if not _run_active or log_path == "":
+		return
+	var existed: bool = FileAccess.file_exists(log_path)
+	var f: FileAccess = FileAccess.open(log_path, FileAccess.READ_WRITE if existed else FileAccess.WRITE)
+	if f == null:
+		return
+	if existed:
+		f.seek_end()
+	if not existed or f.get_length() == 0:
+		f.store_line("ngay_gio,tuong,do_kho,man_xa_nhat,thoi_gian_giay,giac_da_ha,chet_o_man,chet_vi,mau_con_lai_sau_moi_trum,xu_nhat,nguyen_lieu_nhat,phuc_lanh,dong_dieu,cap_bac")
+	var dt: String = Time.get_datetime_string_from_system(false, true)
+	var diff: String = str(settings.get("difficulty", "thuong"))
+	var death_lvl: int = 0 if outcome == "thang" else level
+	var cause: String = outcome if outcome != "" else (run_last_hit if run_last_hit != "" else "Giặc")
+	var boss_hp_parts: PackedStringArray = []
+	for h in run_boss_hp:
+		boss_hp_parts.append(str(h))
+	var mat_parts: PackedStringArray = []
+	for mid in MaterialData.ORDER:
+		var mc: int = int(run_materials.get(mid, 0))
+		if mc > 0:
+			mat_parts.append("%s:%d" % [str(mid), mc])
+	var buff_parts: PackedStringArray = []
+	for bid in run_buffs:
+		var bc: int = int(run_buffs[bid])
+		for i in bc:
+			buff_parts.append(str(bid))
+	var syn_str: String = "%d|%d|%d" % [int(run_syn_counts[0]), int(run_syn_counts[1]), int(run_syn_counts[2])]
+	var cols: PackedStringArray = [
+		_csv_cell(dt),
+		_csv_cell(selected_hero),
+		_csv_cell(diff),
+		str(level),
+		str(int(round(run_elapsed))),
+		str(run_kills),
+		str(death_lvl),
+		_csv_cell(cause),
+		_csv_cell("|".join(boss_hp_parts)),
+		str(run_coins),
+		_csv_cell("|".join(mat_parts)),
+		_csv_cell("|".join(buff_parts)),
+		_csv_cell(syn_str),
+		_csv_cell(run_cap_bac),
+	]
+	f.store_line(",".join(cols))
+	f.close()
+
+
+func end_run(outcome: String = "") -> void:
+	_write_run_log(outcome)
+	_run_active = false
 	coins += run_coins
 	run_coins = 0
 	_commit_run_materials()
@@ -486,6 +566,12 @@ func save_run(p = null) -> bool:
 		"legend_last": legend_last,
 		"revived": revived,
 		"free_revives": free_revives,
+		"run_elapsed": run_elapsed,
+		"run_kills": run_kills,
+		"run_boss_hp": run_boss_hp,
+		"run_last_hit": run_last_hit,
+		"run_syn_counts": run_syn_counts,
+		"run_cap_bac": run_cap_bac,
 	})
 
 
@@ -540,6 +626,18 @@ func load_run() -> bool:
 		var wid := str(w)
 		ws.append(wid if (wid == "" or WeaponData.DATA.has(wid)) else "")
 	resume_data["weapons"] = ws
+	_run_active = true
+	run_elapsed = float(d.get("run_elapsed", 0.0))
+	run_kills = int(d.get("run_kills", 0))
+	run_boss_hp = []
+	for bh in d.get("run_boss_hp", []):
+		run_boss_hp.append(int(bh))
+	run_last_hit = str(d.get("run_last_hit", ""))
+	run_syn_counts = [0, 0, 0]
+	var sc_arr: Variant = d.get("run_syn_counts", [0, 0, 0])
+	if typeof(sc_arr) == TYPE_ARRAY and sc_arr.size() >= 3:
+		run_syn_counts = [int(sc_arr[0]), int(sc_arr[1]), int(sc_arr[2])]
+	run_cap_bac = str(d.get("run_cap_bac", "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]))
 	return true
 
 
@@ -554,7 +652,7 @@ func abandon_run() -> int:
 	var got := 0
 	if load_run():
 		got = run_coins
-		end_run()
+		end_run("bo_luot")
 	else:
 		clear_run()
 	return got

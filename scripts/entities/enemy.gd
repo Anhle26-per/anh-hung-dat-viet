@@ -962,6 +962,7 @@ func die(drop := true) -> void:
 		Global.add_stat("kills")
 		if is_boss():
 			Global.add_stat("bosses")
+			Global.on_boss_killed(player.hp if (player != null and is_instance_valid(player)) else 0)
 	remove_from_group("enemies")
 	remove_from_group("boss")
 	Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0, radius / 7.0)

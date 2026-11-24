@@ -111,6 +111,7 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 4)
 	box.add_child(spacer)
+	box.add_child(UI.center(UI.button("Mở thư mục nhật ký", _on_open_log_dir, 14, 190.0)))
 	box.add_child(UI.center(UI.button("Đóng", close, 18, 140.0)))
 
 	refresh()
@@ -201,3 +202,7 @@ func _on_touch_scale(sc: float) -> void:
 func _on_difficulty(did: String) -> void:
 	Global.set_setting("difficulty", did)
 	refresh()
+
+
+func _on_open_log_dir() -> void:
+	OS.shell_open(ProjectSettings.globalize_path("user://"))
