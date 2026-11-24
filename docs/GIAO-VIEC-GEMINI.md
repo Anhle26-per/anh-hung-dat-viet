@@ -13,7 +13,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 
 ## 0b. Bảng theo dõi toàn bộ việc còn lại
 
-Đây là **tất cả** những việc chưa làm của dự án. Làm xong thẻ nào thì chủ dự án sửa cột "Trạng thái" thành **Xong** kèm ngày, và commit vào git. Gemini cũng phải đọc bảng này để biết thẻ nào đã xong.
+Đây là **tất cả** những việc chưa làm của dự án. Sau khi test đạt và gộp nhánh vào `main`, Gemini tự sửa cột "Trạng thái" thành **Xong** kèm ngày và commit vào git. Gemini cũng phải đọc bảng này để biết thẻ nào đã xong.
 
 | Thẻ | Việc | Đợt | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|
@@ -69,32 +69,27 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
    - Mở đúng thư mục dự án.
    - Để chế độ **hỏi trước khi chạy lệnh**.
 7. **Quy trình mỗi thẻ việc:**
-   1. Tạo nhánh mới, ví dụ:
+   1. Gemini tự tạo nhánh mới từ `main`, ví dụ:
       ```bash
-      git switch -c gemini/G01
+      git switch -c gemini/G02
       ```
-   2. Mở một phiên Gemini mới và dán câu sau:
-      ```
-      Đọc AGENTS.md trước. Làm thẻ việc G01 trong docs/GIAO-VIEC-GEMINI.md, KHÔNG làm gì ngoài phạm vi.
-      Trước khi sửa: tóm tắt kế hoạch 5–8 dòng, liệt kê tệp sẽ sửa, rồi chờ tôi đồng ý.
-      Sau khi sửa: chạy K1 sau mỗi lần sửa .gd, chạy test riêng của thẻ, chạy K2 một lần ở cuối (hoặc báo để tôi chạy).
-      Báo cáo theo mục 10 của AGENTS.md.
-      ```
-   3. Duyệt theo **danh sách kiểm tra ở mục 5**.
-   4. Đạt thì gộp nhánh vào main:
+   2. Gemini đọc `AGENTS.md` và thẻ việc trong `docs/GIAO-VIEC-GEMINI.md`, triển khai trực tiếp (không cần chờ chủ dự án gõ đồng ý; kế hoạch ghi trong báo cáo cuối).
+   3. Gemini chạy K1 sau mỗi lần sửa `.gd`, chạy test riêng của thẻ, và chạy K2 ở cuối cho đến khi đạt `SMOKE TEST OK`.
+   4. Khi mọi test bắt buộc đã đạt, Gemini tự commit và gộp nhánh vào `main`:
       ```bash
-      git switch main
+      git add -A
       ```
       ```bash
-      git merge gemini/G01
+      git commit -m "<mã thẻ>: <mô tả>"
       ```
-   5. Không đạt thì quay về main và bỏ nhánh:
       ```bash
       git switch main
       ```
       ```bash
-      git branch -D gemini/G01
+      git merge gemini/G02
       ```
+   5. Gemini cập nhật cột Trạng thái trong bảng 0b thành **Xong <ngày>** và commit lại; không `git push`, không `--force`, không xóa nhánh `main`.
+   6. Nếu không đạt hoặc có lỗi không tự sửa được thì báo cáo rõ; chủ dự án có thể đối chiếu theo **danh sách kiểm tra ở mục 6**.
 
 **Hai lệnh test dùng chung** (chi tiết trong AGENTS.md):
 - **K1**: kiểm tra biên dịch, đạt khi in `KIỂM TRA XONG: 0 lỗi`.

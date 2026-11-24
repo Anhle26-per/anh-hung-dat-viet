@@ -204,15 +204,15 @@ Xem **bảng 0b trong `docs/GIAO-VIEC-GEMINI.md`**. Có 18 thẻ chưa làm:
 
 ## 9. Quy trình làm việc của Gemini
 
-1. Chủ dự án tạo nhánh `gemini/<mã thẻ>` từ `main`.
-2. Gemini đọc `AGENTS.md`, đọc thẻ việc, **trình kế hoạch 5–8 dòng và chờ chủ dự án đồng ý**.
-3. Gemini làm việc:
+1. Gemini tự tạo nhánh `gemini/<mã thẻ>` từ `main`.
+2. Gemini đọc `AGENTS.md` và thẻ việc, triển khai trực tiếp (không còn bước chờ chủ dự án đồng ý; kế hoạch ghi trong báo cáo cuối).
+3. Gemini làm việc và chạy đủ test bắt buộc:
    - chạy K1 sau mỗi lần sửa `.gd`;
    - chạy test riêng của thẻ;
-   - chạy K2 ở cuối, hoặc nhờ chủ dự án chạy.
-4. Gemini báo cáo theo mục 10 của `AGENTS.md`. **Không tự commit hay push.**
-5. Chủ dự án duyệt theo danh sách kiểm tra (mục 6 của `GIAO-VIEC-GEMINI.md`), rồi commit và gộp vào `main`.
-6. Chủ dự án sửa cột "Trạng thái" trong bảng 0b.
+   - chạy K2 ở cuối đến khi đạt `SMOKE TEST OK`.
+4. Test đạt thì Gemini tự `git add`, `git commit`, chuyển về `main`, `git merge gemini/<mã thẻ>`, cập nhật cột "Trạng thái" trong bảng 0b thành **Xong <ngày>** và commit lại. KHÔNG `git push`, KHÔNG `--force`, KHÔNG viết lại lịch sử, KHÔNG xóa nhánh `main`.
+5. Gemini gửi báo cáo theo mục 10 của `AGENTS.md` (kèm kế hoạch đã thực hiện).
+6. Chủ dự án kiểm tra lại theo danh sách kiểm tra ở mục 6 của `GIAO-VIEC-GEMINI.md` nếu cần.
 
 ## 10. Câu mở đầu cho phiên Antigravity đầu tiên
 

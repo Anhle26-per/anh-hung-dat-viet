@@ -10,14 +10,14 @@ Không làm quảng cáo, mua trong game, đăng nhập tài khoản, máy chủ
 
 Phiên đầu tiên: đọc `docs/BAN-GIAO.md` (biên bản bàn giao: kiến trúc, quyết định đã chốt, bẫy kỹ thuật).
 Đọc hết tệp này trước khi làm. Mỗi phiên chỉ làm MỘT thẻ việc trong `docs/GIAO-VIEC-GEMINI.md`.
-Xem bảng theo dõi ở mục 0b của tệp đó để biết thẻ nào đã xong và thẻ nào phải làm trước. KHÔNG tự sửa cột Trạng thái; chủ dự án sửa.
+Xem bảng theo dõi ở mục 0b của tệp đó để biết thẻ nào đã xong và thẻ nào phải làm trước. Sau khi mọi test bắt buộc đã đạt và gộp vào `main`, Gemini tự cập nhật cột Trạng thái trong bảng 0b.
 
 ## 1. Công nghệ và phiên bản
 - Godot **4.7** (bản Standard), GDScript 2.0, renderer "GL Compatibility".
 - Màn hình gốc 640×360, chế độ stretch canvas_items. Autoload duy nhất là `Global`.
 - KHÔNG BAO GIỜ viết mã Godot 3. Không chắc một API thì tra tài liệu Godot 4.
-- Python 3 + Pillow cho công cụ vẽ hình trong `tools/sprites/`.
-- Lệnh Godot trên máy này: `godot`. Chủ dự án sửa dòng này nếu khác, ví dụ `Godot_v4.7-stable_win64_console.exe`.
+- Python 3 + Pillow cho công cụ vẽ hình trong `tools/sprites/` (trên Windows dùng lệnh `python` thay cho `python3`).
+- Lệnh Godot trên máy này: `D:\Games\Godot\Godot_v4.7.2-stable_win64_console.exe`.
 
 ## 2. Bản đồ thư mục
 - `scripts/autoload/global.gd`: `Global`, gồm:
@@ -106,7 +106,7 @@ Xem bảng theo dõi ở mục 0b của tệp đó để biết thẻ nào đã 
 - Phạm vi: chỉ sửa tệp ghi trong thẻ việc.
   - Cần sửa hơn khoảng 3 tệp hoặc 300 dòng ngoài dự kiến thì DỪNG và hỏi.
   - Không tái cấu trúc, không đổi tên, không thêm addon nếu thẻ không yêu cầu.
-- Git: làm trên nhánh hiện tại. KHÔNG `git push`, KHÔNG `--force`, KHÔNG viết lại lịch sử, KHÔNG xóa nhánh.
+- Git: bạn được tự chạy `git add`, `git commit`, `git switch`, `git merge` trên máy này, sau khi mọi test bắt buộc đã đạt. KHÔNG `git push`, KHÔNG `--force`, KHÔNG viết lại lịch sử, KHÔNG xóa nhánh `main`.
 
 ## 7. Chơi chung qua LAN (khi làm các thẻ N1–N8)
 - Dùng `ENetMultiplayerPeer` có sẵn trong Godot, cổng mặc định 7777, tối đa 4 người. KHÔNG dùng máy chủ Internet hay dịch vụ ngoài.

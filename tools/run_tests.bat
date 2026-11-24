@@ -5,7 +5,7 @@ rem   tools\run_tests.bat          -> K1 (biên dịch) + K2 (máy tự chơi, 1
 rem   tools\run_tests.bat nhanh    -> chỉ K1
 rem   tools\run_tests.bat run_save -> K1 + tests\run_save_test.tscn
 rem Sửa dòng GODOT bên dưới cho đúng nơi bạn để Godot (bản _console.exe).
-set GODOT=C:\Godot\Godot_v4.7.2-stable_win64_console.exe
+set GODOT=D:\Games\Godot\Godot_v4.7.2-stable_win64_console.exe
 cd /d "%~dp0.."
 if not exist logs mkdir logs
 
