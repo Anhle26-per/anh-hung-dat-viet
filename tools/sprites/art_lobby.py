@@ -225,14 +225,19 @@ def build():
     # Hai bục gỗ sân khấu hai cánh trái/phải phía trên Đại Sảnh cho 11 vị tướng đứng
     draw_wood_platform(d, 476, 294, 628, 424, plank_h=6)
     draw_wood_platform(d, 732, 294, 884, 424, plank_h=6)
-    # Hai bục gỗ nhỏ phía nam cho tướng bổ sung / khu uống trà
+    # Hai bục gỗ nhỏ phía nam cho tướng bổ sung / khu uống trà & sa bàn
     draw_wood_platform(d, 478, 536, 626, 648, plank_h=6)
     draw_wood_platform(d, 734, 536, 882, 648, plank_h=6)
-
-    # Bàn trà gỗ giữa khu nghỉ phía nam
-    d.rectangle([534, 582, 570, 604], fill=C("5a341c"), outline=C("c28e58"))
-    d.ellipse([544, 588, 550, 594], fill=C("e8dec8"))
-    d.ellipse([554, 590, 560, 596], fill=C("e8dec8"))
+    # Bậc đá bước lên 4 bục gỗ & viền thảm hoa văn
+    for sx0, sy0, sx1 in ((530, 428, 574), (786, 428, 830), (532, 652, 576), (788, 652, 832)):
+        d.rectangle([sx0, sy0, sx1, sy0 + 6], fill=C("8f8a7e"), outline=C("5a544c"))
+        d.line([(sx0 + 1, sy0 + 1), (sx1 - 1, sy0 + 1)], fill=C("c2bcb0"))
+    for ty in range(260, 665, 16):
+        d.rectangle([644, ty, 646, ty + 6], fill=C("d8a440"))
+        d.rectangle([714, ty, 716, ty + 6], fill=C("d8a440"))
+    for tx in range(472, 892, 18):
+        d.rectangle([tx, 442, tx + 6, 444], fill=C("d8a440"))
+        d.rectangle([tx, 496, tx + 6, 498], fill=C("d8a440"))
 
     # Mặt đình bên trên Đại Sảnh (tách 2 cánh trái/phải để chừa hành lang Bắc 635..725)
     draw_dinh_roof(d, 464, 248, 630, 292, badge_text=False)
@@ -271,15 +276,29 @@ def build():
     draw_tiled_floor(d, rng, 82, 286, 392, 392, C("9c9688"), C("bcb6a8"), C("6e685e"), C("524e46"), tile=18, crack_rate=0.06)
     d.rectangle([80, 284, 394, 394], outline=C("444038"))
 
+    # Bồn hoa viền đá & bục gỗ ngắm hồ sen phía bắc Hồ Sen
+    for fx0, fy0, fx1, fy1 in ((54, 412, 118, 444), (344, 626, 404, 666)):
+        d.rectangle([fx0, fy0, fx1, fy1], fill=C("4b3524"), outline=C("8a8478"))
+        for _ in range(18):
+            bx, by = rng.randint(fx0 + 4, fx1 - 4), rng.randint(fy0 + 4, fy1 - 4)
+            col = rng.choice([C("f6d448"), C("f47aa8"), C("ff6454"), C("a4e058")])
+            d.ellipse([bx - 2, by - 2, bx + 2, by + 2], fill=col)
+    # Lối đá rẽ xuống cầu gỗ ngắm hồ (215, 492..534)
+    for sx, sy in ((230, 442), (222, 470)):
+        d.ellipse([sx - 14, sy - 10, sx + 14, sy + 10], fill=st_d)
+        d.ellipse([sx - 12, sy - 8, sx + 12, sy + 8], fill=stone, outline=st_l)
+    draw_wood_platform(d, 174, 492, 256, 534, plank_h=5)
+
     # Hồ Sen thanh tịnh ở nửa dưới Vườn (tâm 215, 585)
     hx, hy = 215, 585
-    for rx, ry, col in ((84, 56, C("5c5850")), (79, 52, C("9e988a")), (73, 47, C("225b6e")), (65, 41, C("2e7588")), (52, 32, C("3a8ea0"))):
+    for rx, ry, col in ((84, 56, C("5c5850")), (79, 52, C("9e988a")), (73, 47, C("1f5466")), (65, 41, C("2b6f82")), (52, 32, C("3a8ea0")), (32, 18, C("4ba6b8"))):
         d.ellipse([hx - rx, hy - ry, hx + rx, hy + ry], fill=col)
+    d.arc([hx - 40, hy - 22, hx + 40, hy + 22], 20, 150, fill=C("90e8f4"))
     # Lá sen và hoa sen hồng
     for lx, ly, lr in ((175, 575, 11), (206, 562, 10), (242, 572, 12), (190, 604, 11), (235, 608, 10), (266, 590, 9)):
         d.ellipse([lx - lr, ly - lr + 2, lx + lr, ly + lr - 2], fill=C("3a7c38"), outline=C("5ca84e"))
         d.line([(lx, ly), (lx + lr - 2, ly - 2)], fill=C("245224"))
-    for fx, fy in ((178, 572), (244, 569), (233, 605)):
+    for fx, fy in ((178, 572), (244, 569), (233, 605), (195, 602)):
         d.ellipse([fx - 5, fy - 4, fx + 5, fy + 4], fill=C("f68cb4"))
         d.ellipse([fx - 3, fy - 3, fx + 3, fy + 3], fill=C("ffc2da"))
         d.point([fx, fy], fill=C("fae060"))
@@ -296,33 +315,42 @@ def build():
     # Nửa trên: nền đá Xưởng Rèn + viền quanh sàn Võ Đường
     draw_tiled_floor(d, rng, 940, 250, 1320, 690, C("7a7672"), C("9e9892"), C("524e4c"), C("3e3a38"), tile=18, crack_rate=0.08)
 
-    # Sân lò rèn ấm rực bên góc trên trái (968..1094, 286..396)
-    draw_tiled_floor(d, rng, 968, 286, 1094, 396, C("584a48"), C("76625e"), C("3e3230"), C("2c2220"), tile=14)
-    d.rectangle([967, 285, 1095, 397], outline=C("281a18"))
+    # Sân lò rèn đá sẫm khói than bên góc trên trái (966..1096, 286..396)
+    draw_tiled_floor(d, rng, 966, 286, 1096, 396, C("483c3c"), C("665452"), C("322828"), C("221a1a"), tile=14)
+    d.rectangle([965, 285, 1097, 397], outline=C("201616"))
+    # Thảm đỏ dưới Giá Binh Khí (1110..1180, 314..394)
+    draw_carpet(d, 1110, 314, 1180, 394, main="781e24", border="e4b044", trim="481216")
     # Góc Thư viện gỗ bên trên phải (1200..1304, 284..398) cho Bách Khoa Toàn Thư
     draw_wood_platform(d, 1200, 284, 1304, 398, plank_h=6)
-    draw_carpet(d, 1218, 314, 1286, 384, main="244a5e", border="e8b64c", trim="162c3a")
+    draw_carpet(d, 1214, 310, 1290, 386, main="244a5e", border="e8b64c", trim="162c3a")
 
     # Nửa dưới: Võ Đường sàn gỗ rộng rãi (960..1302, 482..674) - chứa 3 Hình Nhân (1040,580 / 1140,560 / 1220,610)
     draw_wood_platform(d, 960, 482, 1302, 674, plank_h=7)
-    d.rectangle([982, 504, 1280, 654], outline=C("c28e58"))
-    # Vòng tròn tập võ dưới sàn gỗ
-    d.ellipse([1096, 540, 1184, 628], outline=C("b8824c"))
+    d.rectangle([978, 500, 1284, 658], outline=C("d4a464"))
+    d.rectangle([982, 504, 1280, 654], outline=C("784b26"))
+    # Vòng tròn tập võ bát quái ở giữa Võ Đường
+    d.ellipse([1094, 538, 1186, 630], outline=C("d4a464"))
+    d.ellipse([1100, 544, 1180, 624], outline=C("784b26"))
 
     # =========================================================================
     # 4. ĐẠI CỔNG XUẤT TRẬN (NORTH: 460..900, 20..210)
     # =========================================================================
     draw_tiled_floor(d, rng, *NORTH, C("6a6872"), C("8e8c98"), C("46444c"), C("302e36"), tile=16, crack_rate=0.05)
-    # Thảm danh dự dẫn vào Cổng Thời Gian (680, 115)
+    # Thảm danh dự dẫn vào Cổng Thời Gian (680, 115) & bậc đá
     draw_carpet(d, 646, 126, 714, 210)
+    for sy in (162, 178, 194):
+        d.line([(638, sy), (722, sy)], fill=C("d6cec0"))
+    # Bệ đá phụ đặt đỉnh lửa & cờ hai bên Cổng Thời Gian
+    for px0, py0 in ((558, 116), (766, 116), (482, 110), (848, 110)):
+        d.rectangle([px0, py0, px0 + 36, py0 + 28], fill=C("54525c"), outline=C("8a8894"))
     # Bệ đá tròn trung tâm Cổng Thời Gian
     gx, gy = 680, 115
-    for rx, ry, col in ((56, 38, C("3a3642")), (50, 34, C("645e70")), (42, 28, C("9c94a8")), (32, 22, C("423c52"))):
+    for rx, ry, col in ((60, 41, C("2e2a38")), (54, 37, C("5c566a")), (44, 30, C("9c94a8")), (34, 23, C("3a344c"))):
         d.ellipse([gx - rx, gy - ry, gx + rx, gy + ry], fill=col)
     for i in range(16):
         a = i / 16.0 * math.tau
-        d.line([(gx + math.cos(a) * 34, gy + math.sin(a) * 23),
-                (gx + math.cos(a) * 46, gy + math.sin(a) * 31)], fill=C("e8c468"))
+        d.line([(gx + math.cos(a) * 35, gy + math.sin(a) * 24),
+                (gx + math.cos(a) * 50, gy + math.sin(a) * 34)], fill=C("f0ce6e"))
     # Mặt đình hoành tráng phía Bắc phòng Bắc
     draw_dinh_roof(d, 464, 22, 896, 70, badge_text=True)
 
@@ -351,6 +379,21 @@ def build():
     draw_perimeter_walls(d)
 
     px = img.load()
+    # Bóng đổ tường nhẹ dọc mép Bắc & Tây của 4 phòng để tạo chiều sâu 3D
+    for (rx0, ry0, rx1, ry1) in (CENTER, WEST, EAST, NORTH):
+        for dy in range(6):
+            k = 0.24 * (1.0 - dy / 6.0)
+            y = ry0 + dy
+            for x in range(rx0, rx1):
+                cr, cg, cb, ca = px[x, y]
+                px[x, y] = (int(cr * (1.0 - k)), int(cg * (1.0 - k)), int(cb * (1.0 - k)), ca)
+        for dx in range(5):
+            k = 0.18 * (1.0 - dx / 5.0)
+            x = rx0 + dx
+            for y in range(ry0, ry1):
+                cr, cg, cb, ca = px[x, y]
+                px[x, y] = (int(cr * (1.0 - k)), int(cg * (1.0 - k)), int(cb * (1.0 - k)), ca)
+
     # Ánh sáng ấm quanh các ngã ba, cổng xuất trận, lò rèn và đài sen
     for (lx, ly, rad, col) in [
         (680, 470, 82, (255, 215, 130)),

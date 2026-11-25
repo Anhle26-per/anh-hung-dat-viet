@@ -14,6 +14,7 @@ var radius := 24.0
 var near := false
 var title_color := Color(1, 0.9, 0.6)
 var title_when_near := false   # chỉ hiện tên khi đến gần (tránh chữ chồng nhau)
+var label_offset_y := -24.0
 var _t := 0.0
 
 
@@ -39,6 +40,6 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 24, Color(1, 0.85, 0.4, a), 2.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		var key := "Bấm DÙNG" if Global.touch_mode else "E"
-		Art.draw_text(self, Vector2(0, -34), "%s: %s" % [key, hint], 13, Color(1, 0.95, 0.75))
+		Art.draw_text(self, Vector2(0, label_offset_y - 12.0), "%s: %s" % [key, hint], 13, Color(1, 0.95, 0.75))
 	if show_near or not title_when_near:
-		Art.draw_text(self, Vector2(0, -24), title, 12, title_color)
+		Art.draw_text(self, Vector2(0, label_offset_y), title, 12, title_color)

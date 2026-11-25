@@ -49,46 +49,6 @@ var _well_pos := Vector2(245, 345)
 var _forge_pos := Vector2(1032, 345)
 
 
-class StationVisual extends Node2D:
-	var kind: String = ""
-
-	func _draw() -> void:
-		match kind:
-			"well":
-				# Giếng đá cổ có mái che ngói đỏ & mặt nước phát sáng
-				draw_rect(Rect2(-15, -3, 30, 12), Color(0.28, 0.27, 0.25))
-				draw_circle(Vector2(0, -1), 13.0, Color(0.56, 0.54, 0.49))
-				draw_circle(Vector2(0, -1), 9.5, Color(0.14, 0.46, 0.58))
-				draw_circle(Vector2(-2, -3), 5.0, Color(0.32, 0.78, 0.92, 0.7))
-				draw_rect(Rect2(-12, -24, 3, 21), Color(0.45, 0.26, 0.14))
-				draw_rect(Rect2(9, -24, 3, 21), Color(0.45, 0.26, 0.14))
-				draw_colored_polygon(
-					PackedVector2Array([Vector2(-16, -22), Vector2(0, -31), Vector2(16, -22), Vector2(14, -19), Vector2(-14, -19)]),
-					Color(0.56, 0.19, 0.16)
-				)
-				draw_rect(Rect2(-11, -24, 22, 2), Color(0.88, 0.68, 0.28))
-			"challenge":
-				# Bảng gỗ sơn son thếp vàng dán cáo thị khiêu chiến
-				draw_rect(Rect2(-13, -24, 3, 26), Color(0.38, 0.2, 0.12))
-				draw_rect(Rect2(10, -24, 3, 26), Color(0.38, 0.2, 0.12))
-				draw_rect(Rect2(-14, -26, 28, 18), Color(0.54, 0.14, 0.14))
-				draw_rect(Rect2(-12, -24, 24, 14), Color(0.92, 0.85, 0.68))
-				draw_line(Vector2(-9, -20), Vector2(9, -20), Color(0.68, 0.18, 0.16), 2.0)
-				draw_line(Vector2(-9, -16), Vector2(6, -16), Color(0.28, 0.22, 0.18), 1.5)
-				draw_line(Vector2(-9, -13), Vector2(8, -13), Color(0.28, 0.22, 0.18), 1.5)
-				draw_rect(Rect2(-15, -27, 30, 3), Color(0.88, 0.68, 0.26))
-			"codex":
-				# Kệ sách bách khoa & quyển thư tịch mở sẵn
-				draw_rect(Rect2(-14, -24, 28, 25), Color(0.34, 0.2, 0.11))
-				draw_rect(Rect2(-12, -22, 24, 21), Color(0.5, 0.32, 0.18))
-				draw_rect(Rect2(-10, -20, 4, 8), Color(0.75, 0.24, 0.22))
-				draw_rect(Rect2(-5, -20, 4, 8), Color(0.24, 0.5, 0.72))
-				draw_rect(Rect2(0, -20, 4, 8), Color(0.28, 0.62, 0.38))
-				draw_rect(Rect2(5, -20, 4, 8), Color(0.86, 0.68, 0.24))
-				draw_rect(Rect2(-10, -9, 20, 7), Color(0.94, 0.89, 0.75))
-				draw_line(Vector2(0, -9), Vector2(0, -2), Color(0.55, 0.42, 0.28), 1.0)
-
-
 func _ready() -> void:
 	add_to_group("lobby")
 	get_tree().paused = false
@@ -219,6 +179,19 @@ func _decor(kind: String, pos: Vector2) -> void:
 	world.add_child(d)
 
 
+func _anim_prop(rel: String, fw: int, fh: int, fps: float, pos: Vector2, light_col: Color = Color.TRANSPARENT) -> AnimatedSprite2D:
+	var a := AnimatedSprite2D.new()
+	a.sprite_frames = Art.strip(rel, fw, fh, fps, true)
+	a.play("play")
+	a.position = pos
+	world.add_child(a)
+	if light_col != Color.TRANSPARENT:
+		var lt := Art.light(light_col, 1.0, 0.75)
+		lt.position = Vector2(0, -6)
+		a.add_child(lt)
+	return a
+
+
 func _sign_label(text: String, pos: Vector2, col := Color(1.0, 0.9, 0.62)) -> void:
 	var lb := Label.new()
 	lb.text = text
@@ -263,6 +236,17 @@ func _decorate() -> void:
 	inc.add_child(Art.light(Color(1, 0.65, 0.35), 0.8, 0.75))
 	_prop("world/drum_stand.png", Vector2(616, 434))
 	_prop("world/drum_stand.png", Vector2(744, 434))
+	# Nội thất Đại Sảnh: bàn trà, bàn sa bàn chiến thuật, đỉnh lửa, cờ & cột cửa
+	_prop("world/prop_tea_table.png", Vector2(558, 608))
+	_prop("world/prop_war_map.png", Vector2(808, 624))
+	for bp in [Vector2(618, 270), Vector2(742, 270)]:
+		_anim_prop("world/prop_brazier.png", 26, 32, 6.0, bp, Color(1.0, 0.62, 0.28))
+	_prop("world/prop_flag_stand.png", Vector2(476, 430), Vector2(0, -10))
+	_prop("world/prop_flag_stand.png", Vector2(884, 430), Vector2(0, -10))
+	for pp in [Vector2(472, 412), Vector2(888, 412), Vector2(472, 526), Vector2(888, 526)]:
+		_prop("world/pillar.png", pp, Vector2(0, -14))
+	_prop("world/bonsai.png", Vector2(492, 294))
+	_prop("world/bonsai.png", Vector2(868, 294))
 	for p in [Vector2(492, 654), Vector2(868, 654), Vector2(632, 666), Vector2(728, 666)]:
 		_decor("pot", p)
 	var pa := _life("patrol", Vector2.ZERO)
@@ -273,39 +257,58 @@ func _decorate() -> void:
 	# ---- 2. Đại Cổng Xuất Trận (Bắc) ----
 	for x in [506.0, 600.0, 760.0, 854.0]:
 		_decor("lantern", Vector2(x, 42))
-	_prop("world/nghe.png", Vector2(616, 122))
-	_prop("world/nghe.png", Vector2(744, 122))
-	_prop("world/drum_stand.png", Vector2(552, 166))
-	_prop("world/drum_stand.png", Vector2(808, 166))
-	_decor("banner", Vector2(496, 98))
-	_decor("banner", Vector2(864, 98))
-	_prop("world/bonsai.png", Vector2(496, 186))
-	_prop("world/bonsai.png", Vector2(864, 186))
+	for bp in [Vector2(576, 128), Vector2(784, 128)]:
+		_anim_prop("world/prop_brazier.png", 26, 32, 6.0, bp, Color(1.0, 0.62, 0.28))
+	_prop("world/prop_flag_stand.png", Vector2(496, 124), Vector2(0, -10))
+	_prop("world/prop_flag_stand.png", Vector2(864, 124), Vector2(0, -10))
+	_prop("world/nghe.png", Vector2(618, 118))
+	_prop("world/nghe.png", Vector2(742, 118))
+	_prop("world/drum_stand.png", Vector2(546, 174))
+	_prop("world/drum_stand.png", Vector2(814, 174))
+	for lp in [Vector2(496, 186), Vector2(864, 186)]:
+		var sl := _prop("world/prop_stone_lantern.png", lp, Vector2(0, -8))
+		sl.add_child(Art.light(Color(1.0, 0.78, 0.42), 0.75, 0.6))
+	_decor("banner", Vector2(536, 82))
+	_decor("banner", Vector2(824, 82))
 
 	# ---- 3. Vườn Sen & Chiến Tích (Tây) ----
 	_life("pond", Vector2(215, 585), Vector2(130, 74))
-	_decor("peach", Vector2(96, 466))
-	_decor("peach", Vector2(364, 520))
+	for lp in [Vector2(78, 368), Vector2(398, 368), Vector2(110, 566), Vector2(322, 566)]:
+		var sl2 := _prop("world/prop_stone_lantern.png", lp, Vector2(0, -8))
+		sl2.add_child(Art.light(Color(1.0, 0.78, 0.42), 0.8, 0.6))
+	_prop("world/prop_bench.png", Vector2(215, 512), Vector2(0, -4))
+	_prop("world/prop_bench.png", Vector2(356, 592), Vector2(0, -4))
+	_decor("peach", Vector2(88, 456))
+	_decor("peach", Vector2(376, 500))
+	_decor("peach", Vector2(108, 646))
 	_decor("bamboo", Vector2(68, 282))
 	_decor("bamboo", Vector2(392, 282))
 	_decor("bamboo", Vector2(68, 656))
 	_decor("bamboo", Vector2(392, 656))
-	_prop("world/bonsai.png", Vector2(92, 578))
-	_prop("world/bonsai.png", Vector2(342, 616))
+	for p in [Vector2(92, 578), Vector2(342, 616), Vector2(66, 396)]:
+		_prop("world/bonsai.png", p)
+	for p in [Vector2(180, 396), Vector2(296, 396), Vector2(280, 514)]:
+		_decor("pot", p)
 	for i in 4:
 		_life("chicken", Vector2(118 + i * 24, 492 + (i % 2) * 14))
 
 	# ---- 4. Xưởng Rèn & Võ Đường (Đông) ----
 	for p in [Vector2(968, 274), Vector2(1292, 274)]:
 		_decor("torch", p)
-	_prop("world/sandbag.png", Vector2(982, 514))
-	_prop("world/sandbag.png", Vector2(1280, 514))
+	_prop("world/prop_coal_pile.png", Vector2(976, 372), Vector2(0, -4))
+	_decor("crate", Vector2(1086, 378))
+	_decor("pot", Vector2(968, 418))
+	_prop("world/prop_flag_stand.png", Vector2(1290, 422), Vector2(0, -10))
+	for bp in [Vector2(978, 514), Vector2(1284, 514), Vector2(978, 650), Vector2(1284, 650)]:
+		_prop("world/prop_weapon_barrel.png", bp, Vector2(0, -6))
+	_prop("world/sandbag.png", Vector2(1024, 506))
+	_prop("world/sandbag.png", Vector2(1238, 506))
 	_prop("world/bonsai.png", Vector2(968, 666))
 	_prop("world/bonsai.png", Vector2(1292, 666))
 
 	var embers := CPUParticles2D.new()
-	embers.position = _forge_pos + Vector2(-4, -10)
-	embers.amount = 12
+	embers.position = _forge_pos + Vector2(-8, -16)
+	embers.amount = 14
 	embers.lifetime = 1.6
 	embers.direction = Vector2.UP
 	embers.spread = 32.0
@@ -328,26 +331,20 @@ func _decorate() -> void:
 	world.add_child(amb)
 
 
-func _add_station(kind: String, data: String, title: String, hint: String, pos: Vector2, sprite: Node2D) -> Node2D:
+func _add_station(kind: String, data: String, title: String, hint: String, pos: Vector2, sprite: Node2D, label_y: float = -24.0) -> Node2D:
 	var s := Station.new()
 	s.kind = kind
 	s.data = data
 	s.title = title
 	s.hint = hint
 	s.position = pos
+	s.label_offset_y = label_y
 	if sprite != null:
 		s.add_child(sprite)
 	s.used.connect(_on_station)
 	world.add_child(s)
 	stations.append(s)
 	return s
-
-
-func _make_station_art(kind: String) -> Node2D:
-	var v := StationVisual.new()
-	v.kind = kind
-	v.z_index = 1
-	return v
 
 
 func _build_stations() -> void:
@@ -368,24 +365,29 @@ func _build_stations() -> void:
 
 	# Xưởng Rèn (phòng Đông - nửa trên)
 	var forge := AnimatedSprite2D.new()
-	forge.sprite_frames = Art.strip("world/forge.png", 32, 28, 8.0, true)
+	forge.sprite_frames = Art.strip("world/lobby_forge.png", 56, 48, 7.0, true)
 	forge.play("play")
-	forge.position = Vector2(0, -8)
-	_add_station("forge", "", "Lò rèn", "Nâng cấp & Rèn", _forge_pos, forge)
-	var fl := Art.light(Color(1, 0.6, 0.3), 1.3, 1.0)
+	forge.position = Vector2(0, -14)
+	var forge_st := _add_station("forge", "", "Lò rèn", "Nâng cấp & Rèn", _forge_pos, forge, -44.0)
+	forge_st.radius = 30.0
+	var fl := Art.light(Color(1, 0.58, 0.28), 1.4, 1.0)
 	fl.position = _forge_pos
 	world.add_child(fl)
 
-	var rack := _add_station("rack", "", "Giá binh khí", "Xem kho vũ khí", Vector2(1145, 345), _sprite("world/weapon_rack.png", Vector2(0, -8)))
+	var rack := _add_station("rack", "", "Giá binh khí", "Xem kho vũ khí", Vector2(1145, 345), _sprite("world/lobby_rack.png", Vector2(0, -14)), -42.0)
+	rack.radius = 28.0
 	_forged_icon = Sprite2D.new()
-	_forged_icon.position = Vector2(0, -14)
+	_forged_icon.position = Vector2(0, -24)
 	_forged_icon.scale = Vector2(0.75, 0.75)
 	_forged_icon.z_index = 2
 	rack.add_child(_forged_icon)
 	refresh_forged_display()
 
-	var codex_st := _add_station("codex", "", "Bách Khoa", "Phúc lành & Tướng địch", Vector2(1252, 345), _make_station_art("codex"))
-	codex_st.radius = 26.0
+	var codex_st := _add_station("codex", "", "Bách Khoa", "Phúc lành & Tướng địch", Vector2(1252, 345), _sprite("world/lobby_codex.png", Vector2(0, -14)), -44.0)
+	codex_st.radius = 28.0
+	var cl := Art.light(Color(1.0, 0.85, 0.52), 0.8, 0.65)
+	cl.position = Vector2(1240, 342)
+	world.add_child(cl)
 
 	# Võ Đường (phòng Đông - nửa dưới): 3 hình nhân rơm đánh thử
 	for p in [Vector2(1040, 580), Vector2(1140, 560), Vector2(1220, 610)]:
@@ -394,14 +396,42 @@ func _build_stations() -> void:
 		world.add_child(dm)
 
 	# Vườn Sen & Chiến Tích (phòng Tây)
-	_add_station("stele", "", "Bia ghi công", "Xem thành tích", Vector2(135, 345), _sprite("world/stele.png", Vector2(0, -8)))
-	var well_st := _add_station("well", "", "Giếng Ước", "Thả 10 xu cầu may", _well_pos, _make_station_art("well"))
-	well_st.radius = 26.0
-	var wl := Art.light(Color(0.45, 0.9, 1.0), 0.7, 0.75)
+	var stele_st := _add_station("stele", "", "Bia ghi công", "Xem thành tích", Vector2(135, 345), _sprite("world/lobby_stele.png", Vector2(0, -18)), -50.0)
+	stele_st.radius = 28.0
+	var stl := Art.light(Color(1.0, 0.86, 0.45), 0.7, 0.55)
+	stl.position = Vector2(135, 336)
+	world.add_child(stl)
+
+	var well_spr := AnimatedSprite2D.new()
+	well_spr.sprite_frames = Art.strip("world/lobby_well.png", 54, 56, 4.0, true)
+	well_spr.play("play")
+	well_spr.position = Vector2(0, -18)
+	var well_st := _add_station("well", "", "Giếng Ước", "Thả 10 xu cầu may", _well_pos, well_spr, -50.0)
+	well_st.radius = 30.0
+	var wl := Art.light(Color(0.45, 0.92, 1.0), 0.9, 0.8)
 	wl.position = _well_pos
 	world.add_child(wl)
-	var chal_st := _add_station("challenge", "", "Bảng Khiêu Chiến", "Độ khó & Thử thách", Vector2(345, 345), _make_station_art("challenge"))
-	chal_st.radius = 26.0
+	var well_motes := CPUParticles2D.new()
+	well_motes.position = _well_pos + Vector2(0, -10)
+	well_motes.amount = 8
+	well_motes.lifetime = 1.4
+	well_motes.direction = Vector2.UP
+	well_motes.spread = 24.0
+	well_motes.gravity = Vector2(0, -18)
+	well_motes.initial_velocity_min = 6.0
+	well_motes.initial_velocity_max = 12.0
+	well_motes.scale_amount_min = 1.0
+	well_motes.scale_amount_max = 1.8
+	var wg := Gradient.new()
+	wg.set_color(0, Color(0.6, 0.98, 1.0, 0.9))
+	wg.set_color(1, Color(0.6, 0.98, 1.0, 0.0))
+	well_motes.color_ramp = wg
+	well_motes.material = Art.additive()
+	well_motes.z_index = 4
+	world.add_child(well_motes)
+
+	var chal_st := _add_station("challenge", "", "Bảng Khiêu Chiến", "Độ khó & Thử thách", Vector2(345, 345), _sprite("world/lobby_challenge.png", Vector2(0, -16)), -46.0)
+	chal_st.radius = 28.0
 
 	# Đại Cổng Xuất Trận (phòng Bắc)
 	var portal := Portal.new()
