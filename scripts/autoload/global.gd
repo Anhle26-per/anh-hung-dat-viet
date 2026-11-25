@@ -28,6 +28,7 @@ var materials: Dictionary = {}    # kho nguyên liệu: mã -> số lượng
 var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lượt kế tiếp ("" nếu trống)
 var hero_levels: Dictionary = {}  # mã tướng -> cấp (1..5)
 var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu (1..5)
+var leaderboard: Array = []       # bảng điểm so tài cục bộ (tối đa 20 mục, xếp theo điểm giảm dần)
 var log_path: String = "user://nhat_ky.csv"
 
 const DEFAULT_SETTINGS: Dictionary = {
@@ -65,6 +66,8 @@ var run_boss_hp: Array = []
 var run_last_hit: String = ""
 var run_syn_counts: Array = [0, 0, 0]
 var run_cap_bac: String = "1/1"
+var challenge_code: String = ""   # mã thử thách của lượt hiện tại (rỗng = chơi thường)
+var _run_score_recorded: bool = false
 
 # --- Điều khiển ---
 var touch_mode: bool = false     # true trên điện thoại: hiện cần gạt + nút ảo, tự ngắm
@@ -115,7 +118,26 @@ func auto_aim() -> bool:
 
 # ------------------------------------------------------------------ Lượt chơi
 
-func start_run() -> void:
+## Băm mã thử thách thành hạt giống cố định (FNV-1a 31-bit, giống nhau giữa mọi phiên chơi).
+static func challenge_seed(code: String) -> int:
+	var norm: String = code.strip_edges().to_upper()
+	var h: int = 2166136261
+	var buf: PackedByteArray = norm.to_utf8_buffer()
+	for i in buf.size():
+		h = (h ^ int(buf[i])) * 16777619
+		h = h & 0x7FFFFFFF
+	var out: int = h % 2147483647
+	return out if out > 0 else 1
+
+
+static func format_time(sec: float) -> String:
+	var total: int = maxi(0, int(round(sec)))
+	var mins: int = total / 60
+	var secs: int = total % 60
+	return "%02d:%02d" % [mins, secs]
+
+
+func start_run(code: String = "") -> void:
 	# còn lượt chơi dở chưa xử lý: cộng xu của lượt đó vào kho trước khi bắt đầu lượt mới
 	if has_run():
 		var keep := selected_hero     # giữ tướng vừa chọn, không lấy tướng của lượt cũ
@@ -130,6 +152,7 @@ func start_run() -> void:
 	run_buffs = {}
 	run_materials = {}
 	_run_active = true
+	_run_score_recorded = false
 	run_elapsed = 0.0
 	run_kills = 0
 	run_boss_hp = []
@@ -138,6 +161,12 @@ func start_run() -> void:
 	run_cap_bac = "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]
 	free_revives = upgrade("hoi_sinh")
 	stats["runs"] = int(stats.get("runs", 0)) + 1
+	challenge_code = code.strip_edges().to_upper()
+	if challenge_code != "":
+		seed(challenge_seed(challenge_code))
+		boss_at(0)
+	else:
+		randomize()
 
 
 ## Trùm thứ idx (0 = trùm đầu tiên) của lượt chơi: xáo ngẫu nhiên cả 10 trùm,
@@ -145,12 +174,76 @@ func start_run() -> void:
 func boss_at(idx: int) -> String:
 	var all: Array = preload("res://scripts/data/enemies.gd").BOSSES.keys()
 	while boss_order.size() <= idx:
+		if challenge_code != "" and not boss_order.is_empty():
+			seed(challenge_seed(challenge_code) + boss_order.size() * 3571)
 		var batch := all.duplicate()
 		batch.shuffle()
 		if not boss_order.is_empty() and batch[0] == boss_order.back():
 			batch.push_back(batch.pop_front())
 		boss_order.append_array(batch)
 	return boss_order[idx]
+
+
+func calc_score(lv: int, elapsed: float, kills: int) -> int:
+	var time_bonus: int = maxi(0, 1200 - int(elapsed))
+	return maxi(0, lv * 1000 + kills * 25 + time_bonus)
+
+
+func _sort_and_cap_leaderboard() -> void:
+	leaderboard.sort_custom(func(a: Variant, b: Variant) -> bool:
+		var da: Dictionary = a
+		var db: Dictionary = b
+		var sa: int = int(da.get("score", 0))
+		var sb: int = int(db.get("score", 0))
+		if sa != sb:
+			return sa > sb
+		var la: int = int(da.get("level", 0))
+		var lb: int = int(db.get("level", 0))
+		if la != lb:
+			return la > lb
+		return float(da.get("time", 0.0)) < float(db.get("time", 0.0)))
+	if leaderboard.size() > 20:
+		leaderboard = leaderboard.slice(0, 20)
+
+
+func record_score(outcome: String = "") -> Dictionary:
+	var sc: int = calc_score(level, run_elapsed, run_kills)
+	var entry: Dictionary = {
+		"code": challenge_code,
+		"hero": selected_hero,
+		"level": level,
+		"time": int(round(run_elapsed)),
+		"kills": run_kills,
+		"score": sc,
+		"date": Time.get_date_string_from_system(),
+		"outcome": outcome,
+	}
+	leaderboard.append(entry)
+	_sort_and_cap_leaderboard()
+	_run_score_recorded = true
+	save_game()
+	return entry
+
+
+func format_share_text(entry: Dictionary) -> String:
+	var code: String = str(entry.get("code", "")).strip_edges().to_upper()
+	var hero_id: String = str(entry.get("hero", selected_hero))
+	var hero_name: String = str(HeroData.DATA[hero_id].name) if HeroData.DATA.has(hero_id) else hero_id
+	var lv: int = int(entry.get("level", 1))
+	var elapsed: float = float(entry.get("time", 0.0))
+	var kills: int = int(entry.get("kills", 0))
+	var sc: int = int(entry.get("score", 0))
+	var lines: PackedStringArray = []
+	if code != "":
+		lines.append("[Anh Hùng Đất Việt] Thử thách: %s" % code)
+	else:
+		lines.append("[Anh Hùng Đất Việt] Thành tích chinh chiến")
+	lines.append("Tướng: %s" % hero_name)
+	lines.append("Màn: %d | Thời gian: %s | Hạ giặc: %d" % [lv, format_time(elapsed), kills])
+	lines.append("Điểm: %d" % sc)
+	if code != "":
+		lines.append("Nhập mã %s để so tài cùng mình!" % code)
+	return "\n".join(lines)
 
 
 ## Chọn 1 trong Tam Yêu, không lặp lại con vừa gặp
@@ -385,8 +478,11 @@ func _write_run_log(outcome: String) -> void:
 
 
 func end_run(outcome: String = "") -> void:
+	if _run_active and not _run_score_recorded and outcome != "bo_luot":
+		record_score(outcome)
 	_write_run_log(outcome)
 	_run_active = false
+	_run_score_recorded = false
 	coins += run_coins
 	run_coins = 0
 	_commit_run_materials()
@@ -499,6 +595,7 @@ func save_game() -> void:
 		"forged": forged,
 		"hero_levels": hero_levels,
 		"weapon_ranks": weapon_ranks,
+		"leaderboard": leaderboard,
 	})
 
 
@@ -572,6 +669,7 @@ func save_run(p = null) -> bool:
 		"run_last_hit": run_last_hit,
 		"run_syn_counts": run_syn_counts,
 		"run_cap_bac": run_cap_bac,
+		"challenge_code": challenge_code,
 	})
 
 
@@ -638,6 +736,8 @@ func load_run() -> bool:
 	if typeof(sc_arr) == TYPE_ARRAY and sc_arr.size() >= 3:
 		run_syn_counts = [int(sc_arr[0]), int(sc_arr[1]), int(sc_arr[2])]
 	run_cap_bac = str(d.get("run_cap_bac", "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]))
+	challenge_code = str(d.get("challenge_code", "")).strip_edges().to_upper()
+	_run_score_recorded = false
 	return true
 
 
@@ -681,6 +781,7 @@ func save_on_exit() -> void:
 
 func load_game() -> void:
 	settings = DEFAULT_SETTINGS.duplicate()
+	leaderboard = []
 	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
 		apply_settings()
@@ -737,6 +838,24 @@ func load_game() -> void:
 			var wk: String = str(k)
 			if HeroData.DATA.has(wk):
 				weapon_ranks[wk] = clampi(int(wrd[k]), 1, 5)
+	leaderboard = []
+	var lb: Variant = data.get("leaderboard", null)
+	if typeof(lb) == TYPE_ARRAY:
+		var lb_arr: Array = lb
+		for item in lb_arr:
+			if typeof(item) == TYPE_DICTIONARY:
+				var ld: Dictionary = item
+				leaderboard.append({
+					"code": str(ld.get("code", "")).strip_edges().to_upper(),
+					"hero": str(ld.get("hero", "")),
+					"level": int(ld.get("level", 1)),
+					"time": int(round(float(ld.get("time", 0.0)))),
+					"kills": int(ld.get("kills", 0)),
+					"score": int(ld.get("score", 0)),
+					"date": str(ld.get("date", "")),
+					"outcome": str(ld.get("outcome", "")),
+				})
+		_sort_and_cap_leaderboard()
 
 
 # ------------------------------------------------------------------ Phím bấm

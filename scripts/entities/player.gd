@@ -81,6 +81,8 @@ var _dash_hit: Array = []
 var _msg_cd := 0.0
 var _fx_t := 0.0
 var _swing_sign := 1.0
+var _htk_cd: float = 0.0
+var _anim_lock_t: float = 0.0
 
 # Phần hình
 var body: AnimatedSprite2D
@@ -154,11 +156,17 @@ func _ready() -> void:
 
 	_mat = Art.flash_material()
 	body = AnimatedSprite2D.new()
-	body.sprite_frames = Art.frames("heroes/%s.png" % hero_id, 32, 32, {
+	var hero_tex: Texture2D = Art.tex("heroes/%s.png" % hero_id)
+	var frame_count: int = int(hero_tex.get_width() / 32) if hero_tex != null else 9
+	var anims: Dictionary = {
 		"idle": [[0, 1, 2, 3], 3.0, true],
 		"walk": [[4, 5, 6, 7], 10.0, true],
 		"hurt": [[8], 1.0, false],
-	})
+		"attack": [[9, 10] if frame_count >= 11 else [4, 5], 14.0, false],
+		"skill": [[11, 12] if frame_count >= 13 else [0, 1], 10.0, false],
+		"down": [[13, 14, 15] if frame_count >= 16 else [8], 8.0, false],
+	}
+	body.sprite_frames = Art.frames("heroes/%s.png" % hero_id, 32, 32, anims)
 	body.position = Vector2(0, -6)
 	body.material = _mat
 	body.play("idle")
@@ -236,6 +244,7 @@ func _physics_process(delta: float) -> void:
 	_invuln -= delta
 	_msg_cd -= delta
 	_swap_cd = maxf(_swap_cd - delta, 0.0)
+	_htk_cd = maxf(_htk_cd - delta, 0.0)
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	buff_timer = maxf(buff_timer - delta, 0.0)
 	twin_timer = maxf(twin_timer - delta, 0.0)
@@ -314,13 +323,16 @@ func _process(delta: float) -> void:
 	_mat.set_shader_parameter("flash", _flash)
 	_recoil = move_toward(_recoil, 0.0, delta * 40.0)
 	if dead:
+		if body.animation != "down":
+			body.play("down")
 		return
 
+	_anim_lock_t = maxf(_anim_lock_t - delta, 0.0)
 	var face_left := aim_dir.x < 0.0
 	body.flip_h = face_left
 	elephant.flip_h = face_left
 	var moving := velocity.length() > 5.0
-	if body.animation != "hurt" or _flash <= 0.1:
+	if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
 		body.play("walk" if moving else "idle")
 
 	# vũ khí xoay theo hướng ngắm
@@ -447,6 +459,10 @@ func _try_attack() -> void:
 			_wave(w)
 		"spikes":
 			_spikes(w)
+	if body != null and not dead:
+		_anim_lock_t = 0.18
+		body.play("attack")
+		body.frame = 0
 	if w.has("shake"):
 		Fx.shake(get_tree(), w.shake)
 	if cost > 0:
@@ -756,6 +772,10 @@ func _use_skill() -> void:
 	var hb: Dictionary = ProgressionData.hero_bonuses(Global.hero_level(hero_id))
 	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult)
 	Sfx.play("skill")
+	if body != null and not dead:
+		_anim_lock_t = 0.28
+		body.play("skill")
+		body.frame = 0
 	var parent := get_parent()
 	var wr: WeakRef = weakref(parent)
 	match hero.skill:
@@ -1123,12 +1143,25 @@ func take_damage(amount: int, source: String = "") -> void:
 		ring.damage = 4
 		ring.color = Color(0.5, 0.75, 1.0)
 		get_parent().add_child(ring)
+	if buff("ho_tam_kinh") > 0 and _htk_cd <= 0.0 and armor > 0 and armor < dmg:
+		armor = 0
+		_armor_regen = ARMOR_REGEN_DELAY
+		_htk_cd = 8.0
+		_invuln = 0.5
+		_flash = 0.5
+		Sfx.play("hit_metal")
+		Fx.float_text(get_parent(), global_position + Vector2(0, -26), "Hộ tâm kính!", Color(1.0, 0.88, 0.35), 15)
+		Fx.burst(get_parent(), global_position, Color(1.0, 0.88, 0.35), 32.0, 0.35)
+		Fx.particles(get_parent(), global_position, Color(1.0, 0.92, 0.45), 12, 95.0, 0.4, 0.0, 2.0)
+		stats_changed.emit()
+		return
 	_invuln = 0.7
 	_flash = 1.0
 	_armor_regen = ARMOR_REGEN_DELAY
 	var absorbed := mini(armor, dmg)
 	armor -= absorbed
 	hp -= dmg - absorbed
+	_anim_lock_t = 0.0
 	body.play("hurt")
 	hurt.emit()
 	Sfx.play("player_hurt")
@@ -1153,23 +1186,29 @@ func dot_damage(amount: int, kind: String) -> void:
 	_check_death()
 
 
+func die() -> void:
+	if dead:
+		return
+	hp = 0
+	dead = true
+	_anim_lock_t = 0.0
+	status.clear()
+	velocity = Vector2.ZERO
+	weapon_pivot.visible = false
+	aura.visible = false
+	elephant.visible = false
+	body.position = Vector2(0, -6)
+	body.rotation = 0.0
+	body.play("down")
+	body.modulate = Color(0.7, 0.6, 0.7)
+	Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 14.0, 1.5)
+	Sfx.play("player_die")
+	died.emit()
+
+
 func _check_death() -> void:
 	if hp <= 0 and not dead:
-		hp = 0
-		dead = true
-		status.clear()
-		velocity = Vector2.ZERO
-		weapon_pivot.visible = false
-		aura.visible = false
-		elephant.visible = false
-		body.position = Vector2(0, -6)
-		body.play("hurt")
-		var tw := create_tween()
-		tw.tween_property(body, "rotation", PI / 2.0 * (-1.0 if body.flip_h else 1.0), 0.25)
-		body.modulate = Color(0.7, 0.6, 0.7)
-		Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 14.0, 1.5)
-		Sfx.play("player_die")
-		died.emit()
+		die()
 	stats_changed.emit()
 
 
@@ -1192,9 +1231,12 @@ func revive() -> void:
 	armor = max_armor
 	energy = maxi(energy, max_energy / 2)
 	_invuln = 2.5
+	_anim_lock_t = 0.0
+	_htk_cd = 0.0
 	status.clear()
 	body.rotation = 0.0
 	body.modulate = Color.WHITE
+	body.play("idle")
 	weapon_pivot.visible = true
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		b.destroy()

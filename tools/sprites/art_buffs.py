@@ -41,6 +41,20 @@ ICONS = {
                    "..b..MmmM..b", "......MM...."],
     "ngoc_bich": [".....jj.....", "....jJJj....", "...jJwjJj...", "..jJwjjjJj..", "..jJjjjjJj..", "...jJjjJj...",
                   "....jJJj....", ".....jj....."],
+    "ho_tam_kinh": [
+        "....YYYY....",
+        "..YYzzzzYY..",
+        ".YzYyyyyYzY.",
+        ".ZyywwyyyyZ.",
+        "ZzywwyYYyyzZ",
+        "ZzywyYwwYyzZ",
+        "ZzyyyYwwYyzZ",
+        "ZzyyyyYYyozZ",
+        ".ZyyyyyyooZ.",
+        ".YzYooooYzY.",
+        "..ZZzzzzZZ..",
+        "....ZZZZ....",
+    ],
 }
 
 

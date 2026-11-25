@@ -20,6 +20,7 @@ const DATA := {
 	"ten_doi": {"name": "Mũi tên đôi", "desc": "Vũ khí bắn xa: +1 viên mỗi phát.", "max": 2},
 	"khien_chan": {"name": "Khiên chấn động", "desc": "Khi bị đánh: tỏa sóng chấn động đẩy lùi giặc.", "max": 1},
 	"ngoc_bich": {"name": "Ngọc bích", "desc": "Hồi 2 năng lượng mỗi giây.", "max": 3},
+	"ho_tam_kinh": {"name": "Hộ tâm kính", "desc": "Khi giáp vỡ, chặn trọn đòn đầu tiên tràn vào máu (hồi 8 giây).", "max": 1},
 }
 
 

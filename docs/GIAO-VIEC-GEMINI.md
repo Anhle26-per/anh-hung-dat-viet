@@ -36,13 +36,13 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | N6 | Kỹ năng tướng trong mạng | 2 | N4 | Chưa làm |
 | N7 | Gục ngã và cứu đồng đội | 2 | N5 | Chưa làm |
 | N8 | Rớt mạng và hoàn thiện LAN | 2 | N7, G01 | Chưa làm |
-| G06 | Mã thử thách và bảng điểm so tài | 3 | — | Chưa làm |
+| G06 | Mã thử thách và bảng điểm so tài | 3 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, challenge, K2) |
 | G07 | Hướng dẫn chơi lần đầu | 3 | — | Chưa làm |
-| G08 | Vẽ lại tướng đầu to kiểu chibi | 3 | — | Chưa làm |
+| G08 | Vẽ lại tướng đầu to kiểu chibi | 3 | — | **Xong** 25/11/2026 (Gemini làm, vẽ lại 10 tướng chibi 32×32, cập nhật artbook, đã qua K1, hero_anim, K2) |
 | G09 | Nội dung mới theo ý nhóm (mỗi món một thẻ) | 3 | — | Chưa làm |
-| G10 | Hoạt ảnh tấn công, kỹ năng, chết riêng cho từng tướng | 3 | G08 (nên làm sau) | Chưa làm |
+| G10 | Hoạt ảnh tấn công, kỹ năng, chết riêng cho từng tướng | 3 | G08 (nên làm sau) | **Xong** 25/11/2026 (Gemini làm, 16 khung 512×32 + attack/skill/down trên Player, đã qua K1, hero_anim, K2) |
 | G12 | Vật cản che đạn thuần Việt | 3 | G15 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, cover, bugfix, audio, input, synergy, progression, K2) |
-| G13 | Phúc lành Hộ tâm kính | 3 | — | Chưa làm |
+| G13 | Phúc lành Hộ tâm kính | 3 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, hotamkinh, K2) |
 | G11 | Cân bằng độ khó theo phản hồi của nhóm chơi | 1–3 | G03, G04 | Bước 1 xong, chờ số liệu |
 
 **Đã xong trước khi giao cho Gemini** (không cần làm lại):

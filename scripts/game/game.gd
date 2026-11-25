@@ -21,6 +21,7 @@ var pause_menu
 var darkness: CanvasModulate
 var buff_ui
 var _game_over: CanvasLayer = null
+var _copy_btn: Button = null
 var _shake := 0.0
 var _start_bonus := false
 
@@ -77,6 +78,8 @@ func _ready() -> void:
 
 func _start_buff() -> void:
 	_start_bonus = true
+	if Global.challenge_code != "":
+		seed(Global.challenge_seed(Global.challenge_code) + 7919 + 17)
 	if not buff_ui.open("Lễ xuất quân"):
 		_start_bonus = false
 
@@ -108,6 +111,8 @@ func _build_level() -> void:
 	dungeon = Dungeon.new()
 	world.add_child(dungeon)
 	world.move_child(dungeon, 0)
+	if Global.challenge_code != "":
+		seed(Global.challenge_seed(Global.challenge_code) + Global.level * 1009)
 	dungeon.generate(Global.level)
 	dungeon.portal_entered.connect(_on_portal)
 	player.global_position = dungeon.start_position()
@@ -131,6 +136,8 @@ func _on_portal() -> void:
 
 
 func _open_buffs(title: String) -> void:
+	if Global.challenge_code != "":
+		seed(Global.challenge_seed(Global.challenge_code) + Global.level * 7919 + 31)
 	if not buff_ui.open(title):
 		_advance()
 
@@ -165,13 +172,27 @@ func _show_game_over() -> void:
 	if _game_over != null:
 		return
 	touch.reset()
+	var entry: Dictionary = Global.record_score("thua")
 	_game_over = CanvasLayer.new()
 	_game_over.layer = 30
 	add_child(_game_over)
 	var box := UI.overlay(_game_over, 0.7)
-	box.add_child(UI.label("Tướng quân đã ngã xuống!", 34, Color(1, 0.55, 0.45)))
+	box.add_child(UI.label("Tướng quân đã ngã xuống!", 32, Color(1, 0.55, 0.45)))
 	var ch := EnemyData.chapter(Global.level)
-	box.add_child(UI.label("%s - %s  |  Nhặt được %d xu" % [ch.name, ch.year, Global.run_coins], 18))
+	var sub: String = "%s - %s  |  Nhặt được %d xu" % [ch.name, ch.year, Global.run_coins]
+	if Global.challenge_code != "":
+		sub = "Mã thử thách: %s  |  %s" % [Global.challenge_code, sub]
+	box.add_child(UI.label(sub, 16))
+	var score_line: String = "Màn: %d  |  Thời gian: %s  |  Số giặc: %d  |  Điểm: %d" % [
+		int(entry.get("level", Global.level)),
+		Global.format_time(float(entry.get("time", Global.run_elapsed))),
+		int(entry.get("kills", Global.run_kills)),
+		int(entry.get("score", 0)),
+	]
+	box.add_child(UI.label(score_line, 18, Color(1.0, 0.88, 0.45)))
+	var share_txt: String = Global.format_share_text(entry)
+	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 18, 220.0)
+	box.add_child(UI.center(_copy_btn))
 	if Global.free_revives > 0:
 		box.add_child(UI.center(UI.button("Hồi sinh (Thuốc hồi sinh)", _on_free_revive)))
 	elif not Global.revived:
@@ -180,9 +201,23 @@ func _show_game_over() -> void:
 	box.add_child(UI.center(UI.button("Về sảnh", _on_menu)))
 
 
+func _on_copy_result(share_txt: String) -> void:
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.clipboard_set(share_txt)
+	if _copy_btn != null and is_instance_valid(_copy_btn):
+		_copy_btn.text = "Đã chép!"
+		var btn_ref: WeakRef = weakref(_copy_btn)
+		get_tree().create_timer(1.5).timeout.connect(func():
+			var b: Variant = btn_ref.get_ref()
+			if b != null:
+				(b as Button).text = "Chép kết quả")
+
+
 func _on_free_revive() -> void:
 	Global.free_revives -= 1
+	Global._run_score_recorded = false
 	player.revive()
+	_copy_btn = null
 	if _game_over != null:
 		_game_over.queue_free()
 		_game_over = null
@@ -194,15 +229,18 @@ func _on_revive() -> void:
 
 func _do_revive() -> void:
 	Global.revived = true
+	Global._run_score_recorded = false
 	player.revive()
+	_copy_btn = null
 	if _game_over != null:
 		_game_over.queue_free()
 		_game_over = null
 
 
 func _on_restart() -> void:
+	var keep_code: String = Global.challenge_code
 	Global.end_run()
-	Global.start_run()
+	Global.start_run(keep_code)
 	get_tree().reload_current_scene()
 
 
