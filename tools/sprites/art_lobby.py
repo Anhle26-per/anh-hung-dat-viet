@@ -263,11 +263,11 @@ def build():
             d.point([x + dx, y + dy], fill=c)
         d.point([x, y], fill=C("e89a38"))
 
-    # Lối đá dạo sân vườn nối từ cửa Đông (420, 470) lên khu 3 công trình phía trên & vòng xuống hồ
+    # Lối đá dạo sân vườn vòng quanh Vườn Thảo Dược nối cửa Đông (420, 470) lên sân bia & xuống cầu hồ
     stone, st_l, st_d = C("8f8a7e"), C("b8b2a4"), C("5e5a50")
     for (sx, sy) in [
-        (398, 470), (370, 470), (342, 466), (314, 450), (294, 424),
-        (264, 410), (226, 405), (186, 405), (146, 405), (345, 415), (345, 385),
+        (398, 470), (368, 468), (338, 460), (308, 444), (288, 422), (284, 398),
+        (345, 415), (345, 396), (286, 462), (266, 484), (246, 496),
     ]:
         d.ellipse([sx - 15, sy - 11, sx + 15, sy + 11], fill=st_d)
         d.ellipse([sx - 13, sy - 9, sx + 13, sy + 9], fill=stone, outline=st_l)
@@ -276,19 +276,18 @@ def build():
     draw_tiled_floor(d, rng, 82, 286, 392, 392, C("9c9688"), C("bcb6a8"), C("6e685e"), C("524e46"), tile=18, crack_rate=0.06)
     d.rectangle([80, 284, 394, 394], outline=C("444038"))
 
-    # Bồn đá đặt Vườn Thảo Dược (góc trên trái 56..132, 404..456) & bồn hoa dưới phải
-    draw_tiled_floor(d, rng, 56, 404, 132, 456, C("7a766c"), C("9e988c"), C("524e48"), C("3c3834"), tile=14)
-    d.rectangle([55, 403, 133, 457], outline=C("444038"))
+    # Khu Vườn Thảo Dược rộng rãi 3 luống (54..254 x 404..478) kèm hàng rào gỗ thấp mặt Bắc
+    draw_tiled_floor(d, rng, 54, 404, 254, 478, C("847d70"), C("a69e8e"), C("5c564e"), C("423d37"), tile=16, crack_rate=0.04)
+    d.rectangle([53, 403, 255, 479], outline=C("423c34"))
+    d.rectangle([55, 401, 253, 404], fill=C("7c4a26"), outline=C("462412"))
+    for fx in range(56, 255, 22):
+        d.rectangle([fx, 398, fx + 3, 405], fill=C("9a6234"), outline=C("462412"))
     for fx0, fy0, fx1, fy1 in ((344, 626, 404, 666),):
         d.rectangle([fx0, fy0, fx1, fy1], fill=C("4b3524"), outline=C("8a8478"))
         for _ in range(18):
             bx, by = rng.randint(fx0 + 4, fx1 - 4), rng.randint(fy0 + 4, fy1 - 4)
             col = rng.choice([C("f6d448"), C("f47aa8"), C("ff6454"), C("a4e058")])
             d.ellipse([bx - 2, by - 2, bx + 2, by + 2], fill=col)
-    # Lối đá rẽ xuống cầu gỗ ngắm hồ (215, 492..534)
-    for sx, sy in ((230, 442), (222, 470)):
-        d.ellipse([sx - 14, sy - 10, sx + 14, sy + 10], fill=st_d)
-        d.ellipse([sx - 12, sy - 8, sx + 12, sy + 8], fill=stone, outline=st_l)
     draw_wood_platform(d, 174, 492, 256, 534, plank_h=5)
 
     # Hồ Sen thanh tịnh ở nửa dưới Vườn (tâm 215, 585)

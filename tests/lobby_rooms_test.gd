@@ -130,12 +130,17 @@ func _run() -> void:
 	await _frames(1)
 
 	print("== (d2) Kiểm tra Vườn Thảo Dược, Quán Trà, Phù Phép & Thần Hộ Mệnh")
+	_check(lobby._garden_sprites.size() == 3, "Vườn Thảo Dược phải có đủ 3 luống hiển thị")
 	var h0: String = Global.harvest_garden(0)
 	_check(h0 != "", "ô 0 khởi đầu phải thu hoạch được ngay")
+	lobby.refresh_garden_display()
 	_check(Global.plant_garden(1, "huyet_sam"), "không trồng được Huyết Sâm vào ô 1")
 	_check(Global.water_garden_plot(1), "không tưới nước chín được ô 1")
+	lobby.refresh_garden_display()
+	_check(lobby._garden_sparkles[1].emitting, "luống 1 chín phải phát sáng")
 	var h1: String = Global.harvest_garden(1)
 	_check(h1 != "" and Global.lobby_garden_buffs.has("banh_chung"), "thu hoạch Huyết Sâm phải cho banh_chung")
+	lobby.refresh_garden_display()
 	Global.lobby_drink = "tra_sen"
 	Global.lobby_weapon_mod = "da_mai"
 	Global.lobby_shrine_buff = "ruou_thuoc"

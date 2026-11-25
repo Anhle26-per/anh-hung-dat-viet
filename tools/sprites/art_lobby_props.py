@@ -1020,6 +1020,119 @@ def build_animals():
     save(sheet(cr_frames), "world/animal_crane.png")
 
 
+def _draw_raised_bed(d, img):
+    """Vẽ luống đất đá chạm khắc viền rêu kích thước chuẩn 48x54 (phần bồn y=26..48)."""
+    st, sl, sd = _c("847e74"), _c("b2aba0"), _c("4a453e")
+    wood, w_l, w_d = _c("7e4c28"), _c("a87042"), _c("4a2812")
+    # Viền đá & thanh gỗ góc bồn
+    d.rectangle([5, 30, 42, 47], fill=sd)
+    d.rectangle([6, 26, 41, 44], fill=st)
+    auto_shade(img, st, sl, sd)
+    d.rectangle([8, 28, 39, 41], fill=_c("4b3120"), outline=_c("2f1c12"))
+    for ry in (31, 35, 39):
+        d.line([(10, ry), (37, ry)], fill=_c("352014"))
+    for cx in (6, 39):
+        d.rectangle([cx, 25, cx + 2, 45], fill=wood)
+        d.line([(cx, 25), (cx, 45)], fill=w_l)
+    # Rêu xanh nhỏ ở chân bồn
+    for mx, my in ((9, 44), (10, 45), (35, 44), (22, 46)):
+        d.point([mx, my], fill=_c("548c3c"))
+
+
+def build_garden_plots():
+    """6 họa tiết luống cây Vườn Thảo Dược (48x54 mỗi luống) + thùng nước tưới cây (24x28)."""
+    # 1. Ô đất trống (48x54)
+    img, d = canvas(48, 54)
+    _draw_raised_bed(d, img)
+    d.line([(33, 25), (33, 33)], fill=_c("9e6e42"), width=2)
+    d.rectangle([30, 23, 36, 26], fill=_c("d8b884"), outline=_c("6a4424"))
+    save(_with_shadow(outline(img), 4, 41, 43, 51, 95), "world/garden_plot_empty.png")
+
+    # 2. Ô cây đang nảy mầm (48x54)
+    img, d = canvas(48, 54)
+    _draw_raised_bed(d, img)
+    d.ellipse([15, 29, 32, 39], fill=_c("382214"))
+    d.line([(23, 34), (23, 20)], fill=_c("58aa44"), width=2)
+    d.polygon([(23, 27), (15, 23), (18, 29)], fill=_c("4e9a3c"))
+    d.polygon([(24, 25), (32, 21), (29, 27)], fill=_c("68be4c"))
+    d.ellipse([21, 16, 25, 21], fill=_c("8ee064"))
+    for wx, wy in ((18, 25), (29, 23)):
+        d.point([wx, wy], fill=_c("a8f6ff"))
+    save(_with_shadow(outline(img), 4, 41, 43, 51, 95), "world/garden_plot_sprout.png")
+
+    # 3. Tre Ngà Phù Đổng chín (48x54): 3 thân vàng ngà đốt vàng óng, lá ngọc bích & măng non
+    img, d = canvas(48, 54)
+    _draw_raised_bed(d, img)
+    stalks = [(14, 10, -1), (23, 4, 0), (31, 9, 1)]
+    for bx, top, lean in stalks:
+        d.line([(bx, 36), (bx + lean, top)], fill=_c("e4ca6c"), width=3)
+        d.line([(bx, 36), (bx + lean, top)], fill=_c("fff4b2"), width=1)
+        for ny in range(top + 6, 35, 7):
+            nx = bx + int(lean * (36 - ny) / max(1, 36 - top))
+            d.line([(nx - 1, ny), (nx + 2, ny)], fill=_c("9c7c28"))
+            d.point([nx, ny - 1], fill=_c("ffe87a"))
+        for ly in range(top + 3, top + 18, 6):
+            lx = bx + int(lean * (36 - ly) / max(1, 36 - top))
+            for sgn in (-1, 1):
+                d.polygon([(lx, ly), (lx + 9 * sgn, ly - 3), (lx + 6 * sgn, ly + 1)], fill=_c("3c863a"))
+                d.polygon([(lx + 2 * sgn, ly + 1), (lx + 10 * sgn, ly + 1), (lx + 4 * sgn, ly + 4)], fill=_c("64be52"))
+                d.point([lx + 9 * sgn, ly - 3], fill=_c("a6ef76"))
+    d.polygon([(17, 36), (19, 27), (21, 36)], fill=_c("f0da80"))
+    d.point([23, 2], fill=_c("fff6a8"))
+    save(_with_shadow(outline(img), 4, 41, 43, 51, 95), "world/garden_tre_nga.png")
+
+    # 4. Huyết Sâm Cổ Nghìn Năm chín (48x54): tán lá xanh thẫm 3 tầng & chùm quả đỏ rực phát sáng
+    img, d = canvas(48, 54)
+    _draw_raised_bed(d, img)
+    d.line([(23, 36), (23, 14)], fill=_c("8e2e2a"), width=2)
+    # Tán lá xòe 3 lớp xanh ngọc
+    for cx, cy, sgn in ((13, 25, -1), (33, 25, 1), (15, 19, -1), (31, 19, 1)):
+        d.polygon([(23, cy + 2), (cx, cy - 3), (cx + 3 * sgn, cy + 3)], fill=_c("2c7432"))
+        d.polygon([(23, cy + 1), (cx + 1 * sgn, cy - 2), (cx + 4 * sgn, cy + 1)], fill=_c("54b24c"))
+        d.line([(23, cy + 1), (cx + 2 * sgn, cy - 1)], fill=_c("86de6e"))
+    # Chùm quả huyết sâm đỏ tươi ở ngọn + đốm khí vàng
+    for bx, by in ((20, 12), (24, 10), (26, 13), (22, 14), (24, 15), (19, 15)):
+        d.ellipse([bx - 2, by - 2, bx + 2, by + 2], fill=_c("c41e26"))
+        d.ellipse([bx - 1, by - 2, bx + 1, by], fill=_c("ff4a46"))
+        d.point([bx, by - 2], fill=_c("ffc4bc"))
+    for gx, gy in ((16, 10), (30, 12), (24, 6)):
+        d.point([gx, gy], fill=_c("ffe878"))
+    save(_with_shadow(outline(img), 4, 41, 43, 51, 95), "world/garden_huyet_sam.png")
+
+    # 5. Sen Tuyết Linh chín (48x54): mặt nước lam băng trong bồn, lá ngọc & đài sen trắng tuyết
+    img, d = canvas(48, 54)
+    _draw_raised_bed(d, img)
+    d.ellipse([9, 28, 38, 40], fill=_c("1c5e74"))
+    d.ellipse([11, 29, 36, 39], fill=_c("2f8aa4"))
+    # Lá sen xanh biếc hai bên
+    for lx in (15, 31):
+        d.ellipse([lx - 6, 30, lx + 6, 37], fill=_c("2e7e5e"), outline=_c("5ec89e"))
+    # Đài Sen Tuyết trắng muốt viền lam nhạt & nhị vàng băng
+    for pts in (((15, 32), (10, 21), (20, 25)), ((32, 32), (37, 21), (27, 25)),
+                ((18, 32), (14, 15), (24, 24)), ((29, 32), (33, 15), (23, 24))):
+        d.polygon(pts, fill=_c("bcecf8"))
+    d.polygon([(23, 10), (29, 27), (17, 27)], fill=_c("eefaff"))
+    d.polygon([(23, 12), (26, 26), (20, 26)], fill=_c("ffffff"))
+    d.ellipse([20, 25, 26, 29], fill=_c("ffe876"))
+    for fx, fy in ((15, 11), (31, 12), (23, 7)):
+        d.point([fx, fy], fill=_c("d6ffff"))
+    save(_with_shadow(outline(img), 4, 41, 43, 51, 95), "world/garden_sen_tuyet.png")
+
+    # 6. Thùng nước gỗ hứng mưa & bình tưới đồng bên cạnh (24x28)
+    img, d = canvas(24, 28)
+    wood, w_l, w_d = _c("7e4c28"), _c("aa7040"), _c("4a2812")
+    d.ellipse([2, 8, 17, 24], fill=wood)
+    auto_shade(img, wood, w_l, w_d)
+    d.rectangle([2, 13, 17, 14], fill=_c("545260"))
+    d.rectangle([2, 19, 17, 20], fill=_c("545260"))
+    d.ellipse([3, 7, 16, 11], fill=_c("2c7894"))
+    d.ellipse([6, 8, 12, 10], fill=_c("7ae4ff"))
+    # Bình tưới đồng dựng sát bên
+    d.rectangle([14, 17, 21, 24], fill=_c("c8883c"), outline=_c("6e4018"))
+    d.line([(20, 19), (23, 15)], fill=_c("c8883c"), width=2)
+    save(_with_shadow(outline(img), 2, 20, 22, 26, 85), "world/garden_barrel.png")
+
+
 def build():
     save(build_stele(), "world/lobby_stele.png")
     save(build_well(), "world/lobby_well.png")
@@ -1033,6 +1146,7 @@ def build():
     save(build_enchant(), "world/lobby_enchant.png")
     save(build_shrine(), "world/lobby_shrine.png")
     save(build_supply(), "world/lobby_supply.png")
+    build_garden_plots()
     build_flora()
     build_animals()
     build_props()

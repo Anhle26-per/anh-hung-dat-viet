@@ -47,6 +47,8 @@ var garden_watered: bool = false
 var _hero_npcs := {}
 var _leaving := false
 var _forged_icon: Sprite2D
+var _garden_sprites: Array[Sprite2D] = []
+var _garden_sparkles: Array[CPUParticles2D] = []
 var _sway_nodes: Array = []
 var _sway_t: float = 0.0
 var _well_pos := Vector2(245, 345)
@@ -299,23 +301,24 @@ func _decorate() -> void:
 		_anim_prop("world/prop_stone_lantern.png", 32, 48, 4.0, lp + Vector2(0, -14), Color(1.0, 0.78, 0.42))
 	_prop("world/prop_bench.png", Vector2(215, 512), Vector2(0, -4))
 	_prop("world/prop_bench.png", Vector2(356, 592), Vector2(0, -4))
-	# Cây Đào, Cây Mai, Khóm Tre, Bonsai & Khóm Hoa chi tiết
-	_sway_prop("world/lobby_peach.png", Vector2(72, 540), Vector2(0, -24))
+	# Cây Đào, Cây Mai, Khóm Tre, Bonsai, Thùng nước & Khóm Hoa chi tiết
+	_prop("world/garden_barrel.png", Vector2(262, 446), Vector2(0, -10))
+	_sway_prop("world/lobby_peach.png", Vector2(72, 550), Vector2(0, -24))
 	_sway_prop("world/lobby_peach.png", Vector2(382, 514), Vector2(0, -24))
 	_sway_prop("world/lobby_apricot.png", Vector2(382, 636), Vector2(0, -24))
 	_sway_prop("world/lobby_apricot.png", Vector2(78, 648), Vector2(0, -24))
 	_sway_prop("world/lobby_bamboo.png", Vector2(64, 286), Vector2(0, -22))
 	_sway_prop("world/lobby_bamboo.png", Vector2(396, 286), Vector2(0, -22))
 	_prop("world/lobby_bonsai.png", Vector2(386, 412), Vector2(0, -12))
-	_prop("world/lobby_bonsai.png", Vector2(148, 520), Vector2(0, -12))
-	_prop("world/lobby_bush_gold.png", Vector2(164, 404), Vector2(0, -8))
+	_prop("world/lobby_bonsai.png", Vector2(146, 528), Vector2(0, -12))
 	_prop("world/lobby_bush_red.png", Vector2(298, 404), Vector2(0, -8))
 	_prop("world/lobby_bush_red.png", Vector2(282, 522), Vector2(0, -8))
+	_prop("world/lobby_bush_gold.png", Vector2(354, 548), Vector2(0, -8))
 	_prop("world/lobby_bush_gold.png", Vector2(142, 654), Vector2(0, -8))
 	_prop("world/lobby_bush_red.png", Vector2(308, 658), Vector2(0, -8))
 	# Đàn động vật sống động trong Vườn Sen
-	_life("rooster", Vector2(154, 476))
-	for cp in [Vector2(126, 496), Vector2(166, 502), Vector2(186, 488)]:
+	_life("rooster", Vector2(318, 466))
+	for cp in [Vector2(294, 488), Vector2(328, 492), Vector2(348, 474)]:
 		_life("chick", cp)
 	_life("crane", Vector2(146, 616))
 	_life("cat", Vector2(246, 506))
@@ -487,9 +490,39 @@ func _build_stations() -> void:
 	var war_st := _add_station("war_table", "", "Sa Bàn Quân Sự", "Mã Seed & Bảng Vinh Danh", Vector2(808, 626), _sprite("world/lobby_war_table.png", Vector2(0, -12)), -38.0)
 	war_st.radius = 28.0
 
-	# Vườn Sen (tây): Vườn Thảo Dược
-	var garden_st := _add_station("garden", "", "Vườn Thảo Dược", "Trồng & thu hoạch linh thảo", Vector2(94, 430), _sprite("world/lobby_garden.png", Vector2(0, -14)), -42.0)
-	garden_st.radius = 30.0
+	# Vườn Sen (tây): Vườn Thảo Dược 3 luống cập nhật sống theo từng ô trồng
+	var garden_wrap := Node2D.new()
+	_garden_sprites.clear()
+	_garden_sparkles.clear()
+	for idx in 3:
+		var ox: float = (-60.0 if idx == 0 else (0.0 if idx == 1 else 60.0))
+		var p_spr := Sprite2D.new()
+		p_spr.position = Vector2(ox, -14)
+		garden_wrap.add_child(p_spr)
+		_garden_sprites.append(p_spr)
+		var g_pt := CPUParticles2D.new()
+		g_pt.position = Vector2(ox, -20)
+		g_pt.amount = 5
+		g_pt.lifetime = 1.4
+		g_pt.direction = Vector2.UP
+		g_pt.spread = 35.0
+		g_pt.gravity = Vector2(0, -12)
+		g_pt.initial_velocity_min = 4.0
+		g_pt.initial_velocity_max = 9.0
+		g_pt.scale_amount_min = 1.0
+		g_pt.scale_amount_max = 1.6
+		var gg := Gradient.new()
+		gg.set_color(0, Color(1.0, 0.94, 0.55, 0.9))
+		gg.set_color(1, Color(1.0, 0.94, 0.55, 0.0))
+		g_pt.color_ramp = gg
+		g_pt.material = Art.additive()
+		g_pt.z_index = 2
+		g_pt.emitting = false
+		garden_wrap.add_child(g_pt)
+		_garden_sparkles.append(g_pt)
+	var garden_st := _add_station("garden", "", "Vườn Thảo Dược", "Trồng & thu hoạch linh thảo", Vector2(154, 446), garden_wrap, -46.0)
+	garden_st.radius = 46.0
+	refresh_garden_display()
 
 	# Xưởng Rèn (đông): Bàn Phù Phép Binh Khí
 	var enc_spr := AnimatedSprite2D.new()
@@ -640,6 +673,25 @@ func refresh_forged_display() -> void:
 	else:
 		_forged_icon.texture = null
 		_forged_icon.visible = false
+
+
+func refresh_garden_display() -> void:
+	Global.ensure_garden_plots()
+	for i in mini(_garden_sprites.size(), Global.garden_plots.size()):
+		var sd: Dictionary = Global.garden_plots[i]
+		var pid: String = str(sd.get("plant", ""))
+		var stg: int = int(sd.get("stage", 0))
+		var tex_rel := "world/garden_plot_empty.png"
+		var ripe := false
+		if pid != "":
+			if stg >= 2 and Global.GARDEN_PLANTS.has(pid):
+				tex_rel = "world/garden_%s.png" % pid
+				ripe = true
+			else:
+				tex_rel = "world/garden_plot_sprout.png"
+		_garden_sprites[i].texture = Art.tex(tex_rel)
+		if i < _garden_sparkles.size():
+			_garden_sparkles[i].emitting = ripe
 
 
 func on_forged() -> void:

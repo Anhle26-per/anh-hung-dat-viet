@@ -861,8 +861,11 @@ func open_garden(last_msg: String = "") -> void:
 				var b := UI.button("%s (%dx)" % [str(pd.name), cost], func():
 					if Global.plant_garden(i, pkey):
 						Sfx.play("pickup")
-						if lobby != null and lobby.has_method("on_station_fx"):
-							lobby.on_station_fx(Vector2(94, 416), "Đã gieo %s!" % str(pd.name), Color(0.65, 0.98, 0.6))
+						if lobby != null:
+							if lobby.has_method("refresh_garden_display"):
+								lobby.refresh_garden_display()
+							if lobby.has_method("on_station_fx"):
+								lobby.on_station_fx(Vector2(154, 430), "Đã gieo %s!" % str(pd.name), Color(0.65, 0.98, 0.6))
 						open_garden("Đã trồng %s vào Ô %d!" % [str(pd.name), i + 1]), 12, 114.0)
 				b.disabled = Global.coins < cost
 				row.add_child(b)
@@ -885,16 +888,21 @@ func open_garden(last_msg: String = "") -> void:
 					var res_msg: String = Global.harvest_garden(i)
 					if res_msg != "":
 						Sfx.play("coin")
-						if lobby != null and lobby.has_method("on_station_fx"):
-							lobby.on_station_fx(Vector2(94, 416), res_msg, Color(0.65, 1.0, 0.68))
+						if lobby != null:
+							if lobby.has_method("refresh_garden_display"):
+								lobby.refresh_garden_display()
+							if lobby.has_method("on_station_fx"):
+								lobby.on_station_fx(Vector2(154, 430), res_msg, Color(0.65, 1.0, 0.68))
 						open_garden(res_msg), 13, 130.0))
 			else:
 				var wb := UI.button("Tưới nước" if can_water else "Đã tưới lượt này", func():
 					if lobby != null and not bool(lobby.garden_watered) and Global.water_garden_plot(i):
 						lobby.garden_watered = true
 						Sfx.play("pickup")
+						if lobby.has_method("refresh_garden_display"):
+							lobby.refresh_garden_display()
 						if lobby.has_method("on_station_fx"):
-							lobby.on_station_fx(Vector2(94, 416), "%s đã chín!" % str(pd2.get("name", pid)), Color(0.55, 0.96, 1.0))
+							lobby.on_station_fx(Vector2(154, 430), "%s đã chín!" % str(pd2.get("name", pid)), Color(0.55, 0.96, 1.0))
 						open_garden("Đã tưới nước — %s chín sẵn sàng thu hoạch!" % str(pd2.get("name", pid))), 12, 138.0)
 				wb.disabled = not can_water
 				row.add_child(wb)
