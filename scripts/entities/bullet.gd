@@ -40,6 +40,7 @@ var owner_node = null
 var stun_duration := 0.0
 var burn_duration := 2.2
 var force_burn: bool = false
+var visual_only: bool = false
 var spawn_origin: Vector2 = Vector2.INF
 var bounces: int = 0
 var _hit: Array = []
@@ -205,6 +206,13 @@ func _on_body_entered(body: Node) -> void:
 		if _hit.has(body):
 			return
 		_hit.append(body)
+		if visual_only:
+			Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, color.lerp(Color(1, 0.9, 0.6), 0.5), true)
+			if pierce > 0:
+				pierce -= 1
+				return
+			_finish()
+			return
 		Sfx.play("hit_bullet")
 		var hit_dmg: int = damage
 		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("burn_bonus_mult"):
@@ -225,6 +233,8 @@ func _on_body_entered(body: Node) -> void:
 			return
 		_finish()
 	elif not from_player and body.is_in_group("player"):
+		if not bool(body.get("is_local")) or bool(body.get("downed")):
+			return
 		body.take_damage(damage)
 		var st2: String = PROJ.get(proj, {}).get("status", "")
 		if st2 != "":
@@ -244,7 +254,7 @@ func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
 	var broke_cover: bool = false
 	if body is Node and (body as Node).is_in_group("doors"):
 		sfx_id = "hit_wood"
-	if body is Node and (body as Node).is_in_group("cover") and body.has_method("take_hit"):
+	if not visual_only and body is Node and (body as Node).is_in_group("cover") and body.has_method("take_hit"):
 		broke_cover = body.take_hit(maxi(1, damage), hit_pos, dir)
 		if broke_cover and pierce > 0:
 			if pierce < 99:
@@ -299,17 +309,18 @@ func _finish() -> void:
 	_done = true
 	if explode_radius > 0.0:
 		Sfx.play("explode")
-		if from_player:
-			for e in get_tree().get_nodes_in_group("enemies"):
-				if global_position.distance_to(e.global_position) < explode_radius + e.radius:
-					e.take_damage(damage, (e.global_position - global_position).normalized() * 220.0)
-		else:
-			var p = get_tree().get_first_node_in_group("player")
-			if p != null and global_position.distance_to(p.global_position) < explode_radius + 6.0:
-				p.take_damage(damage)
-		for c in get_tree().get_nodes_in_group("cover"):
-			if is_instance_valid(c) and c.destructible and global_position.distance_to(c.global_position) < explode_radius + c.radius:
-				c.take_hit(maxi(1, damage), c.global_position, (c.global_position - global_position).normalized())
+		if not visual_only:
+			if from_player:
+				for e in get_tree().get_nodes_in_group("enemies"):
+					if global_position.distance_to(e.global_position) < explode_radius + e.radius:
+						e.take_damage(damage, (e.global_position - global_position).normalized() * 220.0)
+			else:
+				var p: Node = Global.local_player()
+				if p != null and not bool(p.get("downed")) and global_position.distance_to((p as Node2D).global_position) < explode_radius + 6.0:
+					p.take_damage(damage)
+			for c in get_tree().get_nodes_in_group("cover"):
+				if is_instance_valid(c) and c.destructible and global_position.distance_to(c.global_position) < explode_radius + c.radius:
+					c.take_hit(maxi(1, damage), c.global_position, (c.global_position - global_position).normalized())
 		var sc := explode_radius / 22.0
 		Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 18.0, sc, 0.0, Color.WHITE, false, 6)
 		Fx.particles(get_parent(), global_position, Color(1, 0.7, 0.3), 14, 140.0, 0.5, 0.0, 2.0, 180.0, Vector2.UP, Color(0.5, 0.4, 0.5))

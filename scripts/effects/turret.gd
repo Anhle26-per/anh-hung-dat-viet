@@ -8,6 +8,7 @@ const Bullet = preload("res://scripts/entities/bullet.gd")
 var life := 9.0
 var fire_cd := 0.7
 var use_marked := false
+var visual_only: bool = false
 var _cd := 0.4
 var _spr: AnimatedSprite2D
 
@@ -66,6 +67,7 @@ func _process(delta: float) -> void:
 		b.setup(true, global_position + dir * 14.0 + Vector2(0, -4), dir, 340.0, dmg, 1.0, "cannonball")
 		b.spawn_origin = global_position
 		b.explode_radius = 30.0
+		b.visual_only = visual_only
 		get_parent().add_child(b)
 		_spr.play("fire")
 		Fx.anim(get_parent(), global_position + dir * 16.0 + Vector2(0, -4), "fx/muzzle.png", 12, 10, 24.0, 1.2, dir.angle(), Color.WHITE, true, 6)

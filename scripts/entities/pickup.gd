@@ -11,6 +11,9 @@ var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon
 var amount := 1
 var weapon_id := ""
 var material_id := ""
+var pickup_id: int = 0
+var _claim_pending: bool = false
+var _net_claimed_by_other: bool = false
 var _t := 0.0
 var _vel := Vector2.ZERO
 var _near := false
@@ -58,8 +61,8 @@ func _process(delta: float) -> void:
 	_spr.position.y = sin(_t * 4.0) * 1.5 - (3.0 if kind == "weapon" else 0.0)
 	if kind == "weapon":
 		queue_redraw()
-	var p = get_tree().get_first_node_in_group("player")
-	if p == null or p.dead:
+	var p: Node = Global.local_player()
+	if p == null or not is_instance_valid(p) or bool(p.get("dead")) or bool(p.get("downed")):
 		return
 	var to: Vector2 = p.global_position - global_position
 	var d := to.length()
@@ -74,7 +77,23 @@ func _process(delta: float) -> void:
 				_collect(p)
 		"potion", "potion_big", "potion_energy":
 			if d < 12.0:
-				_collect(p)
+				if Net.is_online() and pickup_id > 0:
+					if _claim_pending:
+						return
+					if Net.is_host():
+						var ns: Node = get_tree().get_first_node_in_group("net_sync")
+						if ns != null:
+							if ns.claimed_pickups.has(pickup_id):
+								net_remove_claimed()
+								return
+							ns.claimed_pickups[pickup_id] = true
+						Net.send_world_event("pickup_claimed", {"id": pickup_id, "claimer": Net.local_peer_id()}, false)
+						_collect(p)
+					else:
+						_claim_pending = true
+						Net.send_world_event("pickup_claim", {"id": pickup_id}, true)
+				else:
+					_collect(p)
 		"weapon":
 			_near = d < 22.0
 			if _near:
@@ -83,6 +102,39 @@ func _process(delta: float) -> void:
 					p.nearby_pickup = self
 			elif p.nearby_pickup == self:
 				p.nearby_pickup = null
+
+
+func net_collect_approved() -> void:
+	var p: Node = Global.local_player()
+	if p != null and is_instance_valid(p) and not bool(p.get("dead")):
+		_collect(p)
+	else:
+		queue_free()
+
+
+func net_remove_claimed() -> void:
+	_net_claimed_by_other = true
+	var p: Node = Global.local_player() if is_inside_tree() else null
+	if p != null and is_instance_valid(p) and p.nearby_pickup == self:
+		p.nearby_pickup = null
+	queue_free()
+
+
+func _exit_tree() -> void:
+	if pickup_id <= 0 or not Net.is_online() or not is_inside_tree():
+		return
+	var ns: Node = get_tree().get_first_node_in_group("net_sync")
+	if ns != null:
+		ns.unregister_pickup(pickup_id)
+	if kind == "weapon" and not _net_claimed_by_other and ns != null and not bool(ns.get("is_clearing_level")):
+		var p: Node = Global.local_player()
+		if p != null and is_instance_valid(p) and p.global_position.distance_to(global_position) < 48.0:
+			if Net.is_host():
+				if not ns.claimed_pickups.has(pickup_id):
+					ns.claimed_pickups[pickup_id] = true
+					Net.send_world_event("pickup_claimed", {"id": pickup_id, "claimer": Net.local_peer_id()}, false)
+			else:
+				Net.send_world_event("pickup_claim", {"id": pickup_id}, true)
 
 
 func _collect(p) -> void:
@@ -136,7 +188,7 @@ func _draw() -> void:
 	var ay := -20.0 - absf(sin(_t * 5.0)) * 4.0
 	draw_colored_polygon(PackedVector2Array([Vector2(-4, ay), Vector2(4, ay), Vector2(0, ay + 5)]), col)
 	if is_showing_label():
-		var p = get_tree().get_first_node_in_group("player")
+		var p: Node = Global.local_player()
 		var syn_line: String = ""
 		var syn_c := Color(0.8, 0.9, 1.0)
 		var imp_name: String = SynergyData.imprint_name(weapon_id)
@@ -161,5 +213,5 @@ func _draw() -> void:
 func is_showing_label() -> bool:
 	if not _near or not is_inside_tree():
 		return false
-	var p = get_tree().get_first_node_in_group("player")
+	var p: Node = Global.local_player()
 	return p != null and is_instance_valid(p) and p.nearby_pickup == self

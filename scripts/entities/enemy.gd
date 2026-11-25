@@ -70,6 +70,10 @@ var _shadow: Sprite2D
 var _shape: CircleShape2D
 var _submerged := false     # Ngư Tinh lặn: không trúng đòn
 var _hp_bar_t: float = 0.0
+var net_id: int = 0
+var is_replica: bool = false
+var _net_pos: Vector2 = Vector2.ZERO
+var _net_anim: String = "walk"
 
 
 func setup(k: String, lvl: int, target) -> void:
@@ -77,6 +81,8 @@ func setup(k: String, lvl: int, target) -> void:
 	level = lvl
 	data = EnemyData.info(k, lvl)
 	max_hp = data.hp
+	if Net.is_online() and Net.player_count() > 1:
+		max_hp = int(round(float(max_hp) * (1.0 + 0.5 * float(Net.player_count() - 1))))
 	hp = max_hp
 	radius = data.radius
 	speed = data.speed
@@ -171,6 +177,29 @@ func _ready() -> void:
 	status.head = float(size.y) * (1.25 if elite else 1.0) - radius + 4.0
 	status.tick_damage = 2 + int(level / 4)
 	add_child(status)
+	if _net_pos == Vector2.ZERO:
+		_net_pos = global_position
+
+
+func current_anim_name() -> String:
+	if spr != null:
+		return str(spr.animation)
+	return "walk"
+
+
+func apply_net_state(pos: Vector2, new_hp: int, new_max_hp: int, anim: String, face: float, is_trans: bool, sub: bool) -> void:
+	_net_pos = pos
+	if new_max_hp > 0:
+		max_hp = new_max_hp
+	if new_hp < hp and not is_boss():
+		_hp_bar_t = 3.0
+		queue_redraw()
+	hp = new_hp
+	_net_anim = anim
+	_face = face
+	if is_trans and not transformed and data.has("sheet2"):
+		_finish_morph()
+	_submerged = sub
 
 
 func _physics_process(delta: float) -> void:
@@ -183,6 +212,34 @@ func _physics_process(delta: float) -> void:
 	var base_glow := 0.18 + 0.1 * sin(Time.get_ticks_msec() / 150.0) if elite else 0.0
 	_mat.set_shader_parameter("flash", maxf(_flash, base_glow))
 	_attack_anim_t -= delta
+	player = Global.nearest_player(global_position)
+	if is_replica:
+		global_position = global_position.lerp(_net_pos, clampf(delta * 16.0, 0.0, 1.0))
+		spr.flip_h = _face < 0.0
+		if _spawn_t > 0.0:
+			_spawn_t -= delta
+			spr.modulate.a = 1.0 - clampf(_spawn_t / 0.6, 0.0, 1.0)
+			return
+		if _morph_t > 0.0:
+			_morph_t -= delta
+			_flash = 0.5 + 0.5 * sin(_morph_t * 30.0)
+			spr.position.x = sin(_morph_t * 60.0) * 1.5
+			if int(_morph_t * 20.0) % 2 == 0:
+				Fx.particles(get_parent(), global_position + Vector2(randf_range(-16, 16), randf_range(-24, 4)), Color(0.55, 0.2, 0.7), 3, 50.0, 0.6, -50.0, 2.5)
+			if _morph_t <= 0.0 and not transformed and data.has("sheet2"):
+				_finish_morph()
+			return
+		spr.modulate.a = 0.25 if _submerged else 1.0
+		if _net_anim != "" and spr.sprite_frames.has_animation(_net_anim) and spr.animation != _net_anim:
+			spr.play(_net_anim)
+		_contact_t -= delta
+		if not _submerged and _contact_t <= 0.0:
+			var lp: Node = Global.local_player()
+			if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")):
+				if global_position.distance_to((lp as Node2D).global_position) < radius + 7.0:
+					lp.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
+					_contact_t = 0.8
+		return
 	if _spawn_t > 0.0:
 		_spawn_t -= delta
 		spr.modulate.a = 1.0 - clampf(_spawn_t / 0.6, 0.0, 1.0)
@@ -279,7 +336,13 @@ func _physics_process(delta: float) -> void:
 			"boss":
 				desired = _boss(delta, dir, dist)
 		_contact_t -= delta
-		if dist < radius + 7.0 and _contact_t <= 0.0:
+		if Net.is_online():
+			var lp: Node = Global.local_player()
+			if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")) and global_position.distance_to((lp as Node2D).global_position) < radius + 7.0 and _contact_t <= 0.0:
+				lp.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
+				_contact_t = 0.8
+				_attack_anim_t = 0.3
+		elif dist < radius + 7.0 and _contact_t <= 0.0:
 			player.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
 			_contact_t = 0.8
 			_attack_anim_t = 0.3
@@ -374,16 +437,25 @@ func _mortar(pos: Vector2, delay: float) -> void:
 	get_parent().add_child(m)
 	Fx.anim(get_parent(), global_position + Vector2(0, -radius), "fx/poof.png", 28, 28, 18.0, 0.5)
 	_attack_anim_t = 0.3
+	if Net.is_online() and Net.is_host():
+		Net.send_enemy_event("mortar", {"x": pos.x, "y": pos.y, "delay": delay, "root": false, "radius": 0.0}, false)
 
 
 func _cannon(dir: Vector2, dmg: int) -> void:
+	var bpos: Vector2 = global_position + dir * (radius + 4.0)
 	var b := Bullet.new()
-	b.setup(false, global_position + dir * (radius + 4.0), dir, 160.0, dmg, 3.0, "cannonball")
+	b.setup(false, bpos, dir, 160.0, dmg, 3.0, "cannonball")
 	b.spawn_origin = global_position
 	b.explode_radius = 22.0
 	get_parent().add_child(b)
-	Fx.anim(get_parent(), global_position + dir * (radius + 4.0), "fx/muzzle.png", 12, 10, 24.0, 1.4, dir.angle(), Color.WHITE, true, 6)
+	Fx.anim(get_parent(), bpos, "fx/muzzle.png", 12, 10, 24.0, 1.4, dir.angle(), Color.WHITE, true, 6)
 	_attack_anim_t = 0.3
+	if Net.is_online() and Net.is_host():
+		Net.send_enemy_event("bullet", {
+			"x": bpos.x, "y": bpos.y, "dx": dir.x, "dy": dir.y,
+			"spd": 160.0, "dmg": dmg, "life": 3.0, "proj": "cannonball",
+			"exp": 22.0, "ox": global_position.x, "oy": global_position.y, "muzzle": true,
+		}, false)
 
 
 func _slam_ai(delta: float, dir: Vector2, dist: float) -> Vector2:
@@ -409,12 +481,19 @@ func _fire(angle: float, spd: float, proj := "orb_pink", dmg := 1) -> void:
 	var dir := Vector2.from_angle(angle)
 	if is_boss():
 		spd *= 1.0 + 0.035 * minf(power(), 10.0)   # đạn trùm sau bay nhanh hơn
+	var bpos: Vector2 = global_position + dir * radius
 	var b := Bullet.new()
-	b.setup(false, global_position + dir * radius, dir, spd, dmg, 4.0, proj)
+	b.setup(false, bpos, dir, spd, dmg, 4.0, proj)
 	b.spawn_origin = global_position
 	if proj == "arrow" or proj == "bullet":
 		b.color = Color(1, 0.55, 0.5)
 	get_parent().add_child(b)
+	if Net.is_online() and Net.is_host():
+		Net.send_enemy_event("bullet", {
+			"x": bpos.x, "y": bpos.y, "dx": dir.x, "dy": dir.y,
+			"spd": spd, "dmg": dmg, "life": 4.0, "proj": proj,
+			"exp": 0.0, "ox": global_position.x, "oy": global_position.y, "muzzle": false,
+		}, false)
 
 
 func _fire_ring(n: int, offset: float, spd: float, proj := "orb_pink") -> void:
@@ -497,10 +576,17 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				if _shoot_t <= 0.0 and room != null:
 					_shoot_t = 0.07
 					var r: Rect2 = room.rect.grow(-20.0)
+					var mpos := Vector2(randf_range(r.position.x, r.end.x), r.position.y)
 					var b := Bullet.new()
-					b.setup(false, Vector2(randf_range(r.position.x, r.end.x), r.position.y), Vector2.DOWN, 170.0, 1, 2.5, "arrow")
+					b.setup(false, mpos, Vector2.DOWN, 170.0, 1, 2.5, "arrow")
 					b.color = Color(1, 0.55, 0.5)
 					get_parent().add_child(b)
+					if Net.is_online() and Net.is_host():
+						Net.send_enemy_event("bullet", {
+							"x": mpos.x, "y": mpos.y, "dx": 0.0, "dy": 1.0,
+							"spd": 170.0, "dmg": 1, "life": 2.5, "proj": "arrow",
+							"exp": 0.0, "ox": mpos.x, "oy": mpos.y, "muzzle": false,
+						}, false)
 				return Vector2.ZERO
 			"boc_chay":
 				_shoot_t -= delta
@@ -625,10 +711,17 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				_shoot_t = 0.7 * cd_mult
 				_volleys += 1
 				_attack_anim_t = 0.3
+				var cpos: Vector2 = global_position + dir * radius
 				var b := Bullet.new()
-				b.setup(false, global_position + dir * radius, dir, 150.0, 2, 3.0, "cannonball")
+				b.setup(false, cpos, dir, 150.0, 2, 3.0, "cannonball")
 				get_parent().add_child(b)
-				Fx.anim(get_parent(), global_position + dir * radius, "fx/poof.png", 28, 28, 18.0, 0.6)
+				Fx.anim(get_parent(), cpos, "fx/poof.png", 28, 28, 18.0, 0.6)
+				if Net.is_online() and Net.is_host():
+					Net.send_enemy_event("bullet", {
+						"x": cpos.x, "y": cpos.y, "dx": dir.x, "dy": dir.y,
+						"spd": 150.0, "dmg": 2, "life": 3.0, "proj": "cannonball",
+						"exp": 0.0, "ox": global_position.x, "oy": global_position.y, "muzzle": false,
+					}, false)
 			return -dir * speed * 0.3 if dist < 90.0 else Vector2.ZERO
 		"tails":   # Hồ Tinh: quạt lửa hồ ly theo số đuôi
 			if _shoot_t <= 0.0 and _volleys < 3:
@@ -665,6 +758,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 						m.delay = 0.55 + 0.1 * i
 						m.position = global_position + ld * (24.0 + i * 22.0)
 						get_parent().add_child(m)
+						if Net.is_online() and Net.is_host():
+							Net.send_enemy_event("mortar", {"x": m.position.x, "y": m.position.y, "delay": m.delay, "root": true, "radius": 12.0}, false)
 			return Vector2.ZERO
 		"dive":    # Ngư Tinh: lặn xuống, trồi lên dưới chân người chơi tung vòng nước
 			match _charge_state:
@@ -726,6 +821,48 @@ func _start_morph() -> void:
 	# xóa đạn để người chơi kịp thở
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		b.destroy()
+	if Net.is_online() and Net.is_host() and net_id > 0:
+		Net.send_enemy_event("morph", {"id": net_id, "phase": "start"}, false)
+
+
+func net_start_morph() -> void:
+	if transformed or _morph_t > 0.0:
+		return
+	_start_morph()
+
+
+func net_finish_morph() -> void:
+	if transformed:
+		return
+	_finish_morph()
+
+
+func net_enrage() -> void:
+	if enraged:
+		return
+	_enrage(true)
+
+
+func net_special_banner(sp: String) -> void:
+	var banners: Dictionary = {
+		"cuu_vi": "Hồ Tinh xòe chín đuôi, lửa hồ ly ngập trời!",
+		"rung_gia": "Mộc Tinh hút linh khí rừng già!",
+		"song_than": "Ngư Tinh dâng sóng thần!",
+		"tran_khien": "Lục Dận bày trận khiên!",
+		"thuy_quai": "Hoằng Tháo gọi Thủy quái Ngư Tinh!",
+		"ong_dong": "Thoát Hoan chui vào ống đồng!",
+		"tron_chay": "Tô Định cắt tóc cạo râu, trà trộn bỏ chạy!",
+		"mua_ten": "Quách Quỳ hạ lệnh bắn tên như mưa!",
+		"sa_lay": "Liễu Thăng sa lầy ở ải Chi Lăng!",
+		"boc_chay": "Tàu Hy Vọng bốc cháy ngùn ngụt!",
+		"phao_kich": "Đồn trưởng gọi pháo kích!",
+		"ham_chi_huy": "Đờ Cát rút vào hầm chỉ huy!",
+		"bo_chay": "Tôn Sĩ Nghị bỏ cả ấn tín mà chạy!",
+	}
+	if banners.has(sp):
+		get_tree().call_group("hud", "show_banner", str(banners[sp]))
+	Fx.burst(get_parent(), global_position, Color(1, 0.4, 0.3), 50.0, 0.5)
+	Fx.shake(get_tree(), 4.0)
 
 
 func _finish_morph() -> void:
@@ -751,6 +888,8 @@ func _finish_morph() -> void:
 	get_tree().call_group("hud", "show_banner", "%s hiện nguyên hình: %s!" % [data.name, data.get("form2", "")])
 	data["name"] = "%s (%s)" % [data.name, data.get("form2", "")]
 	_enrage(false)
+	if Net.is_online() and Net.is_host() and net_id > 0:
+		Net.send_enemy_event("morph", {"id": net_id, "phase": "finish"}, false)
 
 
 ## Sóng nước quét ngang phòng, chừa 1 khe để né
@@ -768,6 +907,12 @@ func _tidal_wall() -> void:
 			var b := Bullet.new()
 			b.setup(false, Vector2(x, y), d, 95.0, 1, 4.0, "orb_water")
 			get_parent().add_child(b)
+			if Net.is_online() and Net.is_host():
+				Net.send_enemy_event("bullet", {
+					"x": x, "y": y, "dx": d.x, "dy": d.y,
+					"spd": 95.0, "dmg": 1, "life": 4.0, "proj": "orb_water",
+					"exp": 0.0, "ox": x, "oy": y, "muzzle": false,
+				}, false)
 		y += 13.0
 
 
@@ -781,6 +926,8 @@ func _enrage(banner := true) -> void:
 	add_child(glow)
 	if banner:
 		get_tree().call_group("hud", "show_banner", "%s nổi giận!" % data.name)
+		if Net.is_online() and Net.is_host() and net_id > 0:
+			Net.send_enemy_event("morph", {"id": net_id, "phase": "enrage"}, false)
 	Fx.burst(get_parent(), global_position, Color(1, 0.35, 0.25), 70.0, 0.5)
 	Fx.shake(get_tree(), 5.0)
 	# đẩy lùi đạn quanh mình
@@ -803,6 +950,8 @@ func _rage_skill(delta: float) -> void:
 		m.color = Color(0.45, 0.85, 0.3) if not EnemyData.chapter(level).get("modern", false) else Color(0.75, 0.8, 0.5)
 		get_parent().add_child(m)
 		Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 20), "Chướng khí!", Color(0.6, 1.0, 0.4), 13)
+		if Net.is_online() and Net.is_host():
+			Net.send_enemy_event("miasma", {"x": m.position.x, "y": m.position.y, "r": m.color.r, "g": m.color.g, "b": m.color.b}, false)
 	else:
 		# hỏa tiễn: quạt 5 quả cầu lửa gây cháy
 		var a: float = (player.global_position - global_position).angle()
@@ -882,11 +1031,17 @@ func _start_special(sp: String) -> void:
 				_spawn_pickup("coin", 3)
 	Fx.burst(get_parent(), global_position, Color(1, 0.4, 0.3), 50.0, 0.5)
 	Fx.shake(get_tree(), 4.0)
+	if Net.is_online() and Net.is_host() and net_id > 0:
+		Net.send_enemy_event("morph", {"id": net_id, "phase": "special", "sp": sp}, false)
 
 
 # ------------------------------------------------------------------ Trúng đòn, chết
 
 func apply_stun(t: float) -> void:
+	if is_replica:
+		if net_id > 0:
+			Net.send_enemy_event("stun_req", {"id": net_id, "t": t}, true)
+		return
 	if _morph_t > 0.0:
 		return
 	if is_boss():
@@ -899,6 +1054,16 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	if dead or _spawn_t > 0.0:
 		return
 	if _morph_t > 0.0 or _submerged:
+		return
+	if is_replica:
+		if net_id > 0:
+			Net.send_enemy_event("dmg_req", {"id": net_id, "dmg": amount, "kx": knock.x, "ky": knock.y}, true)
+		_flash = 1.0
+		if not is_boss():
+			_hp_bar_t = 3.0
+			queue_redraw()
+		Sfx.play("hit_boss" if is_boss() else "enemy_hurt")
+		Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 6.0), str(amount), Color(1, 1, 1) if amount < 10 else Color(1, 0.85, 0.3), 14 if amount < 10 else 18)
 		return
 	# phúc lành của người chơi: tăng sát thương, chí mạng
 	var crit := false
@@ -946,7 +1111,7 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 
 ## Sát thương theo nhịp (cháy / độc): không đẩy lùi, không chí mạng
 func dot_damage(amount: int, kind: String) -> void:
-	if dead or _spawn_t > 0.0 or _morph_t > 0.0 or _submerged:
+	if dead or is_replica or _spawn_t > 0.0 or _morph_t > 0.0 or _submerged:
 		return
 	var dmg := amount
 	if is_boss():
@@ -962,6 +1127,8 @@ func dot_damage(amount: int, kind: String) -> void:
 
 
 func apply_status(kind: String, duration: float) -> void:
+	if is_replica and net_id > 0:
+		Net.send_enemy_event("status_req", {"id": net_id, "kind": kind, "dur": duration}, true)
 	if not dead and status != null:
 		status.apply(kind, duration * (0.6 if is_boss() else 1.0))
 
@@ -970,12 +1137,29 @@ func die(drop := true) -> void:
 	if dead:
 		return
 	dead = true
+	if Net.is_online() and Net.is_host() and net_id > 0:
+		Net.send_enemy_event("die", {"id": net_id, "drop": drop}, false)
+		var ns: Node = get_tree().get_first_node_in_group("net_sync")
+		if ns != null:
+			ns.unregister_enemy(net_id)
+	_finish_die(drop, true)
+
+
+func die_from_net(drop: bool) -> void:
+	if dead:
+		return
+	dead = true
+	_finish_die(drop, false)
+
+
+func _finish_die(drop: bool, spawn_shared_loot: bool) -> void:
 	Sfx.play("explode" if is_boss() else "enemy_die")
 	if drop:
 		Global.add_stat("kills")
 		if is_boss():
 			Global.add_stat("bosses")
-			Global.on_boss_killed(player.hp if (player != null and is_instance_valid(player)) else 0)
+			var lp: Node = Global.local_player()
+			Global.on_boss_killed(int(lp.get("hp")) if (lp != null and is_instance_valid(lp)) else 0)
 	remove_from_group("enemies")
 	remove_from_group("boss")
 	Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0, radius / 7.0)
@@ -993,30 +1177,55 @@ func die(drop := true) -> void:
 					Fx.anim(par, p, "fx/explosion.png", 44, 44, 18.0, 1.2))
 		Fx.shake(get_tree(), 7.0)
 	if drop:
-		_drop_loot()
+		_drop_loot(spawn_shared_loot)
 	killed.emit(self)
 	queue_free()
 
 
-func _drop_loot() -> void:
-	if player != null and is_instance_valid(player):
-		player.on_kill()
+func _drop_loot(spawn_shared_loot: bool = true) -> void:
+	var lp: Node = Global.local_player()
+	if lp != null and is_instance_valid(lp):
+		lp.on_kill()
 	if elite:
 		Fx.float_text(get_parent(), global_position + Vector2(0, -20), "Hạ tinh nhuệ!", Color(1, 0.85, 0.35), 16)
-		if randf() < 0.45 and room != null:
+		if spawn_shared_loot and randf() < 0.45 and room != null:
 			room.drop_weapon_at(global_position, 1)
 	var pieces: int = 10 if is_boss() else data.coins * (3 if elite else 1)
 	for i in pieces:
 		_spawn_pickup("coin", 3 if is_boss() else 1)
 	for i in randi_range(1, 2):
 		_spawn_pickup("energy", 5)
-	if not is_boss() and randf() < 0.04:
-		_spawn_pickup("potion", 2)
+	if spawn_shared_loot and not is_boss() and randf() < 0.04:
+		_spawn_shared_pickup("potion", 2)
 	var is_legend: bool = bool(data.get("legend", false))
 	var is_folk: bool = EnemyData.FOLK.has(kind)
 	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
 	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern):
 		_spawn_material(str(mid))
+
+
+func _spawn_shared_pickup(k: String, amount: int) -> void:
+	var p := Pickup.new()
+	p.kind = k
+	p.amount = amount
+	p.position = global_position
+	if Net.is_online() and Net.is_host():
+		var ns: Node = get_tree().get_first_node_in_group("net_sync")
+		if ns != null:
+			p.pickup_id = ns.alloc_pickup_id()
+			get_parent().add_child(p)
+			ns.register_pickup(p)
+			Net.send_world_event("spawn_pickup", {
+				"id": p.pickup_id,
+				"kind": k,
+				"amount": amount,
+				"weapon_id": "",
+				"material_id": "",
+				"x": global_position.x,
+				"y": global_position.y,
+			}, false)
+			return
+	get_parent().add_child(p)
 
 
 func _spawn_material(mid: String) -> void:

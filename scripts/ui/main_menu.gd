@@ -88,18 +88,22 @@ func _ready() -> void:
 	box.add_child(UI.label("ANH HÙNG ĐẤT VIỆT", 52, Color(1.0, 0.82, 0.3)))
 	box.add_child(UI.label("Cùng các vị tướng Việt đánh tan giặc ngoại xâm", 18, Color(0.98, 0.88, 0.75)))
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
+	spacer.custom_minimum_size = Vector2(0, 4)
 	box.add_child(spacer)
+	if Net.disconnect_notice != "":
+		box.add_child(UI.label(Net.disconnect_notice, 16, Color(1.0, 0.58, 0.45)))
+		Net.disconnect_notice = ""
 	# Lượt chơi dở: Chơi tiếp hoặc Bỏ lượt (nhận xu đã nhặt)
 	var run := Global.peek_run()
 	if not run.is_empty():
 		var lv: int = int(run.level)
 		var hero_name: String = HeroData.DATA[str(run.hero)].name
 		var stage := "%d-%d" % [EnemyData.chapter_index(lv) + 1, (lv - 1) % 3 + 1]
-		box.add_child(UI.center(UI.button("Chơi tiếp (Màn %s - %s)" % [stage, hero_name], _on_continue, 20, 260.0)))
+		box.add_child(UI.center(UI.button("Chơi tiếp (Màn %s - %s)" % [stage, hero_name], _on_continue, 19, 260.0)))
 		box.add_child(UI.center(UI.button("Bỏ lượt (nhận %d xu)" % int(run.get("run_coins", 0)), _on_abandon, 15, 220.0)))
 	box.add_child(UI.center(UI.button("Vào doanh trại", _on_play, 22, 240.0)))
-	box.add_child(UI.center(UI.button("Thử thách & Bảng điểm", _on_challenge, 20, 240.0)))
+	box.add_child(UI.center(UI.button("Chơi LAN", _on_lan, 20, 240.0)))
+	box.add_child(UI.center(UI.button("Thử thách & Bảng điểm", _on_challenge, 19, 240.0)))
 	var bottom_row := HBoxContainer.new()
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	bottom_row.add_theme_constant_override("separation", 8)
@@ -129,6 +133,10 @@ func _on_abandon() -> void:
 
 func _on_play() -> void:
 	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+
+func _on_lan() -> void:
+	get_tree().change_scene_to_file("res://scenes/lan_lobby.tscn")
 
 
 func _on_settings() -> void:

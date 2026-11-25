@@ -49,6 +49,18 @@ var nearby_pickup = null
 var interact_target = null   # điểm tương tác trong sảnh (tướng, lò rèn...)
 var dead := false
 
+# Trạng thái chơi chung qua mạng LAN
+var peer_id: int = 1
+var is_local: bool = true
+var display_name: String = ""
+var name_color: Color = Color(1.0, 0.88, 0.35)
+var downed: bool = false
+var revive_progress: float = 0.0
+var _net_send_t: float = 0.0
+var _remote_pos: Vector2 = Vector2.ZERO
+var _has_remote_pos: bool = false
+var _remote_anim: String = "idle"
+
 var skill_timer := 0.0
 var buff_timer := 0.0
 var twin_timer := 0.0          # Song Trưng: Trưng Nhị đánh theo
@@ -116,13 +128,13 @@ func setup(id: String) -> void:
 	speed = hero.speed
 	weapons = [hero.weapon, ""]
 	slot = 0
-	# nâng cấp vĩnh viễn từ Lò rèn + Tu luyện tướng (cộng dồn)
-	var hb: Dictionary = ProgressionData.hero_bonuses(Global.hero_level(id))
-	max_hp += Global.upgrade("mau") + int(hb.hp)
+	# nâng cấp vĩnh viễn từ Lò rèn + Tu luyện tướng (cộng dồn; LAN lấy theo Chủ phòng)
+	var hb: Dictionary = ProgressionData.hero_bonuses(Global.eff_hero_level(id))
+	max_hp += Global.eff_upgrade("mau") + int(hb.hp)
 	hp = max_hp
-	max_armor += Global.upgrade("giap") + int(hb.armor)
+	max_armor += Global.eff_upgrade("giap") + int(hb.armor)
 	armor = max_armor
-	max_energy += 40 * Global.upgrade("nang_luong") + int(hb.energy)
+	max_energy += 40 * Global.eff_upgrade("nang_luong") + int(hb.energy)
 	energy = max_energy
 	Global.discover(hero.weapon)
 
@@ -208,6 +220,7 @@ func _ready() -> void:
 	status.unit = self
 	status.head = 26.0
 	add_child(status)
+	_remote_pos = global_position
 
 
 func effective_weapon(id: String) -> Dictionary:
@@ -216,7 +229,7 @@ func effective_weapon(id: String) -> Dictionary:
 		return base
 	var out: Dictionary = base
 	if id == str(hero.get("weapon", "")):
-		out = ProgressionData.apply_weapon_rank(id, base, Global.weapon_rank(hero_id))
+		out = ProgressionData.apply_weapon_rank(id, base, Global.eff_weapon_rank(hero_id))
 	var mod_id: String = Global.get_weapon_mod(id)
 	if mod_id != "":
 		out = WeaponMods.apply(out, mod_id)
@@ -241,7 +254,7 @@ func _refresh_weapon_sprite() -> void:
 			_weapon_light.visible = false
 		return
 	var is_starter: bool = (id == str(hero.get("weapon", "")))
-	var r: int = Global.weapon_rank(hero_id) if is_starter else 1
+	var r: int = Global.eff_weapon_rank(hero_id) if is_starter else 1
 	weapon_sprite.texture = Art.tex(ProgressionData.weapon_texture_path(id, r))
 	if is_starter and r >= 5:
 		if _weapon_light == null and weapon_pivot != null:
@@ -257,6 +270,69 @@ func _refresh_weapon_sprite() -> void:
 
 func _physics_process(delta: float) -> void:
 	if dead:
+		return
+	if downed:
+		velocity = Vector2.ZERO
+		var rescuer_near: bool = false
+		for other in Global.all_players():
+			if other == self or bool(other.get("dead")) or bool(other.get("downed")):
+				continue
+			var o2d: Node2D = other as Node2D
+			if o2d != null and global_position.distance_to(o2d.global_position) <= 28.0:
+				rescuer_near = true
+				break
+		if rescuer_near:
+			revive_progress += delta
+			if revive_progress >= 3.0:
+				revive_from_down(true)
+		else:
+			revive_progress = maxf(revive_progress - delta * 0.5, 0.0)
+		if not is_local:
+			if _has_remote_pos:
+				if global_position.distance_to(_remote_pos) > 160.0:
+					global_position = _remote_pos
+				else:
+					global_position = global_position.lerp(_remote_pos, clampf(delta * 18.0, 0.0, 1.0))
+		elif Net != null and Net.is_online():
+			_net_send_t += delta
+			if _net_send_t >= 0.05:
+				_net_send_t = 0.0
+				_send_net_state()
+		return
+	if not is_local:
+		_dash_time = maxf(_dash_time - delta, 0.0)
+		_horse_time = maxf(_horse_time - delta, 0.0)
+		buff_timer = maxf(buff_timer - delta, 0.0)
+		twin_timer = maxf(twin_timer - delta, 0.0)
+		_invuln = maxf(_invuln - delta, 0.0)
+		_trail_fire_cd = maxf(_trail_fire_cd - delta, 0.0)
+		_horse_fire_cd = maxf(_horse_fire_cd - delta, 0.0)
+		var prev_p: Vector2 = global_position
+		if _has_remote_pos:
+			if global_position.distance_to(_remote_pos) > 160.0:
+				global_position = _remote_pos
+			else:
+				global_position = global_position.lerp(_remote_pos, clampf(delta * 18.0, 0.0, 1.0))
+		if buff_timer > 0.0 and _than_toc_syn == 2 and global_position.distance_to(prev_p) > 0.5 and _trail_fire_cd <= 0.0 and get_parent() != null:
+			_trail_fire_cd = 0.2
+			var rtf := _RemoteFirePotFx.new()
+			rtf.instant = true
+			rtf.radius = 12.0
+			rtf.life = 1.5
+			rtf.position = global_position
+			rtf.target = global_position
+			get_parent().add_child(rtf)
+		if _horse_time > 0.0 and _horse_syn == 2 and _horse_fire_cd <= 0.0 and get_parent() != null:
+			_horse_fire_cd = 0.16
+			var rhf := _RemoteFirePotFx.new()
+			rhf.instant = true
+			rhf.radius = 14.0
+			rhf.life = 2.0
+			rhf.position = global_position
+			rhf.target = global_position
+			get_parent().add_child(rhf)
+		if body != null and _anim_lock_t <= 0.0 and _remote_anim != "" and body.animation != _remote_anim:
+			body.play(_remote_anim)
 		return
 	_fire_timer -= delta
 	_invuln -= delta
@@ -339,9 +415,15 @@ func _physics_process(delta: float) -> void:
 		Global.touch_swap = false
 		_swap_or_pickup()
 
+	if Net != null and Net.is_online():
+		_net_send_t += delta
+		if _net_send_t >= 0.05:
+			_net_send_t = 0.0
+			_send_net_state()
+
 
 func _unhandled_input(event: InputEvent) -> void:
-	if dead or get_tree().paused or not is_physics_processing():
+	if not is_local or dead or downed or get_tree().paused or not is_physics_processing():
 		return
 	if event.is_action_pressed("swap_weapon"):
 		if swap_weapon():
@@ -355,9 +437,13 @@ func _process(delta: float) -> void:
 	_flash = maxf(_flash - delta * 6.0, 0.0)
 	_mat.set_shader_parameter("flash", _flash)
 	_recoil = move_toward(_recoil, 0.0, delta * 40.0)
-	if dead:
+	if dead or downed:
 		if body.animation != "down":
 			body.play("down")
+		if weapon_pivot != null:
+			weapon_pivot.visible = false
+		if (Net != null and Net.is_online()) or display_name != "" or downed:
+			queue_redraw()
 		return
 
 	_anim_lock_t = maxf(_anim_lock_t - delta, 0.0)
@@ -366,9 +452,14 @@ func _process(delta: float) -> void:
 	elephant.flip_h = face_left
 	if iron_horse != null:
 		iron_horse.flip_h = face_left
-	var moving := velocity.length() > 5.0
-	if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
-		body.play("walk" if moving else "idle")
+	if not is_local:
+		if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
+			if _remote_anim != "" and body.animation != _remote_anim:
+				body.play(_remote_anim)
+	else:
+		var moving := velocity.length() > 5.0
+		if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
+			body.play("walk" if moving else "idle")
 
 	# vũ khí xoay theo hướng ngắm
 	var w := current_weapon()
@@ -433,6 +524,27 @@ func _process(delta: float) -> void:
 			Fx.afterimage(get_parent(), body, global_position, Color(1, 0.8, 0.3, 0.6), 0.28)
 			if randf() < 0.4:
 				Fx.particles(get_parent(), global_position + Vector2(randf_range(-6, 6), 6), Color(1, 0.95, 0.5), 3, 50.0, 0.3, -40.0, 1.0, 40.0)
+	if (Net != null and Net.is_online()) or display_name != "" or downed:
+		queue_redraw()
+
+
+func _draw() -> void:
+	if display_name != "":
+		Art.draw_text(self, Vector2(0, -24), display_name, 11, name_color, true)
+	if downed:
+		var pulse: float = 0.65 + 0.35 * sin(Time.get_ticks_msec() / 160.0)
+		var red_col := Color(1.0, 0.25, 0.25, pulse)
+		Art.draw_text(self, Vector2(0, -36), "GỤC - Đứng cạnh 3s để cứu", 10, red_col, true)
+		var pct: float = clampf(revive_progress / 3.0, 0.0, 1.0)
+		draw_arc(Vector2(0, -2), 14.0, 0.0, TAU, 32, Color(1.0, 0.25, 0.25, 0.35 * pulse), 1.5)
+		if pct > 0.0:
+			draw_arc(Vector2(0, -2), 14.0, -PI * 0.5, -PI * 0.5 + TAU * pct, 32, Color(0.45, 1.0, 0.55, 0.95), 2.5)
+		var bw: float = 34.0
+		var bx: float = -bw * 0.5
+		var by: float = -21.0
+		draw_rect(Rect2(bx - 1.0, by - 1.0, bw + 2.0, 5.0), Color(0.05, 0.02, 0.05, 0.85))
+		draw_rect(Rect2(bx, by, bw, 3.0), Color(0.28, 0.08, 0.08, 0.9))
+		draw_rect(Rect2(bx, by, bw * pct, 3.0), Color(0.45, 1.0, 0.55, 0.95))
 
 
 func _update_aim(move: Vector2) -> void:
@@ -556,6 +668,8 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		_ranged_shot_count += 1
 		if _ranged_shot_count % 4 == 0:
 			extra_explode = 24.0 * (1.0 + 0.35 * buff("hoa_duoc"))
+	var net_shots: Array = []
+	var broadcast_net: bool = is_local and Net != null and Net.is_online()
 	for i in count:
 		var a := aim_dir.angle()
 		if count > 1:
@@ -563,7 +677,10 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		a += randf_range(-inacc, inacc)
 		var dir := Vector2.from_angle(a)
 		var b := Bullet.new()
-		b.setup(true, start - aim_dir * 4.0, dir, w.speed, w.damage, float(w.life) * life_mult, w.get("proj", "bullet"))
+		var b_pos: Vector2 = start - aim_dir * 4.0
+		var b_life: float = float(w.life) * life_mult
+		var b_proj: String = str(w.get("proj", "bullet"))
+		b.setup(true, b_pos, dir, w.speed, w.damage, b_life, b_proj)
 		b.spawn_origin = global_position + offset
 		b.pierce = int(w.get("pierce", 0)) + (int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0)
 		b.explode_radius = maxf(w.get("explode", 0.0) * (1.0 + 0.35 * buff("hoa_duoc")), extra_explode)
@@ -580,16 +697,34 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		if w.get("boomerang", false):
 			b.boomerang = true
 		get_parent().add_child(b)
+		if broadcast_net:
+			net_shots.append([b_pos.x, b_pos.y, dir.x, dir.y, float(b.speed), b_life, b_proj, b.pierce, b.explode_radius, b.homing, b.boomerang, b.color.to_html(true)])
 	if _reflect_timer > 0.0 and _reflect_syn == 2 and offset == Vector2.ZERO:
 		for sgn in [-1.0, 1.0]:
 			var ea := aim_dir.angle() + deg_to_rad(12.0 * sgn)
+			var ed: Vector2 = Vector2.from_angle(ea)
+			var epos: Vector2 = start - aim_dir * 4.0
 			var eb := Bullet.new()
-			eb.setup(true, start - aim_dir * 4.0, Vector2.from_angle(ea), 440.0, maxi(3, int(round(float(w.damage) * 0.8))), 0.75, "arrow")
+			eb.setup(true, epos, ed, 440.0, maxi(3, int(round(float(w.damage) * 0.8))), 0.75, "arrow")
 			eb.spawn_origin = global_position + offset
 			eb.pierce = int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0
 			eb.owner_node = self
 			get_parent().add_child(eb)
+			if broadcast_net:
+				net_shots.append([epos.x, epos.y, ed.x, ed.y, 440.0, 0.75, "arrow", eb.pierce, 0.0, 0.0, false, Color.WHITE.to_html(true)])
 	_recoil = w.get("recoil", 1.5)
+	if broadcast_net:
+		Net.send_player_action("shoot", {
+			"shots": net_shots,
+			"muzzle": str(w.get("muzzle", "")),
+			"mx": start.x,
+			"my": start.y,
+			"ax": aim_dir.x,
+			"ay": aim_dir.y,
+			"recoil": _recoil,
+			"sfx": "arrow" if str(w.get("proj", "bullet")) in ["arrow", "stone", "dart", "axe"] else "shoot",
+			"silent": offset != Vector2.ZERO,
+		})
 	match w.get("muzzle", ""):
 		"flash":
 			Fx.anim(get_parent(), start, "fx/muzzle.png", 12, 10, 24.0, 1.0, aim_dir.angle(), Color.WHITE, true, 6)
@@ -634,17 +769,28 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		for ch in get_children():
 			if ch is OrbitBlades:
 				ch.trigger_launch(first_hit)
+	var broadcast_net: bool = is_local and Net != null and Net.is_online()
+	var net_waves: Array = []
 	if twin_timer > 0.0 and _twin_syn == 2:
 		var tw_b := Bullet.new()
-		tw_b.setup(true, global_position + offset + aim_dir * 14.0, aim_dir, 300.0, maxi(1, int(round(float(dmg) * 0.5))), 0.7, "sword_wave")
+		var tw_pos: Vector2 = global_position + offset + aim_dir * 14.0
+		tw_b.setup(true, tw_pos, aim_dir, 300.0, maxi(1, int(round(float(dmg) * 0.5))), 0.7, "sword_wave")
 		tw_b.spawn_origin = global_position + offset
 		tw_b.pierce = 99
 		tw_b.knock = knock
 		tw_b.color = Color(1, 0.75, 0.85) if offset != Vector2.ZERO else _tier_color(w)
 		tw_b.owner_node = self
 		get_parent().add_child(tw_b)
+		if broadcast_net:
+			net_waves.append([tw_pos.x, tw_pos.y, aim_dir.x, aim_dir.y, 300.0, 0.7, "sword_wave", tw_b.color.to_html(true)])
 	if offset != Vector2.ZERO:
 		Fx.slash(get_parent(), global_position + offset, aim_dir, reach, arc, Color(1, 0.7, 0.85), style)
+		if broadcast_net:
+			Net.send_player_action("melee", {
+				"ox": offset.x, "oy": offset.y, "ax": aim_dir.x, "ay": aim_dir.y,
+				"reach": reach, "arc": arc, "style": style, "col": Color(1, 0.7, 0.85).to_html(true),
+				"fire": false, "waves": net_waves, "lpts": [],
+			})
 		return
 	# hoạt ảnh vũ khí
 	var tw := create_tween()
@@ -661,21 +807,27 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			swing = -arc * 0.5 * _swing_sign
 			tw.tween_property(self, "swing", arc * 0.5 * _swing_sign, 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tw.tween_property(self, "swing", 0.0, 0.14)
-	Fx.slash(get_parent(), global_position + weapon_pivot.position, aim_dir, reach, arc, _tier_color(w), style)
+	var slash_col: Color = _tier_color(w)
+	Fx.slash(get_parent(), global_position + weapon_pivot.position, aim_dir, reach, arc, slash_col, style)
 	if w.has("wave"):
 		var b := Bullet.new()
 		var kind: String = w.wave
-		b.setup(true, global_position + aim_dir * 14.0, aim_dir, 300.0 if kind == "sword_wave" else 240.0, int(dmg * 0.8), 0.7, kind)
+		var wpos: Vector2 = global_position + aim_dir * 14.0
+		var wspd: float = 300.0 if kind == "sword_wave" else 240.0
+		b.setup(true, wpos, aim_dir, wspd, int(dmg * 0.8), 0.7, kind)
 		b.spawn_origin = global_position
 		b.pierce = 99
 		b.knock = knock
-		b.color = _tier_color(w)
+		b.color = slash_col
 		get_parent().add_child(b)
+		if broadcast_net:
+			net_waves.append([wpos.x, wpos.y, aim_dir.x, aim_dir.y, wspd, 0.7, kind, b.color.to_html(true)])
 	if bool(w.get("trait_wave3", false)):
 		_melee_swing_count += 1
 		if _melee_swing_count % 3 == 0:
 			var bw := Bullet.new()
-			bw.setup(true, global_position + aim_dir * 14.0, aim_dir, 300.0, maxi(1, int(ceil(float(dmg) * 0.6))), 0.7, "sword_wave")
+			var bwpos: Vector2 = global_position + aim_dir * 14.0
+			bw.setup(true, bwpos, aim_dir, 300.0, maxi(1, int(ceil(float(dmg) * 0.6))), 0.7, "sword_wave")
 			bw.spawn_origin = global_position
 			bw.pierce = 99
 			bw.knock = knock
@@ -685,15 +837,28 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 				bw.color = Color(1.0, 0.58, 0.22)
 			bw.owner_node = self
 			get_parent().add_child(bw)
+			if broadcast_net:
+				net_waves.append([bwpos.x, bwpos.y, aim_dir.x, aim_dir.y, 300.0, 0.7, "sword_wave", bw.color.to_html(true)])
 	if w.get("fire", false):
 		for i in 5:
 			var p := global_position + Vector2.from_angle(aim_dir.angle() + lerpf(-arc / 2.0, arc / 2.0, i / 4.0)) * reach * 0.8
 			Fx.particles(get_parent(), p, Color(1, 0.75, 0.3), 4, 50.0, 0.4, -80.0, 2.0, 60.0, Vector2.UP, Color(0.8, 0.2, 0.1))
+	var chain_pts: Array = []
 	if w.has("chain") and first_hit != null:
-		_chain_lightning(first_hit, int(w.chain), int(dmg * 0.7))
+		chain_pts = _chain_lightning(first_hit, int(w.chain), int(dmg * 0.7))
+	if broadcast_net:
+		var lpts_ser: Array = []
+		for pt in chain_pts:
+			var v: Vector2 = pt
+			lpts_ser.append([v.x, v.y])
+		Net.send_player_action("melee", {
+			"ox": 0.0, "oy": 0.0, "ax": aim_dir.x, "ay": aim_dir.y,
+			"reach": reach, "arc": arc, "style": style, "col": slash_col.to_html(true),
+			"fire": bool(w.get("fire", false)), "waves": net_waves, "lpts": lpts_ser,
+		})
 
 
-func _chain_lightning(start, count: int, dmg: int) -> void:
+func _chain_lightning(start, count: int, dmg: int) -> Array:
 	var pts: Array = [global_position + aim_dir * 10.0, start.global_position]
 	var done: Array = [start]
 	var cur = start
@@ -717,6 +882,7 @@ func _chain_lightning(start, count: int, dmg: int) -> void:
 	l.points = pts
 	get_parent().add_child(l)
 	Fx.particles(get_parent(), start.global_position, Color(0.6, 0.9, 1.0), 8, 90.0, 0.3)
+	return pts
 
 
 func _beam(w: Dictionary) -> void:
@@ -762,6 +928,11 @@ func _beam(w: Dictionary) -> void:
 	get_parent().add_child(fx)
 	Fx.anim(get_parent(), end, "fx/spark.png", 15, 15, 24.0, 1.3, 0.0, fx.color, true)
 	_recoil = 3.0
+	if is_local and Net != null and Net.is_online():
+		Net.send_player_action("beam", {
+			"sx": start.x, "sy": start.y, "ex": end.x, "ey": end.y,
+			"width": width, "col": fx.color.to_html(true),
+		})
 
 
 func _wave(w: Dictionary) -> void:
@@ -775,6 +946,11 @@ func _wave(w: Dictionary) -> void:
 	r.notes = w.has("stun")
 	get_parent().add_child(r)
 	Fx.shake(get_tree(), 2.0)
+	if is_local and Net != null and Net.is_online():
+		Net.send_player_action("wave", {
+			"x": global_position.x, "y": global_position.y,
+			"radius": r.radius, "col": r.color.to_html(true), "notes": r.notes,
+		})
 
 
 func _spikes(w: Dictionary) -> void:
@@ -786,6 +962,7 @@ func _spikes(w: Dictionary) -> void:
 	var wr: WeakRef = weakref(get_parent())
 	var dmg: int = w.damage
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	var net_pts: Array = []
 	for i in count:
 		var pos := origin + dir * spacing * (i + 1)
 		var q := PhysicsRayQueryParameters2D.create(origin, pos, 1)
@@ -798,6 +975,7 @@ func _spikes(w: Dictionary) -> void:
 					break
 			else:
 				break
+		net_pts.append([pos.x, pos.y])
 		get_tree().create_timer(0.05 * i).timeout.connect(func():
 			var par = wr.get_ref()
 			if par == null:
@@ -806,6 +984,8 @@ func _spikes(w: Dictionary) -> void:
 			s.position = pos
 			s.damage = dmg
 			par.add_child(s))
+	if is_local and Net != null and Net.is_online() and not net_pts.is_empty():
+		Net.send_player_action("spikes", {"pts": net_pts})
 
 
 func _in_arc(pos: Vector2, max_dist: float, arc: float, size: float) -> bool:
@@ -830,7 +1010,7 @@ func _use_skill() -> void:
 	last_skill_imprint = fam
 	if syn >= 0 and syn <= 2:
 		Global.run_syn_counts[syn] = int(Global.run_syn_counts[syn]) + 1
-	var hb: Dictionary = ProgressionData.hero_bonuses(Global.hero_level(hero_id))
+	var hb: Dictionary = ProgressionData.hero_bonuses(Global.eff_hero_level(hero_id))
 	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult)
 	Sfx.play("skill")
 	if body != null and not dead:
@@ -1000,6 +1180,16 @@ func _use_skill() -> void:
 	var imp: Dictionary = SynergyData.IMPRINTS.get(fam, SynergyData.IMPRINTS["kiem"])
 	Fx.float_text(parent, global_position + Vector2(0, -54), "Ấn: %s" % imp.name, SynergyData.family_color(fam), 13)
 	get_tree().call_group("hud", "show_cutin", hero_id)
+	if is_local and Net != null and Net.is_online():
+		Net.send_player_action("skill", {
+			"skill": str(hero.skill),
+			"syn": syn,
+			"fam": fam,
+			"x": global_position.x,
+			"y": global_position.y,
+			"ax": aim_dir.x,
+			"ay": aim_dir.y,
+		})
 
 
 func _trigger_imprint(fam: String, cw: Dictionary) -> void:
@@ -1225,7 +1415,9 @@ func _nearest_attacker_name() -> String:
 
 
 func take_damage(amount: int, source: String = "") -> void:
-	if dead or _invuln > 0.0 or _dash_time > 0.0 or _horse_time > 0.0:
+	if dead or downed or _invuln > 0.0 or _dash_time > 0.0 or _horse_time > 0.0:
+		return
+	if Net != null and Net.is_online() and not is_local:
 		return
 	if randf() < minf(0.12 * buff("bua_ho_menh"), 0.45):
 		_invuln = 0.3
@@ -1270,7 +1462,9 @@ func take_damage(amount: int, source: String = "") -> void:
 
 ## Sát thương theo nhịp từ cháy / độc: trừ giáp trước, không làm bất tử tạm thời
 func dot_damage(amount: int, kind: String) -> void:
-	if dead or _dash_time > 0.0 or _horse_time > 0.0:
+	if dead or downed or _dash_time > 0.0 or _horse_time > 0.0:
+		return
+	if Net != null and Net.is_online() and not is_local:
 		return
 	var dmg: int = Global.scale_enemy_damage(amount)
 	if dmg <= 0:
@@ -1309,9 +1503,75 @@ func die() -> void:
 
 
 func _check_death() -> void:
-	if hp <= 0 and not dead:
-		die()
+	if hp <= 0 and not dead and not downed:
+		var can_down: bool = Net != null and Net.is_online() and maxi(Net.player_count(), Global.all_players().size()) > 1 and Global.free_revives <= 0
+		if can_down:
+			enter_downed(true)
+		else:
+			die()
 	stats_changed.emit()
+
+
+func enter_downed(broadcast: bool = true) -> void:
+	if downed or dead:
+		return
+	downed = true
+	hp = 0
+	armor = 0
+	revive_progress = 0.0
+	_anim_lock_t = 0.0
+	_dash_time = 0.0
+	_horse_time = 0.0
+	velocity = Vector2.ZERO
+	if status != null:
+		status.clear()
+	if weapon_pivot != null:
+		weapon_pivot.visible = false
+	if aura != null:
+		aura.visible = false
+	if elephant != null:
+		elephant.visible = false
+	if iron_horse != null:
+		iron_horse.visible = false
+	if body != null:
+		body.position = Vector2(0, -6)
+		body.rotation = 0.0
+		body.play("down")
+		body.modulate = Color(0.85, 0.55, 0.55)
+	if get_parent() != null:
+		Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 14.0, 1.2)
+		Fx.float_text(get_parent(), global_position + Vector2(0, -26), "Gục ngã!", Color(1.0, 0.4, 0.4), 16)
+	Sfx.play("player_die")
+	stats_changed.emit()
+	if broadcast and Net != null and Net.is_online():
+		Net.send_down_event("down", peer_id, {})
+
+
+func revive_from_down(broadcast: bool = true) -> void:
+	if not downed:
+		return
+	downed = false
+	dead = false
+	hp = 2
+	armor = 0
+	revive_progress = 0.0
+	_invuln = 1.5
+	_anim_lock_t = 0.0
+	if status != null:
+		status.clear()
+	if body != null:
+		body.rotation = 0.0
+		body.modulate = Color.WHITE
+		body.play("idle")
+	if weapon_pivot != null:
+		weapon_pivot.visible = true
+	if get_parent() != null:
+		Fx.burst(get_parent(), global_position, Color(0.55, 1.0, 0.65), 42.0, 0.45)
+		Fx.float_text(get_parent(), global_position + Vector2(0, -26), "Đã được cứu!", Color(0.55, 1.0, 0.65), 16)
+	Sfx.play("pickup_coin")
+	stats_changed.emit()
+	if broadcast and Net != null and Net.is_online():
+		Net.send_down_event("revive", peer_id, {})
 
 
 func heal(amount: int) -> void:
@@ -1328,6 +1588,8 @@ func add_energy(amount: int) -> void:
 
 func revive() -> void:
 	dead = false
+	downed = false
+	revive_progress = 0.0
 	Global.run_last_hit = ""
 	hp = max_hp
 	armor = max_armor
@@ -1394,3 +1656,709 @@ func on_hit_enemy(e) -> void:
 		last_hit_enemy = e
 		if _mark_timer > 0.0:
 			e.set_meta("marked_until", Time.get_ticks_msec() + 3000)
+
+
+# ------------------------------------------------------------------ Đồng bộ LAN (N2/N4/N6)
+
+func _send_net_state() -> void:
+	if Net == null or not Net.is_online():
+		return
+	var anim_name: String = body.animation if body != null else "idle"
+	var flip: bool = body.flip_h if body != null else (aim_dir.x < 0.0)
+	Net.send_player_state({
+		"x": global_position.x,
+		"y": global_position.y,
+		"ax": aim_dir.x,
+		"ay": aim_dir.y,
+		"anim": anim_name,
+		"flip": flip,
+		"w": str(weapons[slot]),
+		"dash": _dash_time,
+		"horse": _horse_time,
+		"buff": buff_timer,
+		"twin": twin_timer,
+		"hp": hp,
+		"max_hp": max_hp,
+		"armor": armor,
+		"max_armor": max_armor,
+		"downed": downed,
+		"dead": dead,
+		"rev": revive_progress,
+	})
+
+
+func apply_remote_state(st: Dictionary) -> void:
+	if is_local:
+		return
+	if st.has("pos") and st["pos"] is Vector2:
+		_remote_pos = st["pos"] as Vector2
+	else:
+		_remote_pos = Vector2(float(st.get("x", global_position.x)), float(st.get("y", global_position.y)))
+	_has_remote_pos = true
+	var ad := Vector2(float(st.get("ax", aim_dir.x)), float(st.get("ay", aim_dir.y)))
+	if ad.length_squared() > 0.0001:
+		aim_dir = ad.normalized()
+	_remote_anim = str(st.get("anim", "idle"))
+	if body != null:
+		body.flip_h = bool(st.get("flip", aim_dir.x < 0.0))
+	var wid: String = str(st.get("w", weapons[slot]))
+	if wid != str(weapons[slot]):
+		weapons[slot] = wid
+		_refresh_weapon_sprite()
+	_dash_time = float(st.get("dash", 0.0))
+	_horse_time = float(st.get("horse", 0.0))
+	buff_timer = float(st.get("buff", buff_timer))
+	twin_timer = float(st.get("twin", twin_timer))
+	hp = int(st.get("hp", hp))
+	max_hp = maxi(1, int(st.get("max_hp", max_hp)))
+	armor = int(st.get("armor", armor))
+	max_armor = maxi(0, int(st.get("max_armor", max_armor)))
+	var new_downed: bool = bool(st.get("downed", false))
+	if new_downed and not downed:
+		enter_downed(false)
+	elif not new_downed and downed:
+		revive_from_down(false)
+	if st.has("rev") and downed:
+		revive_progress = maxf(revive_progress, float(st.get("rev", 0.0)))
+	var new_dead: bool = bool(st.get("dead", false))
+	if new_dead and not dead:
+		dead = true
+		if body != null:
+			body.play("down")
+			body.modulate = Color(0.7, 0.6, 0.7)
+		if weapon_pivot != null:
+			weapon_pivot.visible = false
+	elif not new_dead and dead:
+		dead = false
+		if body != null:
+			body.modulate = Color.WHITE
+			body.play("idle")
+
+
+func play_remote_action(kind: String, data: Dictionary) -> void:
+	if is_local or get_parent() == null:
+		return
+	var parent: Node = get_parent()
+	match kind:
+		"shoot":
+			if not bool(data.get("silent", false)):
+				Sfx.play(str(data.get("sfx", "shoot")))
+			if body != null and not dead and not downed:
+				_anim_lock_t = 0.18
+				body.play("attack")
+				body.frame = 0
+			var ad := Vector2(float(data.get("ax", aim_dir.x)), float(data.get("ay", aim_dir.y)))
+			if ad.length_squared() > 0.0001:
+				aim_dir = ad.normalized()
+			var shots_v: Variant = data.get("shots", [])
+			if typeof(shots_v) == TYPE_ARRAY:
+				for item in (shots_v as Array):
+					if typeof(item) != TYPE_ARRAY:
+						continue
+					var s: Array = item
+					if s.size() < 12:
+						continue
+					var b := Bullet.new()
+					b.visual_only = true
+					var bpos := Vector2(float(s[0]), float(s[1]))
+					var bdir := Vector2(float(s[2]), float(s[3]))
+					b.setup(true, bpos, bdir, float(s[4]), 0, float(s[5]), str(s[6]))
+					b.spawn_origin = global_position
+					b.pierce = int(s[7])
+					b.explode_radius = float(s[8])
+					b.homing = float(s[9])
+					b.boomerang = bool(s[10])
+					b.color = Color.html(str(s[11]))
+					b.owner_node = self
+					parent.add_child(b)
+			_recoil = float(data.get("recoil", 1.5))
+			var start := Vector2(float(data.get("mx", global_position.x)), float(data.get("my", global_position.y)))
+			match str(data.get("muzzle", "")):
+				"flash":
+					Fx.anim(parent, start, "fx/muzzle.png", 12, 10, 24.0, 1.0, aim_dir.angle(), Color.WHITE, true, 6)
+				"smoke":
+					Fx.anim(parent, start, "fx/poof.png", 28, 28, 18.0, 0.55, 0.0, Color(1, 1, 1, 0.8))
+				"fire":
+					Fx.particles(parent, start, Color(1, 0.7, 0.3), 2, 60.0, 0.25, -60.0, 1.5, 40.0, aim_dir, Color(0.8, 0.2, 0.1))
+		"melee":
+			var off := Vector2(float(data.get("ox", 0.0)), float(data.get("oy", 0.0)))
+			var ad2 := Vector2(float(data.get("ax", aim_dir.x)), float(data.get("ay", aim_dir.y)))
+			if ad2.length_squared() > 0.0001:
+				aim_dir = ad2.normalized()
+			var reach: float = float(data.get("reach", 28.0))
+			var arc: float = float(data.get("arc", 1.6))
+			var style: String = str(data.get("style", "swing"))
+			var col: Color = Color.html(str(data.get("col", "ffffffff")))
+			if off == Vector2.ZERO:
+				Sfx.play("slash")
+				if body != null and not dead and not downed:
+					_anim_lock_t = 0.18
+					body.play("attack")
+					body.frame = 0
+				var tw := create_tween()
+				match style:
+					"thrust":
+						tw.tween_property(self, "thrust", reach * 0.35, 0.06)
+						tw.tween_property(self, "thrust", 0.0, 0.12)
+					"spin":
+						swing = 0.0
+						tw.tween_property(self, "swing", TAU, 0.2)
+						tw.tween_callback(func(): swing = 0.0)
+					_:
+						_swing_sign = -_swing_sign
+						swing = -arc * 0.5 * _swing_sign
+						tw.tween_property(self, "swing", arc * 0.5 * _swing_sign, 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+						tw.tween_property(self, "swing", 0.0, 0.14)
+				var wp_off: Vector2 = weapon_pivot.position if weapon_pivot != null else Vector2.ZERO
+				Fx.slash(parent, global_position + wp_off, aim_dir, reach, arc, col, style)
+			else:
+				Fx.slash(parent, global_position + off, aim_dir, reach, arc, col, style)
+			var waves_v: Variant = data.get("waves", [])
+			if typeof(waves_v) == TYPE_ARRAY:
+				for witem in (waves_v as Array):
+					if typeof(witem) != TYPE_ARRAY:
+						continue
+					var ws: Array = witem
+					if ws.size() < 8:
+						continue
+					var wb := Bullet.new()
+					wb.visual_only = true
+					wb.setup(true, Vector2(float(ws[0]), float(ws[1])), Vector2(float(ws[2]), float(ws[3])), float(ws[4]), 0, float(ws[5]), str(ws[6]))
+					wb.spawn_origin = global_position + off
+					wb.pierce = 99
+					wb.color = Color.html(str(ws[7]))
+					wb.owner_node = self
+					parent.add_child(wb)
+			if bool(data.get("fire", false)):
+				for i in 5:
+					var fp := global_position + Vector2.from_angle(aim_dir.angle() + lerpf(-arc / 2.0, arc / 2.0, float(i) / 4.0)) * reach * 0.8
+					Fx.particles(parent, fp, Color(1, 0.75, 0.3), 4, 50.0, 0.4, -80.0, 2.0, 60.0, Vector2.UP, Color(0.8, 0.2, 0.1))
+			var lpts_v: Variant = data.get("lpts", [])
+			if typeof(lpts_v) == TYPE_ARRAY and not (lpts_v as Array).is_empty():
+				var pts: Array = []
+				for lp in (lpts_v as Array):
+					if typeof(lp) == TYPE_ARRAY and (lp as Array).size() >= 2:
+						pts.append(Vector2(float(lp[0]), float(lp[1])))
+				if pts.size() >= 2:
+					var ln := Lightning.new()
+					ln.points = pts
+					parent.add_child(ln)
+		"beam":
+			Sfx.play("shoot")
+			var bstart := Vector2(float(data.get("sx", global_position.x)), float(data.get("sy", global_position.y)))
+			var bend := Vector2(float(data.get("ex", global_position.x)), float(data.get("ey", global_position.y)))
+			var bfx := Beam.new()
+			bfx.position = bstart
+			bfx.end_point = bend - bstart
+			bfx.width = float(data.get("width", 3.0))
+			bfx.color = Color.html(str(data.get("col", "4de6ffff")))
+			parent.add_child(bfx)
+			Fx.anim(parent, bend, "fx/spark.png", 15, 15, 24.0, 1.3, 0.0, bfx.color, true)
+			_recoil = 3.0
+		"wave":
+			Sfx.play("skill")
+			var rw := _RemoteWaveFx.new()
+			rw.position = Vector2(float(data.get("x", global_position.x)), float(data.get("y", global_position.y)))
+			rw.radius = float(data.get("radius", 110.0))
+			rw.color = Color.html(str(data.get("col", "ffbf59ff")))
+			rw.notes = bool(data.get("notes", false))
+			parent.add_child(rw)
+		"spikes":
+			Sfx.play("explode")
+			var spts_v: Variant = data.get("pts", [])
+			if typeof(spts_v) == TYPE_ARRAY:
+				var wr_par: WeakRef = weakref(parent)
+				var spts: Array = spts_v
+				for i in spts.size():
+					var sp_item: Variant = spts[i]
+					if typeof(sp_item) != TYPE_ARRAY or (sp_item as Array).size() < 2:
+						continue
+					var sp_pos := Vector2(float(sp_item[0]), float(sp_item[1]))
+					get_tree().create_timer(0.05 * float(i)).timeout.connect(func():
+						var par: Variant = wr_par.get_ref()
+						if par == null:
+							return
+						var rs := _RemoteSpikeFx.new()
+						rs.position = sp_pos
+						(par as Node).add_child(rs))
+		"skill":
+			_play_remote_skill(data)
+
+
+func _play_remote_skill(data: Dictionary) -> void:
+	var parent: Node = get_parent()
+	if parent == null:
+		return
+	var sk: String = str(data.get("skill", hero.get("skill", "")))
+	var syn: int = int(data.get("syn", 0))
+	var fam: String = str(data.get("fam", ""))
+	var pos := Vector2(float(data.get("x", global_position.x)), float(data.get("y", global_position.y)))
+	var dir := Vector2(float(data.get("ax", aim_dir.x)), float(data.get("ay", aim_dir.y)))
+	if dir.length_squared() < 0.0001:
+		dir = aim_dir
+	else:
+		dir = dir.normalized()
+	aim_dir = dir
+	Sfx.play("skill")
+	if body != null and not dead and not downed:
+		_anim_lock_t = 0.28
+		body.play("skill")
+		body.frame = 0
+	var wr: WeakRef = weakref(parent)
+	match sk:
+		"coc_bach_dang":
+			Fx.anim(parent, pos + Vector2(0, 6), "fx/ripple.png", 72, 34, 12.0, 1.6)
+			Fx.particles(parent, pos, Color(0.5, 0.8, 1.0), 20, 110.0, 0.6, 150.0, 2.0, 180.0, Vector2.UP, Color(0.9, 1, 1))
+			var s_life: float = 9.0 if syn == 2 else 6.0
+			for i in 14:
+				var ring: float = 30.0 if i % 2 == 0 else 50.0
+				var ang: float = TAU * float(i) / 14.0
+				var spos := pos + Vector2(cos(ang), sin(ang) * 0.8) * ring
+				get_tree().create_timer(0.025 * float(i)).timeout.connect(func():
+					var par: Variant = wr.get_ref()
+					if par == null:
+						return
+					var st_fx := _RemoteStakeFx.new()
+					st_fx.life_time = s_life
+					st_fx.position = spos
+					(par as Node).add_child(st_fx))
+			if syn == 2:
+				for i in 8:
+					var ang2: float = TAU * float(i) / 8.0 + 0.2
+					var spos2 := pos + Vector2(cos(ang2), sin(ang2) * 0.8) * 70.0
+					get_tree().create_timer(0.025 * float(14 + i)).timeout.connect(func():
+						var par: Variant = wr.get_ref()
+						if par == null:
+							return
+						var st_fx2 := _RemoteStakeFx.new()
+						st_fx2.life_time = s_life
+						st_fx2.position = spos2
+						(par as Node).add_child(st_fx2))
+		"voi_chien":
+			_dash_time = 0.55
+			_dash_dir = dir
+			Fx.burst(parent, pos, Color(1, 0.8, 0.5), 40.0, 0.4)
+			Fx.float_text(parent, pos + Vector2(20 * dir.x, -30), "Hống!", Color(1, 0.9, 0.6), 20)
+		"hich_tuong_si":
+			var sig := DrumSigil.new()
+			sig.position = pos + Vector2(0, 6)
+			parent.add_child(sig)
+			for k in 3:
+				get_tree().create_timer(0.2 * float(k)).timeout.connect(func():
+					var par: Variant = wr.get_ref()
+					if par != null:
+						Fx.burst(par as Node, pos, Color(1, 0.8, 0.3), 46.0 + float(k) * 10.0, 0.45))
+			var ally_cnt: int = 4 if syn >= 1 else 3
+			var wr_self: WeakRef = weakref(self)
+			for i in ally_cnt:
+				var pos2 := pos + Vector2.from_angle(TAU * float(i) / float(ally_cnt) - PI / 2.0) * 22.0
+				get_tree().create_timer(0.3 + 0.12 * float(i)).timeout.connect(func():
+					var par: Variant = wr.get_ref()
+					if par == null:
+						return
+					Fx.anim(par as Node, pos2, "fx/poof.png", 28, 28, 18.0)
+					var ra := _RemoteAllyFx.new()
+					ra.owner_ref = wr_self
+					ra.position = pos2
+					(par as Node).add_child(ra))
+			Fx.particles(parent, pos, Color(1, 0.85, 0.4), 24, 120.0, 0.7, -30.0, 2.0)
+		"song_trung":
+			_twin_syn = syn
+			twin_timer = 11.0 if syn == 2 else (10.0 if syn == 1 else 8.0)
+			Fx.anim(parent, pos + _twin_offset(), "fx/poof.png", 28, 28, 16.0, 1.2, 0.0, Color(1, 0.7, 0.85))
+			Fx.particles(parent, pos, Color(1, 0.6, 0.8), 20, 110.0, 0.6, -30.0, 2.0)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Trưng Nhị!", Color(1, 0.75, 0.85), 18)
+		"nam_quoc_son_ha":
+			var rr := _RemoteReflectFx.new()
+			add_child(rr)
+			Fx.burst(parent, pos, Color(1, 0.85, 0.35), 50.0, 0.5)
+		"thuan_thien_kiem":
+			var ro := _RemoteOrbitFx.new()
+			ro.count = 5 if syn == 2 else (4 if syn == 1 else 3)
+			add_child(ro)
+			Fx.burst(parent, pos, Color(1, 0.95, 0.6), 44.0, 0.45)
+			Fx.particles(parent, pos, Color(1, 0.95, 0.6), 22, 120.0, 0.6)
+		"hoa_hong":
+			var pot_cnt: int = 12 if syn == 2 else (10 if syn == 1 else 8)
+			for i in pot_cnt:
+				var rfz := _RemoteFirePotFx.new()
+				rfz.position = pos
+				rfz.target = pos + Vector2.from_angle(TAU * float(i) / float(pot_cnt)) * 54.0
+				parent.add_child(rfz)
+		"hum_thieng":
+			var rroar := _RemoteWaveFx.new()
+			rroar.position = pos
+			rroar.radius = 120.0
+			rroar.color = Color(1, 0.65, 0.25)
+			parent.add_child(rroar)
+			var rtg := _RemoteTigerFx.new()
+			rtg.position = pos
+			rtg.dir = dir
+			parent.add_child(rtg)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Gầm!", Color(1, 0.75, 0.3), 22)
+		"keo_phao":
+			var rtu := _RemoteTurretFx.new()
+			rtu.position = pos + dir * 16.0
+			parent.add_child(rtu)
+		"than_toc":
+			_than_toc_syn = syn
+			buff_timer = 5.0
+			Fx.burst(parent, pos, Color(1, 0.9, 0.3), 36.0, 0.35)
+			Fx.particles(parent, pos, Color(1, 0.95, 0.5), 18, 140.0, 0.5, 0.0, 2.0)
+		"ngua_sat":
+			_horse_time = 0.65
+			_dash_dir = dir
+			_horse_syn = syn
+			_horse_fire_cd = 0.0
+			var fb_cnt: int = 8 if syn == 2 else (5 if syn == 1 else 3)
+			var spread_deg: float = 56.0 if syn == 2 else (44.0 if syn == 1 else 30.0)
+			for i in fb_cnt:
+				var frac: float = 0.5 if fb_cnt <= 1 else float(i) / float(fb_cnt - 1)
+				var ang: float = dir.angle() + deg_to_rad(lerpf(-spread_deg * 0.5, spread_deg * 0.5, frac))
+				var fdir := Vector2.from_angle(ang)
+				var fb := Bullet.new()
+				fb.visual_only = true
+				fb.setup(true, pos + fdir * 12.0, fdir, 260.0, 0, 0.55, "fireball")
+				fb.spawn_origin = pos
+				fb.owner_node = self
+				parent.add_child(fb)
+			Fx.burst(parent, pos, Color(1.0, 0.55, 0.2), 44.0, 0.4)
+			Fx.float_text(parent, pos + Vector2(20 * dir.x, -30), "Hí! Phun lửa!", Color(1.0, 0.78, 0.28), 18)
+	# Hiệu ứng ấn đồng điệu (chỉ hình ảnh, không gây sát thương kép)
+	var imp: Dictionary = SynergyData.IMPRINTS.get(fam, {})
+	if not imp.is_empty():
+		match fam:
+			"kiem":
+				var n: int = int(imp.waves)
+				for i in n:
+					var d := Vector2.from_angle(TAU * float(i) / float(n))
+					var b := Bullet.new()
+					b.visual_only = true
+					b.setup(true, pos + d * 12.0, d, 300.0, 0, 0.65, "sword_wave")
+					b.pierce = 99
+					b.color = SynergyData.family_color(fam)
+					b.owner_node = self
+					parent.add_child(b)
+			"truong":
+				var iwr := _RemoteWaveFx.new()
+				iwr.position = pos
+				iwr.radius = float(imp.radius)
+				iwr.color = SynergyData.family_color(fam)
+				parent.add_child(iwr)
+			"hoa_khi":
+				var cnt_f: int = int(imp.count)
+				var dist_f: float = float(imp.dist)
+				for i in cnt_f:
+					var ifz := _RemoteFirePotFx.new()
+					ifz.instant = true
+					ifz.radius = float(imp.radius)
+					ifz.life = float(imp.life)
+					ifz.position = pos + Vector2.from_angle(TAU * float(i) / float(cnt_f) - PI / 2.0) * dist_f
+					ifz.target = ifz.position
+					parent.add_child(ifz)
+
+
+# ------------------------------------------------------------------ Hiệu ứng kỹ năng chỉ hiển thị cho đồng đội LAN
+
+class _RemoteWaveFx extends Node2D:
+	var radius: float = 110.0
+	var color: Color = Color(1.0, 0.8, 0.4)
+	var notes: bool = false
+	var _r: float = 6.0
+	var _t: float = 0.0
+	const DUR: float = 0.4
+
+	func _ready() -> void:
+		z_index = 4
+		material = Art.additive()
+
+	func _process(delta: float) -> void:
+		_t += delta
+		_r = lerpf(6.0, radius, minf(_t / DUR, 1.0))
+		if _t >= DUR + 0.15:
+			queue_free()
+			return
+		queue_redraw()
+
+	func _draw() -> void:
+		var a: float = 1.0 - clampf((_t - DUR * 0.6) / (DUR * 0.6), 0.0, 1.0)
+		draw_arc(Vector2.ZERO, _r, 0.0, TAU, 64, Color(color, 0.85 * a), 3.0)
+		draw_arc(Vector2.ZERO, _r * 0.82, 0.0, TAU, 64, Color(color, 0.4 * a), 2.0)
+		for i in 16:
+			var ang: float = TAU * float(i) / 16.0 + _t * 2.0
+			var p := Vector2.from_angle(ang) * _r
+			if notes:
+				draw_circle(p, 2.0, Color(color, a))
+				draw_line(p + Vector2(1.5, 0), p + Vector2(1.5, -6), Color(color, a), 1.0)
+			else:
+				draw_line(p * 0.92, p * 1.06, Color(1, 1, 0.8, a), 2.0)
+
+
+class _RemoteSpikeFx extends Node2D:
+	var _t: float = 0.0
+	const LIFE: float = 0.7
+
+	func _ready() -> void:
+		z_index = 2
+		if get_parent() != null:
+			Fx.particles(get_parent(), global_position + Vector2(0, 4), Color(0.75, 0.68, 0.55), 6, 60.0, 0.4, 120.0, 2.0, 70.0)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if _t >= LIFE:
+			queue_free()
+			return
+		queue_redraw()
+
+	func _draw() -> void:
+		var grow: float = minf(_t / 0.08, 1.0)
+		var fade: float = 1.0 - clampf((_t - LIFE * 0.6) / (LIFE * 0.4), 0.0, 1.0)
+		var h: float = 16.0 * grow * fade
+		var base := Color(0.55, 0.5, 0.42)
+		draw_colored_polygon(PackedVector2Array([Vector2(-7, 5), Vector2(-1, 5 - h), Vector2(1, 5)]), base.darkened(0.2))
+		draw_colored_polygon(PackedVector2Array([Vector2(-2, 5), Vector2(3, 5 - h * 1.25), Vector2(8, 5)]), base)
+		draw_line(Vector2(3, 5 - h * 1.25), Vector2(1, 5 - h * 0.5), base.lightened(0.35), 1.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(4, 5), Vector2(8, 5 - h * 0.7), Vector2(10, 5)]), base.darkened(0.35))
+
+
+class _RemoteStakeFx extends Node2D:
+	var life_time: float = 6.0
+	var _life: float = 6.0
+	var _spr: AnimatedSprite2D
+	var _sinking: bool = false
+
+	func _ready() -> void:
+		_life = life_time
+		z_index = 1
+		_spr = AnimatedSprite2D.new()
+		_spr.sprite_frames = Art.frames("fx/stake.png", 14, 26, {
+			"up": [[0, 1, 2], 16.0, false],
+			"idle": [[2, 3], 3.0, true],
+			"down": [[4, 5, 0], 10.0, false],
+		})
+		_spr.position = Vector2(0, -8)
+		_spr.play("up")
+		_spr.animation_finished.connect(func():
+			if _spr.animation == "up":
+				_spr.play("idle"))
+		add_child(_spr)
+		if get_parent() != null:
+			Fx.particles(get_parent(), position, Color(0.55, 0.85, 1.0), 6, 60.0, 0.4, 160.0, 1.5, 50.0)
+
+	func _process(delta: float) -> void:
+		_life -= delta
+		if _life <= 0.4 and not _sinking:
+			_sinking = true
+			_spr.play("down")
+		if _life <= 0.0:
+			queue_free()
+
+
+class _RemoteAllyFx extends Node2D:
+	var owner_ref: WeakRef = null
+	var _life: float = 10.0
+	var _spr: AnimatedSprite2D
+
+	func _ready() -> void:
+		z_index = 1
+		var sh := Sprite2D.new()
+		sh.texture = Art.tex("fx/shadow.png")
+		sh.position = Vector2(0, 7)
+		sh.z_index = -2
+		add_child(sh)
+		_spr = AnimatedSprite2D.new()
+		_spr.sprite_frames = Art.strip("fx/ally.png", 18, 20, 10.0, true)
+		_spr.position = Vector2(0, -3)
+		_spr.play("play")
+		add_child(_spr)
+
+	func _process(delta: float) -> void:
+		_life -= delta
+		if _life <= 0.0:
+			if get_parent() != null:
+				Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0)
+			queue_free()
+			return
+		if _life < 1.0:
+			_spr.modulate.a = 0.5 + 0.5 * sin(_life * 30.0)
+		var owner_obj: Variant = owner_ref.get_ref() if owner_ref != null else null
+		if owner_obj != null and owner_obj is Node2D:
+			var to_p: Vector2 = (owner_obj as Node2D).global_position - global_position
+			if to_p.length() > 32.0:
+				position += to_p.normalized() * 110.0 * delta
+				_spr.flip_h = to_p.x < 0.0
+				_spr.speed_scale = 1.0
+			else:
+				_spr.speed_scale = 0.0
+
+
+class _RemoteReflectFx extends Node2D:
+	const TEXT := "NAM QUỐC SƠN HÀ NAM ĐẾ CƯ  "
+	var life: float = 5.0
+	var radius: float = 30.0
+	var _t: float = 0.0
+
+	func _ready() -> void:
+		z_index = 6
+
+	func _process(delta: float) -> void:
+		_t += delta
+		life -= delta
+		if life <= 0.0:
+			queue_free()
+			return
+		queue_redraw()
+
+	func _draw() -> void:
+		var a: float = clampf(life / 0.5, 0.0, 1.0)
+		draw_arc(Vector2.ZERO, radius, 0.0, TAU, 48, Color(1, 0.85, 0.35, 0.7 * a), 2.0)
+		draw_arc(Vector2.ZERO, radius - 4.0, 0.0, TAU, 48, Color(1, 0.85, 0.35, 0.3 * a), 1.0)
+		var f: Font = Art.font()
+		var n: int = TEXT.length()
+		for i in n:
+			var ang: float = _t * 1.2 + TAU * float(i) / float(n)
+			var p := Vector2.from_angle(ang) * (radius + 6.0)
+			draw_set_transform(p, ang + PI / 2.0, Vector2.ONE)
+			draw_string(f, Vector2(-3, 4), TEXT[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.9, 0.45, a))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+class _RemoteOrbitFx extends Node2D:
+	var life: float = 6.0
+	var radius: float = 30.0
+	var count: int = 3
+	var _blades: Array = []
+	var _t: float = 0.0
+
+	func _ready() -> void:
+		z_index = 5
+		for i in count:
+			var s := Sprite2D.new()
+			s.texture = Art.tex("weapons/thuan_thien.png")
+			s.material = Art.additive()
+			s.modulate = Color(1, 0.95, 0.7)
+			add_child(s)
+			_blades.append(s)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		life -= delta
+		if life <= 0.0:
+			if get_parent() != null and get_parent().get_parent() != null:
+				Fx.particles(get_parent().get_parent(), global_position, Color(1, 0.9, 0.5), 16, 100.0, 0.5)
+			queue_free()
+			return
+		for i in _blades.size():
+			var ang: float = _t * 5.0 + TAU * float(i) / float(maxi(1, _blades.size()))
+			var s: Sprite2D = _blades[i]
+			s.position = Vector2.from_angle(ang) * radius
+			s.rotation = ang + PI / 2.0
+		modulate.a = clampf(life / 0.4, 0.0, 1.0)
+
+
+class _RemoteFirePotFx extends Node2D:
+	var target: Vector2 = Vector2.ZERO
+	var radius: float = 20.0
+	var life: float = 4.0
+	var instant: bool = false
+	var _burning: bool = false
+	var _pt: float = 0.0
+	var _pot: Sprite2D
+
+	func _ready() -> void:
+		z_index = 1
+		_pot = Sprite2D.new()
+		_pot.texture = Art.tex("fx/fire_pot.png")
+		add_child(_pot)
+		if instant:
+			_ignite()
+			return
+		var tw := create_tween()
+		tw.tween_property(self, "position", target, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(_pot, "position:y", -14.0, 0.17).set_ease(Tween.EASE_OUT)
+		tw.chain().tween_property(_pot, "position:y", 0.0, 0.18).set_ease(Tween.EASE_IN)
+		tw.tween_callback(_ignite)
+
+	func _ignite() -> void:
+		_burning = true
+		_pot.visible = false
+		if get_parent() != null:
+			Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 20.0, 0.8)
+		add_child(Art.light(Color(1, 0.55, 0.2), 1.0, 0.9))
+
+	func _process(delta: float) -> void:
+		if not _burning:
+			return
+		life -= delta
+		if life <= 0.0:
+			queue_free()
+			return
+		_pt -= delta
+		if _pt <= 0.0 and get_parent() != null:
+			_pt = 0.1
+			var off := Vector2.from_angle(randf() * TAU) * randf() * radius
+			Fx.particles(get_parent(), global_position + off, Color(1, 0.7, 0.25), 2, 30.0, 0.5, -70.0, 2.0, 30.0, Vector2.UP, Color(0.8, 0.15, 0.1))
+		queue_redraw()
+
+	func _draw() -> void:
+		if not _burning:
+			return
+		var a: float = clampf(life / 0.5, 0.0, 1.0)
+		draw_circle(Vector2.ZERO, radius, Color(1, 0.4, 0.1, 0.22 * a))
+		draw_circle(Vector2.ZERO, radius * 0.6, Color(1, 0.7, 0.2, 0.22 * a))
+
+
+class _RemoteTigerFx extends Node2D:
+	var dir: Vector2 = Vector2.RIGHT
+	var _life: float = 0.9
+	var _spr: AnimatedSprite2D
+	var _dt: float = 0.0
+
+	func _ready() -> void:
+		z_index = 3
+		_spr = AnimatedSprite2D.new()
+		_spr.sprite_frames = Art.strip("fx/tiger.png", 40, 24, 14.0, true)
+		_spr.flip_h = dir.x < 0.0
+		_spr.play("play")
+		_spr.modulate = Color(1, 0.9, 0.6, 0.95)
+		add_child(_spr)
+		add_child(Art.light(Color(1, 0.7, 0.3), 1.0, 0.8))
+
+	func _process(delta: float) -> void:
+		_life -= delta
+		if _life <= 0.0:
+			if get_parent() != null:
+				Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0, 1.4, 0.0, Color(1, 0.8, 0.5))
+			queue_free()
+			return
+		position += dir * 300.0 * delta
+		_dt -= delta
+		if _dt <= 0.0 and get_parent() != null:
+			_dt = 0.05
+			Fx.afterimage(get_parent(), _spr, global_position, Color(1, 0.6, 0.2, 0.5), 0.25)
+
+
+class _RemoteTurretFx extends Node2D:
+	var life: float = 9.0
+	var _spr: AnimatedSprite2D
+
+	func _ready() -> void:
+		z_index = 1
+		_spr = AnimatedSprite2D.new()
+		_spr.sprite_frames = Art.frames("fx/turret.png", 30, 20, {"idle": [[0], 1.0, false], "fire": [[1, 0], 10.0, false]})
+		_spr.play("idle")
+		add_child(_spr)
+		scale = Vector2(0.2, 0.2)
+		create_tween().tween_property(self, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		if get_parent() != null:
+			Fx.anim(get_parent(), position, "fx/dust.png", 10, 10, 12.0, 2.5)
+
+	func _process(delta: float) -> void:
+		life -= delta
+		if life <= 0.0:
+			if get_parent() != null:
+				Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0, 1.2)
+			queue_free()
+			return
+		if life < 1.0:
+			modulate.a = 0.5 + 0.5 * sin(life * 30.0)

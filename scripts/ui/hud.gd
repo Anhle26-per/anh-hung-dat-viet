@@ -83,7 +83,7 @@ func draw_hud(ci: Control) -> void:
 
 	# --- Máu / Giáp / Năng lượng + tên tướng & cấp
 	_panel(ci, Rect2(4, 4, 162, 66))
-	Art.draw_text(ci, Vector2(10, 16), "%s  Cấp %d" % [player.hero.name, Global.hero_level(player.hero_id)], 13, Color(1, 0.88, 0.45), false)
+	Art.draw_text(ci, Vector2(10, 16), "%s  Cấp %d" % [player.hero.name, Global.eff_hero_level(player.hero_id)], 13, Color(1, 0.88, 0.45), false)
 	_bar(ci, Vector2(10, 21), player.hp, player.max_hp, Color("d83a3a"), _icons.heart)
 	_bar(ci, Vector2(10, 36), player.armor, player.max_armor, Color("9aa4bc"), _icons.shield)
 	_bar(ci, Vector2(10, 51), player.energy, player.max_energy, Color("3a8ae8"), _icons.energy)
@@ -101,10 +101,15 @@ func draw_hud(ci: Control) -> void:
 		if bx0 > 140.0:
 			bx0 = 6.0
 			by0 += 18.0
+	var left_y: float = by0 + (20.0 if not Global.run_buffs.is_empty() else 0.0)
 	if player.rapid_reload_timer > 0.0:
-		var ry: float = by0 + (20.0 if not Global.run_buffs.is_empty() else 0.0)
-		_panel(ci, Rect2(4, ry, 118, 16))
-		Art.draw_text(ci, Vector2(10, ry + 12), "Nạp nhanh %.1fs" % player.rapid_reload_timer, 12, SynergyData.family_color("sung"), false)
+		_panel(ci, Rect2(4, left_y, 118, 16))
+		Art.draw_text(ci, Vector2(10, left_y + 12), "Nạp nhanh %.1fs" % player.rapid_reload_timer, 12, SynergyData.family_color("sung"), false)
+		left_y += 20.0
+
+	# --- Trạng thái đồng đội trong phòng LAN
+	if Net != null and Net.is_online():
+		_draw_teammates(ci, left_y)
 
 	# --- Màn + xu + bản đồ nhỏ
 	_panel(ci, Rect2(w - 100, 4, 96, 104))
@@ -114,6 +119,7 @@ func draw_hud(ci: Control) -> void:
 	ci.draw_texture_rect_region(_icons.coin, Rect2(w - 92, 25, 9, 9), Rect2(0, 0, 9, 9))
 	Art.draw_text(ci, Vector2(w - 79, 34), str(Global.run_coins), 16, Color(1, 0.88, 0.45), false)
 	_draw_minimap(ci, Vector2(w - 96, 40), Vector2(88, 64))
+	var right_y: float = 110.0
 	if not Global.run_materials.is_empty():
 		var items: Array = []
 		for mid in MaterialData.ORDER:
@@ -122,7 +128,8 @@ func draw_hud(ci: Control) -> void:
 				items.append([mid, cnt])
 		if not items.is_empty():
 			var rows: int = (items.size() + 1) / 2
-			_panel(ci, Rect2(w - 100, 110, 96, rows * 14 + 6))
+			var mat_h: float = float(rows * 14 + 6)
+			_panel(ci, Rect2(w - 100, right_y, 96, mat_h))
 			for idx in items.size():
 				var pair: Array = items[idx]
 				var mid: String = str(pair[0])
@@ -131,9 +138,14 @@ func draw_hud(ci: Control) -> void:
 				var col_idx: int = idx % 2
 				var row_idx: int = idx / 2
 				var mx: float = w - 95.0 + col_idx * 46.0
-				var my: float = 114.0 + row_idx * 14.0
+				var my: float = right_y + 4.0 + row_idx * 14.0
 				ci.draw_texture_rect(Art.tex(md.icon), Rect2(mx, my, 10, 10), false)
 				Art.draw_text(ci, Vector2(mx + 12, my + 9), str(cnt), 13, md.color, false)
+			right_y += mat_h + 2.0
+	if Net != null and Net.is_online():
+		_panel(ci, Rect2(w - 100, right_y, 96, 16))
+		var ping_col: Color = Color(0.55, 1.0, 0.55) if Net.ping_ms < 80 else (Color(1.0, 0.88, 0.35) if Net.ping_ms < 180 else Color(1.0, 0.45, 0.4))
+		Art.draw_text(ci, Vector2(w - 52, right_y + 12), "LAN: %d ms" % Net.ping_ms, 12, ping_col, true)
 
 	# --- Thanh máu trùm
 	var boss = get_tree().get_first_node_in_group("boss")
@@ -157,7 +169,7 @@ func draw_hud(ci: Control) -> void:
 			if mod_chk != "":
 				var wd_chk: Dictionary = player.effective_weapon(id_chk) if player.has_method("effective_weapon") else WeaponData.get_data(id_chk)
 				var is_st: bool = (id_chk == str(player.hero.get("weapon", "")))
-				var wr_chk: int = Global.weapon_rank(player.hero_id) if is_st else 1
+				var wr_chk: int = Global.eff_weapon_rank(player.hero_id) if is_st else 1
 				var wn_chk: String = str(wd_chk.name) + (" (Bậc %d)" % wr_chk if is_st else "")
 				var tx_chk: String = wn_chk + ("" if int(wd_chk.get("energy", 0)) == 0 else "  %d" % int(wd_chk.energy))
 				var badge_chk: String = "[%s]" % WeaponMods.mod_name(mod_chk)
@@ -176,7 +188,7 @@ func draw_hud(ci: Control) -> void:
 				continue
 			var wd: Dictionary = player.effective_weapon(id) if player.has_method("effective_weapon") else WeaponData.get_data(id)
 			var is_starter: bool = (id == str(player.hero.get("weapon", "")))
-			var wr: int = Global.weapon_rank(player.hero_id) if is_starter else 1
+			var wr: int = Global.eff_weapon_rank(player.hero_id) if is_starter else 1
 			var tex: Texture2D = Art.tex(ProgressionData.weapon_texture_path(id, wr))
 			var sc: float = minf(36.0 / tex.get_width(), 16.0 / tex.get_height())
 			ci.draw_texture_rect(tex, Rect2(px + 6.0, y + 8.0 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
@@ -245,6 +257,51 @@ func _bar(ci: Control, pos: Vector2, v: int, m: int, col: Color, icon: Texture2D
 	ci.draw_rect(Rect2(r.position, Vector2(r.size.x * k, r.size.y)), col)
 	ci.draw_rect(Rect2(r.position, Vector2(r.size.x * k, 3)), col.lightened(0.35))
 	Art.draw_text(ci, r.position + Vector2(r.size.x / 2.0, 10), "%d/%d" % [v, m], 14, Color.WHITE)
+
+
+func _draw_teammates(ci: Control, start_y: float) -> void:
+	var ty: float = start_y
+	for other in Global.all_players():
+		if other == player:
+			continue
+		var card_w: float = 138.0
+		var card_h: float = 24.0
+		_panel(ci, Rect2(4.0, ty, card_w, card_h))
+		var tname: String = str(other.get("display_name"))
+		if tname == "":
+			var hdict: Variant = other.get("hero")
+			tname = str((hdict as Dictionary).get("name", "Đồng đội")) if typeof(hdict) == TYPE_DICTIONARY else "Đồng đội"
+		var ncol: Color = other.get("name_color") as Color
+		Art.draw_text(ci, Vector2(9.0, ty + 11.0), tname, 12, ncol, false)
+		var is_downed: bool = bool(other.get("downed"))
+		var is_dead: bool = bool(other.get("dead"))
+		if is_downed:
+			var pulse: float = 0.55 + 0.45 * sin(Time.get_ticks_msec() / 150.0)
+			ci.draw_rect(Rect2(100.0, ty + 3.0, 38.0, 12.0), Color(0.75, 0.1, 0.12, 0.85 * pulse))
+			Art.draw_text(ci, Vector2(119.0, ty + 12.0), "GỤC!", 11, Color(1.0, 0.92, 0.88, pulse), true)
+			var rpct: float = clampf(float(other.get("revive_progress")) / 3.0, 0.0, 1.0)
+			ci.draw_rect(Rect2(9.0, ty + 16.0, 126.0, 4.0), Color(0.25, 0.07, 0.08))
+			if rpct > 0.0:
+				ci.draw_rect(Rect2(9.0, ty + 16.0, 126.0 * rpct, 4.0), Color(0.45, 1.0, 0.55))
+		elif is_dead:
+			Art.draw_text(ci, Vector2(119.0, ty + 15.0), "NGÃ", 11, Color(0.75, 0.45, 0.45), true)
+		else:
+			var ohp: int = int(other.get("hp"))
+			var omax_hp: int = maxi(1, int(other.get("max_hp")))
+			var oarm: int = int(other.get("armor"))
+			var omax_arm: int = maxi(0, int(other.get("max_armor")))
+			var hp_r := Rect2(9.0, ty + 15.0, 74.0, 5.0)
+			ci.draw_rect(hp_r.grow(1.0), Color(0.04, 0.02, 0.04))
+			ci.draw_rect(hp_r, Color("d83a3a").darkened(0.7))
+			var hk: float = clampf(float(ohp) / float(omax_hp), 0.0, 1.0)
+			ci.draw_rect(Rect2(hp_r.position, Vector2(hp_r.size.x * hk, hp_r.size.y)), Color("d83a3a"))
+			if omax_arm > 0:
+				var pip_x: float = 88.0
+				var max_pips: int = mini(omax_arm, 8)
+				for i in max_pips:
+					var filled: bool = i < oarm
+					ci.draw_rect(Rect2(pip_x + float(i) * 6.0, ty + 15.0, 4.0, 5.0), Color("9aa4bc") if filled else Color(0.25, 0.27, 0.34, 0.7))
+		ty += card_h + 2.0
 
 
 func _draw_cutin(ci: Control, w: float, h: float) -> void:

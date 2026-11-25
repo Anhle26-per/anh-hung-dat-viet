@@ -20,6 +20,7 @@ const DIRS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP, Vector2i.DOWN]
 
 var tiles: TileMapLayer
 var rooms: Dictionary = {}    # ô lưới (Vector2i) -> Room
+var rooms_by_key: Dictionary = {}   # khóa phòng "x,y" -> Room
 var links: Array = []         # các cặp [ô, ô] được nối với nhau
 
 
@@ -263,6 +264,7 @@ func generate(level: int) -> void:
 		var r := Room.new()
 		r.rect = Rect2(Vector2(_origin(c)) * T, Vector2(ROOM_W, ROOM_H) * T)
 		r.level = level
+		r.room_key = "%d,%d" % [c.x, c.y]
 		r.door_rects = doors[c]
 		r.kind = str(room_kinds[c])
 		if r.kind == "legend":
@@ -270,6 +272,7 @@ func generate(level: int) -> void:
 		r.portal_entered.connect(func(): portal_entered.emit())
 		add_child(r)
 		rooms[c] = r
+		rooms_by_key[r.room_key] = r
 		_decorate(c, r.kind, doors[c], chapter, floor_cells)
 		ov_items.append({"center": r.rect.get_center(), "kind": r.kind, "shape": str(room_shapes[c]), "accent": theme_accents[row % theme_accents.size()]})
 		if r.kind in ["start", "treasure", "shop", "boss", "legend"]:
@@ -284,6 +287,14 @@ func generate(level: int) -> void:
 
 func start_position() -> Vector2:
 	return rooms[Vector2i.ZERO].rect.get_center()
+
+
+func get_room_by_key(key: String) -> Node:
+	if rooms_by_key.has(key):
+		var rm: Variant = rooms_by_key[key]
+		if rm != null and is_instance_valid(rm):
+			return rm as Node
+	return null
 
 
 func neighbors_of(c: Vector2i) -> Array:

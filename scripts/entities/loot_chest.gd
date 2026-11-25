@@ -9,11 +9,14 @@ const Pickup = preload("res://scripts/entities/pickup.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
 var level := 1
+var chest_id: String = ""
 var opened := false
+var _pending_open: bool = false
 var _spr: AnimatedSprite2D
 
 
 func _ready() -> void:
+	add_to_group("loot_chests")
 	z_index = 1
 	radius = 22.0
 	var sh := Sprite2D.new()
@@ -41,7 +44,14 @@ func hint() -> String:
 
 
 func interact() -> void:
-	if opened:
+	if opened or _pending_open:
+		return
+	if Net.is_online():
+		if Net.is_host():
+			host_open_and_broadcast()
+		else:
+			_pending_open = true
+			Net.send_world_event("chest_open_req", {"id": chest_id}, true)
 		return
 	opened = true
 	enabled = false
@@ -84,6 +94,79 @@ func interact() -> void:
 		par.add_child(mp)
 	queue_redraw()
 	# rương mở xong mờ dần
+	var tw := create_tween()
+	tw.tween_interval(4.0)
+	tw.tween_property(self, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(queue_free)
+
+
+func host_open_and_broadcast() -> void:
+	if opened:
+		return
+	var ns: Node = get_tree().get_first_node_in_group("net_sync")
+	if ns != null and ns.opened_chests.has(chest_id):
+		return
+	if ns != null:
+		ns.opened_chests[chest_id] = true
+	var drops: Array = []
+	var r: float = randf()
+	if r < 0.58:
+		for i in randi_range(6, 10):
+			drops.append({"kind": "coin", "amount": 1, "weapon_id": "", "material_id": "", "pickup_id": 0})
+		for i in 3:
+			drops.append({"kind": "energy", "amount": 5, "weapon_id": "", "material_id": "", "pickup_id": 0})
+	elif r < 0.85:
+		var q: float = randf()
+		var pid: int = ns.alloc_pickup_id() if ns != null else 0
+		if q < 0.45:
+			drops.append({"kind": "potion", "amount": 2, "weapon_id": "", "material_id": "", "pickup_id": pid})
+		elif q < 0.8:
+			drops.append({"kind": "potion_energy", "amount": 80, "weapon_id": "", "material_id": "", "pickup_id": pid})
+		else:
+			drops.append({"kind": "potion_big", "amount": 5, "weapon_id": "", "material_id": "", "pickup_id": pid})
+		for i in 3:
+			drops.append({"kind": "coin", "amount": 1, "weapon_id": "", "material_id": "", "pickup_id": 0})
+	else:
+		var wid: String = WeaponData.roll(level, 1 if level >= 10 else 0)
+		var pid2: int = ns.alloc_pickup_id() if ns != null else 0
+		drops.append({"kind": "weapon", "amount": 1, "weapon_id": wid, "material_id": "", "pickup_id": pid2})
+	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
+	for mid in MaterialData.roll_chest_drops(modern):
+		drops.append({"kind": "material", "amount": 1, "weapon_id": "", "material_id": str(mid), "pickup_id": 0})
+	Net.send_world_event("chest_open", {"id": chest_id, "drops": drops}, false)
+	apply_open_drops(drops)
+
+
+func apply_open_drops(drops: Array) -> void:
+	if opened:
+		return
+	opened = true
+	enabled = false
+	near = false
+	_pending_open = false
+	_spr.play("open")
+	Sfx.play("chest_open")
+	var par: Node = get_parent()
+	var c: Vector2 = global_position + Vector2(0, 14)
+	var ns: Node = get_tree().get_first_node_in_group("net_sync")
+	Fx.particles(par, global_position, Color(1, 0.85, 0.35), 18, 90.0, 0.6, -50.0, 2.0)
+	for item in drops:
+		if not (item is Dictionary):
+			continue
+		var d: Dictionary = item
+		var p := Pickup.new()
+		p.kind = str(d.get("kind", "coin"))
+		p.amount = int(d.get("amount", 1))
+		p.weapon_id = str(d.get("weapon_id", ""))
+		p.material_id = str(d.get("material_id", ""))
+		p.pickup_id = int(d.get("pickup_id", 0))
+		p.position = c
+		par.add_child(p)
+		if p.pickup_id > 0 and ns != null:
+			ns.register_pickup(p)
+		if p.kind == "weapon" and p.weapon_id != "":
+			Fx.burst(par, global_position, WeaponData.tier_color(p.weapon_id), 40.0, 0.5)
+	queue_redraw()
 	var tw := create_tween()
 	tw.tween_interval(4.0)
 	tw.tween_property(self, "modulate:a", 0.0, 0.6)

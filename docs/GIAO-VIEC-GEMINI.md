@@ -28,14 +28,14 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G19 | Tu luyện tướng và rèn binh khí khởi đầu | 1 | G16, G18 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, progression, synergy, craft, run_save, K2) |
 | G04 | Đóng gói `.exe` / `.apk` gửi bạn bè | 1 | — | **Xong** 25/11/2026 (Gemini làm, đã xuất .exe, .pck chạy thử trên Godot, .apk, macOS .zip, đã qua K1, K2) |
 | G05 | Sửa lỗi nhỏ (đạn bay vùng tối, chữ chồng nhau) | 1 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, bugfix, audio, craft, synergy, progression, K2) |
-| N1 | Menu mạng và phòng chờ LAN | 2 | G04 | Chưa làm |
-| N2 | Nhiều người chơi trong cùng màn | 2 | N1 | Chưa làm |
-| N3 | Giặc do host điều khiển | 2 | N2 | Chưa làm |
-| N4 | Đạn và đòn đánh trong mạng | 2 | N3 | Chưa làm |
-| N5 | Phòng, rương, vật phẩm, cửa hàng, qua màn | 2 | N4 | Chưa làm |
-| N6 | Kỹ năng tướng trong mạng | 2 | N4 | Chưa làm |
-| N7 | Gục ngã và cứu đồng đội | 2 | N5 | Chưa làm |
-| N8 | Rớt mạng và hoàn thiện LAN | 2 | N7, G01 | Chưa làm |
+| N1 | Menu mạng và phòng chờ LAN | 2 | G04 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N2 | Nhiều người chơi trong cùng màn | 2 | N1 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N3 | Giặc do host điều khiển | 2 | N2 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N4 | Đạn và đòn đánh trong mạng | 2 | N3 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N5 | Phòng, rương, vật phẩm, cửa hàng, qua màn | 2 | N4 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N6 | Kỹ năng tướng trong mạng | 2 | N4 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N7 | Gục ngã và cứu đồng đội | 2 | N5 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
+| N8 | Rớt mạng và hoàn thiện LAN | 2 | N7, G01 | **Xong** 25/11/2026 (Gemini làm, savegame theo Chủ phòng, đã qua K1, lan, K2) |
 | G06 | Mã thử thách và bảng điểm so tài | 3 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, challenge, K2) |
 | G07 | Hướng dẫn chơi lần đầu | 3 | — | Chưa làm |
 | G08 | Vẽ lại tướng đầu to kiểu chibi | 3 | — | **Xong** 25/11/2026 (Gemini làm, vẽ lại 10 tướng chibi 32×32, cập nhật artbook, đã qua K1, hero_anim, K2) |

@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS: Dictionary = {
 	"fullscreen": false,
 	"touch_scale": 1.0,
 	"difficulty": "thuong",
+	"player_name": "Anh Hùng",
 }
 var settings: Dictionary = DEFAULT_SETTINGS.duplicate()
 
@@ -118,6 +119,78 @@ func auto_aim() -> bool:
 	return touch_mode or using_pad
 
 
+# ------------------------------------------------------------------ Hỗ trợ nhiều người chơi (LAN)
+
+func all_players() -> Array:
+	var out: Array = []
+	if not is_inside_tree():
+		return out
+	for p in get_tree().get_nodes_in_group("player"):
+		if is_instance_valid(p):
+			out.append(p)
+	return out
+
+
+func local_player() -> Node:
+	var list: Array = all_players()
+	for p in list:
+		if bool(p.get("is_local")):
+			return p
+	if not list.is_empty():
+		return list[0]
+	return null
+
+
+func nearest_player(pos: Vector2, alive_only: bool = true) -> Node:
+	var best: Node = null
+	var best_d: float = INF
+	for p in all_players():
+		var p2d: Node2D = p as Node2D
+		if p2d == null:
+			continue
+		if alive_only and (bool(p.get("dead")) or bool(p.get("downed"))):
+			continue
+		var d: float = pos.distance_to(p2d.global_position)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
+func difficulty() -> String:
+	return str(settings.get("difficulty", "thuong"))
+
+
+func eff_upgrade(id: String) -> int:
+	if Net != null and Net.is_online() and Net.host_profile.has("upgrades"):
+		var ups: Variant = Net.host_profile.get("upgrades", {})
+		if typeof(ups) == TYPE_DICTIONARY:
+			return int((ups as Dictionary).get(id, 0))
+	return upgrade(id)
+
+
+func eff_hero_level(hid: String) -> int:
+	if Net != null and Net.is_online() and Net.host_profile.has("hero_levels"):
+		var hls: Variant = Net.host_profile.get("hero_levels", {})
+		if typeof(hls) == TYPE_DICTIONARY:
+			return clampi(int((hls as Dictionary).get(hid, 1)), 1, 5)
+	return hero_level(hid)
+
+
+func eff_weapon_rank(hid: String) -> int:
+	if Net != null and Net.is_online() and Net.host_profile.has("weapon_ranks"):
+		var wrs: Variant = Net.host_profile.get("weapon_ranks", {})
+		if typeof(wrs) == TYPE_DICTIONARY:
+			return clampi(int((wrs as Dictionary).get(hid, 1)), 1, 5)
+	return weapon_rank(hid)
+
+
+func eff_difficulty() -> String:
+	if Net != null and Net.is_online() and Net.host_profile.has("difficulty"):
+		return str(Net.host_profile.get("difficulty", "thuong"))
+	return difficulty()
+
+
 # ------------------------------------------------------------------ Lượt chơi
 
 ## Băm mã thử thách thành hạt giống cố định (FNV-1a 31-bit, giống nhau giữa mọi phiên chơi).
@@ -161,8 +234,8 @@ func start_run(code: String = "") -> void:
 	run_boss_hp = []
 	run_last_hit = ""
 	run_syn_counts = [0, 0, 0]
-	run_cap_bac = "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]
-	free_revives = upgrade("hoi_sinh")
+	run_cap_bac = "%d/%d" % [eff_hero_level(selected_hero), eff_weapon_rank(selected_hero)]
+	free_revives = eff_upgrade("hoi_sinh")
 	stats["runs"] = int(stats.get("runs", 0)) + 1
 	challenge_code = code.strip_edges().to_upper()
 	if challenge_code != "":
@@ -221,6 +294,9 @@ func record_score(outcome: String = "") -> Dictionary:
 		"date": Time.get_date_string_from_system(),
 		"outcome": outcome,
 	}
+	if Net != null and Net.is_online() and not Net.is_host():
+		_run_score_recorded = true
+		return entry
 	leaderboard.append(entry)
 	_sort_and_cap_leaderboard()
 	_run_score_recorded = true
@@ -432,6 +508,8 @@ func try_upgrade_weapon(id: String) -> bool:
 
 
 func consume_forged() -> String:
+	if Net != null and Net.is_online() and not Net.is_host():
+		return ""
 	var out: String = forged
 	if out != "":
 		forged = ""
@@ -496,6 +574,14 @@ func _write_run_log(outcome: String) -> void:
 
 
 func end_run(outcome: String = "") -> void:
+	if Net != null and Net.is_online() and not Net.is_host():
+		_run_active = false
+		_run_score_recorded = false
+		run_coins = 0
+		run_materials = {}
+		run_weapon_mods = {}
+		resume_data = {}
+		return
 	if _run_active and not _run_score_recorded and outcome != "bo_luot":
 		record_score(outcome)
 	_write_run_log(outcome)
@@ -548,6 +634,11 @@ func set_setting(key: String, value: Variant) -> void:
 			var d: String = str(value)
 			if d in ["de", "thuong", "kho"]:
 				settings["difficulty"] = d
+		"player_name":
+			var pn: String = str(value).strip_edges()
+			if pn.length() > 18:
+				pn = pn.substr(0, 18)
+			settings["player_name"] = pn if pn != "" else "Anh Hùng"
 	apply_settings()
 
 
@@ -565,7 +656,7 @@ func apply_settings() -> void:
 
 
 func difficulty_hp_mult() -> float:
-	match str(settings.get("difficulty", "thuong")):
+	match eff_difficulty():
 		"de":
 			return 0.7
 		"kho":
@@ -575,7 +666,7 @@ func difficulty_hp_mult() -> float:
 
 
 func difficulty_dmg_mult() -> float:
-	match str(settings.get("difficulty", "thuong")):
+	match eff_difficulty():
 		"de":
 			return 0.75
 		"kho":
@@ -665,6 +756,8 @@ func has_run() -> bool:
 
 ## Lưu lượt đang chơi. p = người chơi (có hàm snapshot()); null thì giữ trạng thái nhân vật cũ.
 func save_run(p = null) -> bool:
+	if Net != null and Net.is_online() and not Net.is_host():
+		return false
 	var who: Dictionary = resume_data
 	if p != null and is_instance_valid(p):
 		who = p.snapshot()
@@ -798,6 +891,8 @@ func _notification(what: int) -> void:
 
 
 func save_on_exit() -> void:
+	if Net != null and Net.is_online() and not Net.is_host():
+		return
 	if is_inside_tree():
 		var g = get_tree().get_first_node_in_group("game")
 		if g != null and g.player != null and is_instance_valid(g.player):

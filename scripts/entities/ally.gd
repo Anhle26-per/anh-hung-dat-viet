@@ -7,6 +7,8 @@ const Fx = preload("res://scripts/effects/fx.gd")
 var _life := 10.0
 var damage := 3
 var focus_player_target := false
+var visual_only: bool = false
+var owner_player: Node = null
 var _atk := 0.0
 var _target = null
 var _spr: AnimatedSprite2D
@@ -47,7 +49,7 @@ func _physics_process(delta: float) -> void:
 	if _life < 1.0:
 		_spr.modulate.a = 0.5 + 0.5 * sin(_life * 30.0)
 	if focus_player_target:
-		var pl = get_tree().get_first_node_in_group("player")
+		var pl: Node = owner_player if (owner_player != null and is_instance_valid(owner_player)) else Global.nearest_player(global_position)
 		if pl != null and pl.last_hit_enemy != null and is_instance_valid(pl.last_hit_enemy) and not pl.last_hit_enemy.dead:
 			_target = pl.last_hit_enemy
 	if _target == null or not is_instance_valid(_target) or _target.dead:
@@ -60,12 +62,13 @@ func _physics_process(delta: float) -> void:
 			if _atk <= 0.0:
 				_atk = 0.6
 				_lunge = 6.0
-				_target.take_damage(damage, to.normalized() * 100.0)
+				if not visual_only:
+					_target.take_damage(damage, to.normalized() * 100.0)
 				Fx.slash(get_parent(), global_position, to.normalized(), 26.0, 0.4, Color(1, 0.9, 0.7), "thrust")
 		else:
 			velocity = to.normalized() * 125.0
 	else:
-		var p = get_tree().get_first_node_in_group("player")
+		var p: Node = owner_player if (owner_player != null and is_instance_valid(owner_player)) else Global.nearest_player(global_position)
 		if p != null:
 			var to_p: Vector2 = p.global_position - global_position
 			if to_p.length() > 30.0:

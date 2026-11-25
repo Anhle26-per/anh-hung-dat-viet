@@ -37,7 +37,8 @@ func open(next_title: String) -> bool:
 	for i in _options.size():
 		row.add_child(_card(i, _options[i]))
 	visible = true
-	get_tree().paused = true
+	if not Net.is_online():
+		get_tree().paused = true
 	return true
 
 
@@ -74,5 +75,6 @@ func pick(i: int) -> void:
 	if not visible or i >= _options.size():
 		return
 	visible = false
-	get_tree().paused = false
+	if not Net.is_online():
+		get_tree().paused = false
 	chosen.emit(_options[i])

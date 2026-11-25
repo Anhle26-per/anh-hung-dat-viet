@@ -20,11 +20,12 @@ func interact() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	var p = get_tree().get_first_node_in_group("player")
-	if p == null:
+	var p: Node = Global.local_player()
+	if p == null or not is_instance_valid(p):
 		return
 	var was := near
-	near = enabled and not p.dead and global_position.distance_to(p.global_position) < radius
+	var incapacitated: bool = bool(p.get("dead")) or bool(p.get("downed"))
+	near = enabled and not incapacitated and global_position.distance_to(p.global_position) < radius
 	if near:
 		var cur = p.interact_target
 		if cur == null or not is_instance_valid(cur) or cur == self \
@@ -37,15 +38,15 @@ func _process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
-	var p = get_tree().get_first_node_in_group("player") if is_inside_tree() else null
-	if p != null and p.interact_target == self:
+	var p: Node = Global.local_player() if is_inside_tree() else null
+	if p != null and is_instance_valid(p) and p.interact_target == self:
 		p.interact_target = null
 
 
 func draw_hint(y: float) -> void:
 	if not near or hint() == "":
 		return
-	var p = get_tree().get_first_node_in_group("player")
+	var p: Node = Global.local_player()
 	if p == null or not is_instance_valid(p) or p.interact_target != self:
 		return
 	var key := "DÙNG" if Global.touch_mode else "E"

@@ -51,7 +51,7 @@ func _fx_parent() -> Node:
 func interact() -> void:
 	if used:
 		return
-	var p: Node = get_tree().get_first_node_in_group("player")
+	var p: Node = Global.local_player()
 	if p == null:
 		return
 	var wid: String = str(p.weapons[p.slot])

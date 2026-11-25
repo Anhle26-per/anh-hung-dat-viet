@@ -108,3 +108,36 @@ Mỗi khi kết thúc một lượt chơi (kể cả khi bỏ lượt), game t�
   `~/Library/Application Support/Godot/app_userdata/Anh Hùng Đất Việt/`
 - **Cách mở nhanh ngay trong game:** bấm `Esc` (tạm dừng) → **Cài đặt** → bấm nút **"Mở thư mục nhật ký"**.
 - Sau vài trận chơi thử, bạn chỉ cần nén hoặc gửi trực tiếp tệp `nhat_ky.csv` lại cho nhóm phát triển để cân bằng độ khó ở bản cập nhật sau!
+
+---
+
+## 6. Chơi chung qua mạng LAN (Co-op 2–4 người)
+
+Game hỗ trợ **2 đến 4 người** chơi chung trực tiếp trong cùng mạng Wi-Fi / LAN nhà (không cần Internet, không dùng máy chủ ngoài).
+
+### Cách kết nối nhanh
+1. Đảm bảo tất cả máy tính / điện thoại đang kết nối **cùng một mạng Wi-Fi hoặc mạng dây LAN**.
+2. Ở màn hình chính, mỗi người bấm **"Chơi LAN"** và nhập tên hiển thị của mình.
+3. **Chủ phòng (Host):** nhập tên phòng rồi bấm **"Tạo phòng LAN"**. Địa chỉ IP của Chủ phòng sẽ hiện ngay góc trên bên phải phòng chờ.
+4. **Người tham gia (Khách):**
+   - Chọn phòng hiện ra trong danh sách **"Phòng LAN đang mở (tự tìm)"**; hoặc
+   - Nhập địa chỉ IP của Chủ phòng vào ô **"Vào bằng IP thủ công"** rồi bấm **"Vào bằng IP"**.
+5. Khi mọi người chọn tướng xong và bấm **"Sẵn sàng"**, Chủ phòng bấm **"Bắt đầu trận"**.
+
+### Mở tường lửa Windows Firewall và tìm IP nội bộ
+- Khi tạo phòng lần đầu trên Windows, nếu cửa sổ **Windows Defender Firewall** hiện lên, hãy đánh dấu **Private networks (Mạng riêng)** và bấm **Allow access (Cho phép)**.
+- Nếu máy khác không tự thấy phòng hoặc không kết nối được, hãy mở cho game (hoặc mở thủ công) 2 cổng mạng nội bộ:
+  - **Cổng `7777` (TCP và UDP):** kết nối trận đấu LAN.
+  - **Cổng `7778` (UDP):** phát tín hiệu tự tìm phòng trong mạng Wi-Fi.
+- **Cách tìm địa chỉ IP trên máy Chủ phòng (Windows):**
+  1. Nhấn `Win + R`, gõ `cmd` rồi nhấn `Enter`.
+  2. Gõ lệnh `ipconfig` và nhấn `Enter`.
+  3. Tìm mục **Wireless LAN adapter Wi-Fi** (hoặc **Ethernet adapter**) → xem dòng **`IPv4 Address`** (thường có dạng `192.168.1.xxx` hoặc `192.168.0.xxx`). Đọc dãy số này cho bạn bè nhập vào ô **Vào bằng IP**.
+
+### Quy tắc lưu game theo Chủ phòng (Host Savegame)
+- Cả đội chơi chung theo **kho tướng đã mở khóa, nâng cấp Lò rèn, cấp tu luyện tướng, bậc binh khí khởi đầu và độ khó của Chủ phòng**.
+- Người tham gia được tự do chọn bất kỳ tướng nào Chủ phòng đã mở khóa, và tệp lưu cá nhân (`save.json`) trên máy Khách sẽ **không bị ghi đè** khi chơi LAN.
+
+### Gục ngã, cứu đồng đội và vào lại khi rớt mạng
+- **Gục ngã & Cứu đồng đội:** khi có từ 2 người trở lên, nếu máu của bạn về 0 trong lúc đồng đội vẫn còn sống, bạn sẽ **gục ngã** thay vì thua ngay. Đồng đội chỉ cần chạy tới **đứng cạnh trong 3 giây** để cứu dậy (hồi **2 máu** và có thời gian bất tử ngắn để rút lui). Trận đấu chỉ kết thúc khi **toàn bộ đội đều gục ngã**.
+- **Rớt mạng giữa trận:** nếu máy Khách bị mất kết nối, chỗ của bạn được giữ trong **60 giây** — chỉ cần vào lại đúng phòng với **cùng tên nhân vật** để tiếp tục chiến đấu bên cạnh đồng đội. Nếu Chủ phòng thoát, phòng sẽ đóng và các máy còn lại quay về màn hình chính với thông báo *"Chủ phòng đã rời"*.
