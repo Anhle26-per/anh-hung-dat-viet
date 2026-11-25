@@ -15,6 +15,7 @@ const Fx = preload("res://scripts/effects/fx.gd")
 const LootChest = preload("res://scripts/entities/loot_chest.gd")
 const Shop = preload("res://scripts/game/shop.gd")
 const Cover = preload("res://scripts/entities/cover.gd")
+const BlacksmithNpc = preload("res://scripts/entities/blacksmith_npc.gd")
 
 const T := 16
 const MAX_ENEMIES := 14
@@ -32,6 +33,7 @@ var _enemies: Array = []
 var _waves_left := 0
 var _chest: AnimatedSprite2D = null
 var shop: Node2D = null
+var blacksmith: Node2D = null
 var legend_id := ""          # phòng Tam Yêu: mã yêu quái
 var loot_chest: Node2D = null
 var covers: Array = []
@@ -51,6 +53,9 @@ func _ready() -> void:
 		shop.level = level
 		shop.position = rect.get_center() + Vector2(0, 6)
 		add_child(shop)
+		_spawn_blacksmith(rect.get_center() + Vector2(-95, -35))
+	if kind == "exit" and randf() < 0.55:
+		_spawn_blacksmith(rect.get_center() + Vector2(-70, 0))
 	if kind == "treasure":
 		_chest = AnimatedSprite2D.new()
 		_chest.sprite_frames = Art.frames("items/chest.png", 18, 11, {"closed": [[0], 1.0, false], "open": [[1], 1.0, false]})
@@ -283,6 +288,14 @@ func _spawn_portal(pos: Vector2) -> void:
 	portal.position = pos
 	portal.entered.connect(func(): portal_entered.emit())
 	get_parent().add_child(portal)
+
+
+func _spawn_blacksmith(pos: Vector2) -> void:
+	var bn := BlacksmithNpc.new()
+	bn.level = level
+	bn.position = pos
+	add_child(bn)
+	blacksmith = bn
 
 
 func _draw() -> void:

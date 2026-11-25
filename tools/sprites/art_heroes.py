@@ -708,6 +708,47 @@ HERO_SPECS = {
         "attack_fx": ("shot", "ffd84a", "ffffff"),
         "skill_fx": ("rally", "8ce848", "fff268"),
     },
+
+    # ------------------------------------------------------------ 11. Thánh Gióng (Tướng ẩn - Phù Đổng Thiên Vương)
+    "thanh_giong": {
+        "pal": pal(**{
+            "1": "c4cee0", "2": "7e8aa6", "3": "f2f6ff", "7": "48526c",
+            "4": "f6c43c", "5": "b8721e", "6": "fff8b0",
+            "c": "e84628", "C": "a82422", "x": "66141a",
+            "f": "ff9a2e", "F": "ffe45c",
+            "i": "c84824", "p": "5c2228", "P": "34121a", "q": "6e7894", "Q": "3c4258",
+        }),
+        "head_back": [None] * 17 + [
+            R(7, "fc"), R(6, "fcc"),
+            R(6, "fccc"), R(5, "fcCcc"), R(4, "fcCxcc"), R(4, "fcCxCc"),
+            R(3, "fcCCxC"), R(4, "cCxxC"), R(5, "CxxC"),
+        ],
+        "head": [
+            None,
+            R(14, "frr"),
+            R(13, "frrRr"),
+            R(13, "ygggG"),
+            R(11, "nn11g1122"),
+            R(9, "nn1111g11112M"),
+            R(8, "n31111y1111122M"),
+            R(7, "n311111y11111122M"),
+            R(7, "y444446r644444445"),
+            R(7, "M555555rr5555555M"),
+        ],
+        "face": dict(flap="M", side="hh", brow="fierce", mouth="grin"),
+        "torso": [
+            R(10, "3411yy1143"),
+            R(10, "3141661412"),
+            R(10, "3114444112"),
+            R(10, "544c6yc445"),
+            R(9, "241131131142"),
+            R(9, "211c1221c112"),
+            R(9, "222522225222"),
+        ],
+        "arm": dict(sleeve="1", cuff="4", hand="s", shoulder="6"),
+        "attack_fx": ("slash", "ff8820", "fff6a0"),
+        "skill_fx": ("fire", "ff5818", "ffea58"),
+    },
 }
 
 

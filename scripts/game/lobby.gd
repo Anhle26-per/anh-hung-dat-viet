@@ -44,8 +44,17 @@ func _ready() -> void:
 	add_child(dark)
 	_build_room()
 	_decorate()
+	var secret_unlocked: bool = false
+	if Global.best_level >= 6 and not Global.unlocked.has("thanh_giong"):
+		Global.unlocked.append("thanh_giong")
+		Global.save_game()
+		secret_unlocked = true
 	_build_stations()
 	_spawn_player(Vector2(208, 178))
+	if secret_unlocked:
+		var gpos: Vector2 = _hero_npcs["thanh_giong"].global_position if _hero_npcs.has("thanh_giong") else Vector2(208, 120)
+		Fx.particles(world, gpos, Color(1.0, 0.82, 0.28), 24, 90.0, 0.7, -30.0, 2.0)
+		Fx.float_text(world, Vector2(208, 136), "Mở khóa tướng ẩn: Thánh Gióng!", Color(1.0, 0.88, 0.35), 16)
 
 	camera = Camera2D.new()
 	camera.position = SIZE / 2.0
@@ -201,7 +210,7 @@ func _add_station(kind: String, data: String, title: String, hint: String, pos: 
 
 
 func _build_stations() -> void:
-	# 10 vị tướng đứng thành hàng trên sân khấu
+	# 11 vị tướng đứng thành hàng trên sân khấu
 	for i in HeroData.ORDER.size():
 		var id: String = HeroData.ORDER[i]
 		var h: Dictionary = HeroData.DATA[id]
@@ -209,7 +218,7 @@ func _build_stations() -> void:
 		a.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [[0, 1, 2, 3], 3.0 + i * 0.2, true]})
 		a.play("idle")
 		a.position = Vector2(0, -10)
-		var s := _add_station("hero", id, h.name, "Xem tướng", Vector2(48.0 + i * 35.5, 92.0), a)
+		var s := _add_station("hero", id, h.name, "Xem tướng", Vector2(42.0 + i * 33.0, 92.0), a)
 		s.title_when_near = true
 		s.radius = 18.0
 		_hero_npcs[id] = s

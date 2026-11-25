@@ -26,6 +26,7 @@ const Turret = preload("res://scripts/effects/turret.gd")
 const StatusFx = preload("res://scripts/effects/status_fx.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
+const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 
 const RADIUS := 7.0
 const AUTO_AIM_RANGE := 230.0
@@ -78,6 +79,9 @@ var _armor_regen := 0.0
 var _dash_time := 0.0
 var _dash_dir := Vector2.RIGHT
 var _dash_hit: Array = []
+var _horse_time: float = 0.0
+var _horse_syn: int = 0
+var _horse_fire_cd: float = 0.0
 var _msg_cd := 0.0
 var _fx_t := 0.0
 var _swing_sign := 1.0
@@ -87,6 +91,7 @@ var _anim_lock_t: float = 0.0
 # Phần hình
 var body: AnimatedSprite2D
 var elephant: AnimatedSprite2D
+var iron_horse: AnimatedSprite2D
 var aura: AnimatedSprite2D
 var shadow: Sprite2D
 var weapon_pivot: Node2D
@@ -154,6 +159,15 @@ func _ready() -> void:
 	elephant.visible = false
 	add_child(elephant)
 
+	iron_horse = AnimatedSprite2D.new()
+	if ResourceLoader.exists("res://assets/sprites/fx/iron_horse.png"):
+		iron_horse.sprite_frames = Art.strip("fx/iron_horse.png", 40, 30, 14.0, true)
+	else:
+		iron_horse.sprite_frames = elephant.sprite_frames
+	iron_horse.position = Vector2(0, -2)
+	iron_horse.visible = false
+	add_child(iron_horse)
+
 	_mat = Art.flash_material()
 	body = AnimatedSprite2D.new()
 	var hero_tex: Texture2D = Art.tex("heroes/%s.png" % hero_id)
@@ -200,9 +214,13 @@ func effective_weapon(id: String) -> Dictionary:
 	var base: Dictionary = WeaponData.get_data(id)
 	if base.is_empty():
 		return base
+	var out: Dictionary = base
 	if id == str(hero.get("weapon", "")):
-		return ProgressionData.apply_weapon_rank(id, base, Global.weapon_rank(hero_id))
-	return base
+		out = ProgressionData.apply_weapon_rank(id, base, Global.weapon_rank(hero_id))
+	var mod_id: String = Global.get_weapon_mod(id)
+	if mod_id != "":
+		out = WeaponMods.apply(out, mod_id)
+	return out
 
 
 func current_weapon() -> Dictionary:
@@ -283,6 +301,21 @@ func _physics_process(delta: float) -> void:
 		_dash_time -= delta
 		velocity = _dash_dir * speed * 3.2
 		_dash_damage()
+	elif _horse_time > 0.0:
+		_horse_time -= delta
+		velocity = _dash_dir * 300.0
+		_horse_damage()
+		if _horse_syn == 2 and get_parent() != null:
+			_horse_fire_cd -= delta
+			if _horse_fire_cd <= 0.0:
+				_horse_fire_cd = 0.16
+				var hf := FireZone.new()
+				hf.instant = true
+				hf.radius = 14.0
+				hf.life = 2.0
+				hf.position = global_position
+				hf.target = global_position
+				get_parent().add_child(hf)
 	else:
 		var mult := 1.6 if buff_timer > 0.0 else 1.0
 		mult *= 1.0 + 0.12 * buff("ngua_o")
@@ -293,7 +326,7 @@ func _physics_process(delta: float) -> void:
 	var want_attack := Global.touch_attack
 	if not Global.touch_mode and Input.is_action_pressed("attack"):
 		want_attack = true
-	if want_attack and _dash_time <= 0.0:
+	if want_attack and _dash_time <= 0.0 and _horse_time <= 0.0:
 		_try_attack()
 
 	if Input.is_action_just_pressed("skill") or Global.touch_skill:
@@ -331,6 +364,8 @@ func _process(delta: float) -> void:
 	var face_left := aim_dir.x < 0.0
 	body.flip_h = face_left
 	elephant.flip_h = face_left
+	if iron_horse != null:
+		iron_horse.flip_h = face_left
 	var moving := velocity.length() > 5.0
 	if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
 		body.play("walk" if moving else "idle")
@@ -338,7 +373,7 @@ func _process(delta: float) -> void:
 	# vũ khí xoay theo hướng ngắm
 	var w := current_weapon()
 	var id: String = weapons[slot]
-	weapon_pivot.visible = _dash_time <= 0.0 and id != ""
+	weapon_pivot.visible = _dash_time <= 0.0 and _horse_time <= 0.0 and id != ""
 	weapon_pivot.position = Vector2(-2.0 if face_left else 2.0, 1.0)
 	weapon_pivot.rotation = aim_dir.angle() + swing * (-1.0 if face_left else 1.0)
 	weapon_pivot.z_index = -1 if aim_dir.y < -0.45 else 0
@@ -350,7 +385,7 @@ func _process(delta: float) -> void:
 		weapon_sprite.position = Vector2(thrust - _recoil, 0)
 
 	# chớp nháy khi bất tử
-	if _invuln > 0.0 and _dash_time <= 0.0:
+	if _invuln > 0.0 and _dash_time <= 0.0 and _horse_time <= 0.0:
 		modulate.a = 0.5 if int(_invuln * 16.0) % 2 == 0 else 1.0
 	else:
 		modulate.a = 1.0
@@ -360,13 +395,28 @@ func _process(delta: float) -> void:
 	if _dash_time > 0.0:
 		elephant.visible = true
 		elephant.play("play")
+		if iron_horse != null:
+			iron_horse.visible = false
 		body.position = Vector2(-1, -17)
 		if _fx_t <= 0.0:
 			_fx_t = 0.04
 			Fx.anim(get_parent(), global_position + Vector2(-_dash_dir.x * 12.0, 10 + randf_range(-3, 3)), "fx/dust.png", 10, 10, 12.0, 1.5)
 			Fx.afterimage(get_parent(), elephant, global_position, Color(1, 0.6, 0.4, 0.5), 0.25)
+	elif _horse_time > 0.0:
+		elephant.visible = false
+		if iron_horse != null:
+			iron_horse.visible = true
+			iron_horse.play("play")
+		body.position = Vector2(-1, -17)
+		if _fx_t <= 0.0:
+			_fx_t = 0.04
+			Fx.particles(get_parent(), global_position + Vector2(-_dash_dir.x * 10.0, 6), Color(1.0, 0.65, 0.2), 4, 65.0, 0.3, -40.0, 1.8, 50.0, -_dash_dir, Color(0.85, 0.2, 0.1))
+			if iron_horse != null:
+				Fx.afterimage(get_parent(), iron_horse, global_position, Color(1.0, 0.55, 0.2, 0.55), 0.25)
 	else:
 		elephant.visible = false
+		if iron_horse != null:
+			iron_horse.visible = false
 		body.position = Vector2(0, -6)
 	twin.visible = twin_timer > 0.0
 	if twin.visible:
@@ -386,7 +436,7 @@ func _process(delta: float) -> void:
 
 
 func _update_aim(move: Vector2) -> void:
-	if _dash_time > 0.0:
+	if _dash_time > 0.0 or _horse_time > 0.0:
 		return
 	if Global.auto_aim():
 		var target = nearest_enemy()
@@ -520,6 +570,10 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		b.knock = w.get("knock", 60.0)
 		b.homing = w.get("homing", 0.0)
 		b.color = w.get("color", Color.WHITE)
+		if bool(w.get("mod_fire", false)):
+			b.force_burn = true
+			if b.color == Color.WHITE:
+				b.color = Color(1.0, 0.72, 0.45)
 		b.stun_duration = shot_stun
 		b.burn_duration = 2.2 * burn_mult
 		b.owner_node = self
@@ -563,6 +617,8 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 				e.take_damage(hit_dmg, (e.global_position - global_position).normalized() * knock)
 			if hit_stun > 0.0 and is_instance_valid(e) and not e.dead and e.has_method("apply_stun"):
 				e.apply_stun(hit_stun)
+			if bool(w.get("mod_fire", false)) and is_instance_valid(e) and e.has_method("apply_status"):
+				e.apply_status("burn", 2.2)
 			on_hit_enemy(e)
 			if first_hit == null:
 				first_hit = e
@@ -624,6 +680,9 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			bw.pierce = 99
 			bw.knock = knock
 			bw.color = Color(1.0, 0.88, 0.35)
+			if bool(w.get("trait_fire_wave", false)) or bool(w.get("mod_fire", false)):
+				bw.force_burn = true
+				bw.color = Color(1.0, 0.58, 0.22)
 			bw.owner_node = self
 			get_parent().add_child(bw)
 	if w.get("fire", false):
@@ -688,6 +747,8 @@ func _beam(w: Dictionary) -> void:
 		var t := clampf(rel.dot(seg) / maxf(seg.length_squared(), 1.0), 0.0, 1.0)
 		if (start + seg * t).distance_to(e.global_position) <= width + e.radius:
 			e.take_damage(w.damage, aim_dir * 80.0)
+			if bool(w.get("mod_fire", false)) and is_instance_valid(e) and e.has_method("apply_status"):
+				e.apply_status("burn", 2.2)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		var relb: Vector2 = b.global_position - start
 		var tb := clampf(relb.dot(seg) / maxf(seg.length_squared(), 1.0), 0.0, 1.0)
@@ -909,6 +970,27 @@ func _use_skill() -> void:
 			buff_timer = 5.0
 			Fx.burst(parent, global_position, Color(1, 0.9, 0.3), 36.0, 0.35)
 			Fx.particles(parent, global_position, Color(1, 0.95, 0.5), 18, 140.0, 0.5, 0.0, 2.0)
+		"ngua_sat":
+			_horse_time = 0.65
+			_invuln = maxf(_invuln, 0.75)
+			_dash_dir = aim_dir
+			_horse_syn = syn
+			_horse_fire_cd = 0.0
+			_dash_hit.clear()
+			var fb_cnt: int = 8 if syn == 2 else (5 if syn == 1 else 3)
+			var spread_deg: float = 56.0 if syn == 2 else (44.0 if syn == 1 else 30.0)
+			for i in fb_cnt:
+				var frac: float = 0.5 if fb_cnt <= 1 else float(i) / float(fb_cnt - 1)
+				var ang: float = aim_dir.angle() + deg_to_rad(lerpf(-spread_deg * 0.5, spread_deg * 0.5, frac))
+				var fdir: Vector2 = Vector2.from_angle(ang)
+				var fb := Bullet.new()
+				fb.setup(true, global_position + fdir * 12.0, fdir, 260.0, 5, 0.55, "fireball")
+				fb.spawn_origin = global_position
+				fb.owner_node = self
+				parent.add_child(fb)
+			Fx.burst(parent, global_position, Color(1.0, 0.55, 0.2), 44.0, 0.4)
+			Fx.float_text(parent, global_position + Vector2(20 * aim_dir.x, -30), "Hí! Phun lửa!", Color(1.0, 0.78, 0.28), 18)
+			Fx.shake(get_tree(), 4.0)
 	_trigger_imprint(fam, cw)
 	if syn == 2:
 		Fx.burst(parent, global_position, Color(1.0, 0.85, 0.25), 42.0, 0.4)
@@ -1006,6 +1088,23 @@ func _dash_damage() -> void:
 					armor = mini(armor + 1, max_armor)
 					stats_changed.emit()
 			Fx.anim(get_parent(), e.global_position, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1, 0.9, 0.6), true)
+			Fx.shake(get_tree(), 2.0)
+	for b in get_tree().get_nodes_in_group("enemy_bullets"):
+		if global_position.distance_to(b.global_position) < 20.0:
+			b.destroy()
+
+
+func _horse_damage() -> void:
+	var ram_dmg: int = 10 + 3 * _horse_syn
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if _dash_hit.has(e):
+			continue
+		if global_position.distance_to(e.global_position) < RADIUS + e.radius + 14.0:
+			_dash_hit.append(e)
+			e.take_damage(ram_dmg, _dash_dir * 300.0)
+			if is_instance_valid(e) and not e.dead and e.has_method("apply_status"):
+				e.apply_status("burn", 2.5)
+			Fx.anim(get_parent(), e.global_position, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1.0, 0.6, 0.2), true)
 			Fx.shake(get_tree(), 2.0)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if global_position.distance_to(b.global_position) < 20.0:
@@ -1126,7 +1225,7 @@ func _nearest_attacker_name() -> String:
 
 
 func take_damage(amount: int, source: String = "") -> void:
-	if dead or _invuln > 0.0 or _dash_time > 0.0:
+	if dead or _invuln > 0.0 or _dash_time > 0.0 or _horse_time > 0.0:
 		return
 	if randf() < minf(0.12 * buff("bua_ho_menh"), 0.45):
 		_invuln = 0.3
@@ -1171,7 +1270,7 @@ func take_damage(amount: int, source: String = "") -> void:
 
 ## Sát thương theo nhịp từ cháy / độc: trừ giáp trước, không làm bất tử tạm thời
 func dot_damage(amount: int, kind: String) -> void:
-	if dead or _dash_time > 0.0:
+	if dead or _dash_time > 0.0 or _horse_time > 0.0:
 		return
 	var dmg: int = Global.scale_enemy_damage(amount)
 	if dmg <= 0:
@@ -1197,6 +1296,9 @@ func die() -> void:
 	weapon_pivot.visible = false
 	aura.visible = false
 	elephant.visible = false
+	_horse_time = 0.0
+	if iron_horse != null:
+		iron_horse.visible = false
 	body.position = Vector2(0, -6)
 	body.rotation = 0.0
 	body.play("down")

@@ -5,6 +5,19 @@ const Art = preload("res://scripts/art/art.gd")
 const Burst = preload("res://scripts/effects/burst.gd")
 const FloatText = preload("res://scripts/effects/float_text.gd")
 
+static var _hitstop_active: bool = false
+
+
+## Khựng nhẹ khung hình khi chí mạng hoặc hạ trùm (tự bỏ qua ở chế độ headless).
+static func hitstop(tree: SceneTree, dur: float = 0.04) -> void:
+	if tree == null or DisplayServer.get_name() == "headless" or _hitstop_active:
+		return
+	_hitstop_active = true
+	Engine.time_scale = 0.15
+	tree.create_timer(dur, true, false, true).timeout.connect(func():
+		Engine.time_scale = 1.0
+		_hitstop_active = false)
+
 
 ## Chạy 1 hoạt ảnh rồi tự xóa. rel: đường dẫn dải ảnh trong assets/sprites
 static func anim(parent: Node, pos: Vector2, rel: String, fw: int, fh: int, fps := 14.0,

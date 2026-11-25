@@ -63,6 +63,7 @@ const SIGNATURE: Dictionary = {
 	"le_loi": "thuan_thien",
 	"quang_trung": "hoa_ho",
 	"hoang_hoa_tham": "hoa_mai",
+	"thanh_giong": "roi_sat_giong",
 }
 
 const IMPRINTS: Dictionary = {
@@ -116,6 +117,10 @@ const HERO_DESC: Dictionary = {
 	"chien_si_dien_bien": {
 		"lv1": "Pháo bắn nhanh hơn 20%.",
 		"lv2": "Pháo nhanh +40%; giặc trúng đạn bị đánh dấu 3s, pháo ưu tiên & +50% dmg.",
+	},
+	"thanh_giong": {
+		"lv1": "Ngựa sắt húc +3 sát thương, phun 5 cầu lửa.",
+		"lv2": "Ngựa sắt húc +6 sát thương, phun 8 cầu lửa và rải lửa dọc đường.",
 	},
 }
 

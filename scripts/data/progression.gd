@@ -28,6 +28,7 @@ const TRAITS: Dictionary = {
 	"ong_lua": {"kind": "flame", "d1": "Thời gian cháy gây ra ×2", "d2": "Tầm phun ×1,5"},
 	"hoa_mai_yen_the": {"kind": "gun", "d1": "Đạn xuyên 1 giặc", "d2": "Phát thứ 4 liên tiếp nổ nhỏ bán kính 24"},
 	"sung_truong_bo_binh": {"kind": "gun", "d1": "Đạn xuyên 1 giặc", "d2": "Phát thứ 4 liên tiếp nổ nhỏ bán kính 24"},
+	"gay_tre": {"kind": "melee_fire", "d1": "Tầm với +15%", "d2": "Mỗi nhát thứ 3 phóng sóng lửa gây cháy (60%)"},
 }
 
 
@@ -57,7 +58,7 @@ static func apply_weapon_rank(wid: String, base_data: Dictionary, rank: int) -> 
 	var tr: Dictionary = TRAITS.get(wid, {})
 	if not tr.is_empty() and r >= 3:
 		match str(tr.kind):
-			"melee":
+			"melee", "melee_fire":
 				out["reach"] = float(base_data.get("reach", 32.0)) * 1.15
 			"bow", "gun":
 				out["pierce"] = int(base_data.get("pierce", 0)) + 1
@@ -67,6 +68,9 @@ static func apply_weapon_rank(wid: String, base_data: Dictionary, rank: int) -> 
 		match str(tr.kind):
 			"melee":
 				out["trait_wave3"] = true
+			"melee_fire":
+				out["trait_wave3"] = true
+				out["trait_fire_wave"] = true
 			"bow":
 				out["count"] = int(base_data.get("count", 1)) + 1
 				out["spread"] = 12.0

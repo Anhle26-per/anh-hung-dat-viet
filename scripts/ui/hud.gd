@@ -7,6 +7,7 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
+const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 
@@ -147,35 +148,63 @@ func draw_hud(ci: Control) -> void:
 
 	# --- Vũ khí + kỹ năng (máy tính). Trên điện thoại thì nằm trên nút ảo.
 	if not Global.touch_mode:
-		_panel(ci, Rect2(w - 234, h - 76, 230, 72))
+		var panel_w: float = 230.0
 		for i in 2:
-			var id: String = player.weapons[i]
-			var y := h - 70 + i * 18
+			var id_chk: String = str(player.weapons[i])
+			if id_chk == "":
+				continue
+			var mod_chk: String = Global.get_weapon_mod(id_chk)
+			if mod_chk != "":
+				var wd_chk: Dictionary = player.effective_weapon(id_chk) if player.has_method("effective_weapon") else WeaponData.get_data(id_chk)
+				var is_st: bool = (id_chk == str(player.hero.get("weapon", "")))
+				var wr_chk: int = Global.weapon_rank(player.hero_id) if is_st else 1
+				var wn_chk: String = str(wd_chk.name) + (" (Bậc %d)" % wr_chk if is_st else "")
+				var tx_chk: String = wn_chk + ("" if int(wd_chk.get("energy", 0)) == 0 else "  %d" % int(wd_chk.energy))
+				var badge_chk: String = "[%s]" % WeaponMods.mod_name(mod_chk)
+				var need_w: float = 54.0 + Art.text_width(tx_chk, 14) + Art.text_width(badge_chk, 12) + 12.0
+				panel_w = maxf(panel_w, minf(need_w, 296.0))
+		var px: float = w - panel_w - 4.0
+		_panel(ci, Rect2(px, h - 76, panel_w, 72))
+		for i in 2:
+			var id: String = str(player.weapons[i])
+			var y: float = h - 70.0 + i * 18.0
 			var sel: bool = i == player.slot
 			if sel:
-				ci.draw_rect(Rect2(w - 230, y - 1, 222, 17), Color(1, 0.85, 0.4, 0.15))
+				ci.draw_rect(Rect2(px + 4.0, y - 1.0, panel_w - 8.0, 17.0), Color(1, 0.85, 0.4, 0.15))
 			if id == "":
-				Art.draw_text(ci, Vector2(w - 190, y + 12), "(trống)", 14, Color(0.6, 0.6, 0.6), false)
+				Art.draw_text(ci, Vector2(px + 44.0, y + 12.0), "(trống)", 14, Color(0.6, 0.6, 0.6), false)
 				continue
 			var wd: Dictionary = player.effective_weapon(id) if player.has_method("effective_weapon") else WeaponData.get_data(id)
 			var is_starter: bool = (id == str(player.hero.get("weapon", "")))
 			var wr: int = Global.weapon_rank(player.hero_id) if is_starter else 1
-			var tex := Art.tex(ProgressionData.weapon_texture_path(id, wr))
-			var sc := minf(36.0 / tex.get_width(), 16.0 / tex.get_height())
-			ci.draw_texture_rect(tex, Rect2(w - 228, y + 8 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
+			var tex: Texture2D = Art.tex(ProgressionData.weapon_texture_path(id, wr))
+			var sc: float = minf(36.0 / tex.get_width(), 16.0 / tex.get_height())
+			ci.draw_texture_rect(tex, Rect2(px + 6.0, y + 8.0 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
 			var wname: String = str(wd.name) + (" (Bậc %d)" % wr if is_starter else "")
 			var txt: String = wname + ("" if int(wd.get("energy", 0)) == 0 else "  %d" % int(wd.energy))
-			Art.draw_text(ci, Vector2(w - 188, y + 12), txt, 14, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
+			var tx_x: float = px + 46.0
+			Art.draw_text(ci, Vector2(tx_x, y + 12.0), txt, 14, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
+			var mod_id: String = Global.get_weapon_mod(id)
+			if mod_id != "":
+				var badge: String = "[%s]" % WeaponMods.mod_name(mod_id)
+				var bw_badge: float = Art.text_width(badge, 12)
+				var bx_badge: float = minf(tx_x + Art.text_width(txt, 14) + 5.0, w - bw_badge - 10.0)
+				var mcol: Color = WeaponMods.mod_color(mod_id) if sel else WeaponMods.mod_color(mod_id).darkened(0.3)
+				ci.draw_rect(Rect2(bx_badge - 2.0, y + 1.0, bw_badge + 4.0, 13.0), Color(0.06, 0.03, 0.08, 0.72))
+				Art.draw_text(ci, Vector2(bx_badge, y + 11.0), badge, 12, mcol, false)
 		var ready: bool = player.skill_timer <= 0.0
-		var sk := "Sẵn sàng" if ready else "%.1fs" % player.skill_timer
-		Art.draw_text(ci, Vector2(w - 228, h - 22), "[Space] %s: %s" % [player.hero.skill_name, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)
-		var cur_wid: String = player.weapons[player.slot]
+		var sk: String = "Sẵn sàng" if ready else "%.1fs" % player.skill_timer
+		Art.draw_text(ci, Vector2(px + 6.0, h - 22.0), "[Space] %s: %s" % [player.hero.skill_name, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)
+		var cur_wid: String = str(player.weapons[player.slot])
 		var syn_lv: int = SynergyData.level(player.hero_id, cur_wid)
 		var syn_fam: String = SynergyData.family(cur_wid)
 		var syn_txt: String = "★★ Tâm đắc" if syn_lv == 2 else ("★ Cùng hệ" if syn_lv == 1 else "Chưa đồng điệu")
 		var syn_col: Color = Color(1.0, 0.88, 0.35) if syn_lv == 2 else (Color(0.84, 0.88, 0.96) if syn_lv == 1 else Color(0.62, 0.62, 0.66))
-		Art.draw_text(ci, Vector2(w - 228, h - 7), syn_txt, 12, syn_col, false)
-		Art.draw_text(ci, Vector2(w - 118, h - 7), "Ấn: %s" % SynergyData.imprint_name(cur_wid), 12, SynergyData.family_color(syn_fam), false)
+		Art.draw_text(ci, Vector2(px + 6.0, h - 7.0), syn_txt, 12, syn_col, false)
+		Art.draw_text(ci, Vector2(px + 116.0, h - 7.0), "Ấn: %s" % SynergyData.imprint_name(cur_wid), 12, SynergyData.family_color(syn_fam), false)
+
+	# --- Mũi tên chỉ đường tới phòng quan trọng khi không giao tranh
+	_draw_wayfinders(ci, w, h)
 
 	# --- Gợi ý nhặt vũ khí
 	if player.nearby_pickup != null and is_instance_valid(player.nearby_pickup):
@@ -282,3 +311,140 @@ func _draw_minimap(ci: Control, origin: Vector2, area: Vector2) -> void:
 		if r.player_inside:
 			col = Color.WHITE
 		ci.draw_rect(Rect2(off + Vector2(c - lo) * cs + Vector2(1.5, 1.5), Vector2(cs - 3, cs * 0.75 - 1)), col)
+
+
+func get_wayfinder_targets() -> Array:
+	var out: Array = []
+	if player == null or not is_instance_valid(player) or player.dead:
+		return out
+	var d: Node = get_tree().get_first_node_in_group("dungeon")
+	if d == null or d.rooms.is_empty():
+		return out
+	var ppos: Vector2 = player.global_position
+	for c in d.rooms:
+		var r = d.rooms[c]
+		if str(r.state) == "fighting" and (bool(r.player_inside) or (r.rect as Rect2).has_point(ppos)):
+			return out
+
+	var portal: Node = get_tree().get_first_node_in_group("portals")
+	var has_portal: bool = portal != null and is_instance_valid(portal)
+
+	# (a) Cổng hoặc phòng exit / boss / legend
+	if has_portal:
+		var tpos: Vector2 = (portal as Node2D).global_position
+		if tpos.distance_to(ppos) > 140.0:
+			out.append({"pos": tpos, "label": "Cổng", "color": Color(0.4, 0.92, 1.0)})
+	else:
+		var best_main: Dictionary = {}
+		var best_main_d: float = 1e9
+		for c in d.rooms:
+			var r = d.rooms[c]
+			var rk: String = str(r.kind)
+			if rk in ["exit", "boss", "legend"]:
+				var rpos: Vector2 = (r.rect as Rect2).get_center()
+				var rd: float = rpos.distance_to(ppos)
+				if rd > 140.0 and rd < best_main_d:
+					best_main_d = rd
+					var lbl: String = "Cổng" if rk == "exit" else "Trùm"
+					var col: Color = Color(0.4, 0.92, 1.0) if rk == "exit" else Color(1.0, 0.82, 0.32)
+					best_main = {"pos": rpos, "label": lbl, "color": col}
+		if not best_main.is_empty():
+			out.append(best_main)
+
+	# (b) Phòng kho báu hoặc chợ chưa vào
+	var best_side: Dictionary = {}
+	var best_side_d: float = 1e9
+	for c in d.rooms:
+		var r = d.rooms[c]
+		var rk: String = str(r.kind)
+		if not bool(r.visited) and rk in ["treasure", "shop"]:
+			var rpos: Vector2 = (r.rect as Rect2).get_center()
+			var rd: float = rpos.distance_to(ppos)
+			if rd > 140.0 and rd < best_side_d and _is_distinct_target(out, rpos):
+				best_side_d = rd
+				var lbl: String = "Rương" if rk == "treasure" else "Chợ"
+				best_side = {"pos": rpos, "label": lbl, "color": Color(1.0, 0.78, 0.28)}
+	if not best_side.is_empty() and out.size() < 2:
+		out.append(best_side)
+
+	# (c) Phòng đánh quái chưa vào gần nhất nếu chưa mở cổng
+	if not has_portal and out.size() < 2:
+		var best_cb: Dictionary = {}
+		var best_cb_d: float = 1e9
+		for c in d.rooms:
+			var r = d.rooms[c]
+			if not bool(r.visited) and str(r.kind) == "combat":
+				var rpos: Vector2 = (r.rect as Rect2).get_center()
+				var rd: float = rpos.distance_to(ppos)
+				if rd > 140.0 and rd < best_cb_d and _is_distinct_target(out, rpos):
+					best_cb_d = rd
+					best_cb = {"pos": rpos, "label": "", "color": Color(0.92, 0.95, 1.0, 0.85)}
+		if not best_cb.is_empty():
+			out.append(best_cb)
+
+	return out
+
+
+func _is_distinct_target(existing: Array, pos: Vector2) -> bool:
+	for item in existing:
+		var d: Dictionary = item
+		var p: Vector2 = d["pos"]
+		if p.distance_to(pos) < 40.0:
+			return false
+	return true
+
+
+func _draw_wayfinders(ci: Control, w: float, h: float) -> void:
+	var targets: Array = get_wayfinder_targets()
+	if targets.is_empty():
+		return
+	var ppos: Vector2 = player.global_position
+	var center := Vector2(w / 2.0, h / 2.0)
+	var margin: float = 34.0
+	var rx: float = maxf(w / 2.0 - margin, 24.0)
+	var ry: float = maxf(h / 2.0 - margin, 24.0)
+	var pulse: float = sin(Time.get_ticks_msec() / 180.0) * 3.0
+
+	for item in targets:
+		var t: Dictionary = item
+		var tpos: Vector2 = t["pos"]
+		var lbl: String = str(t.get("label", ""))
+		var col: Color = t.get("color", Color.WHITE) as Color
+		var delta: Vector2 = tpos - ppos
+		if delta.length_squared() < 1.0:
+			continue
+		var dir: Vector2 = delta.normalized()
+		var tx: float = rx / maxf(absf(dir.x), 0.001)
+		var ty: float = ry / maxf(absf(dir.y), 0.001)
+		var pos: Vector2 = center + dir * minf(tx, ty)
+
+		# Tránh các khung HUD góc trên-trái, trên-phải, dưới-phải
+		if pos.x < 178.0 and pos.y < 84.0:
+			if absf(dir.y) > absf(dir.x):
+				pos.x = 178.0
+			else:
+				pos.y = 84.0
+		elif pos.x > w - 114.0 and pos.y < 120.0:
+			if absf(dir.y) > absf(dir.x):
+				pos.x = w - 114.0
+			else:
+				pos.y = 120.0
+		elif not Global.touch_mode and pos.x > w - 246.0 and pos.y > h - 88.0:
+			if absf(dir.y) > absf(dir.x):
+				pos.x = w - 246.0
+			else:
+				pos.y = h - 88.0
+
+		var tip_c: Vector2 = pos + dir * pulse
+		var perp := Vector2(-dir.y, dir.x)
+		var o_tip: Vector2 = tip_c + dir * 9.0
+		var o_bl: Vector2 = tip_c - dir * 6.5 + perp * 7.0
+		var o_br: Vector2 = tip_c - dir * 6.5 - perp * 7.0
+		ci.draw_colored_polygon(PackedVector2Array([o_tip, o_bl, o_br]), Color(0.05, 0.02, 0.06, 0.85 * col.a))
+		var tip: Vector2 = tip_c + dir * 7.0
+		var back_l: Vector2 = tip_c - dir * 5.0 + perp * 5.2
+		var back_r: Vector2 = tip_c - dir * 5.0 - perp * 5.2
+		ci.draw_colored_polygon(PackedVector2Array([tip, back_l, back_r]), col)
+		if lbl != "":
+			var lbl_pos: Vector2 = pos - dir * 13.0 + Vector2(0, 4.0)
+			Art.draw_text(ci, lbl_pos, lbl, 12, col, true)

@@ -585,6 +585,7 @@ TIER_GLOW = {4: hexc("c070ff", 110), 5: hexc("ffc040", 140)}
 BASIC_WEAPONS = (
     "kiem_dong", "doan_dao", "giao_tre", "no_tay", "guom_lenh",
     "con_lam_son", "ong_lua", "dao_rua", "hoa_mai_yen_the", "sung_truong_bo_binh",
+    "gay_tre",
 )
 
 

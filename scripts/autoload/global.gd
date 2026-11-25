@@ -12,6 +12,7 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
+const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -59,6 +60,7 @@ var legend_chance := 0.4         # tỉ lệ màn giữa chương có trùm Tam 
 var legend_last := ""      # thứ tự trùm ngẫu nhiên của lượt chơi này
 var run_buffs: Dictionary = {}   # phúc lành đã chọn trong lượt: mã -> số lần
 var run_materials: Dictionary = {} # nguyên liệu nhặt được trong lượt chơi hiện tại
+var run_weapon_mods: Dictionary = {} # bùa vũ khí gắn trong lượt: mã vũ khí -> mã bùa
 var _run_active: bool = false
 var run_elapsed: float = 0.0
 var run_kills: int = 0
@@ -151,6 +153,7 @@ func start_run(code: String = "") -> void:
 	revived = false
 	run_buffs = {}
 	run_materials = {}
+	run_weapon_mods = {}
 	_run_active = true
 	_run_score_recorded = false
 	run_elapsed = 0.0
@@ -298,6 +301,21 @@ func material_count(id: String) -> int:
 func add_run_material(id: String, n: int = 1) -> void:
 	if n > 0 and MaterialData.DATA.has(id):
 		run_materials[id] = int(run_materials.get(id, 0)) + n
+
+
+func set_weapon_mod(wid: String, mod_id: String) -> void:
+	if wid == "":
+		return
+	if mod_id == "" or not WeaponMods.DATA.has(mod_id):
+		run_weapon_mods.erase(wid)
+		return
+	run_weapon_mods[wid] = mod_id
+
+
+func get_weapon_mod(wid: String) -> String:
+	if wid == "":
+		return ""
+	return str(run_weapon_mods.get(wid, ""))
 
 
 func _commit_run_materials() -> void:
@@ -486,6 +504,7 @@ func end_run(outcome: String = "") -> void:
 	coins += run_coins
 	run_coins = 0
 	_commit_run_materials()
+	run_weapon_mods = {}
 	best_level = maxi(best_level, level)
 	clear_run()
 	save_game()
@@ -658,6 +677,7 @@ func save_run(p = null) -> bool:
 		"player": who,
 		"run_buffs": run_buffs,
 		"run_materials": run_materials,
+		"run_weapon_mods": run_weapon_mods,
 		"run_coins": run_coins,
 		"boss_order": boss_order,
 		"legend_last": legend_last,
@@ -715,6 +735,15 @@ func load_run() -> bool:
 			var mv: int = int(rm[k])
 			if mv > 0 and MaterialData.DATA.has(mk):
 				run_materials[mk] = mv
+	run_weapon_mods = {}
+	var rwm: Variant = d.get("run_weapon_mods", {})
+	if typeof(rwm) == TYPE_DICTIONARY:
+		var rwmd: Dictionary = rwm
+		for k in rwmd:
+			var wk: String = str(k)
+			var mv: String = str(rwmd[k])
+			if wk != "" and WeaponMods.DATA.has(mv):
+				run_weapon_mods[wk] = mv
 	var pl: Dictionary = d.player
 	resume_data = {}
 	for k in pl:

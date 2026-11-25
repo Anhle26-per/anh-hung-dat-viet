@@ -63,18 +63,19 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	# 10 vị tướng đứng dưới chân núi
+	# 11 vị tướng đứng dưới chân núi
 	var row := Node2D.new()
 	add_child(row)
 	var vw := get_viewport_rect().size
-	for i in HeroData.ORDER.size():
+	var hero_cnt: int = HeroData.ORDER.size()
+	for i in hero_cnt:
 		var id: String = HeroData.ORDER[i]
 		var s := AnimatedSprite2D.new()
 		s.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [[0, 1, 2, 3], 3.0 + i * 0.3, true]})
 		s.play("idle")
 		s.scale = Vector2(1.5, 1.5)
-		s.position = Vector2(vw.x * 0.5 + (i - 4.5) * 50.0, vw.y - 32)
-		s.flip_h = i >= 5
+		s.position = Vector2(vw.x * 0.5 + (i - (hero_cnt - 1) * 0.5) * 46.0, vw.y - 32)
+		s.flip_h = i >= int(hero_cnt / 2)
 		row.add_child(s)
 
 	var center := CenterContainer.new()

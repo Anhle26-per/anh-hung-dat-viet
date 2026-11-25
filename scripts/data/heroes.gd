@@ -6,7 +6,7 @@ extends RefCounted
 ##   cost   : số xu để mở khóa (0 = có sẵn)
 
 const ORDER := ["hai_ba_trung", "ba_trieu", "ngo_quyen", "ly_thuong_kiet", "tran_hung_dao",
-	"le_loi", "quang_trung", "nguyen_trung_truc", "hoang_hoa_tham", "chien_si_dien_bien"]
+	"le_loi", "quang_trung", "nguyen_trung_truc", "hoang_hoa_tham", "chien_si_dien_bien", "thanh_giong"]
 
 const DATA := {
 	"hai_ba_trung": {
@@ -88,5 +88,13 @@ const DATA := {
 		"synergy_desc": "★ Pháo nhanh +20%  |  ★★ Pháo +40%, đánh dấu giặc +50% dmg",
 		"skill_cd": 15.0, "hp": 6, "armor": 6, "energy": 220, "speed": 96.0,
 		"color": Color(0.35, 0.48, 0.23), "accent": Color(0.55, 0.42, 0.24), "cost": 800,
+	},
+	"thanh_giong": {
+		"name": "Thánh Gióng", "era": "Truyền thuyết - Phù Đổng Thiên Vương",
+		"weapon": "gay_tre", "skill": "ngua_sat", "skill_name": "Ngựa sắt phun lửa",
+		"skill_desc": "Cưỡi ngựa sắt lao vút, phun luồng lửa thiêu giặc phía trước và không mất máu.",
+		"synergy_desc": "★ +3 dmg húc, phun 5 cầu lửa  |  ★★ +6 dmg húc, phun 8 cầu lửa + rải lửa",
+		"skill_cd": 10.0, "hp": 7, "armor": 6, "energy": 180, "speed": 100.0,
+		"color": Color(0.76, 0.24, 0.20), "accent": Color(1.0, 0.78, 0.28), "cost": 1200, "secret": true, "unlock_level": 6,
 	},
 }

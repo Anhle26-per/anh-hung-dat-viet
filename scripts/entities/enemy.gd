@@ -69,6 +69,7 @@ var _morph_t := 0.0
 var _shadow: Sprite2D
 var _shape: CircleShape2D
 var _submerged := false     # Ngư Tinh lặn: không trúng đòn
+var _hp_bar_t: float = 0.0
 
 
 func setup(k: String, lvl: int, target) -> void:
@@ -175,6 +176,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if dead:
 		return
+	if _hp_bar_t > 0.0:
+		_hp_bar_t = maxf(_hp_bar_t - delta, 0.0)
+		queue_redraw()
 	_flash = maxf(_flash - delta * 8.0, 0.0)
 	var base_glow := 0.18 + 0.1 * sin(Time.get_ticks_msec() / 150.0) if elite else 0.0
 	_mat.set_shader_parameter("flash", maxf(_flash, base_glow))
@@ -922,10 +926,14 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 		dmg = int(dmg * 1.5)
 	hp -= dmg
 	_flash = 1.0
+	if not is_boss():
+		_hp_bar_t = 3.0
+		queue_redraw()
 	if blocked:
 		Sfx.play("hit_metal")
 	elif crit:
 		Sfx.play("hit_crit")
+		Fx.hitstop(get_tree(), 0.035)
 	elif is_boss():
 		Sfx.play("hit_boss")
 	else:
@@ -945,6 +953,9 @@ func dot_damage(amount: int, kind: String) -> void:
 		dmg = maxi(1, amount)
 	hp -= dmg
 	_flash = maxf(_flash, 0.4)
+	if not is_boss():
+		_hp_bar_t = 3.0
+		queue_redraw()
 	Fx.float_text(get_parent(), global_position + Vector2(randf_range(-6, 6), -radius - 6.0), str(dmg), Color(1, 0.6, 0.25) if kind == "burn" else Color(0.6, 1.0, 0.35), 11)
 	if hp <= 0:
 		die()
@@ -972,6 +983,7 @@ func die(drop := true) -> void:
 	if is_boss() and data.get("id", "") == "do_cat":
 		get_tree().call_group("hud", "show_banner", "Bắt sống Đờ Cát tại hầm chỉ huy!")
 	if is_boss():
+		Fx.hitstop(get_tree(), 0.075)
 		var wr: WeakRef = weakref(get_parent())
 		for i in 5:
 			var p := global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
@@ -1022,3 +1034,19 @@ func _spawn_pickup(k: String, amount: int) -> void:
 	p.amount = amount
 	p.position = global_position
 	get_parent().add_child(p)
+
+
+func _draw() -> void:
+	if dead or is_boss() or _hp_bar_t <= 0.0 or hp >= max_hp or max_hp <= 0:
+		return
+	var bw: float = 24.0 if elite else 18.0
+	var bh: float = 3.0
+	var pos := Vector2(-bw / 2.0, -radius - 12.0)
+	var a: float = clampf(_hp_bar_t / 0.4, 0.0, 1.0)
+	var ratio: float = clampf(float(hp) / float(max_hp), 0.0, 1.0)
+	draw_rect(Rect2(pos - Vector2(1.0, 1.0), Vector2(bw + 2.0, bh + 2.0)), Color(0.06, 0.02, 0.04, 0.92 * a))
+	draw_rect(Rect2(pos, Vector2(bw, bh)), Color(0.24, 0.07, 0.09, 0.92 * a))
+	var fw: float = bw * ratio
+	if fw > 0.0:
+		draw_rect(Rect2(pos, Vector2(fw, bh)), Color(0.86, 0.18, 0.22, a))
+		draw_rect(Rect2(pos, Vector2(fw, 1.0)), Color(1.0, 0.48, 0.46, a))

@@ -594,6 +594,9 @@ func _decorate(c: Vector2i, kind: String, door_list: Array, chapter: Dictionary,
 					if (r as Rect2).grow(T * 2.5).has_point(pos):
 						ok_c = false
 						break
+				if ok_c and rooms.has(c) and rooms[c].blacksmith != null and is_instance_valid(rooms[c].blacksmith):
+					if pos.distance_to(rooms[c].blacksmith.global_position) < 28.0:
+						ok_c = false
 				if ok_c:
 					var cv := Cover.new()
 					cv.kind = props.pick_random()

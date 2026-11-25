@@ -39,6 +39,7 @@ var boomerang := false
 var owner_node = null
 var stun_duration := 0.0
 var burn_duration := 2.2
+var force_burn: bool = false
 var spawn_origin: Vector2 = Vector2.INF
 var bounces: int = 0
 var _hit: Array = []
@@ -214,8 +215,10 @@ func _on_body_entered(body: Node) -> void:
 		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_hit_enemy") and is_instance_valid(body):
 			owner_node.on_hit_enemy(body)
 		var st: String = PROJ.get(proj, {}).get("status", "")
-		if st != "" and is_instance_valid(body):
+		if st != "" and is_instance_valid(body) and body.has_method("apply_status"):
 			body.apply_status(st, burn_duration if st == "burn" else 2.2)
+		if force_burn and st != "burn" and is_instance_valid(body) and body.has_method("apply_status"):
+			body.apply_status("burn", burn_duration)
 		Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, color.lerp(Color(1, 0.9, 0.6), 0.5), true)
 		if pierce > 0:
 			pierce -= 1

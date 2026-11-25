@@ -39,7 +39,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G06 | Mã thử thách và bảng điểm so tài | 3 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, challenge, K2) |
 | G07 | Hướng dẫn chơi lần đầu | 3 | — | Chưa làm |
 | G08 | Vẽ lại tướng đầu to kiểu chibi | 3 | — | **Xong** 25/11/2026 (Gemini làm, vẽ lại 10 tướng chibi 32×32, cập nhật artbook, đã qua K1, hero_anim, K2) |
-| G09 | Nội dung mới theo ý nhóm (mỗi món một thẻ) | 3 | — | Chưa làm |
+| G09 | Nội dung mới theo ý nhóm (mỗi món một thẻ) | 3 | — | **Xong** 25/11/2026 (Thánh Gióng, Thợ rèn dã chiến, Game Feel — K1/K2 đạt) |
 | G10 | Hoạt ảnh tấn công, kỹ năng, chết riêng cho từng tướng | 3 | G08 (nên làm sau) | **Xong** 25/11/2026 (Gemini làm, 16 khung 512×32 + attack/skill/down trên Player, đã qua K1, hero_anim, K2) |
 | G12 | Vật cản che đạn thuần Việt | 3 | G15 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, cover, bugfix, audio, input, synergy, progression, K2) |
 | G13 | Phúc lành Hộ tâm kính | 3 | — | **Xong** 25/11/2026 (Gemini làm, đã qua K1, hotamkinh, K2) |

@@ -232,6 +232,116 @@ def build_elephant():
     save(sheet(frames), "fx/elephant.png")
 
 
+# ---------------------------------------------------------------- Ngựa sắt phun lửa (Thánh Gióng)
+def build_iron_horse():
+    """Ngựa sắt chiến mã của Thánh Gióng: 4 khung phi nước đại, kích thước khớp voi chiến (40x30)."""
+    M = hexc("7888a4")
+    ML = hexc("b8c8e2")
+    MD = hexc("46526c")
+    MN = hexc("e8f0ff")
+    HOOF = hexc("2c3448")
+    GOLD = hexc("f4be44")
+    GOLD_L = hexc("fff098")
+    GOLD_D = hexc("a86a22")
+    RED = hexc("cc3428")
+    F_RED = hexc("e84020")
+    F_ORG = hexc("ff8c24")
+    F_YEL = hexc("ffe858")
+    frames = []
+    for f in range(4):
+        img, d = canvas(40, 30)
+        lift = [0, 1, 0, 1][f]
+        # 4 chân phi nước đại (chân sau xa, chân trước xa, chân sau gần, chân trước gần)
+        rear_a = [(-3, 1), (-1, 0), (2, -1), (0, 0)][f]
+        rear_b = [(2, -1), (0, 0), (-3, 1), (-1, 0)][f]
+        front_a = [(3, -1), (1, 0), (-2, 1), (0, 0)][f]
+        front_b = [(-2, 1), (0, 0), (3, -1), (2, -1)][f]
+
+        # Chân xa (màu tối hơn)
+        d.line([(10, 17 - lift), (8 + rear_b[0], 22 - lift), (7 + rear_b[0], 27 + rear_b[1])], fill=MD, width=3)
+        d.rectangle([6 + rear_b[0], 26 + rear_b[1], 9 + rear_b[0], 28 + rear_b[1]], fill=HOOF)
+        d.line([(24, 17 - lift), (26 + front_b[0], 22 - lift), (27 + front_b[0], 27 + front_b[1])], fill=MD, width=3)
+        d.rectangle([26 + front_b[0], 26 + front_b[1], 29 + front_b[0], 28 + front_b[1]], fill=HOOF)
+
+        # Đuôi lửa bùng cháy phía sau
+        tw = [0, -1, 1, 0][f]
+        d.polygon([(8, 12 - lift), (2, 10 - lift + tw), (1, 14 - lift + tw), (3, 17 - lift), (8, 15 - lift)], fill=F_RED)
+        d.polygon([(8, 13 - lift), (3, 12 - lift + tw), (3, 15 - lift + tw), (7, 15 - lift)], fill=F_ORG)
+        d.line([(7, 13 - lift), (4, 13 - lift + tw)], fill=F_YEL, width=1)
+
+        # Thân ngựa sắt cơ bắp bọc giáp
+        d.ellipse([7, 10 - lift, 28, 21 - lift], fill=M)
+        # Cổ ngựa vươn cao oai vệ
+        d.polygon([(22, 12 - lift), (27, 5 - lift), (32, 7 - lift), (28, 17 - lift)], fill=M)
+        # Đầu ngựa sắt góc cạnh chiến mã
+        d.polygon([(26, 4 - lift), (33, 4 - lift), (37, 10 - lift), (35, 13 - lift), (29, 11 - lift)], fill=M)
+        # Tai sắt nhọn
+        d.polygon([(27, 4 - lift), (28, 2 - lift), (30, 4 - lift)], fill=ML)
+        d.polygon([(30, 4 - lift), (31, 2 - lift), (32, 4 - lift)], fill=M)
+
+        # Chân gần (sáng hơn)
+        d.line([(12, 17 - lift), (10 + rear_a[0], 22 - lift), (9 + rear_a[0], 27 + rear_a[1])], fill=M, width=3)
+        d.rectangle([8 + rear_a[0], 26 + rear_a[1], 11 + rear_a[0], 28 + rear_a[1]], fill=HOOF)
+        d.point([9 + rear_a[0], 27 + rear_a[1]], fill=GOLD)
+        d.line([(25, 17 - lift), (28 + front_a[0], 22 - lift), (29 + front_a[0], 27 + front_a[1])], fill=M, width=3)
+        d.rectangle([28 + front_a[0], 26 + front_a[1], 31 + front_a[0], 28 + front_a[1]], fill=HOOF)
+        d.point([29 + front_a[0], 27 + front_a[1]], fill=GOLD)
+
+        # Đổ bóng kim loại cho thân, cổ, đầu, chân
+        auto_shade(img, M, ML, MD)
+
+        # Đường giáp sắt & đinh tán sáng trên vai / hông
+        d.line([(13, 12 - lift), (13, 19 - lift)], fill=MD)
+        d.line([(23, 11 - lift), (23, 19 - lift)], fill=MD)
+        d.point([11, 13 - lift], fill=MN)
+        d.point([24, 13 - lift], fill=MN)
+        d.point([26, 11 - lift], fill=MN)
+
+        # Giáp ngực & giáp mặt viền vàng
+        d.line([(27, 12 - lift), (29, 16 - lift)], fill=GOLD, width=2)
+        d.point([28, 13 - lift], fill=GOLD_L)
+        d.line([(31, 5 - lift), (36, 9 - lift)], fill=GOLD, width=1)
+        d.point([33, 6 - lift], fill=GOLD_L)
+
+        # Yên ngựa đỏ viền vàng rực rỡ
+        d.polygon([(13, 9 - lift), (22, 9 - lift), (23, 16 - lift), (12, 16 - lift)], fill=RED)
+        d.line([(12, 16 - lift), (23, 16 - lift)], fill=GOLD)
+        for x in range(13, 23, 2):
+            d.point([x, 17 - lift], fill=GOLD)
+        d.line([(14, 10 - lift), (21, 10 - lift)], fill=GOLD_L)
+        d.rectangle([16, 12 - lift, 19, 14 - lift], fill=GOLD)
+        d.point([17, 13 - lift], fill=GOLD_D)
+
+        # Bờm lửa vàng-cam rực cháy dọc cổ
+        mw = [0, 1, 0, -1][f]
+        d.polygon([(26, 4 - lift), (21, 4 - lift + mw), (19, 8 - lift), (22, 11 - lift), (26, 8 - lift)], fill=F_RED)
+        d.polygon([(26, 5 - lift), (22, 6 - lift + mw), (21, 9 - lift), (25, 9 - lift)], fill=F_ORG)
+        d.point([24, 6 - lift + mw], fill=F_YEL)
+        d.point([23, 8 - lift], fill=F_YEL)
+
+        # Mắt rực lửa
+        d.point([31, 7 - lift], fill=hexc("1a1222"))
+        d.point([32, 7 - lift], fill=F_YEL)
+        d.point([33, 7 - lift], fill=MN)
+
+        framed = polish(img)
+        # Tia lửa phun ra từ mũi ngựa sắt (vẽ sau polish để sáng rực)
+        fd = ImageDraw.Draw(framed)
+        fl = [2, 3, 2, 1][f]
+        nx, ny = 36, 11 - lift
+        fd.point([nx, ny], fill=F_YEL)
+        fd.point([min(39, nx + 1), ny], fill=F_ORG)
+        fd.point([min(39, nx + 1), min(29, ny + 1)], fill=F_RED)
+        if fl >= 2:
+            fd.point([min(39, nx + 2), max(0, ny - 1)], fill=F_YEL)
+            fd.point([min(39, nx + 2), ny + 1], fill=F_ORG)
+        if fl >= 3:
+            fd.point([39, ny], fill=F_YEL)
+            fd.point([39, min(29, ny + 2)], fill=F_RED)
+        frames.append(framed)
+    save(sheet(frames), "fx/iron_horse.png")
+
+
 # ---------------------------------------------------------------- Quái
 E = {
     "a": hexc("6cc44a"), "A": hexc("3a7a3a"), "B": hexc("a8e870"),
@@ -431,6 +541,7 @@ def build():
     grips = build_weapons()
     build_ally()
     build_elephant()
+    build_iron_horse()
     build_enemies()
     return grips
 

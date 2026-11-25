@@ -432,7 +432,8 @@ def skill_icons():
     pal = {"o": hexc("9a6234"), "O": hexc("5e3a20"), "m": hexc("e8ecf4"), "M": hexc("8a92ac"),
            "b": hexc("4aa8e0"), "B": hexc("2a6ad0"), "w": WHITE,
            "a": hexc("9a9ab0"), "A": hexc("5e5e7a"), "i": hexc("f4ecd8"), "e": hexc("1a1222"),
-           "r": hexc("c43c3c"), "g": hexc("e8b04a"), "G": hexc("a86a2a"), "y": hexc("fff0a0"),
+           "r": hexc("c43c3c"), "R": hexc("e83828"), "f": hexc("ff7c24"),
+           "g": hexc("e8b04a"), "G": hexc("a86a2a"), "y": hexc("fff0a0"),
            "z": hexc("c4803e"), "Z": hexc("7a4622")}
     icons = {
         "song_trung": [
@@ -572,6 +573,22 @@ def skill_icons():
             "....rrrrr...........",
             "...rrrrrrgg.........",
             "...OOOOOOOO.........",
+        ],
+        "ngua_sat": [
+            "......Rf..mM........",
+            "....Rfy..mMMm.......",
+            "...Rfyg.mMMgMm......",
+            "..Rfyy.mMMgggmm.....",
+            ".Rfy..mMMmgyemmm....",
+            "..Rf.mMMmmMMmmmmm...",
+            ".Rf..mMMmMMmMMMMmm..",
+            "..R.mMMMMMMmMMMgmmf.",
+            "...mMMMMMMMmMMggfyyf",
+            "...mMMMMMMMm...RfRfy",
+            "...mMMMMMMm.....Rff.",
+            "....mMMMMm.......f..",
+            "....mMMMMm..........",
+            ".....mMMm...........",
         ],
     }
     for k, rows in icons.items():

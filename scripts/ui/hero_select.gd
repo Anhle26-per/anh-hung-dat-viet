@@ -81,7 +81,7 @@ func _ready() -> void:
 	_coin_label = UI.label("", 20, Color(1, 0.88, 0.45))
 	top.add_child(_coin_label)
 
-	# 10 tướng: dải thẻ cuộn ngang (vuốt trên điện thoại / lăn chuột)
+	# 11 tướng: dải thẻ cuộn ngang (vuốt trên điện thoại / lăn chuột)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -111,7 +111,7 @@ func _make_card(id: String) -> Control:
 	var fam: String = SynergyData.family(h.weapon)
 	var sig: String = SynergyData.signature_for(id)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(184, 0)
+	panel.custom_minimum_size = Vector2(178, 0)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
 	panel.add_child(box)
@@ -124,6 +124,8 @@ func _make_card(id: String) -> Control:
 	var wrk: int = Global.weapon_rank(id)
 	var hb: Dictionary = ProgressionData.hero_bonuses(hlv)
 	box.add_child(UI.label("%s  Cấp %d" % [h.name, hlv], 18, Color(1, 0.85, 0.4)))
+	if bool(h.get("secret", false)):
+		box.add_child(UI.label("★ Tướng ẩn (tự mở Màn %d)" % int(h.get("unlock_level", 6)), 11, Color(1.0, 0.86, 0.32)))
 	box.add_child(UI.label(h.era, 11, Color(0.78, 0.74, 0.72), true))
 	box.add_child(UI.label("%s Bậc %d [%s]" % [w.name, wrk, SynergyData.family_name(fam)], 12, WeaponData.tier_color(h.weapon)))
 	if sig != "" and WeaponData.DATA.has(sig):

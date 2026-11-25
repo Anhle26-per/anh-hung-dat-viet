@@ -1,5 +1,5 @@
 extends Node
-## Kiểm thử thẻ G10: 10 tờ ảnh tướng 512x32 (16 khung) và hoạt ảnh attack/skill/down trên Player.
+## Kiểm thử thẻ G10: 11 tờ ảnh tướng 512x32 (16 khung) và hoạt ảnh attack/skill/down trên Player.
 ## Chạy: godot --headless --path . res://tests/hero_anim_test.tscn -> in "HERO ANIM TEST OK"
 
 const HeroData = preload("res://scripts/data/heroes.gd")
@@ -38,8 +38,8 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra 10 tờ ảnh tướng đều 512x32 (16 khung 32x32)")
-	_check(HeroData.ORDER.size() == 10, "số tướng phải là 10")
+	print("== 1. Kiểm tra 11 tờ ảnh tướng đều 512x32 (16 khung 32x32)")
+	_check(HeroData.ORDER.size() == 11, "số tướng phải là 11")
 	for hid_v in HeroData.ORDER:
 		var hid: String = str(hid_v)
 		var rel: String = "heroes/%s.png" % hid
