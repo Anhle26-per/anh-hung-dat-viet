@@ -12,6 +12,7 @@ const WeaponData = preload("res://scripts/data/weapons.gd")
 const BuffSelect = preload("res://scripts/ui/buff_select.gd")
 const NetSync = preload("res://scripts/net/net_sync.gd")
 const Pickup = preload("res://scripts/entities/pickup.gd")
+const Pet = preload("res://scripts/entities/pet.gd")
 
 const SPAWN_OFFSETS: Array[Vector2] = [
 	Vector2(-18.0, 0.0),
@@ -29,6 +30,7 @@ var touch
 var pause_menu
 var darkness: CanvasModulate
 var buff_ui
+var pet: Node = null
 var net_sync: Node = null
 var players_by_peer: Dictionary = {}
 var _game_over: CanvasLayer = null
@@ -85,6 +87,8 @@ func _ready() -> void:
 		world.add_child(player)
 		if not resuming and (Net == null or not Net.is_online() or Net.is_host()):
 			Global.apply_lobby_bonuses(player)
+		if Global.selected_pet != "" and Global.PETS.has(Global.selected_pet):
+			_spawn_pet()
 
 	player.died.connect(_on_player_died)
 	player.hurt.connect(func(): add_shake(4.0))
@@ -170,6 +174,17 @@ func _disconnect_net_signals() -> void:
 		Net.player_reconnected_midrun.disconnect(_on_net_player_reconnected)
 
 
+func _spawn_pet() -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	if pet != null and is_instance_valid(pet):
+		pet.queue_free()
+	var p := Pet.new()
+	p.setup(Global.selected_pet, player)
+	world.add_child(p)
+	pet = p
+
+
 func _start_buff() -> void:
 	_start_bonus = true
 	if not Net.is_online() and Global.challenge_code != "":
@@ -206,7 +221,7 @@ func _build_level() -> void:
 			pk.set("_net_claimed_by_other", true)
 	var keep_players: Array = players_by_peer.values()
 	for c in world.get_children():
-		if c != player and not keep_players.has(c):
+		if c != player and c != pet and not keep_players.has(c):
 			c.queue_free()
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
@@ -247,6 +262,8 @@ func _build_level() -> void:
 	else:
 		player.global_position = start_pos
 		player.nearby_pickup = null
+		if pet != null and is_instance_valid(pet):
+			(pet as Node2D).global_position = start_pos + Vector2(-18.0, 12.0)
 	camera.reset_smoothing()
 	if not Net.is_online() or Net.is_host():
 		Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
@@ -339,6 +356,8 @@ func _check_all_buffs_done() -> void:
 
 
 func _advance() -> void:
+	if pet != null and is_instance_valid(pet) and pet.has_method("on_next_level"):
+		pet.on_next_level()
 	Global.level += 1
 	Global.best_level = maxi(Global.best_level, Global.level)
 	_build_level()

@@ -31,6 +31,7 @@ var hero_levels: Dictionary = {}  # mã tướng -> cấp (1..5)
 var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu (1..5)
 var leaderboard: Array = []       # bảng điểm so tài cục bộ (tối đa 20 mục, xếp theo điểm giảm dần)
 var garden_plots: Array = []      # 3 ô Vườn Thảo Dược: [{"plant": String, "stage": int}]
+var selected_pet: String = ""     # linh thú đồng hành ra trận ("" = không mang)
 var log_path: String = "user://nhat_ky.csv"
 
 const DEFAULT_SETTINGS: Dictionary = {
@@ -74,6 +75,50 @@ const GARDEN_PLANTS := {
 	"huyet_sam": {"name": "Huyết Sâm", "desc": "Thu hoạch: +1 phúc lành Bánh chưng lượt tới & +1 Ngọc thần.", "cost": 20, "buff": "banh_chung", "mat": "ngoc_than", "mat_qty": 1, "coins": 0},
 	"sen_tuyet": {"name": "Sen Tuyết", "desc": "Thu hoạch: +1 phúc lành Khiên độc lượt tới & +1 Yêu hồn.", "cost": 25, "buff": "khien_doc", "mat": "yeu_hon", "mat_qty": 1, "coins": 0},
 	"tre_nga": {"name": "Tre Ngà", "desc": "Thu hoạch: +35 xu, +2 Gỗ lim & +1 Sắt.", "cost": 15, "buff": "", "mat": "go_lim", "mat_qty": 2, "coins": 35},
+}
+
+# Linh thú đồng hành tại sảnh & theo vào hầm ngục
+const PETS := {
+	"dog": {
+		"name": "Cún Vàng",
+		"title": "Chó Làng Trung Thành",
+		"role": "Cắn giặc (3 ST) & tự chạy nhặt xu, tinh thể, nguyên liệu quanh chủ.",
+		"gift": "Vuốt ve 1 lần/ghé sảnh: đào được +15 xu cổ.",
+		"sprite": "world/animal_dog.png",
+		"fw": 26,
+		"fh": 22,
+		"color": Color(0.96, 0.78, 0.36),
+	},
+	"cat": {
+		"name": "Mèo Tam Thể",
+		"title": "Mèo Chiêu Tài",
+		"role": "Cào giặc đẩy lùi (4 ST) & tăng +15% xu nhặt được suốt trận.",
+		"gift": "Vuốt ve 1 lần/ghé sảnh: mang lại +10 xu may mắn.",
+		"sprite": "world/animal_cat.png",
+		"fw": 24,
+		"fh": 20,
+		"color": Color(1.0, 0.72, 0.48),
+	},
+	"rooster": {
+		"name": "Gà Trống Chọi",
+		"title": "Chiến Kê Vườn Sen",
+		"role": "Mổ liên hoàn nhanh (3 ST) & mỗi 12s gáy hồi +15 năng lượng cho chủ.",
+		"gift": "Cho ăn thóc 1 lần/ghé sảnh: tặng +1 nguyên liệu rèn ngẫu nhiên.",
+		"sprite": "world/animal_rooster.png",
+		"fw": 24,
+		"fh": 24,
+		"color": Color(0.98, 0.42, 0.32),
+	},
+	"crane": {
+		"name": "Chim Hạc Trắng",
+		"title": "Tiên Hạc Hồ Sen",
+		"role": "Bay hộ vệ hồi +1 Giáp mỗi 16s khi chiến đấu & hồi +1 Máu mỗi khi sang màn mới.",
+		"gift": "Vuốt lông 1 lần/ghé sảnh: tặng +1 Hoa dược quý.",
+		"sprite": "world/animal_crane.png",
+		"fw": 26,
+		"fh": 34,
+		"color": Color(0.75, 0.94, 1.0),
+	},
 }
 
 # --- Tiền thưởng chuẩn bị từ sảnh trước khi bước vào cổng ---
@@ -398,7 +443,16 @@ func on_boss_killed(player_hp: int) -> void:
 
 
 func coin_mult() -> float:
-	return 1.0 + 0.5 * int(run_buffs.get("boi_thu", 0))
+	var base_m: float = 1.0 + 0.5 * int(run_buffs.get("boi_thu", 0))
+	if selected_pet == "cat":
+		base_m += 0.15
+	return base_m
+
+
+func select_pet(pet_id: String) -> void:
+	if pet_id == "" or PETS.has(pet_id):
+		selected_pet = pet_id
+		save_game()
 
 
 func material_count(id: String) -> int:
@@ -870,6 +924,7 @@ func save_game() -> void:
 		"weapon_ranks": weapon_ranks,
 		"leaderboard": leaderboard,
 		"garden_plots": garden_plots,
+		"selected_pet": selected_pet,
 	})
 
 
@@ -1071,6 +1126,7 @@ func load_game() -> void:
 	settings = DEFAULT_SETTINGS.duplicate()
 	leaderboard = []
 	garden_plots = []
+	selected_pet = ""
 	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
 		ensure_garden_plots()
@@ -1159,6 +1215,8 @@ func load_game() -> void:
 				var stg: int = clampi(int(sd.get("stage", 0)), 0, 2) if pid != "" else 0
 				garden_plots.append({"plant": pid, "stage": stg})
 	ensure_garden_plots()
+	var sp: String = str(data.get("selected_pet", ""))
+	selected_pet = sp if PETS.has(sp) else ""
 
 
 # ------------------------------------------------------------------ Phím bấm

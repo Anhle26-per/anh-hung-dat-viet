@@ -71,6 +71,7 @@ func _run() -> void:
 	Global.lobby_shrine_buff = ""
 	Global.lobby_garden_buffs = []
 	Global.pending_challenge_code = ""
+	Global.selected_pet = ""
 	Global.forged = ""
 	Global.materials.clear()
 	Global.set_setting("camera_zoom", 0.85)
@@ -116,8 +117,29 @@ func _run() -> void:
 		_check(lobby.ui.is_open(), "trạm '%s' không mở bảng UI" % str(s.kind))
 		lobby.ui.close()
 		await _frames(1)
-	for req in ["stele", "well", "challenge", "forge", "rack", "codex", "hero", "tea", "war_table", "garden", "enchant", "shrine", "supply"]:
+	for req in ["stele", "well", "challenge", "forge", "rack", "codex", "hero", "tea", "war_table", "garden", "enchant", "shrine", "supply", "pet", "pond"]:
 		_check(kinds_seen.has(req), "thiếu trạm '%s' trong sảnh" % req)
+
+	print("== (c2) Kiểm tra Linh Thú, Hồ Cá Koi & Trưng bày chiêu/vũ khí theo bậc")
+	lobby.ui.open_pet("dog")
+	await _frames(2)
+	_check(lobby.ui.is_open(), "open_pet('dog') không mở")
+	lobby.ui.close()
+	Global.select_pet("dog")
+	lobby.refresh_pet_stations()
+	_check(Global.selected_pet == "dog", "không chọn được Cún Vàng làm linh thú")
+	lobby.ui.open_pond()
+	await _frames(1)
+	_check(lobby.ui.is_open(), "open_pond() không mở")
+	lobby.ui.close()
+	lobby.ui.open_hero("hai_ba_trung", "showcase", 5)
+	await _frames(3)
+	_check(lobby.ui.is_open(), "tab showcase của Hai Bà Trưng Bậc 5 không mở")
+	lobby.ui.close()
+	lobby.ui.open_hero("thanh_giong", "showcase", 3)
+	await _frames(3)
+	_check(lobby.ui.is_open(), "tướng chưa mở khóa phải xem được tab showcase")
+	lobby.ui.close()
 
 	print("== (d) Kiểm tra Giếng Ước trừ xu và giảm lượt")
 	var uses_before: int = int(lobby.well_uses)
@@ -167,6 +189,10 @@ func _run() -> void:
 	_check(Global.get_weapon_mod(str(game.player.weapons[0])) == "da_mai", "Phù phép da_mai không được gắn lên vũ khí khởi đầu")
 	_check(game.player.buff("ruou_thuoc") >= 1, "Thần phúc ruou_thuoc không áp dụng")
 	_check(game.player.buff("banh_chung") >= 1, "Thảo dược banh_chung không áp dụng")
+	_check(game.pet != null and is_instance_valid(game.pet) and str(game.pet.pet_id) == "dog", "Cún Vàng phải đồng hành vào hầm ngục")
+	Global.selected_pet = "cat"
+	_check(is_equal_approx(Global.coin_mult(), 1.15), "Mèo Tam Thể phải tăng coin_mult lên 1.15")
+	Global.selected_pet = ""
 	Global.set_setting("camera_zoom", 0.78)
 	_check(game.camera.zoom.is_equal_approx(Vector2(0.78, 0.78)), "đổi tầm nhìn Rộng (0.78) không cập nhật ngay")
 	Global.set_setting("camera_zoom", 1.0)

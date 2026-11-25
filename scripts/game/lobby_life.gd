@@ -17,6 +17,12 @@ var _dir := 1.0
 var _target := Vector2.ZERO
 var _wait := 0.0
 var _home := Vector2.ZERO
+var _feed_t := 0.0
+var _feed_pos := Vector2(0, -24)
+
+
+func trigger_koi_feed() -> void:
+	_feed_t = 5.5
 
 
 func _ready() -> void:
@@ -180,13 +186,22 @@ func _process(delta: float) -> void:
 	_t += delta
 	match kind:
 		"pond":
+			if _feed_t > 0.0:
+				_feed_t = maxf(0.0, _feed_t - delta)
 			for i in _kois.size():
 				var k: AnimatedSprite2D = _kois[i]
-				var sp := 0.42 + i * 0.18
+				var sp := (1.35 if _feed_t > 0.0 else 0.42) + i * 0.18
 				var sgn := 1.0 if i % 2 == 0 else -1.0
 				var ang := _t * sp * sgn + i * 1.6
-				var p := Vector2(cos(ang) * size.x * 0.3, sin(ang * 1.3) * size.y * 0.24)
-				var vel := Vector2(-sin(ang) * sp * sgn * size.x * 0.3, cos(ang * 1.3) * 1.3 * sp * sgn * size.y * 0.24)
+				var p: Vector2
+				var vel: Vector2
+				if _feed_t > 0.0:
+					var rad: float = 12.0 + float(i) * 4.5
+					p = _feed_pos + Vector2(cos(ang) * rad, sin(ang * 1.2) * rad * 0.65)
+					vel = Vector2(-sin(ang) * sp * sgn * rad, cos(ang * 1.2) * 1.2 * sp * sgn * rad * 0.65)
+				else:
+					p = Vector2(cos(ang) * size.x * 0.3, sin(ang * 1.3) * size.y * 0.24)
+					vel = Vector2(-sin(ang) * sp * sgn * size.x * 0.3, cos(ang * 1.3) * 1.3 * sp * sgn * size.y * 0.24)
 				k.flip_h = vel.x < 0.0
 				k.rotation = clampf(vel.y / maxf(8.0, absf(vel.x)), -0.35, 0.35) * (-1.0 if k.flip_h else 1.0)
 				k.position = p
@@ -250,8 +265,12 @@ func _draw() -> void:
 			draw_colored_polygon(pts2, Color(0.16, 0.36, 0.5))
 			for k in 3:
 				var rr := fmod(_t * 6.0 + k * 9.0, 26.0)
-				var ctr := Vector2(sin(k * 2.1) * size.x * 0.2, cos(k * 1.7) * size.y * 0.15)
+				var ctr := _feed_pos if _feed_t > 0.0 else Vector2(sin(k * 2.1) * size.x * 0.2, cos(k * 1.7) * size.y * 0.15)
 				draw_arc(ctr, rr, 0.0, TAU, 20, Color(0.6, 0.85, 1.0, 0.35 * (1.0 - rr / 26.0)), 1.0)
+			if _feed_t > 0.0:
+				for crumb in 5:
+					var ang_c := float(crumb) * 1.25 + _t * 1.5
+					draw_circle(_feed_pos + Vector2(cos(ang_c) * 6.0, sin(ang_c) * 4.0), 1.4, Color(1.0, 0.88, 0.45, 0.9))
 			# viền đá cuội
 			for i in 16:
 				var ang := TAU * i / 16.0

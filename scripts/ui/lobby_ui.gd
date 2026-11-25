@@ -58,6 +58,215 @@ class LobbyMinimap extends Control:
 		draw_circle(dp, 2.8, Color(1.0, 0.92, 0.3))
 
 
+class HeroSkillPreview extends Control:
+	const Art = preload("res://scripts/art/art.gd")
+	const HeroData = preload("res://scripts/data/heroes.gd")
+	const ProgressionData = preload("res://scripts/data/progression.gd")
+
+	var hero_id: String = "ngo_quyen"
+	var weapon_rank: int = 1
+	var _t: float = 0.0
+	var _phase_t: float = 0.0
+	var _casting: bool = true
+
+	func _ready() -> void:
+		clip_contents = true
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func setup(hid: String, wrank: int = 1) -> void:
+		hero_id = hid if HeroData.DATA.has(hid) else "ngo_quyen"
+		weapon_rank = clampi(wrank, 1, 5)
+		replay()
+
+	func replay() -> void:
+		_casting = true
+		_phase_t = 0.0
+		queue_redraw()
+
+	func _process(delta: float) -> void:
+		_t += delta
+		_phase_t += delta
+		if _casting and _phase_t >= 2.05:
+			_casting = false
+			_phase_t = 0.0
+		elif not _casting and _phase_t >= 0.95:
+			_casting = true
+			_phase_t = 0.0
+		queue_redraw()
+
+	func _draw_frame(tex: Texture2D, center: Vector2, fw: int, fh: int, idx: int, sc: float, flip_x: bool = false, tint: Color = Color.WHITE) -> void:
+		if tex == null:
+			return
+		var cols: int = maxi(1, int(tex.get_width()) / fw)
+		var fidx: int = posmod(idx, cols)
+		var src := Rect2(fidx * fw, 0, fw, fh)
+		var w: float = float(fw) * sc * (-1.0 if flip_x else 1.0)
+		var h: float = float(fh) * sc
+		var dst := Rect2(center.x - absf(w) * 0.5 + (absf(w) if flip_x else 0.0), center.y - h * 0.5, w, h)
+		draw_texture_rect_region(tex, dst, src, tint)
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_rect(r, Color(0.09, 0.08, 0.13))
+		# Sàn gạch mờ
+		var grid_col := Color(0.22, 0.19, 0.27, 0.45)
+		var gx: float = 20.0
+		while gx < size.x:
+			draw_line(Vector2(gx, 0), Vector2(gx, size.y), grid_col, 1.0)
+			gx += 22.0
+		var gy: float = 18.0
+		while gy < size.y:
+			draw_line(Vector2(0, gy), Vector2(size.x, gy), grid_col, 1.0)
+			gy += 20.0
+		draw_rect(r, Color(0.8, 0.65, 0.32, 0.85), false, 1.5)
+
+		var h: Dictionary = HeroData.DATA.get(hero_id, HeroData.DATA["ngo_quyen"])
+		var wid: String = str(h.get("weapon", "giao_tre"))
+		var sk: String = str(h.get("skill", "coc_bach_dang"))
+		var hero_tex := Art.tex("heroes/%s.png" % hero_id)
+		var weap_tex := Art.tex(ProgressionData.weapon_texture_path(wid, weapon_rank))
+		var dummy_tex := Art.tex("world/dummy.png")
+
+		var base_hero_pos := Vector2(size.x * 0.25, size.y * 0.62)
+		var dummy_pos := Vector2(size.x * 0.78, size.y * 0.62)
+		var p: float = clampf(_phase_t / 1.9, 0.0, 1.0) if _casting else 0.0
+		var hero_pos := base_hero_pos
+		var dummy_hit: bool = false
+
+		if _casting and (sk == "voi_chien" or sk == "ngua_sat" or sk == "than_toc"):
+			var lunge: float = sin(minf(p * 1.3, 1.0) * PI)
+			hero_pos.x += lunge * (size.x * 0.34)
+			if p > 0.22 and p < 0.78:
+				dummy_hit = true
+		elif _casting and p > 0.25 and p < 0.85:
+			dummy_hit = true
+
+		# Bóng dưới chân & vòng sáng
+		draw_circle(Vector2(hero_pos.x, size.y * 0.76), 11.0, Color(0, 0, 0, 0.35))
+		draw_circle(Vector2(dummy_pos.x, size.y * 0.76), 9.0, Color(0, 0, 0, 0.35))
+		if weapon_rank >= 3:
+			var rcol := Color(1.0, 0.86, 0.32, 0.25) if weapon_rank >= 5 else Color(0.35, 0.82, 1.0, 0.22)
+			draw_circle(hero_pos + Vector2(12, -2), 14.0, rcol)
+
+		# Hình nhân mục tiêu bên phải
+		var d_shake := Vector2(sin(_t * 48.0) * 2.0, 0.0) if dummy_hit else Vector2.ZERO
+		var d_tint := Color(1.0, 0.72, 0.72) if dummy_hit else Color.WHITE
+		_draw_frame(dummy_tex, dummy_pos + d_shake, 20, 28, 1 if dummy_hit else 0, 1.45, false, d_tint)
+
+		# Hiệu ứng trước / nền chiêu
+		if _casting:
+			match sk:
+				"hich_tuong_si":
+					var drum_tex := Art.tex("fx/drum.png")
+					if drum_tex != null:
+						var ds: float = 0.85 + 0.1 * sin(p * 18.0)
+						var dw := float(drum_tex.get_width()) * ds
+						var dh := float(drum_tex.get_height()) * ds
+						draw_texture_rect(drum_tex, Rect2(base_hero_pos + Vector2(-dw * 0.5, 4.0 - dh * 0.5), Vector2(dw, dh)), false, Color(1.0, 0.9, 0.55, 0.85))
+					draw_arc(base_hero_pos + Vector2(0, 4), 14.0 + fmod(p * 3.0, 1.0) * 32.0, 0.0, TAU, 28, Color(1.0, 0.84, 0.32, 0.7), 1.5)
+				"than_toc":
+					var aura_tex := Art.tex("fx/aura.png")
+					_draw_frame(aura_tex, hero_pos, 40, 40, int(_t * 14.0), 1.2, false, Color(1.0, 0.88, 0.38, 0.8))
+					for ghost in 3:
+						var gp := base_hero_pos.lerp(hero_pos, float(ghost) / 3.0)
+						_draw_frame(hero_tex, gp, 32, 32, 4 + ghost, 1.65, false, Color(1.0, 0.55, 0.25, 0.32))
+
+		# Nhân vật tướng
+		var h_frame: int = int(_t * 6.0) % 4
+		if _casting:
+			h_frame = 11 if int(_t * 10.0) % 2 == 0 else 12
+		_draw_frame(hero_tex, hero_pos, 32, 32, h_frame, 1.75)
+
+		# Vũ khí đang cầm theo đúng bậc
+		if weap_tex != null:
+			var ws: float = 1.35
+			var ww := float(weap_tex.get_width()) * ws
+			var wh := float(weap_tex.get_height()) * ws
+			var swing_off := Vector2(14.0, 2.0) + (Vector2(4.0, -3.0 * sin(_t * 18.0)) if _casting else Vector2.ZERO)
+			draw_texture_rect(weap_tex, Rect2(hero_pos + swing_off - Vector2(ww * 0.3, wh * 0.5), Vector2(ww, wh)), false)
+
+		# Hiệu ứng chính của 11 chiêu thức
+		if _casting:
+			match sk:
+				"song_trung":
+					var twin_pos := base_hero_pos + Vector2(-20.0, -8.0)
+					_draw_frame(hero_tex, twin_pos, 32, 32, 11 if int(_t * 10.0) % 2 == 0 else 12, 1.6, false, Color(1.0, 0.72, 0.88, 0.82))
+					var wave_tex := Art.tex("fx/sword_wave.png")
+					for wi in 2:
+						var wp := hero_pos.lerp(dummy_pos, clampf(p * 1.4 - wi * 0.22, 0.0, 1.0)) + Vector2(0, -6.0 + wi * 10.0)
+						_draw_frame(wave_tex, wp, 16, 16, int(_t * 14.0), 1.4, false, Color(1.0, 0.84, 0.42))
+				"voi_chien":
+					var el_tex := Art.tex("fx/elephant.png")
+					_draw_frame(el_tex, hero_pos + Vector2(6, -2), 40, 30, int(_t * 14.0), 1.45, false, Color(1.0, 0.96, 0.88, 0.92))
+					draw_arc(hero_pos + Vector2(18, 4), 10.0 + p * 22.0, -0.8, 0.8, 12, Color(1.0, 0.84, 0.45, 0.85), 2.0)
+				"coc_bach_dang":
+					var st_tex := Art.tex("fx/stake.png")
+					draw_arc(hero_pos + Vector2(0, 6), 16.0 + fmod(p * 2.5, 1.0) * 38.0, 0.0, TAU, 24, Color(0.45, 0.84, 1.0, 0.7), 1.5)
+					for si in 5:
+						var ang := -0.7 + float(si) * 0.35
+						var sp_pos := hero_pos + Vector2(36.0 + cos(ang) * 28.0, sin(ang) * 24.0)
+						_draw_frame(st_tex, sp_pos, 14, 26, 1 if p > 0.18 else 0, 1.15)
+				"nam_quoc_son_ha":
+					var ring_r := 26.0 + sin(p * PI) * 8.0
+					draw_arc(hero_pos, ring_r, 0.0, TAU, 32, Color(1.0, 0.86, 0.35, 0.92), 2.2)
+					draw_arc(hero_pos, ring_r - 5.0, _t * 3.0, _t * 3.0 + PI * 1.4, 20, Color(0.55, 0.92, 1.0, 0.7), 1.5)
+					var bp: float = fmod(p * 2.0, 1.0)
+					var orb := (dummy_pos.lerp(hero_pos + Vector2(ring_r, 0), bp * 2.0) if bp < 0.5 else (hero_pos + Vector2(ring_r, 0)).lerp(dummy_pos, (bp - 0.5) * 2.0))
+					draw_circle(orb, 4.0, Color(1.0, 0.38, 0.32) if bp < 0.5 else Color(1.0, 0.9, 0.35))
+				"hich_tuong_si":
+					var ally_tex := Art.tex("fx/ally.png")
+					for ai in 3:
+						var ap := (base_hero_pos + Vector2(18.0 + ai * 14.0, -14.0 + ai * 14.0)).lerp(dummy_pos + Vector2(-12.0, -10.0 + ai * 10.0), clampf(p * 1.25 - ai * 0.1, 0.0, 1.0))
+						_draw_frame(ally_tex, ap, 18, 20, int(_t * 10.0) + ai, 1.25)
+				"thuan_thien_kiem":
+					for bi in 3:
+						var bang := _t * 6.5 + TAU * float(bi) / 3.0
+						var bpos := hero_pos + Vector2(cos(bang) * 32.0, sin(bang) * 20.0)
+						draw_line(bpos - Vector2.from_angle(bang) * 6.0, bpos + Vector2.from_angle(bang) * 9.0, Color(1.0, 0.92, 0.42), 2.6)
+						draw_circle(bpos + Vector2.from_angle(bang) * 9.0, 2.2, Color(1.0, 1.0, 0.85))
+				"than_toc":
+					for fi in 4:
+						var fpos := base_hero_pos.lerp(hero_pos, float(fi + 1) / 4.0) + Vector2(0, 8.0)
+						draw_circle(fpos, 5.5 - float(fi) * 0.7, Color(1.0, 0.52, 0.18, 0.75))
+				"hoa_hong":
+					var pot_tex := Art.tex("fx/fire_pot.png")
+					for hi in 4:
+						var hpos := hero_pos.lerp(dummy_pos + Vector2(-12 + hi * 8, -8 + (hi % 2) * 16), clampf(p * 1.3, 0.0, 1.0))
+						if p < 0.45 and pot_tex != null:
+							draw_texture_rect(pot_tex, Rect2(hpos - Vector2(6, 6), Vector2(12, 12)), false)
+						else:
+							draw_circle(hpos + Vector2(0, 4), 7.0 + sin(_t * 14.0 + hi) * 2.0, Color(1.0, 0.48, 0.14, 0.75))
+							draw_circle(hpos + Vector2(0, 2), 4.0, Color(1.0, 0.88, 0.35, 0.9))
+				"hum_thieng":
+					var tg_tex := Art.tex("fx/tiger.png")
+					var tpos := hero_pos.lerp(dummy_pos + Vector2(12, 0), clampf(p * 1.35, 0.0, 1.0))
+					_draw_frame(tg_tex, tpos, 40, 24, int(_t * 14.0), 1.25)
+					draw_arc(hero_pos, 14.0 + p * 34.0, -0.9, 0.9, 14, Color(1.0, 0.72, 0.25, 0.7), 2.0)
+				"keo_phao":
+					var tu_tex := Art.tex("fx/turret.png")
+					var tpos := base_hero_pos + Vector2(26.0, 6.0)
+					_draw_frame(tu_tex, tpos, 30, 20, 1 if int(_t * 8.0) % 2 == 0 else 0, 1.2)
+					var sp: float = fmod(p * 2.4, 1.0)
+					var shell := tpos.lerp(dummy_pos, sp) + Vector2(0, -sin(sp * PI) * 14.0)
+					draw_circle(shell, 3.2, Color(1.0, 0.85, 0.35))
+					if sp > 0.82:
+						draw_circle(dummy_pos, 10.0, Color(1.0, 0.52, 0.18, 0.75))
+				"ngua_sat":
+					var ih_tex := Art.tex("fx/iron_horse.png")
+					_draw_frame(ih_tex, hero_pos + Vector2(4, 0), 40, 30, int(_t * 14.0), 1.35)
+					for fb in 5:
+						var fp: float = clampf(p * 1.6 - float(fb) * 0.1, 0.0, 1.0)
+						var fpos := (hero_pos + Vector2(16, -2)).lerp(dummy_pos + Vector2(0, -10.0 + float(fb) * 5.0), fp)
+						draw_circle(fpos, 4.5, Color(1.0, 0.45 + 0.1 * fb, 0.15, 0.85))
+						draw_circle(fpos, 2.2, Color(1.0, 0.92, 0.45, 0.95))
+
+		# Nhãn nhỏ trạng thái
+		var tag_txt: String = "Đang tung chiêu!" if _casting else "Sẵn sàng"
+		var tag_col: Color = Color(1.0, 0.88, 0.36) if _casting else Color(0.7, 0.74, 0.82)
+		Art.draw_text(self, Vector2(size.x * 0.5, 11.0), tag_txt, 10, tag_col)
+
+
 func _ready() -> void:
 	layer = 20
 	var top := Control.new()
@@ -117,6 +326,8 @@ func _process(_delta: float) -> void:
 			tags.append(str(Global.SHRINE_BLESSINGS[Global.lobby_shrine_buff].name))
 		if not Global.lobby_garden_buffs.is_empty():
 			tags.append("Thảo dược x%d" % Global.lobby_garden_buffs.size())
+		if Global.selected_pet != "" and Global.PETS.has(Global.selected_pet):
+			tags.append("Linh thú: %s" % str(Global.PETS[Global.selected_pet].name))
 		if Global.pending_challenge_code != "":
 			tags.append("Mã: %s" % Global.pending_challenge_code)
 		_prep_label.text = "Chuẩn bị: %s" % " | ".join(tags) if not tags.is_empty() else ""
@@ -206,23 +417,151 @@ func _add_cost_row(parent: Control, coins_need: int, mats: Dictionary) -> void:
 	row.add_child(UI.label("%d xu" % coins_need, 12, Color(1, 0.88, 0.45) if ok_c else Color(1, 0.35, 0.35)))
 
 
-func open_hero(id: String, tab: String = "info") -> void:
+func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void:
 	var h: Dictionary = HeroData.DATA[id]
 	var unlocked: bool = Global.unlocked.has(id)
-	if not unlocked:
+	if not unlocked and tab == "train":
 		tab = "info"
 	var box := _begin(h.name)
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 8)
+	box.add_child(tabs)
+	var b_info := UI.button("Thông tin", open_hero.bind(id, "info", preview_rank), 13, 110.0)
+	b_info.disabled = (tab == "info")
+	tabs.add_child(b_info)
+	var b_show := UI.button("Chiêu & Bậc vũ khí", open_hero.bind(id, "showcase", preview_rank), 13, 155.0)
+	b_show.disabled = (tab == "showcase")
+	tabs.add_child(b_show)
 	if unlocked:
-		var tabs := HBoxContainer.new()
-		tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-		tabs.add_theme_constant_override("separation", 10)
-		box.add_child(tabs)
-		var b_info := UI.button("Thông tin", open_hero.bind(id, "info"), 14, 120.0)
-		b_info.disabled = (tab == "info")
-		var b_tr := UI.button("Tu luyện", open_hero.bind(id, "train"), 14, 120.0)
+		var b_tr := UI.button("Tu luyện", open_hero.bind(id, "train", preview_rank), 13, 110.0)
 		b_tr.disabled = (tab == "train")
-		tabs.add_child(b_info)
 		tabs.add_child(b_tr)
+	if tab == "showcase":
+		box.add_theme_constant_override("separation", 3)
+		var sel_rank: int = clampi(preview_rank if preview_rank >= 1 else Global.weapon_rank(id), 1, 5)
+		var wid: String = str(h.weapon)
+		var base_w: Dictionary = WeaponData.get_data(wid)
+		var ranked: Dictionary = ProgressionData.apply_weapon_rank(wid, base_w, sel_rank)
+		var tr_w: Dictionary = ProgressionData.TRAITS.get(wid, {})
+
+		# Hàng trên: Sân khấu hoạt ảnh tung chiêu + mô tả chiêu
+		var top_row := HBoxContainer.new()
+		top_row.add_theme_constant_override("separation", 10)
+		box.add_child(top_row)
+		var preview := HeroSkillPreview.new()
+		preview.custom_minimum_size = Vector2(204, 72)
+		preview.setup(id, sel_rank)
+		top_row.add_child(preview)
+
+		var sk_box := VBoxContainer.new()
+		sk_box.custom_minimum_size = Vector2(286, 0)
+		sk_box.add_theme_constant_override("separation", 2)
+		top_row.add_child(sk_box)
+		var sk_hdr := HBoxContainer.new()
+		sk_hdr.add_theme_constant_override("separation", 8)
+		sk_box.add_child(sk_hdr)
+		var sk_t := UI.label("%s (Hồi %.0fs)" % [str(h.skill_name), float(h.skill_cd)], 13, Color(0.6, 0.9, 1.0))
+		sk_t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		sk_t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sk_hdr.add_child(sk_t)
+		sk_hdr.add_child(UI.button("▶ Xem chiêu", preview.replay, 11, 96.0))
+		var sk_d := UI.label(str(h.skill_desc), 11, Color(0.92, 0.9, 0.86), true)
+		sk_d.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		sk_box.add_child(sk_d)
+
+		# Chọn từng bậc 1 -> 5
+		var rank_bar := HBoxContainer.new()
+		rank_bar.alignment = BoxContainer.ALIGNMENT_CENTER
+		rank_bar.add_theme_constant_override("separation", 5)
+		box.add_child(rank_bar)
+		var owned_r: int = Global.weapon_rank(id) if unlocked else 0
+		for r_i in range(1, 6):
+			var r_lbl: String = ("Bậc 5 ★★" if r_i == 5 else ("Bậc 3 ★" if r_i == 3 else "Bậc %d" % r_i))
+			if r_i == owned_r:
+				r_lbl += " ✓"
+			var rb := UI.button(r_lbl, open_hero.bind(id, "showcase", r_i), 11, 86.0)
+			rb.disabled = (r_i == sel_rank)
+			rank_bar.add_child(rb)
+
+		# 3 cấp ngoại hình vũ khí đặt cạnh nhau (Bậc 1-2, Bậc 3-4, Bậc 5)
+		var evo_row := HBoxContainer.new()
+		evo_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		evo_row.add_theme_constant_override("separation", 8)
+		box.add_child(evo_row)
+		var tiers: Array[Dictionary] = [
+			{"label": "Bậc 1–2: Nguyên bản", "tex_r": 1, "min_r": 1, "max_r": 2, "col": Color(0.84, 0.86, 0.9)},
+			{"label": "Bậc 3–4: Khắc văn", "tex_r": 3, "min_r": 3, "max_r": 4, "col": Color(0.45, 0.86, 1.0)},
+			{"label": "Bậc 5: Thức tỉnh ★", "tex_r": 5, "min_r": 5, "max_r": 5, "col": Color(1.0, 0.86, 0.35)},
+		]
+		for td in tiers:
+			var is_cur_group: bool = sel_rank >= int(td.min_r) and sel_rank <= int(td.max_r)
+			var card := PanelContainer.new()
+			card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if is_cur_group else "ui/panel.png"))
+			card.custom_minimum_size = Vector2(158, 0)
+			var cv := VBoxContainer.new()
+			cv.add_theme_constant_override("separation", 0)
+			var icon := TextureRect.new()
+			icon.texture = Art.tex(ProgressionData.weapon_texture_path(wid, int(td.tex_r)))
+			icon.custom_minimum_size = Vector2(42, 16)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			cv.add_child(UI.center(icon))
+			cv.add_child(UI.label(str(td.label), 10, td.col))
+			card.add_child(cv)
+			evo_row.add_child(card)
+
+		# Chi tiết chỉ số & đặc tính của bậc đang xem
+		var stat_card := PanelContainer.new()
+		stat_card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
+		box.add_child(stat_card)
+		var sv := VBoxContainer.new()
+		sv.add_theme_constant_override("separation", 1)
+		stat_card.add_child(sv)
+		var r_info: Dictionary = ProgressionData.WEAPON_RANKS[sel_rank]
+		var own_tag: String = "  (Đang sở hữu)" if (unlocked and Global.weapon_rank(id) == sel_rank) else ""
+		var st_hdr := HBoxContainer.new()
+		st_hdr.add_theme_constant_override("separation", 8)
+		sv.add_child(st_hdr)
+		var st_title := UI.label("%s — %s%s" % [str(base_w.get("name", wid)), str(r_info.name), own_tag], 12, Color(1.0, 0.88, 0.38) if sel_rank >= 5 else Color(0.78, 0.92, 1.0))
+		st_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		st_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		st_hdr.add_child(st_title)
+		if sel_rank > 1:
+			_add_cost_row(st_hdr, int(r_info.coins), r_info.mats)
+		var extra_stat: String = ""
+		if ranked.has("reach"):
+			extra_stat = "  |  Tầm: %d" % int(round(float(ranked.reach)))
+		elif int(ranked.get("pierce", 0)) > 0 or int(ranked.get("count", 1)) > 1:
+			extra_stat = "  |  Xuyên: %d  |  Đạn: %d" % [int(ranked.get("pierce", 0)), int(ranked.get("count", 1))]
+		elif ranked.has("life") and str(base_w.get("proj", "")) == "fireball":
+			extra_stat = "  |  Tầm phun: %.2fs" % float(ranked.life)
+		var st_line := UI.label("Sát thương: %d (×%.2f)  |  Hồi đòn: %.2fs%s" % [int(ranked.get("damage", 1)), float(r_info.dmg_mult), float(ranked.get("cooldown", 0.3)), extra_stat], 11, Color(0.95, 0.92, 0.86))
+		st_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		sv.add_child(st_line)
+		if not tr_w.is_empty():
+			var d1_on: bool = sel_rank >= 3
+			var d2_on: bool = sel_rank >= 5
+			var l1 := UI.label(("✓ Đ1 (Bậc 3): " if d1_on else "○ Đ1 (Bậc 3): ") + str(tr_w.d1), 10, Color(0.58, 0.95, 0.68) if d1_on else Color(0.62, 0.64, 0.68))
+			l1.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			sv.add_child(l1)
+			var l2 := UI.label(("★ Đ2 (Bậc 5): " if d2_on else "○ Đ2 (Bậc 5): ") + str(tr_w.d2), 10, Color(1.0, 0.88, 0.38) if d2_on else Color(0.62, 0.64, 0.68))
+			l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			sv.add_child(l2)
+
+		var sh_btns := HBoxContainer.new()
+		sh_btns.alignment = BoxContainer.ALIGNMENT_CENTER
+		sh_btns.add_theme_constant_override("separation", 10)
+		box.add_child(sh_btns)
+		if unlocked:
+			sh_btns.add_child(UI.button("Sang Tu luyện", open_hero.bind(id, "train", sel_rank), 14, 150.0))
+		else:
+			sh_btns.add_child(UI.button("Mở khóa: %d xu" % h.cost, func():
+				if Global.try_unlock(id):
+					lobby.select_hero(id)
+					close(), 14, 160.0))
+		sh_btns.add_child(UI.button("Đóng", close, 14, 110.0))
+		return
 	if tab == "train":
 		var inv := HBoxContainer.new()
 		inv.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -319,17 +658,17 @@ func open_hero(id: String, tab: String = "info") -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
-	var at := AtlasTexture.new()
-	at.atlas = Art.tex("heroes/%s.png" % id)
-	at.region = Rect2(0, 0, 32, 32)
-	var pic := TextureRect.new()
-	pic.texture = at
-	pic.custom_minimum_size = Vector2(96, 96)
-	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	row.add_child(pic)
+	var left_col := VBoxContainer.new()
+	left_col.add_theme_constant_override("separation", 4)
+	row.add_child(left_col)
+	var info_preview := HeroSkillPreview.new()
+	info_preview.custom_minimum_size = Vector2(138, 92)
+	info_preview.setup(id, Global.weapon_rank(id))
+	left_col.add_child(info_preview)
+	left_col.add_child(UI.button("▶ Xem chiêu", info_preview.replay, 12, 138.0))
+	left_col.add_child(UI.button("5 bậc vũ khí", open_hero.bind(id, "showcase", Global.weapon_rank(id)), 12, 138.0))
 	var info := VBoxContainer.new()
-	info.custom_minimum_size = Vector2(360, 0)
+	info.custom_minimum_size = Vector2(340, 0)
 	row.add_child(info)
 	var w := WeaponData.get_data(h.weapon)
 	var fam: String = SynergyData.family(h.weapon)
@@ -1044,4 +1383,133 @@ func open_supply(last_msg: String = "") -> void:
 		buy_b.disabled = Global.coins < 25
 		col_box.add_child(buy_b)
 		grid.add_child(col_box)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Linh Thú & Hồ Cá Koi
+
+func open_pet(pet_id: String, last_msg: String = "") -> void:
+	if not Global.PETS.has(pet_id):
+		return
+	var pinfo: Dictionary = Global.PETS[pet_id]
+	var box := _begin(str(pinfo.name))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+
+	var at := AtlasTexture.new()
+	at.atlas = Art.tex(str(pinfo.sprite))
+	at.region = Rect2(0, 0, int(pinfo.fw), int(pinfo.fh))
+	var pic := TextureRect.new()
+	pic.texture = at
+	pic.custom_minimum_size = Vector2(72, 64)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	row.add_child(pic)
+
+	var info := VBoxContainer.new()
+	info.custom_minimum_size = Vector2(340, 0)
+	info.add_theme_constant_override("separation", 3)
+	row.add_child(info)
+	var sub := UI.label(str(pinfo.title), 14, pinfo.color)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info.add_child(sub)
+	var role_l := UI.label("Ra trận: %s" % str(pinfo.role), 13, Color(0.95, 0.92, 0.86), true)
+	role_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info.add_child(role_l)
+	var gift_l := UI.label("Tại sảnh: %s" % str(pinfo.gift), 12, Color(0.68, 0.94, 0.78), true)
+	gift_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info.add_child(gift_l)
+
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+
+	var gifted: bool = lobby != null and lobby.pet_gifts.has(pet_id)
+	var is_active: bool = (Global.selected_pet == pet_id)
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 10)
+	box.add_child(btns)
+
+	var b_pet := UI.button("Đã vuốt ve lần này" if gifted else "Vuốt ve & Nhận quà", func():
+		if lobby == null or lobby.pet_gifts.has(pet_id):
+			return
+		lobby.pet_gifts[pet_id] = true
+		var msg := ""
+		match pet_id:
+			"dog":
+				Global.coins += 15
+				msg = "Cún Vàng vẫy đuôi đào được +15 xu!"
+			"cat":
+				Global.coins += 10
+				msg = "Mèo Tam Thể mang lại +10 xu may mắn!"
+			"rooster":
+				var pool: Array[String] = ["dong", "sat", "go_lim", "hoa_duoc"]
+				var mid: String = pool[randi() % pool.size()]
+				Global.materials[mid] = Global.material_count(mid) + 1
+				msg = "Gà Trống tặng +1 %s!" % str(MaterialData.DATA[mid].name)
+			"crane":
+				Global.materials["hoa_duoc"] = Global.material_count("hoa_duoc") + 1
+				msg = "Chim Hạc nhả tặng +1 Hoa dược!"
+		Global.save_game()
+		Sfx.play("coin")
+		if lobby.has_method("on_station_fx") and lobby.player != null and is_instance_valid(lobby.player):
+			lobby.on_station_fx(lobby.player.global_position, msg, pinfo.color)
+		open_pet(pet_id, msg), 14, 170.0)
+	b_pet.disabled = gifted
+	btns.add_child(b_pet)
+
+	var b_follow := UI.button("Để ở lại sảnh" if is_active else "Đồng hành ra trận", func():
+		var next_id: String = "" if Global.selected_pet == pet_id else pet_id
+		Global.select_pet(next_id)
+		if lobby != null and lobby.has_method("refresh_pet_stations"):
+			lobby.refresh_pet_stations()
+		Sfx.play("pickup_weapon")
+		var msg := ("%s đã nghỉ tại sảnh." % str(pinfo.name)) if next_id == "" else ("%s sẽ theo bạn ra trận!" % str(pinfo.name))
+		open_pet(pet_id, msg), 14, 175.0)
+	btns.add_child(b_follow)
+	btns.add_child(UI.button("Đóng", close, 14, 100.0))
+
+
+func open_pond(last_msg: String = "") -> void:
+	var box := _begin("Hồ Cá Koi Vườn Sen")
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+
+	var at := AtlasTexture.new()
+	at.atlas = Art.tex("world/animal_koi_gold.png")
+	at.region = Rect2(0, 0, 22, 12)
+	var pic := TextureRect.new()
+	pic.texture = at
+	pic.custom_minimum_size = Vector2(66, 40)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	row.add_child(pic)
+
+	var desc := UI.label("Rắc thính cho đàn cá Koi ăn (1 lần mỗi ghé sảnh): ngắm đàn cá tụ lại ăn mồi, nhận ngay +10 xu và phúc lành Linh Khí (+60 năng lượng lượt tới).", 13, Color(0.92, 0.94, 0.96), true)
+	desc.custom_minimum_size = Vector2(330, 0)
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	row.add_child(desc)
+
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+
+	var fed: bool = lobby != null and bool(lobby.koi_fed)
+	var b_feed := UI.button("Đã cho cá ăn lần này" if fed else "Rắc thính cho cá ăn (Miễn phí)", func():
+		if lobby == null or bool(lobby.koi_fed):
+			return
+		lobby.koi_fed = true
+		Global.coins += 10
+		if not Global.lobby_garden_buffs.has("linh_khi"):
+			Global.lobby_garden_buffs.append("linh_khi")
+		Global.save_game()
+		Sfx.play("coin")
+		if lobby.has_method("on_koi_fed"):
+			lobby.on_koi_fed()
+		open_pond("Đàn cá Koi tụ lại ăn mồi! +10 xu & +1 phúc lành Linh Khí."), 14, 260.0)
+	b_feed.disabled = fed
+	box.add_child(UI.center(b_feed))
 	_end(box)

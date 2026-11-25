@@ -44,7 +44,11 @@ var stations: Array = []
 var well_uses: int = 3
 var supply_claimed: bool = false
 var garden_watered: bool = false
+var pet_gifts: Dictionary = {}
+var koi_fed: bool = false
 var _hero_npcs := {}
+var _animal_nodes: Dictionary = {}
+var _pet_stations: Array = []
 var _leaving := false
 var _forged_icon: Sprite2D
 var _garden_sprites: Array[Sprite2D] = []
@@ -268,8 +272,8 @@ func _decorate() -> void:
 	_prop("world/lobby_bush_red.png", Vector2(736, 672), Vector2(0, -8))
 	for p in [Vector2(492, 654), Vector2(868, 654)]:
 		_decor("pot", p)
-	_life("dog", Vector2(680, 622))
-	_life("cat", Vector2(598, 628))
+	_animal_nodes["dog"] = _life("dog", Vector2(680, 622))
+	_animal_nodes["cat_hall"] = _life("cat", Vector2(598, 628))
 	var pa := _life("patrol", Vector2.ZERO)
 	pa.a = Vector2(510, 672)
 	pa.b = Vector2(850, 672)
@@ -296,7 +300,7 @@ func _decorate() -> void:
 	_decor("banner", Vector2(742, 76))
 
 	# ---- 3. Vườn Sen & Chiến Tích (Tây) ----
-	_life("pond", Vector2(215, 585), Vector2(130, 74))
+	_animal_nodes["pond"] = _life("pond", Vector2(215, 585), Vector2(130, 74))
 	for lp in [Vector2(72, 368), Vector2(398, 368), Vector2(114, 578), Vector2(318, 578)]:
 		_anim_prop("world/prop_stone_lantern.png", 32, 48, 4.0, lp + Vector2(0, -14), Color(1.0, 0.78, 0.42))
 	_prop("world/prop_bench.png", Vector2(215, 512), Vector2(0, -4))
@@ -317,11 +321,11 @@ func _decorate() -> void:
 	_prop("world/lobby_bush_gold.png", Vector2(142, 654), Vector2(0, -8))
 	_prop("world/lobby_bush_red.png", Vector2(308, 658), Vector2(0, -8))
 	# Đàn động vật sống động trong Vườn Sen
-	_life("rooster", Vector2(318, 466))
+	_animal_nodes["rooster"] = _life("rooster", Vector2(318, 466))
 	for cp in [Vector2(294, 488), Vector2(328, 492), Vector2(348, 474)]:
 		_life("chick", cp)
-	_life("crane", Vector2(146, 616))
-	_life("cat", Vector2(246, 506))
+	_animal_nodes["crane"] = _life("crane", Vector2(146, 616))
+	_animal_nodes["cat_garden"] = _life("cat", Vector2(246, 506))
 
 	# ---- 4. Xưởng Rèn & Võ Đường (Đông) ----
 	for p in [Vector2(968, 274), Vector2(1292, 274)]:
@@ -552,6 +556,31 @@ func _build_stations() -> void:
 	portal.entered.connect(_start_run)
 	world.add_child(portal)
 
+	# Tương tác Linh Thú & Hồ Cá Koi
+	var animal_defs: Array[Dictionary] = [
+		{"key": "dog", "pet_id": "dog", "rad": 28.0},
+		{"key": "cat_hall", "pet_id": "cat", "rad": 26.0},
+		{"key": "rooster", "pet_id": "rooster", "rad": 28.0},
+		{"key": "crane", "pet_id": "crane", "rad": 34.0},
+		{"key": "cat_garden", "pet_id": "cat", "rad": 26.0},
+	]
+	for ad in animal_defs:
+		var akey: String = str(ad.key)
+		var pid: String = str(ad.pet_id)
+		var nd: Node2D = _animal_nodes.get(akey, null) as Node2D
+		if nd == null or not Global.PETS.has(pid):
+			continue
+		var pinfo: Dictionary = Global.PETS[pid]
+		var st := _add_station("pet", pid, str(pinfo.name), "Vuốt ve & Đồng hành", nd.position, null, -24.0)
+		st.title_when_near = true
+		st.radius = float(ad.rad)
+		_pet_stations.append({"station": st, "node": nd, "pet_id": pid})
+
+	var pond_st := _add_station("pond", "", "Hồ Cá Koi", "Cho cá ăn cầu lộc", Vector2(215, 526), null, -22.0)
+	pond_st.title_when_near = true
+	pond_st.radius = 30.0
+	refresh_pet_stations()
+
 
 func _refresh_heroes() -> void:
 	for id in _hero_npcs:
@@ -588,6 +617,11 @@ func _process(delta: float) -> void:
 		var nd: Node2D = _sway_nodes[i]
 		if nd != null and is_instance_valid(nd):
 			nd.rotation = sin(_sway_t * 1.4 + float(i) * 1.3) * 0.025
+	for ps in _pet_stations:
+		var st: Node2D = ps.get("station", null) as Node2D
+		var an: Node2D = ps.get("node", null) as Node2D
+		if st != null and is_instance_valid(st) and an != null and is_instance_valid(an):
+			st.position = an.position
 	if player == null or not is_instance_valid(player):
 		return
 	if camera != null and is_instance_valid(camera):
@@ -641,6 +675,10 @@ func _on_station(s) -> void:
 			ui.open_shrine()
 		"supply":
 			ui.open_supply()
+		"pet":
+			ui.open_pet(str(s.data))
+		"pond":
+			ui.open_pond()
 
 
 ## Gọi từ bảng tướng khi bấm "Chọn tướng này"
@@ -709,6 +747,25 @@ func on_station_fx(pos: Vector2, msg: String, col := Color(1.0, 0.9, 0.45)) -> v
 	if world != null:
 		Fx.particles(world, pos + Vector2(0, -6), col, 16, 72.0, 0.55, -24.0, 2.0)
 		Fx.float_text(world, pos + Vector2(0, -26), msg, col, 14)
+
+
+func refresh_pet_stations() -> void:
+	for ps in _pet_stations:
+		var st = ps.get("station", null)
+		var pid: String = str(ps.get("pet_id", ""))
+		if st == null or not is_instance_valid(st) or not Global.PETS.has(pid):
+			continue
+		var pinfo: Dictionary = Global.PETS[pid]
+		var chosen: bool = (Global.selected_pet == pid)
+		st.title = ("%s ★ (Đang theo)" % str(pinfo.name)) if chosen else str(pinfo.name)
+		st.title_color = Color(1.0, 0.9, 0.35) if chosen else Color(0.88, 0.96, 0.92)
+
+
+func on_koi_fed() -> void:
+	var pond_nd = _animal_nodes.get("pond", null)
+	if pond_nd != null and is_instance_valid(pond_nd) and pond_nd.has_method("trigger_koi_feed"):
+		pond_nd.trigger_koi_feed()
+	on_station_fx(Vector2(215, 560), "Cá Koi chúc phúc! +10 xu", Color(0.55, 0.94, 1.0))
 
 
 func set_player_active(on: bool) -> void:
