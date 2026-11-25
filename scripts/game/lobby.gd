@@ -46,6 +46,8 @@ var supply_claimed: bool = false
 var garden_watered: bool = false
 var pet_gifts: Dictionary = {}
 var koi_fed: bool = false
+var merchant_deal: String = ""
+var merchant_bundle_bought: bool = false
 var _hero_npcs := {}
 var _animal_nodes: Dictionary = {}
 var _pet_stations: Array = []
@@ -57,6 +59,7 @@ var _sway_nodes: Array = []
 var _sway_t: float = 0.0
 var _well_pos := Vector2(245, 345)
 var _forge_pos := Vector2(1032, 345)
+var _mat_shop_pos := Vector2(1204, 452)
 
 
 func _ready() -> void:
@@ -68,6 +71,8 @@ func _ready() -> void:
 	var dark := CanvasModulate.new()
 	dark.color = Color(0.96, 0.93, 0.88)
 	add_child(dark)
+	var deal_pool: Array = preload("res://scripts/data/materials.gd").ORDER
+	merchant_deal = str(deal_pool[randi() % deal_pool.size()])
 	_build_room()
 	_decorate()
 	var secret_unlocked: bool = false
@@ -335,7 +340,31 @@ func _decorate() -> void:
 	_prop("world/prop_coal_pile.png", Vector2(976, 372), Vector2(0, -4))
 	_decor("crate", Vector2(1086, 378))
 	_decor("pot", Vector2(968, 418))
-	_prop("world/prop_flag_stand.png", Vector2(1290, 422), Vector2(0, -10))
+	_prop("world/prop_flag_stand.png", Vector2(1300, 480), Vector2(0, -10))
+	# Góc trang trí tỉ mỉ cho Gian Hàng Thương Nhân Nguyên Liệu (phải Bàn Phù Phép)
+	var shop_carpet := _prop("world/shop_mat_carpet.png", Vector2(1204, 466))
+	shop_carpet.z_index = -1
+	_anim_prop("world/shop_banner.png", 24, 48, 4.5, Vector2(1134, 434), Color.TRANSPARENT)
+	_prop("world/shop_ore_crates.png", Vector2(1148, 462), Vector2(0, -10))
+	_anim_prop("world/shop_gem_rack.png", 32, 44, 4.0, Vector2(1264, 446), Color(0.45, 0.95, 0.88))
+	var shop_motes := CPUParticles2D.new()
+	shop_motes.position = Vector2(1264, 434)
+	shop_motes.amount = 8
+	shop_motes.lifetime = 1.6
+	shop_motes.direction = Vector2.UP
+	shop_motes.spread = 28.0
+	shop_motes.gravity = Vector2(0, -14)
+	shop_motes.initial_velocity_min = 4.0
+	shop_motes.initial_velocity_max = 10.0
+	shop_motes.scale_amount_min = 1.0
+	shop_motes.scale_amount_max = 1.8
+	var smg := Gradient.new()
+	smg.set_color(0, Color(0.55, 1.0, 0.85, 0.9))
+	smg.set_color(1, Color(0.95, 0.72, 1.0, 0.0))
+	shop_motes.color_ramp = smg
+	shop_motes.material = Art.additive()
+	shop_motes.z_index = 4
+	world.add_child(shop_motes)
 	for bp in [Vector2(978, 514), Vector2(1284, 514), Vector2(978, 650), Vector2(1284, 650)]:
 		_prop("world/prop_weapon_barrel.png", bp, Vector2(0, -6))
 	_prop("world/sandbag.png", Vector2(1024, 506))
@@ -539,6 +568,17 @@ func _build_stations() -> void:
 	el.position = Vector2(1032, 434)
 	world.add_child(el)
 
+	# Xưởng Rèn (đông): Thương Nhân Nguyên Liệu
+	var shop_spr := AnimatedSprite2D.new()
+	shop_spr.sprite_frames = Art.strip("world/lobby_mat_shop.png", 84, 68, 4.5, true)
+	shop_spr.play("play")
+	shop_spr.position = Vector2(0, -18)
+	var shop_st := _add_station("mat_merchant", "", "Thương Nhân Nguyên Liệu", "Mua bán & Đổi nguyên liệu", _mat_shop_pos, shop_spr, -58.0)
+	shop_st.radius = 36.0
+	var slt := Art.light(Color(1.0, 0.78, 0.38), 1.25, 0.85)
+	slt.position = _mat_shop_pos + Vector2(0, -18)
+	world.add_child(slt)
+
 	# Đại Cổng Xuất Trận (bắc): Tượng Thần Hộ Mệnh & Rương Quân Nhu
 	var shrine_st := _add_station("shrine", "", "Tượng Thần Hộ Mệnh", "Cầu thần phúc xuất trận", Vector2(546, 128), _sprite("world/lobby_shrine.png", Vector2(0, -18)), -48.0)
 	shrine_st.radius = 28.0
@@ -671,6 +711,8 @@ func _on_station(s) -> void:
 			ui.open_garden()
 		"enchant":
 			ui.open_enchant()
+		"mat_merchant":
+			ui.open_mat_merchant()
 		"shrine":
 			ui.open_shrine()
 		"supply":

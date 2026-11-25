@@ -49,9 +49,10 @@ class LobbyMinimap extends Control:
 			var fill := Color(0.32, 0.3, 0.38, 0.95) if active else Color(0.18, 0.17, 0.22, 0.92)
 			draw_rect(mr, fill)
 			draw_rect(mr, Color(1.0, 0.85, 0.35) if active else Color(0.55, 0.52, 0.56), false, 1.0)
-		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Giếng Ước (ngọc)
+		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Giếng Ước (ngọc), Shop Nguyên Liệu (vàng)
 		draw_rect(Rect2(ox + 680 * sx - 2, oy + 115 * sy - 2, 4, 4), Color(0.45, 0.85, 1.0))
 		draw_rect(Rect2(ox + 1032 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(1.0, 0.58, 0.25))
+		draw_rect(Rect2(ox + 1204 * sx - 1.5, oy + 452 * sy - 1.5, 3, 3), Color(1.0, 0.84, 0.28))
 		draw_rect(Rect2(ox + 245 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(0.45, 0.95, 0.88))
 		# Chấm vị trí người chơi
 		var dp := Vector2(ox + ppos.x * sx, oy + ppos.y * sy)
@@ -1513,3 +1514,208 @@ func open_pond(last_msg: String = "") -> void:
 	b_feed.disabled = fed
 	box.add_child(UI.center(b_feed))
 	_end(box)
+
+
+# ------------------------------------------------------------------ Thương Nhân Nguyên Liệu
+
+const MAT_SHOP_PRICES: Dictionary = {
+	"dong": {"buy1": 10, "buy5": 42, "sell1": 5},
+	"sat": {"buy1": 12, "buy5": 50, "sell1": 6},
+	"go_lim": {"buy1": 12, "buy5": 50, "sell1": 6},
+	"hoa_duoc": {"buy1": 15, "buy5": 65, "sell1": 8},
+	"yeu_hon": {"buy1": 28, "buy5": 120, "sell1": 14},
+	"ngoc_than": {"buy1": 55, "buy5": 240, "sell1": 28},
+}
+
+
+func _mat_buy_price(mid: String, qty: int) -> int:
+	var pdict: Dictionary = MAT_SHOP_PRICES.get(mid, {})
+	var base: int = int(pdict.get("buy5" if qty >= 5 else "buy1", 10))
+	if lobby != null and str(lobby.merchant_deal) == mid:
+		return maxi(1, int(ceil(float(base) * 0.7)))
+	return base
+
+
+func open_mat_merchant(tab: String = "buy", last_msg: String = "") -> void:
+	var box := _begin("Thương Nhân Nguyên Liệu")
+	box.add_theme_constant_override("separation", 2 if tab == "trade" else 3)
+
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 8)
+	box.add_child(tabs)
+	var b_buy := UI.button("Mua nguyên liệu", open_mat_merchant.bind("buy", ""), 13, 150.0)
+	b_buy.disabled = (tab == "buy")
+	var b_trade := UI.button("Bán & Gói ưu đãi", open_mat_merchant.bind("trade", ""), 13, 155.0)
+	b_trade.disabled = (tab == "trade")
+	tabs.add_child(b_buy)
+	tabs.add_child(b_trade)
+
+	# Thanh kho xu + 6 nguyên liệu
+	var inv := HBoxContainer.new()
+	inv.alignment = BoxContainer.ALIGNMENT_CENTER
+	inv.add_theme_constant_override("separation", 8)
+	box.add_child(inv)
+	inv.add_child(UI.label("Xu: %d" % Global.coins, 12, Color(1.0, 0.88, 0.45)))
+	for mid in MaterialData.ORDER:
+		var md: Dictionary = MaterialData.DATA[mid]
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 2)
+		cell.add_child(_mat_icon(str(mid), 11.0))
+		var cnt: int = Global.material_count(str(mid))
+		cell.add_child(UI.label(str(cnt), 12, md.color if cnt > 0 else Color(0.55, 0.55, 0.55)))
+		inv.add_child(cell)
+
+	var deal_id: String = str(lobby.merchant_deal) if lobby != null else ""
+	var banner_txt: String = last_msg
+	var banner_col := Color(0.55, 0.98, 0.72)
+	if banner_txt == "" and tab == "buy":
+		if deal_id != "" and MaterialData.DATA.has(deal_id):
+			banner_txt = "Ưu đãi ghé sảnh hôm nay: %s giảm 30%%!" % str(MaterialData.DATA[deal_id].name)
+			banner_col = Color(1.0, 0.88, 0.38)
+		else:
+			banner_txt = "Chọn nguyên liệu cần mua cho Lò rèn hoặc bán bớt đồ dư."
+			banner_col = Color(0.86, 0.9, 0.94)
+	if banner_txt != "":
+		box.add_child(UI.label(banner_txt, 11, banner_col))
+
+	if tab == "trade":
+		# Gói Thợ Rèn 1 lần/ghé sảnh
+		var bundle_bought: bool = lobby != null and bool(lobby.merchant_bundle_bought)
+		var bpanel := PanelContainer.new()
+		bpanel.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if not bundle_bought else "ui/panel.png"))
+		box.add_child(bpanel)
+		var brow := HBoxContainer.new()
+		brow.add_theme_constant_override("separation", 8)
+		bpanel.add_child(brow)
+		var bdesc := UI.label("Gói Thợ Rèn (60 xu): +3 Đồng, +3 Sắt, +2 Gỗ lim, +1 Yêu hồn", 12, Color(1.0, 0.9, 0.45))
+		bdesc.custom_minimum_size = Vector2(315, 0)
+		bdesc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		brow.add_child(bdesc)
+		var b_pack := UI.button("Đã mua lần này" if bundle_bought else "Mua gói (60x)", func():
+			if lobby == null or bool(lobby.merchant_bundle_bought) or Global.coins < 60:
+				return
+			Global.coins -= 60
+			lobby.merchant_bundle_bought = true
+			Global.materials["dong"] = Global.material_count("dong") + 3
+			Global.materials["sat"] = Global.material_count("sat") + 3
+			Global.materials["go_lim"] = Global.material_count("go_lim") + 2
+			Global.materials["yeu_hon"] = Global.material_count("yeu_hon") + 1
+			Global.save_game()
+			Sfx.play("chest_open")
+			lobby.on_station_fx(lobby._mat_shop_pos, "Mua Gói Thợ Rèn!", Color(1.0, 0.88, 0.35))
+			open_mat_merchant("trade", "Đã nhận Gói Thợ Rèn: +3 Đồng, +3 Sắt, +2 Gỗ lim, +1 Yêu hồn!"), 12, 128.0)
+		b_pack.disabled = bundle_bought or Global.coins < 60
+		brow.add_child(b_pack)
+
+	var list_panel := PanelContainer.new()
+	list_panel.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
+	box.add_child(list_panel)
+
+	if tab == "buy":
+		var list_box := VBoxContainer.new()
+		list_box.add_theme_constant_override("separation", 2)
+		list_panel.add_child(list_box)
+		for mid_v in MaterialData.ORDER:
+			var mid: String = str(mid_v)
+			var md: Dictionary = MaterialData.DATA[mid]
+			var have: int = Global.material_count(mid)
+			var is_deal: bool = (mid == deal_id)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			list_box.add_child(row)
+
+			var icon_wrap := HBoxContainer.new()
+			icon_wrap.custom_minimum_size = Vector2(180, 0)
+			icon_wrap.add_theme_constant_override("separation", 5)
+			icon_wrap.add_child(_mat_icon(mid, 12.0))
+			var nm_txt: String = str(md.name) + (" (-30% ★)" if is_deal else "")
+			var nm := UI.label(nm_txt, 12, Color(1.0, 0.9, 0.4) if is_deal else md.color)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			icon_wrap.add_child(nm)
+			row.add_child(icon_wrap)
+
+			var own_l := UI.label("Có: %d" % have, 11, Color(0.84, 0.88, 0.9))
+			own_l.custom_minimum_size = Vector2(56, 0)
+			own_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(own_l)
+
+			var p1: int = _mat_buy_price(mid, 1)
+			var p5: int = _mat_buy_price(mid, 5)
+			var b1 := UI.button("Mua x1 (%dx)" % p1, func():
+				if Global.coins < p1:
+					return
+				Global.coins -= p1
+				Global.materials[mid] = Global.material_count(mid) + 1
+				Global.save_game()
+				Sfx.play("buy")
+				if lobby != null and lobby.has_method("on_station_fx"):
+					lobby.on_station_fx(lobby._mat_shop_pos, "+1 %s" % str(md.name), md.color)
+				open_mat_merchant("buy", "Đã mua +1 %s (%d xu)!" % [str(md.name), p1]), 11, 100.0)
+			b1.disabled = Global.coins < p1
+			row.add_child(b1)
+
+			var b5 := UI.button("Mua x5 (%dx)" % p5, func():
+				if Global.coins < p5:
+					return
+				Global.coins -= p5
+				Global.materials[mid] = Global.material_count(mid) + 5
+				Global.save_game()
+				Sfx.play("buy")
+				if lobby != null and lobby.has_method("on_station_fx"):
+					lobby.on_station_fx(lobby._mat_shop_pos, "+5 %s" % str(md.name), md.color)
+				open_mat_merchant("buy", "Đã mua +5 %s (%d xu)!" % [str(md.name), p5]), 11, 108.0)
+			b5.disabled = Global.coins < p5
+			row.add_child(b5)
+	else:
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 10)
+		grid.add_theme_constant_override("v_separation", 4)
+		list_panel.add_child(grid)
+		for mid_v in MaterialData.ORDER:
+			var mid: String = str(mid_v)
+			var md: Dictionary = MaterialData.DATA[mid]
+			var have: int = Global.material_count(mid)
+			var s1: int = int(MAT_SHOP_PRICES[mid].sell1)
+			var s5: int = s1 * 5
+			var cell := HBoxContainer.new()
+			cell.add_theme_constant_override("separation", 4)
+			grid.add_child(cell)
+
+			var icon_wrap := HBoxContainer.new()
+			icon_wrap.custom_minimum_size = Vector2(96, 0)
+			icon_wrap.add_theme_constant_override("separation", 4)
+			icon_wrap.add_child(_mat_icon(mid, 11.0))
+			var nm := UI.label("%s (%d)" % [str(md.name), have], 11, md.color)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			icon_wrap.add_child(nm)
+			cell.add_child(icon_wrap)
+
+			var bs1 := UI.button("Bán 1 (+%dx)" % s1, func():
+				if Global.material_count(mid) < 1:
+					return
+				Global.materials[mid] = Global.material_count(mid) - 1
+				if int(Global.materials[mid]) <= 0:
+					Global.materials.erase(mid)
+				Global.coins += s1
+				Global.save_game()
+				Sfx.play("coin")
+				open_mat_merchant("trade", "Đã bán 1 %s (+%d xu)!" % [str(md.name), s1]), 10, 74.0)
+			bs1.disabled = have < 1
+			cell.add_child(bs1)
+
+			var bs5 := UI.button("Bán 5 (+%dx)" % s5, func():
+				if Global.material_count(mid) < 5:
+					return
+				Global.materials[mid] = Global.material_count(mid) - 5
+				if int(Global.materials[mid]) <= 0:
+					Global.materials.erase(mid)
+				Global.coins += s5
+				Global.save_game()
+				Sfx.play("coin")
+				open_mat_merchant("trade", "Đã bán 5 %s (+%d xu)!" % [str(md.name), s5]), 10, 82.0)
+			bs5.disabled = have < 5
+			cell.add_child(bs5)
+
+	box.add_child(UI.center(UI.button("Đóng", close, 14, 120.0)))

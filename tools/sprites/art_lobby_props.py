@@ -1133,6 +1133,222 @@ def build_garden_plots():
     save(_with_shadow(outline(img), 2, 20, 22, 26, 85), "world/garden_barrel.png")
 
 
+def build_material_shop():
+    """Gian hàng Thương Nhân Nguyên Liệu (5 bộ sprite chi tiết):
+      - world/lobby_mat_shop.png  (4 khung 84x68 -> 336x68): quầy gỗ mái lụa, lồng đèn, ông thương nhân, 6 nguyên liệu & cân bàn tính
+      - world/shop_mat_carpet.png (104x38): thảm thổ cẩm trải trước quầy
+      - world/shop_ore_crates.png (36x32): rương quặng & sọt gỗ lim / túi hỏa dược
+      - world/shop_gem_rack.png   (3 khung 32x44 -> 96x44): kệ sơn mài bày ngọc thần, lọ yêu hồn & đèn dầu
+      - world/shop_banner.png     (3 khung 24x48 -> 72x48): cờ phướn Thương Hội bay phấp phới
+    """
+    wood, w_l, w_d = _c("6e3f22"), _c("9c6038"), _c("3e2010")
+    red, r_l, r_d = _c("9e2628"), _c("d4423c"), _c("5c1216")
+    gold, gold_l, gold_d = _c("ebbc42"), _c("fff29c"), _c("946418")
+    jade, jade_l, jade_d = _c("246c62"), _c("3da092"), _c("14423c")
+    skin, skin_d = _c("f2c094"), _c("c68e62")
+    cream = _c("f2dfb4")
+
+    # 1. Quầy hàng chính 4 khung (84x68)
+    frames = []
+    for f in range(4):
+        img, d = canvas(84, 68)
+        # Vách gỗ hậu & kệ sổ sách mờ sau lưng thương nhân
+        d.rectangle([13, 22, 70, 44], fill=_c("3c2418"))
+        d.rectangle([15, 25, 28, 27], fill=w_d)
+        d.rectangle([55, 25, 68, 27], fill=w_d)
+        d.rectangle([17, 21, 22, 25], fill=cream, outline=gold_d)   # cuộn sổ
+        d.rectangle([58, 20, 65, 25], fill=_c("a8683a"), outline=w_d) # túi hàng trên kệ
+
+        # Hai cột gỗ lim đứng + đế đá tảng
+        for cx in (12, 69):
+            d.rectangle([cx, 18, cx + 2, 60], fill=wood)
+            d.line([(cx, 18), (cx, 60)], fill=w_l)
+            d.rectangle([cx - 1, 58, cx + 3, 61], fill=_c("7c7874"), outline=_c("44403e"))
+
+        # Ông Thương Nhân (ở giữa phía sau quầy)
+        # Thân áo dài gấm xanh ngọc thêu viền vàng
+        d.polygon([(35, 42), (37, 29), (46, 29), (48, 42)], fill=jade)
+        auto_shade(img, jade, jade_l, jade_d)
+        d.line([(41, 30), (41, 41)], fill=gold)
+        d.rectangle([37, 36, 46, 37], fill=red)  # đai lụa đỏ
+        # Đầu, khăn đóng & chòm râu bạc hiền hậu
+        d.ellipse([38, 22, 45, 29], fill=skin)
+        d.rectangle([37, 20, 46, 23], fill=_c("222028"))  # khăn đóng
+        d.rectangle([38, 22, 45, 22], fill=gold)
+        if f == 2:
+            d.line([(39, 25), (40, 25)], fill=_c("20161e"))
+            d.line([(43, 25), (44, 25)], fill=_c("20161e"))
+        else:
+            d.point([40, 25], fill=_c("20161e"))
+            d.point([43, 25], fill=_c("20161e"))
+        d.point([41, 27], fill=_c("985440"))  # miệng cười
+        d.polygon([(40, 28), (43, 28), (42, 31)], fill=_c("e8eaee"))  # chòm râu bạc
+        # Tay cầm quạt giấy phe phẩy nhẹ theo khung f
+        fan_dy = (0, -1, -2, -1)[f]
+        d.line([(37, 34), (33, 33 + fan_dy)], fill=skin)
+        d.pieslice([28, 28 + fan_dy, 36, 36 + fan_dy], 200, 350, fill=cream, outline=gold_d)
+        d.line([(46, 34), (49, 36)], fill=skin)
+
+        # Thân quầy gỗ lim mặt rộng phía trước + yếm gấm đỏ
+        d.rectangle([10, 42, 73, 60], fill=wood)
+        auto_shade(img, wood, w_l, w_d)
+        d.rectangle([9, 39, 74, 43], fill=w_l, outline=w_d)  # mặt quầy nhô
+        d.line([(10, 40), (73, 40)], fill=_c("bd7f4c"))
+        # Yếm vải gấm đỏ & đồng tiền vàng giữa yếm
+        d.rectangle([28, 45, 55, 57], fill=red, outline=gold_d)
+        d.rectangle([30, 46, 53, 55], outline=gold)
+        d.ellipse([39, 48, 44, 53], fill=gold)
+        d.rectangle([41, 50, 42, 51], fill=red)
+
+        # Bày 6 nguyên liệu + bàn tính + cân đồng trên mặt quầy (y=33..41)
+        # Bàn tính & cân tiểu ly bên trái
+        d.rectangle([12, 37, 18, 41], fill=w_d, outline=gold_d)
+        for bx in (13, 15, 17):
+            d.point([bx + (f % 2 if bx == 15 else 0), 38], fill=gold_l)
+            d.point([bx, 40], fill=gold)
+        d.line([(23, 32), (23, 39)], fill=gold)         # trụ cân đồng
+        d.line([(19, 33), (27, 33)], fill=gold_l)       # đòn cân
+        d.rectangle([19, 36, 21, 37], fill=gold)
+        d.rectangle([25, 36, 27, 37], fill=gold)
+
+        # (1) Thỏi Đồng
+        d.rectangle([29, 37, 33, 40], fill=_c("d67c2c"), outline=_c("7c3a12"))
+        d.rectangle([30, 35, 33, 37], fill=_c("f4a64c"), outline=_c("7c3a12"))
+        # (2) Thỏi Sắt
+        d.rectangle([35, 37, 40, 40], fill=_c("8b96ab"), outline=_c("444b5e"))
+        d.line([(36, 37), (39, 37)], fill=_c("d2ddf0"))
+        # (3) Bó Gỗ lim
+        for gy in (36, 38):
+            d.rectangle([42, gy, 47, gy + 1], fill=_c("84502c"), outline=_c("4a2812"))
+        d.line([(44, 36), (44, 40)], fill=_c("d8b878"))  # dây thừng buộc
+        # (4) Bầu Hỏa dược
+        d.ellipse([49, 35, 53, 40], fill=_c("d63e22"), outline=_c("6c1810"))
+        d.point([51, 34], fill=_c("ffa838") if f % 2 == 0 else _c("fff098"))
+        # (5) Bình Yêu hồn (lấp lánh tím)
+        d.rectangle([55, 35, 59, 40], fill=_c("9e4be8"), outline=_c("4a1e78"))
+        d.point([57, 34], fill=_c("e4b8ff"))
+        d.point([56 + (f % 2), 37], fill=_c("ffffff") if f in (0, 2) else _c("e4b8ff"))
+        # (6) Viên Ngọc thần trên gối nhung (lấp lánh xanh ngọc)
+        d.rectangle([62, 38, 70, 40], fill=red)
+        d.polygon([(66, 33), (69, 36), (66, 39), (63, 36)], fill=_c("2ce8b4"), outline=_c("127a60"))
+        d.point([66, 35], fill=_c("d8fff4") if f % 2 == 0 else _c("74ffda"))
+        if f in (1, 3):
+            d.point([69, 32], fill=_c("d8fff4"))
+
+        # Mái hiên lụa kẻ sọc đỏ son - vàng kem + xà đầu rồng + biển hiệu
+        d.rectangle([6, 17, 77, 20], fill=w_d)
+        for sx in range(8, 75, 4):
+            col = red if ((sx // 4) % 2 == 0) else cream
+            col_hi = r_l if ((sx // 4) % 2 == 0) else _c("fff4d4")
+            d.polygon([(sx, 17), (sx + 3, 17), (sx + 2, 7), (sx - 1 if sx > 8 else sx, 7)], fill=col)
+            d.point([sx + 1, 9], fill=col_hi)
+            # Diềm múi vải lượn sóng
+            d.pieslice([sx - 1, 16, sx + 3, 21], 0, 180, fill=col)
+            d.point([sx + 1, 21], fill=gold if (sx // 4) % 2 == 0 else gold_l)
+        d.rectangle([9, 5, 74, 7], fill=wood, outline=w_d)  # nóc gỗ
+        # Đầu rồng chạm vàng hai đầu nóc
+        d.polygon([(5, 8), (9, 5), (9, 9)], fill=gold)
+        d.polygon([(78, 8), (74, 5), (74, 9)], fill=gold)
+        # Biển hiệu gỗ sơn son treo giữa mái
+        d.rectangle([28, 10, 55, 18], fill=r_d, outline=gold)
+        d.rectangle([30, 12, 53, 16], fill=red)
+        for ch_x in (33, 37, 41, 45, 49):
+            d.rectangle([ch_x, 13, ch_x + 2, 15], fill=gold_l)
+
+        # Hai lồng đèn đỏ treo hai bên đung đưa nhẹ theo khung
+        sway = (0, 1, 0, -1)[f]
+        for lx in (7, 76):
+            d.line([(lx, 18), (lx + sway, 22)], fill=gold_d)
+            d.ellipse([lx - 3 + sway, 22, lx + 3 + sway, 29], fill=red, outline=gold_d)
+            d.rectangle([lx - 1 + sway, 24, lx + 1 + sway, 27], fill=_c("ffe47c") if f % 2 == 0 else _c("ffb848"))
+            d.line([(lx + sway, 30), (lx + sway, 32)], fill=gold)
+
+        frames.append(_with_shadow(outline(img), 6, 56, 77, 65, 95))
+    save(sheet(frames), "world/lobby_mat_shop.png")
+
+    # 2. Thảm dệt thổ cẩm trải trước quầy (104x38)
+    img, d = canvas(104, 38)
+    d.rectangle([4, 3, 99, 34], fill=_c("6a1a1d"), outline=_c("3c0c10"))
+    d.rectangle([7, 6, 96, 31], fill=_c("8e2629"), outline=gold)
+    d.rectangle([10, 9, 93, 28], outline=_c("c89432"))
+    # Hoa văn hình thoi vàng chạy dọc thảm
+    for cx in range(20, 92, 16):
+        d.polygon([(cx, 13), (cx + 5, 18), (cx, 23), (cx - 5, 18)], fill=gold_d, outline=gold)
+        d.ellipse([cx - 2, 16, cx + 2, 20], fill=gold_l)
+    # Tua rua vàng hai bên mép thảm
+    for y in range(5, 34, 3):
+        d.line([(1, y), (3, y)], fill=gold_d)
+        d.line([(100, y), (102, y)], fill=gold_d)
+    save(img, "world/shop_mat_carpet.png")
+
+    # 3. Rương quặng mở nắp & sọt gỗ lim / túi hỏa dược (36x32)
+    img, d = canvas(36, 32)
+    # Rương gỗ sau-trái
+    d.rectangle([3, 7, 20, 15], fill=w_d, outline=_c("2c160c"))  # nắp mở
+    d.rectangle([2, 13, 21, 25], fill=wood, outline=w_d)
+    for cx, cy in ((5, 12), (9, 11), (13, 12), (7, 14)):
+        d.rectangle([cx, cy, cx + 3, cy + 2], fill=_c("ea8e38"), outline=_c("8a4214"))
+    for ix, iy in ((14, 11), (16, 13)):
+        d.rectangle([ix, iy, ix + 3, iy + 2], fill=_c("92a0b8"), outline=_c("444e60"))
+    d.rectangle([6, 13, 7, 25], fill=_c("545260"))
+    d.rectangle([16, 13, 17, 25], fill=_c("545260"))
+    # Sọt tre đựng gỗ lim & túi hỏa dược bên phải
+    d.polygon([(20, 17), (33, 17), (31, 27), (22, 27)], fill=_c("b88846"), outline=_c("6c4a20"))
+    d.line([(21, 21), (32, 21)], fill=_c("885e2a"))
+    d.rectangle([22, 11, 26, 17], fill=_c("764422"), outline=_c("422210"))
+    d.ellipse([27, 13, 32, 18], fill=red, outline=r_d)
+    d.point([29, 12], fill=gold)
+    save(_with_shadow(outline(img), 2, 22, 33, 30, 85), "world/shop_ore_crates.png")
+
+    # 4. Kệ sơn mài 3 tầng bày Ngọc thần, Yêu hồn & Đèn dầu (3 khung 32x44)
+    rack_frames = []
+    for f in range(3):
+        img, d = canvas(32, 44)
+        # Khung kệ gỗ sơn son thiếp vàng
+        d.rectangle([5, 6, 26, 39], fill=_c("3c1816"), outline=w_d)
+        for cx in (5, 25):
+            d.rectangle([cx, 4, cx + 1, 40], fill=red)
+            d.point([cx, 3], fill=gold)
+        for sy in (14, 24, 34):
+            d.rectangle([4, sy, 27, sy + 2], fill=wood, outline=w_d)
+            d.line([(5, sy), (26, sy)], fill=gold_d)
+        # Tầng 1: cụm Ngọc thần sáng + đèn dầu đồng cháy lập lòe
+        d.polygon([(10, 14), (12, 8), (14, 14)], fill=_c("32e8b4"), outline=_c("127a60"))
+        d.polygon([(13, 14), (15, 10), (17, 14)], fill=_c("74ffda"))
+        d.rectangle([19, 11, 24, 14], fill=gold_d)
+        d.point([21, 9 - (f % 2)], fill=_c("fff098") if f != 1 else _c("ff9832"))
+        # Tầng 2: 2 bình Yêu hồn phát sáng tím
+        for ux, col_g in ((9, "a854f0"), (18, "7e3ec8")):
+            d.rectangle([ux, 18, ux + 5, 24], fill=_c(col_g), outline=_c("42186e"))
+            d.point([ux + 2, 17], fill=gold)
+            d.point([ux + 2, 20], fill=_c("f4d8ff") if f == 0 else _c("d2a4ff"))
+        # Tầng 3: 2 hũ xu vàng
+        for jx in (8, 18):
+            d.ellipse([jx, 27, jx + 6, 34], fill=_c("8e582a"), outline=_c("4c2c12"))
+            d.ellipse([jx + 1, 26, jx + 5, 29], fill=gold_l if f != 2 else gold)
+        rack_frames.append(_with_shadow(outline(img), 4, 36, 27, 42, 90))
+    save(sheet(rack_frames), "world/shop_gem_rack.png")
+
+    # 5. Cờ phướn Thương Hội bay phấp phới (3 khung 24x48)
+    ban_frames = []
+    for f in range(3):
+        img, d = canvas(24, 48)
+        # Trụ đá & cán gỗ
+        d.rectangle([8, 40, 15, 44], fill=_c("7c7874"), outline=_c("44403e"))
+        d.rectangle([11, 5, 12, 42], fill=wood)
+        d.line([(6, 8), (18, 8)], fill=gold)
+        d.point([11, 3], fill=gold_l)
+        # Lá phướn đỏ viền vàng uốn sóng theo khung
+        ox = (0, 1, -1)[f]
+        d.polygon([(7, 9), (16, 9), (16 + ox, 30), (12 + ox, 35), (7 + ox, 30)], fill=red, outline=gold)
+        d.ellipse([9, 13, 14, 18], fill=gold)         # đồng tiền cổ
+        d.rectangle([11, 15, 12, 16], fill=red)
+        d.rectangle([10 + ox, 21, 13 + ox, 26], fill=gold_l)
+        d.line([(12 + ox, 35), (12 + ox * 2, 39)], fill=gold)
+        ban_frames.append(_with_shadow(outline(img), 7, 40, 16, 46, 85))
+    save(sheet(ban_frames), "world/shop_banner.png")
+
+
 def build():
     save(build_stele(), "world/lobby_stele.png")
     save(build_well(), "world/lobby_well.png")
@@ -1150,6 +1366,7 @@ def build():
     build_flora()
     build_animals()
     build_props()
+    build_material_shop()
 
 
 if __name__ == "__main__":

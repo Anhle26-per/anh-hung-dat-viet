@@ -117,8 +117,24 @@ func _run() -> void:
 		_check(lobby.ui.is_open(), "trạm '%s' không mở bảng UI" % str(s.kind))
 		lobby.ui.close()
 		await _frames(1)
-	for req in ["stele", "well", "challenge", "forge", "rack", "codex", "hero", "tea", "war_table", "garden", "enchant", "shrine", "supply", "pet", "pond"]:
+	for req in ["stele", "well", "challenge", "forge", "rack", "codex", "hero", "tea", "war_table", "garden", "enchant", "mat_merchant", "shrine", "supply", "pet", "pond"]:
 		_check(kinds_seen.has(req), "thiếu trạm '%s' trong sảnh" % req)
+
+	print("== (c3) Kiểm tra Thương Nhân Nguyên Liệu (mua & bán)")
+	lobby.ui.open_mat_merchant("buy")
+	await _frames(2)
+	_check(lobby.ui.is_open(), "open_mat_merchant('buy') không mở")
+	lobby.ui.open_mat_merchant("trade")
+	await _frames(1)
+	_check(lobby.ui.is_open(), "open_mat_merchant('trade') không mở")
+	lobby.ui.close()
+	var c_before_buy: int = Global.coins
+	var p_dong: int = lobby.ui._mat_buy_price("dong", 1)
+	Global.coins -= p_dong
+	Global.materials["dong"] = Global.material_count("dong") + 1
+	_check(Global.material_count("dong") == 1 and Global.coins == c_before_buy - p_dong, "giao dịch mua Đồng bị sai")
+	Global.materials.erase("dong")
+	Global.coins = c_before_buy
 
 	print("== (c2) Kiểm tra Linh Thú, Hồ Cá Koi & Trưng bày chiêu/vũ khí theo bậc")
 	lobby.ui.open_pet("dog")
