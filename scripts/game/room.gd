@@ -149,10 +149,16 @@ func spawn_enemy(k: String, pos: Vector2, elite := false) -> void:
 func _random_point() -> Vector2:
 	var inner := rect.grow(-T * 2.0)
 	var p = get_tree().get_first_node_in_group("player")
+	var d = get_parent()
 	var pos := inner.get_center()
 	for i in 20:
 		pos = Vector2(randf_range(inner.position.x, inner.end.x), randf_range(inner.position.y, inner.end.y))
 		var ok := p == null or pos.distance_to(p.global_position) > 90.0
+		if ok and d != null and d.get("tiles") != null:
+			var tl: TileMapLayer = d.tiles
+			var cell: Vector2i = tl.local_to_map(tl.to_local(pos))
+			if tl.get_cell_source_id(cell) == -1 or tl.get_cell_atlas_coords(cell).x in [4, 5, 6, 7, 8]:
+				ok = false
 		if ok:
 			for c in covers:
 				if is_instance_valid(c) and pos.distance_to(c.global_position) < 24.0:

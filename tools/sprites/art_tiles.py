@@ -1,10 +1,14 @@
-"""Gạch nền và tường (vẽ lại cho đẹp): 8 bối cảnh, tường cao 2 ô, bóng đổ, chi tiết rải sàn.
+"""Gạch nền và tường đa sắc độ (14 cột): 8 bối cảnh, tường cao 2 ô, lối đi lát đá/gỗ,
+viền cỏ/đá, thảm lễ nghi, bóng đổ mềm và chi tiết rải sàn.
 
-world/tiles.png   : mỗi hàng 1 bối cảnh, 10 cột:
-                    0-3 sàn, 4-5 tường tầng trên, 6-7 tường tầng dưới, 8 nóc tường, 9 sàn đặc biệt
-world/shadows.png : 3 ô bóng đổ (trên, trái, góc)
+world/tiles.png   : mỗi hàng 1 bối cảnh, 14 cột:
+                    0-3 sàn chính, 4-5 tường tầng trên, 6-7 tường tầng dưới, 8 nóc tường,
+                    9 lối đi (walkway), 10 sân giữa (center), 11 viền rìa (trim),
+                    12 thảm nghi lễ (ceremony), 13 gạch điểm xuyết (accent)
+world/shadows.png : 3 ô bóng đổ mềm (trên, trái, góc)
 world/details.png : 8 chi tiết rải sàn (sỏi, cỏ, lá, hoa, vết nứt, xương, vũng nước, rơm)
 """
+import math
 import random
 from px import hexc, save, Image, ImageDraw
 
@@ -20,23 +24,31 @@ def mix(c1, c2, k):
 
 
 def lighten(c, k):
-    return mix(c, (255, 246, 220), k)
+    return mix(c, (255, 244, 218), k)
 
 
 def darken(c, k):
-    return mix(c, (26, 16, 34), k)
+    return mix(c, (24, 18, 34), k)
 
 
-# Bảng màu từng bối cảnh: sàn, tường, kiểu sàn, kiểu tường
+# Bảng màu đa sắc cho 8 bối cảnh (sàn, tường, mái, lối đi, viền cỏ/đá, nghi lễ)
 THEMES = [
-    {"floor": "6b7558", "wall": "7a8462", "fk": "slab", "wk": "stone", "accent": "5e9a3a"},        # 0 rừng núi
-    {"floor": "8a6038", "wall": "6e5236", "fk": "plank", "wk": "palisade", "accent": "4a8ab0"},    # 1 sông nước
-    {"floor": "a65a3e", "wall": "8e3a30", "fk": "terracotta", "wk": "brick", "accent": "e8b04a"}, # 2 Thăng Long
-    {"floor": "8c8890", "wall": "b8aea0", "fk": "slab", "wk": "plaster", "accent": "f4a0c0"},      # 3 Đống Đa
-    {"floor": "8e7048", "wall": "9aa04c", "fk": "dirt", "wk": "bamboo", "accent": "6aa83a"},       # 4 làng quê
-    {"floor": "8a8a80", "wall": "9a9282", "fk": "concrete", "wk": "concrete", "accent": "6a6a60"}, # 5 đồn Pháp
-    {"floor": "6e5a3c", "wall": "b09264", "fk": "mud", "wk": "sandbag", "accent": "4a6a8a"},       # 6 chiến hào
-    {"floor": "c0a882", "wall": "a8322e", "fk": "palace", "wk": "lacquer", "accent": "e8b04a"},    # 7 doanh trại
+    # 0 rừng núi Nưa (rêu xanh mát, tường đá xám xanh, lối đá cuội vàng nhạt)
+    {"floor": "5d7452", "wall": "6d7866", "roof": "3e5638", "path": "9c8c6c", "trim": "4d7c3e", "cer": "8e3838", "fk": "slab", "wk": "stone", "accent": "72b84a"},
+    # 1 sông Bạch Đằng (sàn gỗ ấm, cọc lim, lối cầu ván sáng, viền sóng lam)
+    {"floor": "8a623c", "wall": "5d6878", "roof": "3a4a60", "path": "b48858", "trim": "4a6e7c", "cer": "9a3438", "fk": "plank", "wk": "palisade", "accent": "62a8d8"},
+    # 2 Thành Thăng Long (gạch Bát Tràng đỏ cam, tường son vàng, lối đá xám vàng)
+    {"floor": "a85c42", "wall": "923e36", "roof": "582426", "path": "c2aa84", "trim": "7c4632", "cer": "b62e34", "fk": "terracotta", "wk": "brick", "accent": "f0b84e"},
+    # 3 Gò Đống Đa (sân đá lam xám, tường vôi kem mái ngói đỏ, lối đá sáng, hoa đào hồng)
+    {"floor": "828090", "wall": "c0b6a6", "roof": "8e3830", "path": "b2aa9c", "trim": "6a7866", "cer": "a4323a", "fk": "slab", "wk": "plaster", "accent": "f4a0c0"},
+    # 4 Làng quê Mê Linh (đất phù sa ấm, hàng rào tre lục, lối lát gạch vàng, cỏ xanh)
+    {"floor": "94724a", "wall": "8ca04a", "roof": "546e30", "path": "b89262", "trim": "5c8c3a", "cer": "9e3834", "fk": "dirt", "wk": "bamboo", "accent": "74b844"},
+    # 5 Đồn Pháp (nền đá xi măng ấm nhẹ, tường đá xám vàng, lối gạch đan, rêu viền)
+    {"floor": "848882", "wall": "9c927e", "roof": "5c564a", "path": "aca694", "trim": "5e7252", "cer": "8a3834", "fk": "concrete", "wk": "concrete", "accent": "7c9460"},
+    # 6 Chiến hào Điện Biên (đất nâu đỏ, ụ bao cát vàng, ván gỗ lót hào, cỏ sẫm)
+    {"floor": "745c3e", "wall": "b49464", "roof": "645438", "path": "9c744c", "trim": "4e6638", "cer": "9c3630", "fk": "mud", "wk": "sandbag", "accent": "e0a850"},
+    # 7 Doanh trại (gạch cung đình kem vàng, tường sơn son thếp vàng)
+    {"floor": "c2aa84", "wall": "a83430", "roof": "5e2022", "path": "d4be98", "trim": "8c7654", "cer": "a62c32", "fk": "palace", "wk": "lacquer", "accent": "f0b84e"},
 ]
 
 
@@ -44,8 +56,8 @@ def _img(c=(0, 0, 0, 0)):
     return Image.new("RGBA", (T, T), c)
 
 
-def _bevel(px, x0, y0, x1, y1, base, lk=0.18, dk=0.22):
-    """Phiến có gờ: cạnh trên/trái sáng, cạnh dưới/phải tối."""
+def _soft_bevel(px, x0, y0, x1, y1, base, lk=0.10, dk=0.12):
+    """Phiến đá/gạch chuyển sắc êm, không viền gắt."""
     for y in range(y0, y1 + 1):
         for x in range(x0, x1 + 1):
             px[x, y] = base
@@ -58,230 +70,294 @@ def _bevel(px, x0, y0, x1, y1, base, lk=0.18, dk=0.22):
         px[x1, y] = dk_
 
 
-def _speckle(px, rng, x0, y0, x1, y1, base, n, k=0.08):
-    """Vân đá: các cụm 2 điểm sáng/tối nhẹ (không nhiễu lấm tấm)."""
+def _soft_mottle(px, rng, x0, y0, x1, y1, base, n, k=0.05):
+    """Mảng màu loang mượt 2-3 điểm, tránh lấm tấm pixel."""
     for _ in range(n):
-        x, y = rng.randint(x0, x1 - 1), rng.randint(y0, y1)
+        x, y = rng.randint(x0, max(x0, x1 - 2)), rng.randint(y0, max(y0, y1 - 1))
         c = lighten(base, k) if rng.random() < 0.5 else darken(base, k)
-        if px[x, y] == base:
-            px[x, y] = c
-        if px[x + 1, y] == base:
-            px[x + 1, y] = c
+        for dx, dy in ((0, 0), (1, 0), (0, 1)):
+            if px[x + dx, y + dy] == base:
+                px[x + dx, y + dy] = c
 
 
-# ---------------------------------------------------------------- Sàn
+# ---------------------------------------------------------------- Sàn chính (cột 0-3)
 def floor(th, v, rng):
     base = C(th["floor"])
-    grout = darken(base, 0.45)
+    grout = darken(base, 0.24)
     acc = C(th["accent"])
     img = _img(grout)
     px = img.load()
     d = ImageDraw.Draw(img)
     k = th["fk"]
     if k in ("slab", "palace"):
-        if v == 3:   # hai phiến nhỏ
-            _bevel(px, 0, 0, 14, 6, base)
-            _bevel(px, 0, 8, 14, 14, lighten(base, 0.04))
+        tone = base if v == 0 else (darken(base, 0.03) if v == 1 else lighten(base, 0.03))
+        if v == 3:
+            _soft_bevel(px, 0, 0, 15, 7, tone, 0.09, 0.11)
+            _soft_bevel(px, 0, 8, 15, 15, lighten(tone, 0.03), 0.09, 0.11)
         else:
-            _bevel(px, 0, 0, 14, 14, base if v != 1 else darken(base, 0.04))
-            _speckle(px, rng, 2, 2, 12, 12, base, 6)
+            _soft_bevel(px, 0, 0, 15, 15, tone, 0.09, 0.11)
+            _soft_mottle(px, rng, 2, 2, 13, 13, tone, 5, 0.04)
         if v == 1:
-            d.line([(4, 3), (7, 7), (6, 11)], fill=darken(base, 0.35))
-            d.point([8, 7], fill=lighten(base, 0.2))
+            d.line([(4, 4), (7, 7), (6, 11)], fill=darken(tone, 0.18))
+            d.point([8, 7], fill=lighten(tone, 0.1))
         if v == 2 and k != "palace":
-            for _ in range(5):
-                x, y = rng.randint(2, 11), rng.randint(2, 11)
-                d.rectangle([x, y, x + 1, y], fill=acc)
-                d.point([x, y + 1], fill=darken(acc, 0.3))
+            for _ in range(3):
+                x, y = rng.randint(3, 11), rng.randint(3, 11)
+                d.ellipse([x, y, x + 2, y + 1], fill=acc)
         if k == "palace" and v == 2:
-            d.rectangle([4, 4, 10, 10], outline=lighten(base, 0.15))
-            d.rectangle([6, 6, 8, 8], fill=darken(base, 0.08))
+            d.rectangle([4, 4, 11, 11], outline=lighten(tone, 0.10))
             d.point([7, 7], fill=C("e8b04a"))
     elif k == "terracotta":
         for (x0, y0) in ((0, 0), (8, 0), (0, 8), (8, 8)):
-            b = base if (x0 + y0) % 16 == 0 else darken(base, 0.06)
-            _bevel(px, x0, y0, x0 + 6, y0 + 6, b, 0.2, 0.25)
+            b = base if (x0 + y0) % 16 == 0 else darken(base, 0.04)
+            _soft_bevel(px, x0, y0, x0 + 7, y0 + 7, b, 0.11, 0.14)
         if v == 1:
-            d.line([(9, 9), (12, 12)], fill=darken(base, 0.4))
+            d.line([(9, 9), (12, 12)], fill=darken(base, 0.22))
         if v == 2:
-            d.rectangle([3, 3, 4, 4], fill=acc)
-            d.rectangle([11, 11, 12, 12], fill=acc)
+            d.ellipse([3, 3, 4, 4], fill=acc)
+            d.ellipse([11, 11, 12, 12], fill=acc)
     elif k == "plank":
         for i, y0 in enumerate((0, 4, 8, 12)):
-            b = base if i % 2 == 0 else darken(base, 0.08)
-            for y in range(y0, y0 + 3):
-                for x in range(T):
-                    px[x, y] = b
-            for x in range(T):
-                px[x, y0] = lighten(b, 0.12)
+            b = base if i % 2 == 0 else darken(base, 0.05)
+            d.rectangle([0, y0, 15, y0 + 2], fill=b)
+            d.line([(0, y0), (15, y0)], fill=lighten(b, 0.08))
+            d.line([(0, y0 + 3), (15, y0 + 3)], fill=darken(b, 0.16))
             end = (5 + i * 7) % 16
-            for y in range(y0, y0 + 3):
-                px[end, y] = grout
+            d.line([(end, y0), (end, y0 + 2)], fill=grout)
             gx = rng.randint(1, 12)
-            d.line([(gx, y0 + 1), (gx + 3, y0 + 1)], fill=darken(b, 0.12))
-            px[(end + 1) % 16, y0 + 1] = darken(b, 0.35)
+            d.line([(gx, y0 + 1), (gx + 3, y0 + 1)], fill=darken(b, 0.08))
         if v == 2:
-            d.ellipse([4, 5, 11, 10], fill=darken(base, 0.18))
+            d.ellipse([4, 5, 11, 10], fill=darken(base, 0.12))
     elif k == "dirt":
-        img = _img(base)
+        tone = base if v != 1 else darken(base, 0.03)
+        img = _img(tone)
         px = img.load()
         d = ImageDraw.Draw(img)
-        for _ in range(10):
-            x, y = rng.randint(0, 14), rng.randint(0, 14)
-            c = lighten(base, 0.07) if rng.random() < 0.5 else darken(base, 0.08)
-            d.rectangle([x, y, x + 1, y], fill=c)
-        if v in (1, 3):
-            for _ in range(2):
-                x, y = rng.randint(2, 12), rng.randint(2, 12)
-                d.rectangle([x, y, x + 1, y], fill=C("a8a090"))
-                d.point([x, y + 1], fill=C("6a6458"))
+        _soft_mottle(px, rng, 0, 0, 15, 15, tone, 8, 0.05)
         if v == 2:
-            for dx in (0, 2, 4):
-                d.line([(5 + dx, 10), (6 + dx, 6 + dx % 3)], fill=acc)
+            for dx in (0, 3):
+                d.line([(5 + dx, 10), (6 + dx, 7)], fill=acc)
+        if v == 3:
+            d.ellipse([5, 6, 8, 8], fill=lighten(tone, 0.08))
     elif k == "concrete":
         img = _img(base)
         px = img.load()
         d = ImageDraw.Draw(img)
-        d.line([(0, 15), (15, 15)], fill=darken(base, 0.25))
-        d.line([(15, 0), (15, 15)], fill=darken(base, 0.25))
-        d.line([(0, 0), (14, 0)], fill=lighten(base, 0.1))
-        _speckle(px, rng, 1, 1, 13, 13, base, 8, 0.06)
+        d.line([(0, 15), (15, 15)], fill=darken(base, 0.12))
+        d.line([(15, 0), (15, 15)], fill=darken(base, 0.12))
+        d.line([(0, 0), (14, 0)], fill=lighten(base, 0.06))
+        _soft_mottle(px, rng, 1, 1, 13, 13, base, 6, 0.04)
         if v == 1:
-            d.line([(3, 12), (7, 8), (12, 7)], fill=darken(base, 0.35))
+            d.line([(3, 12), (7, 8), (12, 7)], fill=darken(base, 0.20))
         if v == 2:
-            d.ellipse([4, 4, 11, 9], fill=darken(base, 0.1))
+            d.ellipse([4, 4, 11, 9], fill=darken(base, 0.07))
     elif k == "mud":
         img = _img(base)
         px = img.load()
         d = ImageDraw.Draw(img)
-        for _ in range(12):
-            x, y = rng.randint(0, 14), rng.randint(0, 14)
-            d.rectangle([x, y, x + 1, y], fill=darken(base, 0.1) if rng.random() < 0.6 else lighten(base, 0.06))
+        _soft_mottle(px, rng, 0, 0, 15, 15, base, 8, 0.06)
         if v == 2:
-            for x, y in ((4, 6), (10, 10)):
-                d.rectangle([x, y, x + 1, y], fill=C("8a8478"))
-                d.point([x, y + 1], fill=C("4a4640"))
+            d.ellipse([4, 6, 7, 8], fill=C("5a7898"))
         if v == 1:
-            d.line([(2, 4), (5, 4)], fill=darken(base, 0.3))
-            d.line([(9, 11), (13, 11)], fill=darken(base, 0.3))
+            d.line([(3, 4), (7, 4)], fill=darken(base, 0.16))
+            d.line([(9, 11), (13, 11)], fill=darken(base, 0.16))
     return img
 
 
-# ---------------------------------------------------------------- Tường: 2 tầng (upper, lower) + nóc
+# ---------------------------------------------------------------- Sàn phụ đa sắc (cột 9-13)
+def walkway_tile(th, rng):
+    """Cột 9: lối đi lát đá / cầu ván sáng nổi bật dẫn giữa các cửa."""
+    p = C(th["path"])
+    grout = darken(p, 0.28)
+    img = _img(grout)
+    px = img.load()
+    d = ImageDraw.Draw(img)
+    k = th["fk"]
+    if k in ("plank", "mud"):
+        # ván gỗ bắc cầu / ván lót chiến hào
+        for y0 in (0, 8):
+            _soft_bevel(px, 0, y0, 15, y0 + 6, p if y0 == 0 else darken(p, 0.05), 0.12, 0.16)
+            d.line([(2, y0 + 3), (13, y0 + 3)], fill=darken(p, 0.08))
+        d.rectangle([2, 0, 4, 15], fill=darken(p, 0.20))
+        d.rectangle([11, 0, 13, 15], fill=darken(p, 0.20))
+    else:
+        # đá phiến lát so le 2 hàng
+        _soft_bevel(px, 0, 0, 7, 7, p, 0.13, 0.15)
+        _soft_bevel(px, 8, 0, 15, 7, darken(p, 0.04), 0.13, 0.15)
+        _soft_bevel(px, 0, 8, 4, 15, darken(p, 0.03), 0.13, 0.15)
+        _soft_bevel(px, 5, 8, 12, 15, lighten(p, 0.03), 0.13, 0.15)
+        _soft_bevel(px, 13, 8, 15, 15, darken(p, 0.04), 0.13, 0.15)
+        _soft_mottle(px, rng, 1, 1, 14, 14, p, 4, 0.05)
+    return img
+
+
+def center_tile(th):
+    """Cột 10: ô gạch sân giữa trang trí hình thoi/viền vàng nhẹ."""
+    p = lighten(C(th["path"]), 0.08)
+    acc = C(th["accent"])
+    img = _img(p)
+    px = img.load()
+    d = ImageDraw.Draw(img)
+    _soft_bevel(px, 0, 0, 15, 15, p, 0.12, 0.15)
+    d.rectangle([2, 2, 13, 13], outline=mix(p, acc, 0.45))
+    d.polygon([(7, 4), (11, 7), (7, 11), (4, 7)], fill=mix(p, acc, 0.25), outline=mix(p, acc, 0.65))
+    d.point([7, 7], fill=lighten(acc, 0.25))
+    return img
+
+
+def trim_tile(th, rng):
+    """Cột 11: ô rìa tiếp giáp tường (rêu/cỏ/viền đá chuyển tiếp mềm)."""
+    base = C(th["floor"])
+    tr = C(th["trim"])
+    blend = mix(base, tr, 0.55)
+    img = _img(blend)
+    px = img.load()
+    d = ImageDraw.Draw(img)
+    _soft_mottle(px, rng, 0, 0, 15, 15, blend, 10, 0.08)
+    for _ in range(4):
+        x, y = rng.randint(2, 13), rng.randint(2, 13)
+        d.line([(x, y), (x + 1, y - 2)], fill=lighten(tr, 0.20))
+    return img
+
+
+def ceremony_tile(th):
+    """Cột 12: thảm son vàng khu vực lễ nghi (phòng Trùm / Tam Yêu / Kho báu / Chợ)."""
+    cer = C(th["cer"])
+    gold = C("e8b04a")
+    img = _img(cer)
+    px = img.load()
+    d = ImageDraw.Draw(img)
+    _soft_bevel(px, 0, 0, 15, 15, cer, 0.12, 0.18)
+    d.rectangle([1, 1, 14, 14], outline=darken(cer, 0.25))
+    d.rectangle([2, 2, 13, 13], outline=mix(cer, gold, 0.55))
+    d.polygon([(7, 5), (10, 7), (7, 10), (5, 7)], fill=mix(cer, gold, 0.35))
+    return img
+
+
+def accent_tile(th, rng):
+    """Cột 13: gạch điểm xuyết phá vỡ sự lặp lại đơn điệu."""
+    base = mix(C(th["floor"]), C(th["path"]), 0.32)
+    acc = C(th["accent"])
+    img = _img(base)
+    px = img.load()
+    d = ImageDraw.Draw(img)
+    _soft_bevel(px, 0, 0, 15, 15, base, 0.10, 0.12)
+    d.rectangle([4, 4, 11, 11], outline=mix(base, acc, 0.38))
+    _soft_mottle(px, rng, 1, 1, 14, 14, base, 4, 0.05)
+    return img
+
+
+# ---------------------------------------------------------------- Tường 2 tầng + mái/nóc (cột 4-8)
 def wall_pair(th, v, rng):
     base = C(th["wall"])
-    lt, dk, mortar = lighten(base, 0.2), darken(base, 0.3), darken(base, 0.5)
+    roof = C(th["roof"])
+    acc = C(th["accent"])
+    lt, dk, mortar = lighten(base, 0.16), darken(base, 0.24), darken(base, 0.40)
     up, lo = _img(base), _img(base)
     pu, pl = up.load(), lo.load()
     du, dl = ImageDraw.Draw(up), ImageDraw.Draw(lo)
     k = th["wk"]
 
-    def blocks(d, px, y0, rows, bw, bh, off_alt=True):
+    def blocks(d, y0, rows, bw, bh, off_alt=True):
         for r in range(rows):
             y = y0 + r * bh
             off = (bw // 2) if (r % 2 and off_alt) else 0
             for x in range(-off, T, bw):
-                b = base if rng.random() < 0.7 else (lighten(base, 0.05) if rng.random() < 0.5 else darken(base, 0.06))
+                b = base if rng.random() < 0.7 else (lighten(base, 0.06) if rng.random() < 0.5 else darken(base, 0.06))
                 d.rectangle([x, y, x + bw - 2, y + bh - 2], fill=b)
-                d.line([(x, y), (x + bw - 2, y)], fill=lighten(b, 0.18))
-                d.line([(x, y + bh - 2), (x + bw - 2, y + bh - 2)], fill=darken(b, 0.18))
+                d.line([(x, y), (x + bw - 2, y)], fill=lighten(b, 0.14))
+                d.line([(x, y + bh - 2), (x + bw - 2, y + bh - 2)], fill=darken(b, 0.14))
 
     if k in ("stone", "brick", "concrete", "sandbag"):
-        for img, d in ((up, du), (lo, dl)):
+        for d in (du, dl):
             d.rectangle([0, 0, 15, 15], fill=mortar)
         if k == "stone":
-            blocks(du, pu, 3, 3, 8, 5)
-            blocks(dl, pl, 0, 3, 8, 5)
+            blocks(du, 4, 3, 8, 4)
+            blocks(dl, 0, 3, 8, 4)
+            if v == 1:
+                du.ellipse([3, 7, 6, 9], fill=acc)
         elif k == "brick":
-            blocks(du, pu, 3, 4, 6, 3)
-            blocks(dl, pl, 1, 5, 6, 3)
+            blocks(du, 4, 4, 6, 3)
+            blocks(dl, 0, 4, 6, 3)
         elif k == "concrete":
             du.rectangle([0, 0, 15, 15], fill=base)
             dl.rectangle([0, 0, 15, 15], fill=base)
-            du.line([(0, 9), (15, 9)], fill=dk)
-            dl.line([(7, 0), (7, 15)], fill=darken(base, 0.15))
+            du.line([(0, 10), (15, 10)], fill=dk)
+            dl.line([(7, 0), (7, 15)], fill=darken(base, 0.14))
             if v == 1:
-                dl.line([(10, 3), (10, 12)], fill=C("6a5a3a"))
-                dl.line([(11, 3), (11, 9)], fill=C("7a6a4a"))
+                du.rectangle([5, 6, 10, 9], fill=darken(base, 0.45))
         elif k == "sandbag":
-            for d, y0 in ((du, 3), (dl, 0)):
+            for d, y0 in ((du, 4), (dl, 0)):
                 for r in range(3):
-                    y = y0 + r * 5
+                    y = y0 + r * 4
                     off = 4 if r % 2 else 0
                     for x in range(-off, T, 8):
-                        d.rounded_rectangle([x, y, x + 7, y + 4], 2, fill=base)
-                        d.line([(x + 1, y + 1), (x + 5, y + 1)], fill=lt)
-                        d.line([(x + 1, y + 4), (x + 6, y + 4)], fill=dk)
+                        d.rounded_rectangle([x, y, x + 7, y + 3], 1, fill=base)
+                        d.line([(x + 1, y), (x + 5, y)], fill=lt)
     elif k == "palisade":
         for d in (du, dl):
-            d.rectangle([0, 0, 15, 15], fill=darken(base, 0.55))
+            d.rectangle([0, 0, 15, 15], fill=darken(base, 0.50))
         for x in range(0, T, 4):
             b = base if (x // 4) % 2 == 0 else darken(base, 0.08)
-            du.rectangle([x, 2, x + 3, 15], fill=b)
-            du.polygon([(x, 2), (x + 1.5, 0), (x + 3, 2)], fill=b)
+            du.rectangle([x, 3, x + 3, 15], fill=b)
+            du.polygon([(x, 3), (x + 1, 0), (x + 3, 3)], fill=roof)
             dl.rectangle([x, 0, x + 3, 15], fill=b)
             for d in (du, dl):
-                d.line([(x, 0), (x, 15)], fill=lighten(b, 0.15))
-                d.line([(x + 3, 0), (x + 3, 15)], fill=darken(b, 0.25))
-        du.line([(0, 8), (15, 8)], fill=C("c8a870"))
-        dl.line([(0, 9), (15, 9)], fill=C("c8a870"))
+                d.line([(x, 3 if d is du else 0), (x, 15)], fill=lighten(b, 0.14))
+        du.line([(0, 9), (15, 9)], fill=C("d8b878"))
+        dl.line([(0, 8), (15, 8)], fill=C("d8b878"))
     elif k == "bamboo":
         for d in (du, dl):
-            d.rectangle([0, 0, 15, 15], fill=darken(base, 0.6))
+            d.rectangle([0, 0, 15, 15], fill=darken(base, 0.52))
         for x in range(0, T, 4):
-            b = base if (x // 4) % 2 == 0 else darken(base, 0.1)
-            for d, y0 in ((du, 1), (dl, 0)):
+            b = base if (x // 4) % 2 == 0 else darken(base, 0.09)
+            for d, y0 in ((du, 2), (dl, 0)):
                 d.rectangle([x, y0, x + 2, 15], fill=b)
-                d.line([(x, y0), (x, 15)], fill=lighten(b, 0.25))
-            for y in (5, 12):
-                du.line([(x, y), (x + 2, y)], fill=darken(b, 0.35))
-            dl.line([(x, 7), (x + 2, 7)], fill=darken(b, 0.35))
-        du.line([(0, 9), (15, 9)], fill=C("8a6a3a"))
+                d.line([(x, y0), (x, 15)], fill=lighten(b, 0.22))
+            du.line([(x, 7), (x + 2, 7)], fill=darken(b, 0.30))
+            dl.line([(x, 7), (x + 2, 7)], fill=darken(b, 0.30))
+        du.line([(0, 10), (15, 10)], fill=C("a8804a"))
     elif k == "plaster":
         du.rectangle([0, 0, 15, 15], fill=base)
         dl.rectangle([0, 0, 15, 15], fill=base)
-        for x in range(0, T, 4):                     # mái ngói nhỏ trên đầu tường
-            du.rectangle([x, 0, x + 3, 3], fill=C("8e3a30"))
-            du.line([(x, 0), (x + 3, 0)], fill=C("c05a48"))
-            du.point([x + 3, 3], fill=C("5e2620"))
-        du.line([(0, 4), (15, 4)], fill=darken(base, 0.35))
-        dl.rectangle([0, 9, 15, 15], fill=darken(base, 0.2))      # chân tường
-        dl.line([(0, 9), (15, 9)], fill=C("8e3a30"))
         if v == 1:
-            du.rectangle([5, 7, 10, 12], fill=darken(base, 0.4))   # ô cửa sổ song
+            du.rectangle([5, 7, 10, 12], fill=darken(base, 0.40))
             for x in (6, 8):
                 du.line([(x, 7), (x, 12)], fill=C("6a4028"))
     elif k == "lacquer":
-        gold, gold_d = C("e8b04a"), C("a86a2a")
+        gold = C("e8b04a")
         du.rectangle([0, 0, 15, 15], fill=base)
         dl.rectangle([0, 0, 15, 15], fill=base)
-        du.rectangle([0, 0, 15, 2], fill=C("5e3a20"))
-        du.line([(0, 2), (15, 2)], fill=gold)
-        du.rectangle([2, 5, 13, 15], outline=gold_d)
-        dl.rectangle([2, 0, 13, 9], outline=gold_d)
-        dl.rectangle([0, 11, 15, 15], fill=C("5e3a20"))
-        dl.line([(0, 11), (15, 11)], fill=gold)
+        du.rectangle([2, 5, 13, 14], outline=C("a86a2a"))
+        dl.rectangle([2, 1, 13, 10], outline=C("a86a2a"))
         if v == 1:
             du.rectangle([6, 8, 9, 11], fill=gold)
-            du.point([7, 9], fill=C("fff0a0"))
-        for img in (up, lo):
-            p = img.load()
-            for y in range(T):
-                p[0, y] = lighten(p[0, y], 0.12)
-    # gờ mái trên cùng của tầng trên + chân tường tối ở tầng dưới
-    du.line([(0, 0), (15, 0)], fill=lighten(base, 0.35))
-    du.line([(0, 1), (15, 1)], fill=darken(base, 0.45)) if k not in ("plaster", "lacquer", "palisade") else None
-    dl.line([(0, 15), (15, 15)], fill=darken(base, 0.55))
+
+    # Mái / viền nóc tường trên (màu khác thân tường tạo độ nổi khối)
+    du.rectangle([0, 0, 15, 3], fill=roof)
+    du.line([(0, 0), (15, 0)], fill=lighten(roof, 0.22))
+    du.line([(0, 3), (15, 3)], fill=darken(roof, 0.28))
+    if k in ("brick", "plaster", "lacquer"):
+        for x in range(0, T, 4):
+            du.line([(x + 1, 0), (x + 1, 2)], fill=lighten(roof, 0.14))
+    # Chân tường đậm tiếp giáp sàn (plinth)
+    plinth = darken(base, 0.35)
+    dl.rectangle([0, 12, 15, 15], fill=plinth)
+    dl.line([(0, 12), (15, 12)], fill=darken(base, 0.18))
+    dl.line([(0, 15), (15, 15)], fill=darken(plinth, 0.35))
     return up, lo
 
 
-def wall_top(th):
-    base = darken(C(th["wall"]), 0.55)
+def wall_top(th, rng):
+    """Cột 8: nóc tường / mái vây hài hòa với nền bối cảnh, không kẻ ô vuông gắt."""
+    roof = C(th["roof"])
+    base = darken(roof, 0.28)
     img = _img(base)
+    px = img.load()
     d = ImageDraw.Draw(img)
-    d.rectangle([1, 1, 14, 14], fill=lighten(base, 0.08))
-    d.line([(1, 1), (14, 1)], fill=lighten(base, 0.18))
-    d.rectangle([0, 0, 15, 15], outline=darken(base, 0.3))
+    _soft_mottle(px, rng, 0, 0, 15, 15, base, 6, 0.08)
+    d.rectangle([1, 1, 14, 14], fill=mix(base, roof, 0.35))
+    d.line([(2, 2), (13, 2)], fill=lighten(roof, 0.10))
     return img
 
 
@@ -290,60 +366,68 @@ def shadows():
     px = img.load()
     for y in range(T):
         for x in range(T):
-            top = max(0, 1 - y / 6.0)
-            left = max(0, 1 - x / 4.0)
-            if top > 0:
-                px[x, y] = (12, 6, 18, int(120 * top))
-            if left > 0:
-                px[T + x, y] = (12, 6, 18, int(90 * left))
+            top = max(0.0, 1.0 - y / 10.0)
+            left = max(0.0, 1.0 - x / 6.0)
+            if top > 0.0:
+                px[x, y] = (14, 8, 22, int(135 * top * top))
+            if left > 0.0:
+                px[T + x, y] = (14, 8, 22, int(95 * left * left))
             c = max(top, left)
-            if c > 0:
-                px[T * 2 + x, y] = (12, 6, 18, int(120 * c))
+            if c > 0.0:
+                px[T * 2 + x, y] = (14, 8, 22, int(135 * c * c))
     save(img, "world/shadows.png")
 
 
 def details():
     img = Image.new("RGBA", (T * 8, T), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    o = 0   # sỏi
-    for x, y in ((5, 9), (8, 11), (11, 8)):
-        d.ellipse([o + x, y, o + x + 2, y + 1], fill=C("a8a090"))
-        d.point([o + x + 1, y + 2], fill=C("5a5650"))
-    o = T   # cỏ
-    for x, h in ((5, 4), (7, 6), (9, 5), (11, 3)):
-        d.line([(o + x, 12), (o + x + (1 if x % 2 else -1), 12 - h)], fill=C("6aa83a"))
-    d.line([(o + 7, 12), (o + 7, 7)], fill=C("8ad05a"))
-    o = T * 2   # lá rụng
-    for x, y, c in ((4, 6, "c8843a"), (9, 10, "a8602a"), (11, 5, "d8a040")):
-        d.ellipse([o + x, y, o + x + 3, y + 1], fill=C(c))
-    o = T * 3   # hoa dại
-    for x, y in ((5, 7), (10, 10)):
-        d.point([o + x, y], fill=C("f4e060"))
+    o = 0   # sỏi nhiều cỡ
+    for x, y in ((4, 9), (8, 11), (11, 7)):
+        d.ellipse([o + x, y, o + x + 3, y + 2], fill=C("b4ac9c"))
+        d.point([o + x + 1, y + 2], fill=C("6a645a"))
+    o = T   # bụi cỏ xanh tươi 2 tầng
+    for x, h in ((4, 5), (7, 7), (9, 6), (11, 4)):
+        d.line([(o + x, 13), (o + x + (1 if x % 2 else -1), 13 - h)], fill=C("528e34"))
+    d.line([(o + 7, 13), (o + 7, 6)], fill=C("86d254"))
+    o = T * 2   # lá rụng thu
+    for x, y, c in ((4, 6, "d08438"), (9, 10, "b46028"), (11, 5, "e6aa42")):
+        d.ellipse([o + x, y, o + x + 3, y + 2], fill=C(c))
+    o = T * 3   # hoa dại nhiều màu
+    for x, y, pet in ((5, 7, "ffffff"), (10, 10, "ffbfd4")):
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            d.point([o + x + dx, y + dy], fill=C("ffffff"))
-    o = T * 4   # vết nứt
-    d.line([(o + 3, 4), (o + 7, 8), (o + 6, 12), (o + 10, 14)], fill=(30, 20, 30, 140))
+            d.point([o + x + dx, y + dy], fill=C(pet))
+        d.point([o + x, y], fill=C("ffd048"))
+    o = T * 4   # vết nứt mềm
+    d.line([(o + 3, 4), (o + 7, 8), (o + 6, 12), (o + 10, 14)], fill=(34, 24, 34, 110))
     o = T * 5   # mảnh xương
-    d.line([(o + 4, 9), (o + 11, 7)], fill=C("e8e0cc"), width=2)
-    d.point([o + 3, 9], fill=C("e8e0cc"))
-    d.point([o + 12, 7], fill=C("e8e0cc"))
-    o = T * 6   # vũng nước
-    d.ellipse([o + 2, 6, o + 13, 11], fill=(70, 100, 140, 150))
-    d.line([(o + 5, 8), (o + 8, 8)], fill=(200, 230, 255, 180))
-    o = T * 7   # rơm
+    d.line([(o + 4, 9), (o + 11, 7)], fill=C("ede4d0"), width=2)
+    d.point([o + 3, 9], fill=C("ede4d0"))
+    d.point([o + 12, 7], fill=C("ede4d0"))
+    o = T * 6   # vũng nước lấp lánh
+    d.ellipse([o + 2, 6, o + 13, 11], fill=(70, 118, 168, 145))
+    d.line([(o + 4, 8), (o + 9, 8)], fill=(208, 238, 255, 190))
+    o = T * 7   # rơm vàng
     for i in range(5):
-        d.line([(o + 3 + i * 2, 11), (o + 6 + i * 2, 8 - i % 2)], fill=C("e0c470"))
+        d.line([(o + 3 + i * 2, 11), (o + 6 + i * 2, 8 - i % 2)], fill=C("e8cc74"))
     save(img, "world/details.png")
 
 
 def build():
     rng = random.Random(21)
-    atlas = Image.new("RGBA", (T * 10, T * len(THEMES)), (0, 0, 0, 0))
+    atlas = Image.new("RGBA", (T * 14, T * len(THEMES)), (0, 0, 0, 0))
     for r, th in enumerate(THEMES):
         cells = [floor(th, v, rng) for v in range(4)]
         u0, l0 = wall_pair(th, 0, rng)
         u1, l1 = wall_pair(th, 1, rng)
-        cells += [u0, u1, l0, l1, wall_top(th), floor(th, 0, rng)]
+        cells += [
+            u0, u1, l0, l1,
+            wall_top(th, rng),
+            walkway_tile(th, rng),
+            center_tile(th),
+            trim_tile(th, rng),
+            ceremony_tile(th),
+            accent_tile(th, rng),
+        ]
         for c, img in enumerate(cells):
             atlas.alpha_composite(img, (c * T, r * T))
     save(atlas, "world/tiles.png")

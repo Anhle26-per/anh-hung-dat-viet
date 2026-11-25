@@ -23,6 +23,95 @@ var rooms: Dictionary = {}    # ô lưới (Vector2i) -> Room
 var links: Array = []         # các cặp [ô, ô] được nối với nhau
 
 
+class DungeonBackdrop extends Node2D:
+	## Phông nền không gian bên ngoài các phòng (thay khoảng đen đơn điệu bằng cảnh núi rừng/sông/thành mờ).
+	var bounds: Rect2 = Rect2()
+	var theme_id: int = 0
+	var seed_val: int = 1
+
+	func _draw() -> void:
+		if bounds.size == Vector2.ZERO:
+			return
+		var bg_cols: Array[Color] = [
+			Color(0.08, 0.12, 0.09), # 0 rừng núi
+			Color(0.06, 0.10, 0.16), # 1 sông nước
+			Color(0.13, 0.07, 0.09), # 2 Thăng Long
+			Color(0.10, 0.09, 0.14), # 3 Đống Đa
+			Color(0.11, 0.10, 0.07), # 4 làng quê
+			Color(0.09, 0.10, 0.11), # 5 đồn Pháp
+			Color(0.10, 0.08, 0.06), # 6 chiến hào
+			Color(0.12, 0.08, 0.08), # 7 doanh trại
+		]
+		var acc_cols: Array[Color] = [
+			Color(0.14, 0.22, 0.14), Color(0.11, 0.20, 0.30), Color(0.24, 0.11, 0.12), Color(0.22, 0.15, 0.20),
+			Color(0.18, 0.20, 0.11), Color(0.15, 0.17, 0.16), Color(0.18, 0.14, 0.10), Color(0.22, 0.12, 0.11),
+		]
+		var bg: Color = bg_cols[theme_id % bg_cols.size()]
+		var ac: Color = acc_cols[theme_id % acc_cols.size()]
+		draw_rect(bounds, bg)
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_val
+		# Các dải đồi / tán cây / sóng nước mềm ở nền xa
+		var y_step: float = 95.0
+		var y: float = bounds.position.y + 40.0
+		var band: int = 0
+		while y < bounds.end.y:
+			var ridge: PackedVector2Array = PackedVector2Array()
+			ridge.append(Vector2(bounds.position.x, y + 60.0))
+			var x: float = bounds.position.x
+			while x <= bounds.end.x + 60.0:
+				var wave: float = sin(x * 0.012 + float(band) * 1.7) * 18.0 + cos(x * 0.029 - float(band)) * 9.0
+				ridge.append(Vector2(x, y + wave))
+				x += 48.0
+			ridge.append(Vector2(bounds.end.x, y + 60.0))
+			var shade: Color = ac.lerp(bg, 0.35 + 0.18 * float(band % 3))
+			draw_colored_polygon(ridge, Color(shade.r, shade.g, shade.b, 0.45))
+			if theme_id == 1:
+				for k in 8:
+					var wx: float = rng.randf_range(bounds.position.x, bounds.end.x)
+					draw_rect(Rect2(wx, y + 10.0, rng.randf_range(24.0, 56.0), 2.0), Color(0.35, 0.58, 0.78, 0.18))
+			y += y_step
+			band += 1
+		# Đốm sương / tán cây mờ tạo chiều sâu
+		for i in 42:
+			var p := Vector2(rng.randf_range(bounds.position.x, bounds.end.x), rng.randf_range(bounds.position.y, bounds.end.y))
+			var rad: float = rng.randf_range(22.0, 54.0)
+			draw_circle(p, rad, Color(ac.r, ac.g, ac.b, 0.16))
+
+
+class RoomOverlay extends Node2D:
+	## Lớp trang trí mượt (hình tròn/bát giác sân giữa, vệt sáng ấm, chuyển sắc góc phòng) để bớt cảm giác vuông khối.
+	var items: Array = []
+
+	func _draw() -> void:
+		for it in items:
+			var c: Vector2 = it["center"]
+			var kind: String = it["kind"]
+			var col: Color = it["accent"]
+			var shape_kind: String = it["shape"]
+			# Mảng màu ấm nhẹ giữa phòng phá cảm giác đơn sắc
+			var glow_col: Color = Color(1.0, 0.85, 0.55, 0.08) if kind in ["treasure", "shop", "start"] else Color(col.r, col.g, col.b, 0.07)
+			if kind == "boss" or kind == "legend":
+				glow_col = Color(0.95, 0.32, 0.28, 0.09)
+			draw_circle(c, 58.0, glow_col)
+			draw_circle(c, 34.0, Color(glow_col.r, glow_col.g, glow_col.b, glow_col.a * 1.15))
+			# Vòng hoa văn sân tròn / trống đồng giữa phòng
+			var ring_col: Color = Color(0.95, 0.78, 0.36, 0.26) if kind in ["boss", "legend", "treasure", "shop"] else Color(col.r, col.g, col.b, 0.18)
+			var pts := PackedVector2Array()
+			var sides: int = 8 if shape_kind == "octagon" else 24
+			var r_out: float = 40.0 if kind in ["boss", "legend"] else 30.0
+			for i in range(sides + 1):
+				var a: float = TAU * float(i) / float(sides)
+				pts.append(c + Vector2(cos(a) * r_out, sin(a) * r_out * 0.78))
+			draw_polyline(pts, ring_col, 1.5, true)
+			if kind in ["boss", "legend", "treasure", "start"]:
+				var inner := PackedVector2Array()
+				for i in range(sides + 1):
+					var a2: float = TAU * float(i) / float(sides)
+					inner.append(c + Vector2(cos(a2) * (r_out * 0.62), sin(a2) * (r_out * 0.62 * 0.78)))
+				draw_polyline(inner, Color(ring_col.r, ring_col.g, ring_col.b, ring_col.a * 0.75), 1.0, true)
+
+
 func _ready() -> void:
 	add_to_group("dungeon")
 
@@ -30,6 +119,7 @@ func _ready() -> void:
 func generate(level: int) -> void:
 	tiles = TileMapLayer.new()
 	tiles.tile_set = _make_tileset()
+	tiles.z_index = -2
 	var chapter := EnemyData.chapter(level)
 	var row: int = chapter.theme
 	add_child(tiles)
@@ -85,14 +175,41 @@ func generate(level: int) -> void:
 		if not cand.is_empty():
 			shop_cell = cand.pick_random()
 
-	# 3) Đặt sàn cho phòng + hành lang, ghi lại vị trí cửa
+	# 3) Đặt sàn cho phòng + hành lang với kiến trúc vát góc / hốc / trụ tường, ghi lại vị trí cửa
 	var floor_cells := {}
+	var corridor_cells := {}
 	var doors := {}
+	var room_kinds := {}
+	var room_shapes := {}
+	for c in cells:
+		var k: String = "combat"
+		if c == Vector2i.ZERO:
+			k = "start"
+		elif c == exit_cell:
+			k = "boss" if level % 3 == 0 else "exit"
+			if level % 3 == 2 and randf() < Global.legend_chance:
+				k = "legend"
+		elif c == treasure_cell:
+			k = "treasure"
+		elif c == shop_cell:
+			k = "shop"
+		room_kinds[c] = k
+		if k in ["boss", "legend", "treasure", "start", "exit"]:
+			room_shapes[c] = "octagon"
+		elif k == "shop":
+			room_shapes[c] = "buttress"
+		else:
+			var roll: float = randf()
+			room_shapes[c] = "octagon" if roll < 0.45 else ("alcove" if roll < 0.75 else "buttress")
+
 	for c in cells:
 		doors[c] = []
 		var o := _origin(c)
+		var sh: String = str(room_shapes[c])
 		for x in ROOM_W:
 			for y in ROOM_H:
+				if _is_carved(x, y, sh, adj[c], c):
+					continue
 				floor_cells[o + Vector2i(x, y)] = true
 	for l in links:
 		var a: Vector2i = l[0]
@@ -107,49 +224,62 @@ func generate(level: int) -> void:
 			var y0 := oa.y + ROOM_H / 2 - 1
 			for x in range(oa.x + ROOM_W, ob.x):
 				for i in CORR:
-					floor_cells[Vector2i(x, y0 + i)] = true
+					var cp := Vector2i(x, y0 + i)
+					floor_cells[cp] = true
+					corridor_cells[cp] = true
 			doors[a].append(Rect2(Vector2(oa.x + ROOM_W, y0) * T, Vector2(1, CORR) * T))
 			doors[b].append(Rect2(Vector2(ob.x - 1, y0) * T, Vector2(1, CORR) * T))
 		else:  # hành lang dọc
 			var x0 := oa.x + ROOM_W / 2 - 1
 			for y in range(oa.y + ROOM_H, ob.y):
 				for i in CORR:
-					floor_cells[Vector2i(x0 + i, y)] = true
+					var cp2 := Vector2i(x0 + i, y)
+					floor_cells[cp2] = true
+					corridor_cells[cp2] = true
 			doors[a].append(Rect2(Vector2(x0, oa.y + ROOM_H) * T, Vector2(CORR, 1) * T))
 			doors[b].append(Rect2(Vector2(x0, ob.y - 1) * T, Vector2(CORR, 1) * T))
 
-	# 4) Vẽ ô gạch: sàn, tường cao 2 ô ở phía trên, nóc tường, bóng đổ, chi tiết rải sàn
+	# 4) Phông nền ngoại cảnh, xếp ô gạch đa sắc, bóng đổ mềm, vòng trang trí và chi tiết rải sàn
+	_add_backdrop(floor_cells, row, level)
 	paint(tiles, floor_cells, row)
+	_paint_zones(floor_cells, corridor_cells, cells, room_kinds, doors, row)
 	var shade := TileMapLayer.new()
 	shade.tile_set = tiles.tile_set
+	shade.z_index = -1
 	add_child(shade)
 	paint_shadows(shade, floor_cells)
-	_scatter_details(floor_cells, chapter)
+	var walkway_set: Dictionary = _collect_walkways(corridor_cells, cells, doors)
+	_scatter_details(floor_cells, walkway_set, chapter)
 
 	# 5) Tạo các phòng
+	var overlay := RoomOverlay.new()
+	overlay.z_index = 0
+	var theme_accents: Array[Color] = [
+		Color("72b84a"), Color("62a8d8"), Color("f0b84e"), Color("f4a0c0"),
+		Color("74b844"), Color("9aa878"), Color("e0a850"), Color("f0b84e"),
+	]
+	var ov_items: Array = []
 	for c in cells:
 		var r := Room.new()
 		r.rect = Rect2(Vector2(_origin(c)) * T, Vector2(ROOM_W, ROOM_H) * T)
 		r.level = level
 		r.door_rects = doors[c]
-		if c == Vector2i.ZERO:
-			r.kind = "start"
-		elif c == exit_cell:
-			r.kind = "boss" if level % 3 == 0 else "exit"
-			# màn giữa chương: có thể gặp 1 trong Tam Yêu canh giữ cổng
-			if level % 3 == 2 and randf() < Global.legend_chance:
-				r.kind = "legend"
-				r.legend_id = Global.pick_legend()
-		elif c == treasure_cell:
-			r.kind = "treasure"
-		elif c == shop_cell:
-			r.kind = "shop"
-		else:
-			r.kind = "combat"
+		r.kind = str(room_kinds[c])
+		if r.kind == "legend":
+			r.legend_id = Global.pick_legend()
 		r.portal_entered.connect(func(): portal_entered.emit())
 		add_child(r)
 		rooms[c] = r
-		_decorate(c, r.kind, doors[c], chapter)
+		_decorate(c, r.kind, doors[c], chapter, floor_cells)
+		ov_items.append({"center": r.rect.get_center(), "kind": r.kind, "shape": str(room_shapes[c]), "accent": theme_accents[row % theme_accents.size()]})
+		if r.kind in ["start", "treasure", "shop", "boss", "legend"]:
+			var lcol: Color = Color(1.0, 0.55, 0.35) if r.kind in ["boss", "legend"] else Color(1.0, 0.86, 0.55)
+			var pl := Art.light(lcol, 0.42 if r.kind == "boss" else 0.52, 2.2)
+			pl.position = r.rect.get_center()
+			add_child(pl)
+	overlay.items = ov_items
+	add_child(overlay)
+	move_child(overlay, shade.get_index() + 1)
 
 
 func start_position() -> Vector2:
@@ -250,13 +380,15 @@ static func paint_shadows(shade: TileMapLayer, floor_cells: Dictionary) -> void:
 
 
 ## Rải chi tiết nhỏ trên sàn (sỏi, cỏ, lá, hoa, vết nứt...) theo bối cảnh
-func _scatter_details(floor_cells: Dictionary, chapter: Dictionary) -> void:
+func _scatter_details(floor_cells: Dictionary, walkway_set: Dictionary, chapter: Dictionary) -> void:
 	var by_theme := {0: [0, 1, 2, 3, 4], 1: [0, 2, 6], 2: [0, 4, 2], 3: [0, 3, 4], 4: [0, 1, 1, 3, 7],
 		5: [0, 4, 5], 6: [0, 4, 5, 6, 7]}
 	var opts: Array = by_theme.get(int(chapter.theme), [0, 4])
 	var tex := Art.tex("world/details.png")
 	for p in floor_cells:
-		if randf() < 0.07:
+		if walkway_set.has(p):
+			continue
+		if randf() < 0.12:
 			var s := Sprite2D.new()
 			var at := AtlasTexture.new()
 			at.atlas = tex
@@ -264,7 +396,131 @@ func _scatter_details(floor_cells: Dictionary, chapter: Dictionary) -> void:
 			s.texture = at
 			s.position = Vector2(p) * T + Vector2(T, T) / 2.0
 			s.flip_h = randf() < 0.5
+			s.z_index = -1
 			add_child(s)
+
+
+func _is_carved(x: int, y: int, shape: String, neighbors: Array, cell: Vector2i) -> bool:
+	var dx: int = mini(x, ROOM_W - 1 - x)
+	var dy: int = mini(y, ROOM_H - 1 - y)
+	if shape == "octagon":
+		return dx + dy <= 1
+	if shape == "alcove":
+		return dx <= 2 and dy <= 1
+	if shape == "buttress":
+		if y == 0 and not neighbors.has(cell + Vector2i.UP) and (x == 5 or x == ROOM_W - 6):
+			return true
+		if y == ROOM_H - 1 and not neighbors.has(cell + Vector2i.DOWN) and (x == 5 or x == ROOM_W - 6):
+			return true
+		if x == 0 and not neighbors.has(cell + Vector2i.LEFT) and (y == 3 or y == ROOM_H - 4):
+			return true
+		if x == ROOM_W - 1 and not neighbors.has(cell + Vector2i.RIGHT) and (y == 3 or y == ROOM_H - 4):
+			return true
+	return false
+
+
+func _add_backdrop(floor_cells: Dictionary, row: int, level: int) -> void:
+	if floor_cells.is_empty():
+		return
+	var min_x: int = 999999
+	var min_y: int = 999999
+	var max_x: int = -999999
+	var max_y: int = -999999
+	for p in floor_cells:
+		var vp: Vector2i = p
+		min_x = mini(min_x, vp.x)
+		min_y = mini(min_y, vp.y)
+		max_x = maxi(max_x, vp.x)
+		max_y = maxi(max_y, vp.y)
+	var bd := DungeonBackdrop.new()
+	bd.bounds = Rect2(Vector2(min_x * T - 220, min_y * T - 220), Vector2((max_x - min_x + 1) * T + 440, (max_y - min_y + 1) * T + 440))
+	bd.theme_id = row
+	bd.seed_val = level * 37 + row * 13
+	bd.z_index = -10
+	add_child(bd)
+	move_child(bd, 0)
+
+
+func _collect_walkways(corridor_cells: Dictionary, cells: Array, doors: Dictionary) -> Dictionary:
+	var out: Dictionary = corridor_cells.duplicate()
+	for c in cells:
+		var o := _origin(c)
+		var center := o + Vector2i(ROOM_W / 2, ROOM_H / 2)
+		for dx in range(-3, 4):
+			for dy in range(-2, 3):
+				if abs(dx) + abs(dy) <= 4:
+					out[center + Vector2i(dx, dy)] = true
+		for dr in doors[c]:
+			var r: Rect2 = dr
+			var dc := Vector2i(int(r.get_center().x / T), int(r.get_center().y / T))
+			var dir_x: int = signi(center.x - dc.x)
+			var dir_y: int = signi(center.y - dc.y)
+			var cur := dc
+			while cur != center:
+				for w in range(-1, 2):
+					var off := Vector2i(0, w) if dir_x != 0 else Vector2i(w, 0)
+					out[cur + off] = true
+				if cur.x != center.x:
+					cur.x += dir_x
+				elif cur.y != center.y:
+					cur.y += dir_y
+	return out
+
+
+func _paint_zones(floor_cells: Dictionary, corridor_cells: Dictionary, cells: Array, room_kinds: Dictionary, doors: Dictionary, row: int) -> void:
+	# 1) Rìa phòng tiếp giáp tường: rêu/cỏ/viền đá (cột 11) và gạch điểm xuyết (cột 13)
+	for p in floor_cells:
+		if corridor_cells.has(p):
+			continue
+		var near_wall := false
+		for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			if not floor_cells.has(p + d):
+				near_wall = true
+				break
+		if near_wall and randf() < 0.65:
+			tiles.set_cell(p, 0, Vector2i(11, row))
+		elif randf() < 0.09:
+			tiles.set_cell(p, 0, Vector2i(13, row))
+
+	# 2) Lối đi nối cửa <-> tâm phòng và hành lang (cột 9)
+	for p in corridor_cells:
+		tiles.set_cell(p, 0, Vector2i(9, row))
+	for c in cells:
+		var o := _origin(c)
+		var center := o + Vector2i(ROOM_W / 2, ROOM_H / 2)
+		for dr in doors[c]:
+			var r: Rect2 = dr
+			var dc := Vector2i(int(r.get_center().x / T), int(r.get_center().y / T))
+			var dir_x: int = signi(center.x - dc.x)
+			var dir_y: int = signi(center.y - dc.y)
+			var cur := dc
+			while cur != center:
+				for w in range(-1, 2):
+					var off := Vector2i(0, w) if dir_x != 0 else Vector2i(w, 0)
+					var tp: Vector2i = cur + off
+					if floor_cells.has(tp):
+						tiles.set_cell(tp, 0, Vector2i(9, row))
+				if cur.x != center.x:
+					cur.x += dir_x
+				elif cur.y != center.y:
+					cur.y += dir_y
+
+		# 3) Sân trung tâm (cột 10 / thảm son vàng cột 12 cho phòng quan trọng)
+		var k: String = str(room_kinds[c])
+		var royal: bool = k in ["boss", "legend", "treasure", "shop"]
+		for dx in range(-3, 4):
+			for dy in range(-2, 3):
+				if abs(dx) + abs(dy) > 4:
+					continue
+				var sp: Vector2i = center + Vector2i(dx, dy)
+				if not floor_cells.has(sp):
+					continue
+				if royal:
+					var inner: bool = abs(dx) <= 2 and abs(dy) <= 1
+					tiles.set_cell(sp, 0, Vector2i(12 if inner else 10, row))
+				else:
+					var inner2: bool = abs(dx) <= 1 and abs(dy) <= 1
+					tiles.set_cell(sp, 0, Vector2i(10 if inner2 else 9, row))
 
 
 func _floor_variant() -> int:
@@ -278,17 +534,21 @@ func _floor_variant() -> int:
 	return 3
 
 
-## Trang trí phòng: đuốc + cờ/đèn lồng trên tường trên, chum ở góc, cây ở góc.
-func _decorate(c: Vector2i, kind: String, door_list: Array, chapter: Dictionary) -> void:
+## Trang trí phòng: đuốc + cờ/đèn lồng trên tường trên (bám đúng tường đã vát góc), chum/bao cát ở góc an toàn.
+func _decorate(c: Vector2i, kind: String, door_list: Array, chapter: Dictionary, floor_cells: Dictionary = {}) -> void:
 	var o := _origin(c)
-	var top_y := (o.y - 1) * T
 	var blocked := []
 	for r in door_list:
 		blocked.append(r)
 	var hang: Array = chapter.decor
 	var i := 0
 	for x in range(o.x + 2, o.x + ROOM_W - 1, 4):
-		var px := Vector2(x * T + T / 2.0, top_y)
+		var top_y_cell: int = o.y
+		for y in range(o.y, o.y + 4):
+			if floor_cells.is_empty() or floor_cells.has(Vector2i(x, y)):
+				top_y_cell = y
+				break
+		var px := Vector2(x * T + T / 2.0, (top_y_cell - 1) * T)
 		var ok := true
 		for r in blocked:
 			if r.grow(T * 1.5).has_point(px):
@@ -315,14 +575,20 @@ func _decorate(c: Vector2i, kind: String, door_list: Array, chapter: Dictionary)
 	var allow_cover: bool = kind in ["combat", "treasure", "shop", "exit"]
 	for k in corners.size():
 		if randf() < 0.55:
+			var pos: Vector2 = corners[k] * T
+			var cell := Vector2i(int(pos.x / T), int(pos.y / T))
+			var safe_floor: bool = floor_cells.is_empty() or (floor_cells.has(cell)
+				and floor_cells.has(cell + Vector2i.LEFT) and floor_cells.has(cell + Vector2i.RIGHT)
+				and floor_cells.has(cell + Vector2i.UP) and floor_cells.has(cell + Vector2i.DOWN))
+			if not safe_floor:
+				continue
 			var props := hang.filter(func(x): return x == "pot" or x == "crate" or x == "sandbag")
 			if not plants.is_empty() and k < 2 and randf() < 0.7:
 				var d2 := Decor.new()
 				d2.kind = plants[0]
-				d2.position = corners[k] * T
+				d2.position = pos
 				add_child(d2)
 			elif allow_cover and not props.is_empty():
-				var pos: Vector2 = corners[k] * T
 				var ok_c := true
 				for r in blocked:
 					if (r as Rect2).grow(T * 2.5).has_point(pos):
