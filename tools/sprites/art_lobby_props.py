@@ -434,6 +434,189 @@ def build_props():
     save(_with_shadow(outline(img), 5, 35, 18, 40, 85), "world/prop_flag_stand.png")
 
 
+def build_tea():
+    """Quán Trà Đại Sảnh: bàn gỗ gụ, bếp than hồng, ấm chén Bát Tràng & 2 đôn, 50x40."""
+    img, d = canvas(50, 40)
+    wood, w_l, w_d = _c("7e4826"), _c("aa6e3e"), _c("4a2412")
+    gold = _c("e4b042")
+    # 2 đôn gỗ hai bên
+    for sx in (4, 39):
+        d.ellipse([sx, 22, sx + 7, 29], fill=wood, outline=w_d)
+        d.ellipse([sx + 1, 22, sx + 6, 25], fill=w_l)
+        d.rectangle([sx + 2, 28, sx + 5, 34], fill=w_d)
+    # Bàn trà chữ nhật chính giữa & chân bàn
+    for lx in (13, 33):
+        d.rectangle([lx, 26, lx + 3, 35], fill=w_d)
+    d.rectangle([11, 13, 38, 27], fill=wood)
+    auto_shade(img, wood, w_l, w_d)
+    d.rectangle([12, 14, 37, 23], fill=_c("9a5d34"))
+    d.rectangle([11, 23, 38, 26], fill=w_d)
+    # Bếp than hồng nhỏ bên trái mặt bàn & ấm trà xanh trắng bên phải
+    d.ellipse([14, 15, 22, 22], fill=_c("624638"), outline=_c("3c2820"))
+    d.ellipse([16, 17, 20, 20], fill=_c("ff7a28"))
+    d.point([18, 18], fill=_c("ffe468"))
+    d.ellipse([24, 13, 32, 20], fill=_c("ece8dc"), outline=_c("4a7496"))  # ấm gốm Bát Tràng
+    d.line([(28, 12), (28, 13)], fill=gold)
+    d.line([(32, 16), (34, 14)], fill=_c("ece8dc"))
+    # 3 chén trà nóng trên khay tre
+    d.rectangle([20, 20, 35, 23], fill=_c("b88c4a"))
+    for cx in (22, 26, 30):
+        d.ellipse([cx, 19, cx + 2, 22], fill=_c("f6f2e8"))
+        d.point([cx + 1, 17], fill=_c("e8f4f8", 180))
+    return _with_shadow(outline(img), 3, 29, 46, 38, 95)
+
+
+def build_war_table():
+    """Bàn Sa Bàn Quân Sự: bản đồ địa hình Đại Việt đắp nổi & cờ chiến thuật, 54x42."""
+    img, d = canvas(54, 42)
+    wood, w_l, w_d = _c("744222"), _c("9c6438"), _c("422212")
+    gold = _c("e4b042")
+    # Bàn gỗ nặng có chân & khung đồng
+    for lx in (8, 42):
+        d.rectangle([lx, 28, lx + 4, 37], fill=w_d)
+    d.rectangle([6, 10, 47, 30], fill=wood)
+    auto_shade(img, wood, w_l, w_d)
+    for cx, cy in ((6, 10), (45, 10), (6, 28), (45, 28)):
+        d.rectangle([cx, cy, cx + 2, cy + 2], fill=gold)
+    # Mặt bản đồ địa hình núi sông Đại Việt
+    d.rectangle([9, 12, 44, 26], fill=_c("356440"), outline=w_d)
+    d.polygon([(11, 18), (19, 13), (27, 16), (33, 13), (42, 18), (43, 25), (10, 25)], fill=_c("5b8c52"))
+    d.polygon([(14, 15), (18, 13), (22, 16)], fill=_c("847e6c"))  # dãy núi
+    d.polygon([(30, 14), (34, 13), (38, 16)], fill=_c("847e6c"))
+    d.line([(10, 21), (22, 19), (32, 22), (43, 20)], fill=_c("3c8ec0"), width=2)  # sông
+    # Thành trì mini & 3 cờ đánh dấu chiến thuật
+    d.rectangle([23, 18, 27, 21], fill=_c("c2b8a4"), outline=_c("5e5446"))
+    for fx, fy, fc in ((16, 16, "e43a34"), (25, 16, "f4c444"), (37, 19, "e43a34")):
+        d.line([(fx, fy + 2), (fx, fy - 5)], fill=w_d)
+        d.polygon([(fx + 1, fy - 5), (fx + 5, fy - 4), (fx + 1, fy - 2)], fill=_c(fc))
+    # Cuộn sớ mật & la bàn bên góc bàn
+    d.rectangle([38, 22, 44, 25], fill=_c("f0e2be"), outline=_c("8a6a40"))
+    d.ellipse([11, 21, 15, 25], fill=gold, outline=w_d)
+    return _with_shadow(outline(img), 4, 30, 49, 40, 95)
+
+
+def build_garden():
+    """Vườn Thảo Dược 3 ô đất: sen vàng, huyết sâm đỏ & măng tre ngà + bình tưới, 64x46."""
+    img, d = canvas(64, 46)
+    st, sl, sd = _c("807c74"), _c("aea89c"), _c("4e4a44")
+    # Khung đá 3 ô trồng cây xếp ngang
+    d.rectangle([6, 18, 53, 40], fill=st)
+    auto_shade(img, st, sl, sd)
+    for i, ox in enumerate((9, 24, 39)):
+        d.rectangle([ox, 21, ox + 11, 35], fill=_c("4b3120"), outline=sd)
+        for rx in range(ox + 2, ox + 10, 3):
+            d.line([(rx, 24), (rx, 33)], fill=_c("352014"))
+        if i == 0:
+            # Ô 1: Sen Vàng & lá xanh
+            d.ellipse([ox + 1, 25, ox + 10, 32], fill=_c("3e843c"))
+            d.polygon([(ox + 2, 23), (ox + 5, 15), (ox + 9, 23)], fill=_c("f4cc48"))
+            d.polygon([(ox + 4, 23), (ox + 5, 13), (ox + 7, 23)], fill=_c("fff096"))
+        elif i == 1:
+            # Ô 2: Huyết Sâm lá xanh thắm + quả đỏ rực
+            d.line([(ox + 5, 29), (ox + 5, 17)], fill=_c("4ca044"), width=2)
+            for lx, ly in ((ox + 1, 21), (ox + 8, 21), (ox + 2, 25), (ox + 8, 25)):
+                d.ellipse([lx, ly, lx + 3, ly + 2], fill=_c("54b24c"))
+            for bx, by in ((ox + 4, 15), (ox + 6, 14), (ox + 5, 17)):
+                d.ellipse([bx, by, bx + 2, by + 2], fill=_c("e83a38"))
+        else:
+            # Ô 3: Tre Ngà xanh mướt với đốt vàng
+            for tx, top in ((ox + 3, 12), (ox + 7, 9)):
+                d.line([(tx, 29), (tx, top)], fill=_c("6ca83c"), width=2)
+                d.point([tx, top + 6], fill=_c("d8ba4e"))
+                d.polygon([(tx + 1, top + 3), (tx + 5, top + 1), (tx + 2, top + 5)], fill=_c("52b246"))
+    # Bình tưới đồng bên góc phải
+    d.rectangle([52, 28, 59, 36], fill=_c("c2843c"), outline=_c("6a401c"))
+    d.line([(59, 31), (62, 27)], fill=_c("c2843c"), width=2)
+    d.arc([50, 26, 55, 34], 90, 270, fill=_c("e4b042"))
+    return _with_shadow(outline(img), 4, 34, 60, 44, 95)
+
+
+def build_enchant():
+    """Bàn Phù Phép Binh Khí: bệ đá khắc cổ ngữ + tinh thể ngọc lơ lửng 3 khung (52x46)."""
+    frames = []
+    st, sl, sd = _c("54505e"), _c("868296"), _c("2c2834")
+    gold, gold_l = _c("e4b042"), _c("fff2a0")
+    for f in range(3):
+        img, d = canvas(52, 46)
+        # Chân bệ & mặt bàn đá phù văn
+        d.rectangle([10, 35, 41, 41], fill=sd)
+        d.rectangle([13, 21, 38, 36], fill=st)
+        d.rectangle([8, 17, 43, 23], fill=sl, outline=sd)
+        auto_shade(img, st, sl, sd)
+        # Khăn đỏ thêu phù chú buông trước bàn & ký tự cổ ngữ phát sáng
+        d.polygon([(18, 22), (33, 22), (31, 36), (25, 39), (20, 36)], fill=_c("7c1a24"), outline=gold)
+        d.ellipse([23, 26, 28, 31], outline=gold_l)
+        # Tinh thể ngọc linh khí lơ lửng phía trên bàn
+        bob = [0, -2, -1][f]
+        cy = 10 + bob
+        d.ellipse([19, 17, 32, 21], fill=_c("22b4c8", 120))
+        d.polygon([(26, cy - 8), (33, cy), (26, cy + 8), (19, cy)], fill=_c("34d4e0"))
+        d.polygon([(26, cy - 8), (26, cy + 8), (19, cy)], fill=_c("7af6ff"))
+        d.polygon([(26, cy - 4), (29, cy), (26, cy + 4)], fill=_c("e2ffff"))
+        # Hạt linh khí xoay quanh tinh thể
+        pts = [((14, cy - 2), (37, cy + 3)), ((16, cy - 5), (36, cy - 1)), ((15, cy + 2), (38, cy - 4))][f]
+        for sx, sy in pts:
+            d.point([sx, sy], fill=_c("a8ffff"))
+            d.point([sx + 1, sy], fill=gold_l)
+        frames.append(_with_shadow(outline(img), 7, 36, 44, 44, 95))
+    return sheet(frames)
+
+
+def build_shrine():
+    """Tượng Thần Hộ Mệnh: bệ thờ 2 tầng, tượng đồng hào quang, quả cầu ngọc & lư hương, 48x54."""
+    img, d = canvas(48, 54)
+    st, sl, sd = _c("7c7872"), _c("aba69c"), _c("484540")
+    gold, gold_l, gold_d = _c("dea636"), _c("fff09a"), _c("8e5e1c")
+    # Bệ thờ 2 tầng + vải đỏ
+    d.rectangle([8, 41, 39, 48], fill=sd)
+    d.rectangle([10, 34, 37, 42], fill=st)
+    auto_shade(img, st, sl, sd)
+    d.rectangle([17, 35, 30, 44], fill=_c("921c26"), outline=gold)
+    # Vòng hào quang sau tượng & tượng đồng cổ
+    d.ellipse([13, 4, 34, 25], outline=gold)
+    d.ellipse([15, 6, 32, 23], outline=gold_l)
+    d.polygon([(16, 34), (19, 18), (28, 18), (31, 34)], fill=gold)
+    auto_shade(img, gold, gold_l, gold_d)
+    d.ellipse([20, 9, 27, 17], fill=gold)         # đầu tượng
+    d.polygon([(21, 9), (23, 4), (26, 9)], fill=gold_l)  # mũ
+    # Ngọc lục bảo & bát hương nhỏ trên bệ
+    d.ellipse([21, 21, 26, 26], fill=_c("44e4c4"), outline=_c("c8fff4"))
+    d.rectangle([12, 31, 16, 34], fill=gold_d)
+    d.point([14, 29], fill=_c("ffb848"))
+    d.rectangle([31, 31, 35, 34], fill=gold_d)
+    d.point([33, 29], fill=_c("ffb848"))
+    return _with_shadow(outline(img), 6, 43, 41, 51, 100)
+
+
+def build_supply():
+    """Rương Quân Nhu: rương gỗ sơn son viền sắt hé mở chứa vàng xu, túi lương & sớ mật, 46x42."""
+    img, d = canvas(46, 42)
+    red, r_l, r_d = _c("8e2426"), _c("bc3c3c"), _c("521216")
+    iron, i_l = _c("4a4856"), _c("828096")
+    gold, gold_l = _c("f0bc42"), _c("fff29c")
+    # Nắp rương hé mở phía sau
+    d.rectangle([9, 8, 36, 19], fill=r_d, outline=iron)
+    d.rectangle([11, 10, 34, 17], fill=red)
+    for bx in (13, 22, 31):
+        d.line([(bx, 8), (bx, 19)], fill=iron, width=2)
+    # Bên trong rương lộ vàng xu, cuộn sớ, bó thảo mộc & túi quân lương
+    d.rectangle([10, 17, 35, 24], fill=_c("2c1414"))
+    for cx, cy in ((13, 19), (16, 18), (19, 19), (22, 18), (15, 21), (18, 21)):
+        d.ellipse([cx, cy, cx + 3, cy + 3], fill=gold)
+        d.point([cx + 1, cy + 1], fill=gold_l)
+    d.ellipse([24, 17, 30, 23], fill=_c("b89658"), outline=_c("6e522c"))  # túi lương
+    d.rectangle([29, 16, 34, 22], fill=_c("f2e4c2"), outline=_c("d43632"))  # cuộn sớ
+    # Thân rương sơn son đai sắt & khóa vàng
+    d.rectangle([8, 22, 37, 36], fill=red)
+    auto_shade(img, red, r_l, r_d)
+    for bx in (12, 32):
+        d.rectangle([bx, 22, bx + 2, 36], fill=iron)
+        d.line([(bx, 22), (bx, 36)], fill=i_l)
+    d.rectangle([20, 21, 25, 27], fill=gold, outline=_c("7c5418"))
+    d.point([22, 24], fill=_c("2c1814"))
+    return _with_shadow(outline(img), 5, 32, 40, 39, 95)
+
+
 def build():
     save(build_stele(), "world/lobby_stele.png")
     save(build_well(), "world/lobby_well.png")
@@ -441,6 +624,12 @@ def build():
     save(build_forge(), "world/lobby_forge.png")
     save(build_rack(), "world/lobby_rack.png")
     save(build_codex(), "world/lobby_codex.png")
+    save(build_tea(), "world/lobby_tea.png")
+    save(build_war_table(), "world/lobby_war_table.png")
+    save(build_garden(), "world/lobby_garden.png")
+    save(build_enchant(), "world/lobby_enchant.png")
+    save(build_shrine(), "world/lobby_shrine.png")
+    save(build_supply(), "world/lobby_supply.png")
     build_props()
 
 

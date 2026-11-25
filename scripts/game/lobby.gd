@@ -42,6 +42,8 @@ var ui
 var touch
 var stations: Array = []
 var well_uses: int = 3
+var supply_claimed: bool = false
+var garden_watered: bool = false
 var _hero_npcs := {}
 var _leaving := false
 var _forged_icon: Sprite2D
@@ -236,9 +238,7 @@ func _decorate() -> void:
 	inc.add_child(Art.light(Color(1, 0.65, 0.35), 0.8, 0.75))
 	_prop("world/drum_stand.png", Vector2(616, 434))
 	_prop("world/drum_stand.png", Vector2(744, 434))
-	# Nội thất Đại Sảnh: bàn trà, bàn sa bàn chiến thuật, đỉnh lửa, cờ & cột cửa
-	_prop("world/prop_tea_table.png", Vector2(558, 608))
-	_prop("world/prop_war_map.png", Vector2(808, 624))
+	# Nội thất Đại Sảnh: đỉnh lửa, cờ & cột cửa
 	for bp in [Vector2(618, 270), Vector2(742, 270)]:
 		_anim_prop("world/prop_brazier.png", 26, 32, 6.0, bp, Color(1.0, 0.62, 0.28))
 	_prop("world/prop_flag_stand.png", Vector2(476, 430), Vector2(0, -10))
@@ -257,19 +257,19 @@ func _decorate() -> void:
 	# ---- 2. Đại Cổng Xuất Trận (Bắc) ----
 	for x in [506.0, 600.0, 760.0, 854.0]:
 		_decor("lantern", Vector2(x, 42))
-	for bp in [Vector2(576, 128), Vector2(784, 128)]:
+	for bp in [Vector2(594, 152), Vector2(766, 152)]:
 		_anim_prop("world/prop_brazier.png", 26, 32, 6.0, bp, Color(1.0, 0.62, 0.28))
 	_prop("world/prop_flag_stand.png", Vector2(496, 124), Vector2(0, -10))
 	_prop("world/prop_flag_stand.png", Vector2(864, 124), Vector2(0, -10))
 	_prop("world/nghe.png", Vector2(618, 118))
 	_prop("world/nghe.png", Vector2(742, 118))
-	_prop("world/drum_stand.png", Vector2(546, 174))
-	_prop("world/drum_stand.png", Vector2(814, 174))
+	_prop("world/drum_stand.png", Vector2(546, 182))
+	_prop("world/drum_stand.png", Vector2(814, 182))
 	for lp in [Vector2(496, 186), Vector2(864, 186)]:
 		var sl := _prop("world/prop_stone_lantern.png", lp, Vector2(0, -8))
 		sl.add_child(Art.light(Color(1.0, 0.78, 0.42), 0.75, 0.6))
-	_decor("banner", Vector2(536, 82))
-	_decor("banner", Vector2(824, 82))
+	_decor("banner", Vector2(618, 76))
+	_decor("banner", Vector2(742, 76))
 
 	# ---- 3. Vườn Sen & Chiến Tích (Tây) ----
 	_life("pond", Vector2(215, 585), Vector2(130, 74))
@@ -278,14 +278,14 @@ func _decorate() -> void:
 		sl2.add_child(Art.light(Color(1.0, 0.78, 0.42), 0.8, 0.6))
 	_prop("world/prop_bench.png", Vector2(215, 512), Vector2(0, -4))
 	_prop("world/prop_bench.png", Vector2(356, 592), Vector2(0, -4))
-	_decor("peach", Vector2(88, 456))
+	_decor("peach", Vector2(74, 518))
 	_decor("peach", Vector2(376, 500))
 	_decor("peach", Vector2(108, 646))
 	_decor("bamboo", Vector2(68, 282))
 	_decor("bamboo", Vector2(392, 282))
 	_decor("bamboo", Vector2(68, 656))
 	_decor("bamboo", Vector2(392, 656))
-	for p in [Vector2(92, 578), Vector2(342, 616), Vector2(66, 396)]:
+	for p in [Vector2(92, 578), Vector2(342, 616), Vector2(392, 416)]:
 		_prop("world/bonsai.png", p)
 	for p in [Vector2(180, 396), Vector2(296, 396), Vector2(280, 514)]:
 		_decor("pot", p)
@@ -433,6 +433,55 @@ func _build_stations() -> void:
 	var chal_st := _add_station("challenge", "", "Bảng Khiêu Chiến", "Độ khó & Thử thách", Vector2(345, 345), _sprite("world/lobby_challenge.png", Vector2(0, -16)), -46.0)
 	chal_st.radius = 28.0
 
+	# ---- 6 công trình chức năng mới cho từng phòng ----
+	# Đại Sảnh (giữa): Quán Trà & Sa Bàn Quân Sự
+	var tea_st := _add_station("tea", "", "Quán Trà", "Uống đặc sản tăng lực", Vector2(558, 608), _sprite("world/lobby_tea.png", Vector2(0, -12)), -38.0)
+	tea_st.radius = 28.0
+	var steam := CPUParticles2D.new()
+	steam.position = Vector2(2, -16)
+	steam.amount = 6
+	steam.lifetime = 1.8
+	steam.direction = Vector2.UP
+	steam.spread = 15.0
+	steam.gravity = Vector2(2, -8)
+	steam.initial_velocity_min = 4.0
+	steam.initial_velocity_max = 8.0
+	steam.scale_amount_min = 1.0
+	steam.scale_amount_max = 2.0
+	var stg := Gradient.new()
+	stg.set_color(0, Color(0.95, 0.96, 1.0, 0.55))
+	stg.set_color(1, Color(0.95, 0.96, 1.0, 0.0))
+	steam.color_ramp = stg
+	tea_st.add_child(steam)
+
+	var war_st := _add_station("war_table", "", "Sa Bàn Quân Sự", "Mã Seed & Bảng Vinh Danh", Vector2(808, 626), _sprite("world/lobby_war_table.png", Vector2(0, -12)), -38.0)
+	war_st.radius = 28.0
+
+	# Vườn Sen (tây): Vườn Thảo Dược
+	var garden_st := _add_station("garden", "", "Vườn Thảo Dược", "Trồng & thu hoạch linh thảo", Vector2(94, 430), _sprite("world/lobby_garden.png", Vector2(0, -14)), -42.0)
+	garden_st.radius = 30.0
+
+	# Xưởng Rèn (đông): Bàn Phù Phép Binh Khí
+	var enc_spr := AnimatedSprite2D.new()
+	enc_spr.sprite_frames = Art.strip("world/lobby_enchant.png", 52, 46, 5.0, true)
+	enc_spr.play("play")
+	enc_spr.position = Vector2(0, -14)
+	var enc_st := _add_station("enchant", "", "Bàn Phù Phép", "Gắn bùa cho vũ khí", Vector2(1032, 444), enc_spr, -44.0)
+	enc_st.radius = 28.0
+	var el := Art.light(Color(0.32, 0.92, 0.98), 0.9, 0.75)
+	el.position = Vector2(1032, 434)
+	world.add_child(el)
+
+	# Đại Cổng Xuất Trận (bắc): Tượng Thần Hộ Mệnh & Rương Quân Nhu
+	var shrine_st := _add_station("shrine", "", "Tượng Thần Hộ Mệnh", "Cầu thần phúc xuất trận", Vector2(546, 128), _sprite("world/lobby_shrine.png", Vector2(0, -18)), -48.0)
+	shrine_st.radius = 28.0
+	var shl := Art.light(Color(1.0, 0.85, 0.42), 0.85, 0.7)
+	shl.position = Vector2(546, 118)
+	world.add_child(shl)
+
+	var supply_st := _add_station("supply", "", "Rương Quân Nhu", "Tiếp tế & đổi nguyên liệu", Vector2(814, 128), _sprite("world/lobby_supply.png", Vector2(0, -14)), -40.0)
+	supply_st.radius = 28.0
+
 	# Đại Cổng Xuất Trận (phòng Bắc)
 	var portal := Portal.new()
 	portal.position = Vector2(680, 115)
@@ -462,6 +511,8 @@ func _spawn_player(pos: Vector2) -> void:
 		player.queue_free()
 	player = Player.new()
 	player.setup(Global.selected_hero)
+	if Global.lobby_weapon_mod != "" and player.weapons.size() > 0 and str(player.weapons[0]) != "":
+		Global.set_weapon_mod(str(player.weapons[0]), Global.lobby_weapon_mod)
 	player.position = pos
 	world.add_child(player)
 	if touch != null:
@@ -510,6 +561,18 @@ func _on_station(s) -> void:
 			ui.open_challenge()
 		"codex":
 			ui.open_codex()
+		"tea":
+			ui.open_tea()
+		"war_table":
+			ui.open_war_table()
+		"garden":
+			ui.open_garden()
+		"enchant":
+			ui.open_enchant()
+		"shrine":
+			ui.open_shrine()
+		"supply":
+			ui.open_supply()
 
 
 ## Gọi từ bảng tướng khi bấm "Chọn tướng này"
@@ -552,9 +615,13 @@ func on_forged() -> void:
 
 
 func on_well_result(msg: String, reward_col := Color(0.5, 0.95, 1.0)) -> void:
+	on_station_fx(_well_pos, msg, reward_col)
+
+
+func on_station_fx(pos: Vector2, msg: String, col := Color(1.0, 0.9, 0.45)) -> void:
 	if world != null:
-		Fx.particles(world, _well_pos + Vector2(0, -6), reward_col, 16, 72.0, 0.55, -24.0, 2.0)
-		Fx.float_text(world, _well_pos + Vector2(0, -26), msg, reward_col, 14)
+		Fx.particles(world, pos + Vector2(0, -6), col, 16, 72.0, 0.55, -24.0, 2.0)
+		Fx.float_text(world, pos + Vector2(0, -26), msg, col, 14)
 
 
 func set_player_active(on: bool) -> void:
@@ -563,14 +630,19 @@ func set_player_active(on: bool) -> void:
 		player.velocity = Vector2.ZERO
 
 
-func _start_run() -> void:
+func start_run_with_code(code: String) -> void:
 	if _leaving:
 		return
 	_leaving = true
 	Sfx.play("level_clear")
+	Global.pending_challenge_code = ""
 	Global.save_game()
-	Global.start_run()
+	Global.start_run(code)
 	get_tree().change_scene_to_file("res://scenes/game.tscn")
+
+
+func _start_run() -> void:
+	start_run_with_code(Global.pending_challenge_code)
 
 
 func _back_to_menu() -> void:

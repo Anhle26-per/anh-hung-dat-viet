@@ -276,8 +276,10 @@ def build():
     draw_tiled_floor(d, rng, 82, 286, 392, 392, C("9c9688"), C("bcb6a8"), C("6e685e"), C("524e46"), tile=18, crack_rate=0.06)
     d.rectangle([80, 284, 394, 394], outline=C("444038"))
 
-    # Bồn hoa viền đá & bục gỗ ngắm hồ sen phía bắc Hồ Sen
-    for fx0, fy0, fx1, fy1 in ((54, 412, 118, 444), (344, 626, 404, 666)):
+    # Bồn đá đặt Vườn Thảo Dược (góc trên trái 56..132, 404..456) & bồn hoa dưới phải
+    draw_tiled_floor(d, rng, 56, 404, 132, 456, C("7a766c"), C("9e988c"), C("524e48"), C("3c3834"), tile=14)
+    d.rectangle([55, 403, 133, 457], outline=C("444038"))
+    for fx0, fy0, fx1, fy1 in ((344, 626, 404, 666),):
         d.rectangle([fx0, fy0, fx1, fy1], fill=C("4b3524"), outline=C("8a8478"))
         for _ in range(18):
             bx, by = rng.randint(fx0 + 4, fx1 - 4), rng.randint(fy0 + 4, fy1 - 4)
@@ -340,9 +342,9 @@ def build():
     draw_carpet(d, 646, 126, 714, 210)
     for sy in (162, 178, 194):
         d.line([(638, sy), (722, sy)], fill=C("d6cec0"))
-    # Bệ đá phụ đặt đỉnh lửa & cờ hai bên Cổng Thời Gian
-    for px0, py0 in ((558, 116), (766, 116), (482, 110), (848, 110)):
-        d.rectangle([px0, py0, px0 + 36, py0 + 28], fill=C("54525c"), outline=C("8a8894"))
+    # Bệ đá phụ đặt Tượng Thần Hộ Mệnh (546, 128), Rương Quân Nhu (814, 128) & cờ hai bên
+    for px0, py0 in ((524, 110), (792, 110), (482, 108), (848, 108)):
+        d.rectangle([px0, py0, px0 + 44, py0 + 30], fill=C("54525c"), outline=C("8a8894"))
     # Bệ đá tròn trung tâm Cổng Thời Gian
     gx, gy = 680, 115
     for rx, ry, col in ((60, 41, C("2e2a38")), (54, 37, C("5c566a")), (44, 30, C("9c94a8")), (34, 23, C("3a344c"))):

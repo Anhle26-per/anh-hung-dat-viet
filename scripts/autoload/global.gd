@@ -30,6 +30,7 @@ var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lư�
 var hero_levels: Dictionary = {}  # mã tướng -> cấp (1..5)
 var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu (1..5)
 var leaderboard: Array = []       # bảng điểm so tài cục bộ (tối đa 20 mục, xếp theo điểm giảm dần)
+var garden_plots: Array = []      # 3 ô Vườn Thảo Dược: [{"plant": String, "stage": int}]
 var log_path: String = "user://nhat_ky.csv"
 
 const DEFAULT_SETTINGS: Dictionary = {
@@ -52,6 +53,35 @@ const UPGRADES := {
 	"khoi_dau": {"name": "Lễ xuất quân", "desc": "Bắt đầu lượt chơi với 1 phúc lành", "max": 1, "cost": 600},
 	"hoi_sinh": {"name": "Thuốc hồi sinh", "desc": "Mỗi lượt được hồi sinh miễn phí 1 lần", "max": 1, "cost": 800},
 }
+
+# Đồ uống Quán Trà Đại Sảnh (áp dụng 1 lượt xuất trận kế tiếp)
+const LOBBY_DRINKS := {
+	"tra_sen": {"name": "Trà Sen Tây Hồ", "desc": "+2 Giáp tối đa suốt lượt tới.", "cost": 25},
+	"ruou_can": {"name": "Rượu Cần Mê Linh", "desc": "+2 Máu tối đa suốt lượt tới.", "cost": 30},
+	"ca_phe": {"name": "Cà Phê Chiến Trường", "desc": "+15% tốc chạy & +60 năng lượng tối đa.", "cost": 30},
+	"tra_gung": {"name": "Trà Gừng Ấm Phủ", "desc": "Phúc lành Trà tim sen (-20% hồi chiêu).", "cost": 35},
+}
+
+# Thần phúc Tượng Thần Hộ Mệnh (áp dụng 1 lượt xuất trận kế tiếp)
+const SHRINE_BLESSINGS := {
+	"ruou_thuoc": {"name": "Phúc Chiến Thần", "desc": "Tăng +20% sát thương khi vào trận.", "cost": 35},
+	"giap_dong": {"name": "Phúc Hộ Thân", "desc": "Tăng +2 Giáp tối đa khi vào trận.", "cost": 35},
+	"linh_khi": {"name": "Phúc Linh Khí", "desc": "Tăng +60 Năng lượng tối đa khi vào trận.", "cost": 35},
+}
+
+# Thảo dược Vườn Sen (chín dần qua mỗi lượt đánh hoặc tưới 1 lần mỗi ghé sảnh)
+const GARDEN_PLANTS := {
+	"huyet_sam": {"name": "Huyết Sâm", "desc": "Thu hoạch: +1 phúc lành Bánh chưng lượt tới & +1 Ngọc thần.", "cost": 20, "buff": "banh_chung", "mat": "ngoc_than", "mat_qty": 1, "coins": 0},
+	"sen_tuyet": {"name": "Sen Tuyết", "desc": "Thu hoạch: +1 phúc lành Khiên độc lượt tới & +1 Yêu hồn.", "cost": 25, "buff": "khien_doc", "mat": "yeu_hon", "mat_qty": 1, "coins": 0},
+	"tre_nga": {"name": "Tre Ngà", "desc": "Thu hoạch: +35 xu, +2 Gỗ lim & +1 Sắt.", "cost": 15, "buff": "", "mat": "go_lim", "mat_qty": 2, "coins": 35},
+}
+
+# --- Tiền thưởng chuẩn bị từ sảnh trước khi bước vào cổng ---
+var lobby_drink: String = ""
+var lobby_weapon_mod: String = ""
+var lobby_shrine_buff: String = ""
+var lobby_garden_buffs: Array = []
+var pending_challenge_code: String = ""
 
 # --- Trạng thái lượt chơi hiện tại ---
 var level: int = 1
@@ -592,9 +622,125 @@ func end_run(outcome: String = "") -> void:
 	run_coins = 0
 	_commit_run_materials()
 	run_weapon_mods = {}
+	ensure_garden_plots()
+	for i in garden_plots.size():
+		var pl: Dictionary = garden_plots[i]
+		if str(pl.get("plant", "")) != "" and int(pl.get("stage", 0)) < 2:
+			pl["stage"] = int(pl.get("stage", 0)) + 1
+			garden_plots[i] = pl
 	best_level = maxi(best_level, level)
 	clear_run()
 	save_game()
+
+
+func ensure_garden_plots() -> void:
+	if garden_plots.size() == 3:
+		return
+	var fresh: bool = garden_plots.is_empty()
+	while garden_plots.size() < 3:
+		garden_plots.append({"plant": "", "stage": 0})
+	if garden_plots.size() > 3:
+		garden_plots = garden_plots.slice(0, 3)
+	if fresh:
+		garden_plots[0] = {"plant": "tre_nga", "stage": 2}
+
+
+func plant_garden(idx: int, plant_id: String) -> bool:
+	ensure_garden_plots()
+	if idx < 0 or idx >= 3 or not GARDEN_PLANTS.has(plant_id):
+		return false
+	var cur: Dictionary = garden_plots[idx]
+	if str(cur.get("plant", "")) != "":
+		return false
+	var cost: int = int(GARDEN_PLANTS[plant_id].cost)
+	if coins < cost:
+		return false
+	coins -= cost
+	garden_plots[idx] = {"plant": plant_id, "stage": 1}
+	save_game()
+	return true
+
+
+func water_garden_plot(idx: int) -> bool:
+	ensure_garden_plots()
+	if idx < 0 or idx >= 3:
+		return false
+	var cur: Dictionary = garden_plots[idx]
+	if str(cur.get("plant", "")) == "" or int(cur.get("stage", 0)) >= 2:
+		return false
+	cur["stage"] = 2
+	garden_plots[idx] = cur
+	save_game()
+	return true
+
+
+func harvest_garden(idx: int) -> String:
+	ensure_garden_plots()
+	if idx < 0 or idx >= 3:
+		return ""
+	var cur: Dictionary = garden_plots[idx]
+	var pid: String = str(cur.get("plant", ""))
+	if pid == "" or not GARDEN_PLANTS.has(pid) or int(cur.get("stage", 0)) < 2:
+		return ""
+	var gd: Dictionary = GARDEN_PLANTS[pid]
+	var parts: PackedStringArray = []
+	var b: String = str(gd.get("buff", ""))
+	if b != "":
+		lobby_garden_buffs.append(b)
+		parts.append("Phúc lành lượt tới")
+	var mid: String = str(gd.get("mat", ""))
+	var mqty: int = int(gd.get("mat_qty", 0))
+	if mid != "" and mqty > 0 and MaterialData.DATA.has(mid):
+		materials[mid] = material_count(mid) + mqty
+		if pid == "tre_nga":
+			materials["sat"] = material_count("sat") + 1
+			parts.append("+%d Gỗ lim, +1 Sắt" % mqty)
+		else:
+			parts.append("+%d %s" % [mqty, str(MaterialData.DATA[mid].name)])
+	var cbonus: int = int(gd.get("coins", 0))
+	if cbonus > 0:
+		coins += cbonus
+		parts.append("+%d xu" % cbonus)
+	garden_plots[idx] = {"plant": "", "stage": 0}
+	save_game()
+	return "Thu hoạch %s: %s!" % [str(gd.name), ", ".join(parts)]
+
+
+func apply_lobby_bonuses(p: Node) -> void:
+	if p == null or not is_instance_valid(p):
+		return
+	if Net != null and Net.is_online() and not Net.is_host():
+		return
+	var changed := false
+	match lobby_drink:
+		"tra_sen":
+			p.max_armor += 2
+			p.armor = p.max_armor
+			changed = true
+		"ruou_can":
+			p.max_hp += 2
+			p.hp = p.max_hp
+			changed = true
+		"ca_phe":
+			p.speed *= 1.15
+			p.max_energy += 60
+			p.energy = p.max_energy
+			changed = true
+		"tra_gung":
+			p.apply_buff("tra_tim_sen")
+	if lobby_weapon_mod != "" and WeaponMods.DATA.has(lobby_weapon_mod) and p.weapons.size() > 0 and str(p.weapons[0]) != "":
+		set_weapon_mod(str(p.weapons[0]), lobby_weapon_mod)
+		changed = true
+	if lobby_shrine_buff != "":
+		p.apply_buff(lobby_shrine_buff)
+	for bid in lobby_garden_buffs:
+		p.apply_buff(str(bid))
+	lobby_drink = ""
+	lobby_weapon_mod = ""
+	lobby_shrine_buff = ""
+	lobby_garden_buffs = []
+	if changed and p.has_signal("stats_changed"):
+		p.stats_changed.emit()
 
 
 func try_unlock(hero_id: String) -> bool:
@@ -723,6 +869,7 @@ func save_game() -> void:
 		"hero_levels": hero_levels,
 		"weapon_ranks": weapon_ranks,
 		"leaderboard": leaderboard,
+		"garden_plots": garden_plots,
 	})
 
 
@@ -923,8 +1070,10 @@ func save_on_exit() -> void:
 func load_game() -> void:
 	settings = DEFAULT_SETTINGS.duplicate()
 	leaderboard = []
+	garden_plots = []
 	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
+		ensure_garden_plots()
 		apply_settings()
 		return
 	coins = int(data.get("coins", 0))
@@ -997,6 +1146,19 @@ func load_game() -> void:
 					"outcome": str(ld.get("outcome", "")),
 				})
 		_sort_and_cap_leaderboard()
+	var gp: Variant = data.get("garden_plots", null)
+	if typeof(gp) == TYPE_ARRAY:
+		for slot_item in gp:
+			if garden_plots.size() >= 3:
+				break
+			if typeof(slot_item) == TYPE_DICTIONARY:
+				var sd: Dictionary = slot_item
+				var pid: String = str(sd.get("plant", ""))
+				if pid != "" and not GARDEN_PLANTS.has(pid):
+					pid = ""
+				var stg: int = clampi(int(sd.get("stage", 0)), 0, 2) if pid != "" else 0
+				garden_plots.append({"plant": pid, "stage": stg})
+	ensure_garden_plots()
 
 
 # ------------------------------------------------------------------ Phím bấm

@@ -9,6 +9,7 @@ const SynergyData = preload("res://scripts/data/synergy.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
 const BuffData = preload("res://scripts/data/buffs.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
+const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -16,6 +17,7 @@ var lobby = null
 var _panel: Control = null
 var _coin_label: Label
 var _room_label: Label
+var _prep_label: Label
 var _minimap: Control = null
 
 
@@ -69,6 +71,11 @@ func _ready() -> void:
 	_room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	top.add_child(_room_label)
 
+	_prep_label = UI.label("", 11, Color(0.68, 0.96, 0.78))
+	_prep_label.position = Vector2(8, 24)
+	_prep_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	top.add_child(_prep_label)
+
 	_minimap = LobbyMinimap.new()
 	_minimap.lobby = lobby
 	_minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -100,6 +107,19 @@ func _process(_delta: float) -> void:
 		if _minimap != null:
 			_minimap.lobby = lobby
 			_minimap.queue_redraw()
+	if _prep_label != null:
+		var tags: PackedStringArray = []
+		if Global.lobby_drink != "" and Global.LOBBY_DRINKS.has(Global.lobby_drink):
+			tags.append("Trà: %s" % str(Global.LOBBY_DRINKS[Global.lobby_drink].name))
+		if Global.lobby_weapon_mod != "" and WeaponMods.DATA.has(Global.lobby_weapon_mod):
+			tags.append("Bùa: %s" % WeaponMods.mod_name(Global.lobby_weapon_mod))
+		if Global.lobby_shrine_buff != "" and Global.SHRINE_BLESSINGS.has(Global.lobby_shrine_buff):
+			tags.append(str(Global.SHRINE_BLESSINGS[Global.lobby_shrine_buff].name))
+		if not Global.lobby_garden_buffs.is_empty():
+			tags.append("Thảo dược x%d" % Global.lobby_garden_buffs.size())
+		if Global.pending_challenge_code != "":
+			tags.append("Mã: %s" % Global.pending_challenge_code)
+		_prep_label.text = "Chuẩn bị: %s" % " | ".join(tags) if not tags.is_empty() else ""
 
 
 func is_open() -> bool:
@@ -695,4 +715,325 @@ func open_codex(tab: String = "buffs") -> void:
 			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			row.add_child(dsc)
 			list.add_child(row)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Quán Trà Đại Sảnh
+
+func open_tea(last_msg: String = "") -> void:
+	var box := _begin("Quán Trà Đại Sảnh")
+	box.add_child(UI.label("Thưởng thức trà & đặc sản trước khi ra trận (giữ hiệu lực suốt lượt kế tiếp).", 13, Color(0.88, 0.92, 0.86), true))
+	var cur_name: String = str(Global.LOBBY_DRINKS[Global.lobby_drink].name) if Global.lobby_drink != "" and Global.LOBBY_DRINKS.has(Global.lobby_drink) else "Chưa chọn"
+	box.add_child(UI.label("Xu: %d   |   Đang dùng: %s" % [Global.coins, cur_name], 14, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+	for did in ["tra_sen", "ruou_can", "ca_phe", "tra_gung"]:
+		var dd: Dictionary = Global.LOBBY_DRINKS[did]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var nm := UI.label(str(dd.name), 15, Color(1.0, 0.88, 0.5))
+		nm.custom_minimum_size = Vector2(165, 0)
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(nm)
+		var ds := UI.label(str(dd.desc), 13, Color(0.9, 0.88, 0.85))
+		ds.custom_minimum_size = Vector2(230, 0)
+		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(ds)
+		var active: bool = Global.lobby_drink == did
+		var cost: int = int(dd.cost)
+		var b := UI.button("Đang dùng" if active else "Uống (%d xu)" % cost, func():
+			if Global.coins < cost or Global.lobby_drink == did:
+				return
+			Global.coins -= cost
+			Global.lobby_drink = did
+			Global.save_game()
+			Sfx.play("buy")
+			if lobby != null and lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(558, 594), "Đã thưởng thức %s!" % str(dd.name), Color(0.65, 0.98, 0.7))
+			open_tea("Đã chọn %s cho lượt xuất trận tới!" % str(dd.name)), 13, 128.0)
+		b.disabled = active or Global.coins < cost
+		row.add_child(b)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Sa Bàn Quân Sự
+
+func open_war_table(tab: String = "seed", last_msg: String = "") -> void:
+	var box := _begin("Sa Bàn Quân Sự")
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	box.add_child(tabs)
+	var b_seed := UI.button("Mã Thử Thách", open_war_table.bind("seed"), 14, 150.0)
+	b_seed.disabled = (tab == "seed")
+	var b_lb := UI.button("Bảng Vinh Danh (%d)" % Global.leaderboard.size(), open_war_table.bind("board"), 14, 170.0)
+	b_lb.disabled = (tab == "board")
+	tabs.add_child(b_seed)
+	tabs.add_child(b_lb)
+
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 13, Color(0.55, 0.98, 0.72)))
+
+	if tab == "seed":
+		var cur_code: String = Global.pending_challenge_code
+		box.add_child(UI.label("Mã cổng hiện đặt: %s" % (cur_code if cur_code != "" else "Ngẫu nhiên tự do"), 14, Color(1.0, 0.88, 0.45)))
+		var edit := LineEdit.new()
+		edit.text = cur_code
+		edit.placeholder_text = "Nhập mã chiến dịch (vd: MELINH40)"
+		edit.custom_minimum_size = Vector2(260, 26)
+		box.add_child(UI.center(edit))
+
+		var presets := HBoxContainer.new()
+		presets.alignment = BoxContainer.ALIGNMENT_CENTER
+		presets.add_theme_constant_override("separation", 8)
+		box.add_child(presets)
+		for pcode in ["MELINH40", "BACHDANG", "DIENBIEN"]:
+			presets.add_child(UI.button(pcode, func():
+				edit.text = pcode, 13, 108.0))
+
+		var acts := HBoxContainer.new()
+		acts.alignment = BoxContainer.ALIGNMENT_CENTER
+		acts.add_theme_constant_override("separation", 8)
+		box.add_child(acts)
+		acts.add_child(UI.button("Đặt mã cho cổng", func():
+			var norm: String = edit.text.strip_edges().to_upper()
+			Global.pending_challenge_code = norm
+			if lobby != null and lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(808, 608), "Đặt mã: %s" % (norm if norm != "" else "Tự do"), Color(0.65, 0.92, 1.0))
+			open_war_table("seed", "Cổng xuất trận sẽ dùng mã: %s" % (norm if norm != "" else "Ngẫu nhiên")), 14, 160.0))
+		acts.add_child(UI.button("Xuất trận ngay", func():
+			var norm2: String = edit.text.strip_edges().to_upper()
+			if lobby != null and lobby.has_method("start_run_with_code"):
+				close()
+				lobby.start_run_with_code(norm2), 14, 140.0))
+	else:
+		if Global.leaderboard.is_empty():
+			box.add_child(UI.label("Chưa có chiến tích nào. Hãy hoàn thành một lượt xuất trận!", 13, Color(0.86, 0.84, 0.8)))
+		else:
+			var scroll := ScrollContainer.new()
+			scroll.custom_minimum_size = Vector2(520, 165)
+			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			box.add_child(scroll)
+			var list := VBoxContainer.new()
+			list.add_theme_constant_override("separation", 4)
+			scroll.add_child(list)
+			var cap: int = mini(10, Global.leaderboard.size())
+			for i in cap:
+				var e: Dictionary = Global.leaderboard[i]
+				var hid: String = str(e.get("hero", ""))
+				var hname: String = str(HeroData.DATA[hid].name) if HeroData.DATA.has(hid) else hid
+				var ctag: String = (" [%s]" % str(e.get("code", ""))) if str(e.get("code", "")) != "" else ""
+				var line := "#%d  %s%s  -  Màn %d  -  %d điểm (%s)" % [i + 1, hname, ctag, int(e.get("level", 1)), int(e.get("score", 0)), Global.format_time(float(e.get("time", 0.0)))]
+				var lb := UI.label(line, 13, Color(1.0, 0.88, 0.42) if i == 0 else Color(0.9, 0.88, 0.84))
+				lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+				list.add_child(lb)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Vườn Thảo Dược
+
+func open_garden(last_msg: String = "") -> void:
+	Global.ensure_garden_plots()
+	var box := _begin("Vườn Thảo Dược Linh Sen")
+	var can_water: bool = lobby != null and not bool(lobby.garden_watered)
+	box.add_child(UI.label("Trồng thảo dược chín sau mỗi lượt chiến đấu, hoặc tưới nước 1 lần mỗi lần ghé sảnh.  |  Xu: %d" % Global.coins, 12, Color(0.85, 0.94, 0.84), true))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+	for i in Global.garden_plots.size():
+		var slot_data: Dictionary = Global.garden_plots[i]
+		var pid: String = str(slot_data.get("plant", ""))
+		var stg: int = int(slot_data.get("stage", 0))
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
+		box.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		card.add_child(row)
+		if pid == "":
+			var lb := UI.label("Ô %d: Đất trống" % (i + 1), 13, Color(0.82, 0.8, 0.76))
+			lb.custom_minimum_size = Vector2(150, 0)
+			lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(lb)
+			for pkey in ["tre_nga", "huyet_sam", "sen_tuyet"]:
+				var pd: Dictionary = Global.GARDEN_PLANTS[pkey]
+				var cost: int = int(pd.cost)
+				var b := UI.button("%s (%dx)" % [str(pd.name), cost], func():
+					if Global.plant_garden(i, pkey):
+						Sfx.play("pickup")
+						if lobby != null and lobby.has_method("on_station_fx"):
+							lobby.on_station_fx(Vector2(94, 416), "Đã gieo %s!" % str(pd.name), Color(0.65, 0.98, 0.6))
+						open_garden("Đã trồng %s vào Ô %d!" % [str(pd.name), i + 1]), 12, 114.0)
+				b.disabled = Global.coins < cost
+				row.add_child(b)
+		else:
+			var pd2: Dictionary = Global.GARDEN_PLANTS.get(pid, {})
+			var st_txt: String = "Đã chín!" if stg >= 2 else "Đang lớn"
+			var st_col: Color = Color(0.55, 0.98, 0.6) if stg >= 2 else Color(1.0, 0.85, 0.45)
+			var info_box := VBoxContainer.new()
+			info_box.custom_minimum_size = Vector2(340, 0)
+			info_box.add_theme_constant_override("separation", 1)
+			row.add_child(info_box)
+			var h_lb := UI.label("Ô %d: %s  [%s]" % [i + 1, str(pd2.get("name", pid)), st_txt], 14, st_col)
+			h_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info_box.add_child(h_lb)
+			var d_lb := UI.label(str(pd2.get("desc", "")), 11, Color(0.86, 0.86, 0.82), true)
+			d_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info_box.add_child(d_lb)
+			if stg >= 2:
+				row.add_child(UI.button("Thu hoạch", func():
+					var res_msg: String = Global.harvest_garden(i)
+					if res_msg != "":
+						Sfx.play("coin")
+						if lobby != null and lobby.has_method("on_station_fx"):
+							lobby.on_station_fx(Vector2(94, 416), res_msg, Color(0.65, 1.0, 0.68))
+						open_garden(res_msg), 13, 130.0))
+			else:
+				var wb := UI.button("Tưới nước" if can_water else "Đã tưới lượt này", func():
+					if lobby != null and not bool(lobby.garden_watered) and Global.water_garden_plot(i):
+						lobby.garden_watered = true
+						Sfx.play("pickup")
+						if lobby.has_method("on_station_fx"):
+							lobby.on_station_fx(Vector2(94, 416), "%s đã chín!" % str(pd2.get("name", pid)), Color(0.55, 0.96, 1.0))
+						open_garden("Đã tưới nước — %s chín sẵn sàng thu hoạch!" % str(pd2.get("name", pid))), 12, 138.0)
+				wb.disabled = not can_water
+				row.add_child(wb)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Bàn Phù Phép Binh Khí
+
+func open_enchant(last_msg: String = "") -> void:
+	var box := _begin("Bàn Phù Phép Binh Khí")
+	var hid: String = Global.selected_hero
+	var wid: String = str(HeroData.DATA[hid].weapon) if HeroData.DATA.has(hid) else ""
+	var wname: String = str(WeaponData.get_data(wid).name) if wid != "" else "Vũ khí"
+	var cur_mod: String = Global.lobby_weapon_mod
+	box.add_child(UI.label("Gắn bùa cho binh khí khởi đầu (%s) — Thử ngay trên Hình nhân hoặc mang vào trận!" % wname, 13, Color(0.82, 0.94, 0.98), true))
+	var cur_txt: String = WeaponMods.mod_name(cur_mod) if cur_mod != "" else "Chưa gắn"
+	box.add_child(UI.label("Xu: %d   |   Bùa hiện gắn: %s" % [Global.coins, cur_txt], 14, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+	for mid in WeaponMods.ORDER:
+		var md: Dictionary = WeaponMods.DATA[mid]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var nm := UI.label(str(md.name), 15, WeaponMods.mod_color(str(mid)))
+		nm.custom_minimum_size = Vector2(150, 0)
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(nm)
+		var ds := UI.label(str(md.desc), 13, Color(0.9, 0.88, 0.85))
+		ds.custom_minimum_size = Vector2(235, 0)
+		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(ds)
+		var active: bool = cur_mod == str(mid)
+		var cost: int = 40
+		var b := UI.button("Đang gắn" if active else "Phù phép (%dx)" % cost, func():
+			if Global.coins < cost or Global.lobby_weapon_mod == str(mid):
+				return
+			Global.coins -= cost
+			Global.lobby_weapon_mod = str(mid)
+			if wid != "":
+				Global.set_weapon_mod(wid, str(mid))
+			Global.save_game()
+			Sfx.play("forge")
+			if lobby != null and lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(1032, 430), "Gắn bùa %s!" % str(md.name), WeaponMods.mod_color(str(mid)))
+			open_enchant("Đã gắn bùa %s lên %s!" % [str(md.name), wname]), 13, 132.0)
+		b.disabled = active or Global.coins < cost
+		row.add_child(b)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Tượng Thần Hộ Mệnh
+
+func open_shrine(last_msg: String = "") -> void:
+	var box := _begin("Tượng Thần Hộ Mệnh")
+	box.add_child(UI.label("Dâng lễ vật cầu thần phúc bảo hộ tướng sĩ trong lượt xuất trận sắp tới.", 13, Color(0.92, 0.9, 0.84), true))
+	var cur_bid: String = Global.lobby_shrine_buff
+	var cur_name: String = str(Global.SHRINE_BLESSINGS[cur_bid].name) if cur_bid != "" and Global.SHRINE_BLESSINGS.has(cur_bid) else "Chưa cầu"
+	box.add_child(UI.label("Xu: %d   |   Thần phúc: %s" % [Global.coins, cur_name], 14, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+	for bid in ["ruou_thuoc", "giap_dong", "linh_khi"]:
+		var sd: Dictionary = Global.SHRINE_BLESSINGS[bid]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var nm := UI.label(str(sd.name), 15, Color(1.0, 0.86, 0.4))
+		nm.custom_minimum_size = Vector2(160, 0)
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(nm)
+		var ds := UI.label(str(sd.desc), 13, Color(0.9, 0.88, 0.85))
+		ds.custom_minimum_size = Vector2(235, 0)
+		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(ds)
+		var active: bool = cur_bid == bid
+		var cost: int = int(sd.cost)
+		var b := UI.button("Đã phù hộ" if active else "Cầu phúc (%dx)" % cost, func():
+			if Global.coins < cost or Global.lobby_shrine_buff == bid:
+				return
+			Global.coins -= cost
+			Global.lobby_shrine_buff = bid
+			Global.save_game()
+			Sfx.play("level_clear")
+			if lobby != null and lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(546, 114), "%s ứng linh!" % str(sd.name), Color(1.0, 0.9, 0.35))
+			open_shrine("Nhận %s cho lượt xuất trận tới!" % str(sd.name)), 13, 130.0)
+		b.disabled = active or Global.coins < cost
+		row.add_child(b)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Rương Quân Nhu
+
+func open_supply(last_msg: String = "") -> void:
+	var box := _begin("Rương Quân Nhu Tiền Tiêu")
+	var can_claim: bool = lobby != null and not bool(lobby.supply_claimed)
+	box.add_child(UI.label("Nhận khẩu phần tiếp tế miễn phí mỗi lần ghé sảnh hoặc mua nhanh nguyên liệu rèn.", 13, Color(0.9, 0.88, 0.84), true))
+	box.add_child(UI.label("Xu hiện có: %d" % Global.coins, 14, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+	var b_claim := UI.button("Nhận tiếp tế miễn phí (+25 xu & +1 nguyên liệu)" if can_claim else "Đã nhận tiếp tế lần này", func():
+		if lobby == null or bool(lobby.supply_claimed):
+			return
+		lobby.supply_claimed = true
+		Global.coins += 25
+		var mid: String = str(MaterialData.ORDER[randi() % MaterialData.ORDER.size()])
+		Global.materials[mid] = Global.material_count(mid) + 1
+		Global.save_game()
+		Sfx.play("chest_open")
+		var msg := "Tiếp tế: +25 xu & +1 %s!" % str(MaterialData.DATA[mid].name)
+		if lobby.has_method("on_station_fx"):
+			lobby.on_station_fx(Vector2(814, 114), msg, Color(1.0, 0.88, 0.38))
+		open_supply(msg), 14, 340.0)
+	b_claim.disabled = not can_claim
+	box.add_child(UI.center(b_claim))
+
+	var grid := HBoxContainer.new()
+	grid.alignment = BoxContainer.ALIGNMENT_CENTER
+	grid.add_theme_constant_override("separation", 8)
+	box.add_child(grid)
+	for mid in MaterialData.ORDER:
+		var md: Dictionary = MaterialData.DATA[mid]
+		var col_box := VBoxContainer.new()
+		col_box.add_theme_constant_override("separation", 3)
+		var hdr := HBoxContainer.new()
+		hdr.alignment = BoxContainer.ALIGNMENT_CENTER
+		hdr.add_theme_constant_override("separation", 3)
+		hdr.add_child(_mat_icon(str(mid), 13.0))
+		hdr.add_child(UI.label("%s (%d)" % [str(md.name), Global.material_count(str(mid))], 12, md.color))
+		col_box.add_child(hdr)
+		var buy_b := UI.button("+2 (25 xu)", func():
+			if Global.coins < 25:
+				return
+			Global.coins -= 25
+			Global.materials[str(mid)] = Global.material_count(str(mid)) + 2
+			Global.save_game()
+			Sfx.play("buy")
+			open_supply("Đã đổi +2 %s!" % str(md.name)), 12, 110.0)
+		buy_b.disabled = Global.coins < 25
+		col_box.add_child(buy_b)
+		grid.add_child(col_box)
 	_end(box)

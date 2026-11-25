@@ -83,6 +83,8 @@ func _ready() -> void:
 				player.weapons[1] = fw
 				Global.discover(fw)
 		world.add_child(player)
+		if not resuming and (Net == null or not Net.is_online() or Net.is_host()):
+			Global.apply_lobby_bonuses(player)
 
 	player.died.connect(_on_player_died)
 	player.hurt.connect(func(): add_shake(4.0))

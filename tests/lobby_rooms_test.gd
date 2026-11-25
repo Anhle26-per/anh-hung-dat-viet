@@ -58,9 +58,19 @@ func _walk_line(player: CharacterBody2D, from_pos: Vector2, dir: Vector2, steps:
 func _run() -> void:
 	Global.save_path = TEST_SAVE
 	_wipe()
-	Global.coins = 200
+	Global.coins = 300
 	Global.unlocked = ["hai_ba_trung"]
 	Global.selected_hero = "hai_ba_trung"
+	Global.upgrades = {}
+	Global.hero_levels = {}
+	Global.weapon_ranks = {}
+	Global.garden_plots = []
+	Global.ensure_garden_plots()
+	Global.lobby_drink = ""
+	Global.lobby_weapon_mod = ""
+	Global.lobby_shrine_buff = ""
+	Global.lobby_garden_buffs = []
+	Global.pending_challenge_code = ""
 	Global.forged = ""
 	Global.materials.clear()
 	Global.set_setting("camera_zoom", 0.85)
@@ -106,7 +116,7 @@ func _run() -> void:
 		_check(lobby.ui.is_open(), "trạm '%s' không mở bảng UI" % str(s.kind))
 		lobby.ui.close()
 		await _frames(1)
-	for req in ["stele", "well", "challenge", "forge", "rack", "codex", "hero"]:
+	for req in ["stele", "well", "challenge", "forge", "rack", "codex", "hero", "tea", "war_table", "garden", "enchant", "shrine", "supply"]:
 		_check(kinds_seen.has(req), "thiếu trạm '%s' trong sảnh" % req)
 
 	print("== (d) Kiểm tra Giếng Ước trừ xu và giảm lượt")
@@ -119,6 +129,17 @@ func _run() -> void:
 	lobby.ui.close()
 	await _frames(1)
 
+	print("== (d2) Kiểm tra Vườn Thảo Dược, Quán Trà, Phù Phép & Thần Hộ Mệnh")
+	var h0: String = Global.harvest_garden(0)
+	_check(h0 != "", "ô 0 khởi đầu phải thu hoạch được ngay")
+	_check(Global.plant_garden(1, "huyet_sam"), "không trồng được Huyết Sâm vào ô 1")
+	_check(Global.water_garden_plot(1), "không tưới nước chín được ô 1")
+	var h1: String = Global.harvest_garden(1)
+	_check(h1 != "" and Global.lobby_garden_buffs.has("banh_chung"), "thu hoạch Huyết Sâm phải cho banh_chung")
+	Global.lobby_drink = "tra_sen"
+	Global.lobby_weapon_mod = "da_mai"
+	Global.lobby_shrine_buff = "ruou_thuoc"
+
 	print("== (e) Kiểm tra 3 Hình Nhân ở Võ Đường phía Đông")
 	var dummies: Array = get_tree().get_nodes_in_group("enemies")
 	_check(dummies.size() >= 3, "Võ Đường cần ít nhất 3 hình nhân (có %d)" % dummies.size())
@@ -128,7 +149,7 @@ func _run() -> void:
 	lobby.queue_free()
 	await _frames(2)
 
-	print("== (f) Kiểm tra Camera tầm nhìn rộng trong hầm ngục (0.85 -> 0.78 -> 1.0)")
+	print("== (f) Kiểm tra Camera & Tiền thưởng chuẩn bị áp dụng vào hầm ngục")
 	Global.start_run()
 	var game_scene: PackedScene = load("res://scenes/game.tscn")
 	var game: Node = game_scene.instantiate()
@@ -136,6 +157,11 @@ func _run() -> void:
 	await _frames(3)
 	_check(game.camera != null, "không tạo camera trong hầm ngục")
 	_check(game.camera.zoom.is_equal_approx(Vector2(0.85, 0.85)), "zoom mặc định hầm ngục phải là 0.85, đang %.2f" % game.camera.zoom.x)
+	_check(Global.lobby_drink == "" and Global.lobby_weapon_mod == "" and Global.lobby_shrine_buff == "", "thưởng chuẩn bị phải được tiêu thụ sau khi vào trận")
+	_check(game.player.max_armor >= 7, "Trà Sen phải cộng +2 giáp tối đa (đang %d)" % game.player.max_armor)
+	_check(Global.get_weapon_mod(str(game.player.weapons[0])) == "da_mai", "Phù phép da_mai không được gắn lên vũ khí khởi đầu")
+	_check(game.player.buff("ruou_thuoc") >= 1, "Thần phúc ruou_thuoc không áp dụng")
+	_check(game.player.buff("banh_chung") >= 1, "Thảo dược banh_chung không áp dụng")
 	Global.set_setting("camera_zoom", 0.78)
 	_check(game.camera.zoom.is_equal_approx(Vector2(0.78, 0.78)), "đổi tầm nhìn Rộng (0.78) không cập nhật ngay")
 	Global.set_setting("camera_zoom", 1.0)
