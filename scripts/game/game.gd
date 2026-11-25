@@ -91,6 +91,7 @@ func _ready() -> void:
 	camera.position_smoothing_enabled = true
 	camera.position_smoothing_speed = 9.0
 	player.add_child(camera)
+	apply_camera_zoom()
 
 	hud = HUD.new()
 	add_child(hud)
@@ -117,6 +118,12 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_disconnect_net_signals()
+
+
+func apply_camera_zoom() -> void:
+	if camera != null and is_instance_valid(camera):
+		var z: float = Global.camera_zoom()
+		camera.zoom = Vector2(z, z)
 
 
 func _spawn_net_player(pid: int, info: Dictionary) -> Node:

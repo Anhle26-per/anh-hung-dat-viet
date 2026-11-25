@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS: Dictionary = {
 	"fullscreen": false,
 	"touch_scale": 1.0,
 	"difficulty": "thuong",
+	"camera_zoom": 0.85,
 	"player_name": "Anh Hùng",
 }
 var settings: Dictionary = DEFAULT_SETTINGS.duplicate()
@@ -634,6 +635,15 @@ func set_setting(key: String, value: Variant) -> void:
 			var d: String = str(value)
 			if d in ["de", "thuong", "kho"]:
 				settings["difficulty"] = d
+		"camera_zoom":
+			var cz: float = float(value)
+			if cz < 0.81:
+				cz = 0.78
+			elif cz > 0.92:
+				cz = 1.0
+			else:
+				cz = 0.85
+			settings["camera_zoom"] = cz
 		"player_name":
 			var pn: String = str(value).strip_edges()
 			if pn.length() > 18:
@@ -648,11 +658,18 @@ func apply_settings() -> void:
 		if sfx != null:
 			sfx.set_music_volume(float(settings.get("music", 0.8)))
 			sfx.set_sfx_volume(float(settings.get("sfx", 0.9)))
+		for g in get_tree().get_nodes_in_group("game"):
+			if g != null and g.has_method("apply_camera_zoom"):
+				g.apply_camera_zoom()
 	if DisplayServer.get_name() != "headless" and not OS.has_feature("mobile") and not OS.has_feature("web"):
 		var want_fs: bool = bool(settings.get("fullscreen", false))
 		var target_mode: int = DisplayServer.WINDOW_MODE_FULLSCREEN if want_fs else DisplayServer.WINDOW_MODE_WINDOWED
 		if DisplayServer.window_get_mode() != target_mode:
 			DisplayServer.window_set_mode(target_mode)
+
+
+func camera_zoom() -> float:
+	return clampf(float(settings.get("camera_zoom", 0.85)), 0.72, 1.1)
 
 
 func difficulty_hp_mult() -> float:

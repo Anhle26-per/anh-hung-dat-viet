@@ -16,6 +16,7 @@ var _fs_btn: Button = null
 var _touch_row: HBoxContainer = null
 var _touch_btns: Dictionary = {}
 var _diff_btns: Dictionary = {}
+var _cam_btns: Dictionary = {}
 var _upd_btn: Button = null
 var _upd_status: Label = null
 var _upd_popup: CanvasLayer = null
@@ -112,6 +113,17 @@ func _ready() -> void:
 		_diff_btns[did] = b
 	box.add_child(r_diff)
 
+	# 7. Tầm nhìn hầm ngục
+	var r_cam := _make_row("Tầm nhìn")
+	for pair in [[0.78, "Rộng"], [0.85, "Thoáng"], [1.0, "Gần"]]:
+		var cz: float = float(pair[0])
+		var cname: String = str(pair[1])
+		var b := UI.button(cname, _on_camera_zoom.bind(cz), 14, 62.0)
+		b.custom_minimum_size = Vector2(62, 24)
+		r_cam.add_child(b)
+		_cam_btns[cz] = b
+	box.add_child(r_cam)
+
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 2)
 	box.add_child(spacer)
@@ -191,6 +203,10 @@ func refresh() -> void:
 	for did in _diff_btns:
 		var b2: Button = _diff_btns[did]
 		b2.modulate = Color(1.0, 0.9, 0.45) if str(did) == cur_diff else Color(0.75, 0.72, 0.7)
+	var cur_cz: float = Global.camera_zoom()
+	for cz in _cam_btns:
+		var b3: Button = _cam_btns[cz]
+		b3.modulate = Color(1.0, 0.9, 0.45) if is_equal_approx(float(cz), cur_cz) else Color(0.75, 0.72, 0.7)
 	_upd_btn.text = "Kiểm tra cập nhật (v%s)" % Updater.current_version
 	_syncing = false
 
@@ -226,6 +242,11 @@ func _on_touch_scale(sc: float) -> void:
 
 func _on_difficulty(did: String) -> void:
 	Global.set_setting("difficulty", did)
+	refresh()
+
+
+func _on_camera_zoom(cz: float) -> void:
+	Global.set_setting("camera_zoom", cz)
 	refresh()
 
 

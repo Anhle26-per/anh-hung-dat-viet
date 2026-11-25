@@ -1,17 +1,59 @@
 extends CanvasLayer
-## Giao diện sảnh chính: thanh trên cùng (xu, gợi ý) và các bảng: tướng, lò rèn, kho vũ khí, bia ghi công.
+## Giao diện sảnh chính: tên phòng, bản đồ thu nhỏ 4 phòng, xu, và các bảng:
+## tướng, lò rèn, giá binh khí, bia ghi công, giếng ước, bảng khiêu chiến, bách khoa.
 
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
+const BuffData = preload("res://scripts/data/buffs.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
 var lobby = null
 var _panel: Control = null
 var _coin_label: Label
+var _room_label: Label
+var _minimap: Control = null
+
+
+class LobbyMinimap extends Control:
+	var lobby = null
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.06, 0.05, 0.09, 0.78))
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.75, 0.62, 0.35, 0.8), false, 1.0)
+		if lobby == null:
+			return
+		var sx: float = (size.x - 8.0) / 1360.0
+		var sy: float = (size.y - 8.0) / 760.0
+		var ox: float = 4.0
+		var oy: float = 4.0
+		# 3 hành lang nối
+		for cr in [Rect2(420, 425, 40, 90), Rect2(900, 425, 40, 90), Rect2(635, 210, 90, 40)]:
+			var mr := Rect2(ox + cr.position.x * sx, oy + cr.position.y * sy, cr.size.x * sx, cr.size.y * sy)
+			draw_rect(mr, Color(0.45, 0.38, 0.32, 0.9))
+		var ppos := Vector2(680, 524)
+		var cur_room: String = ""
+		if lobby.player != null and is_instance_valid(lobby.player):
+			ppos = lobby.player.global_position
+			cur_room = str(lobby.room_at(ppos).get("id", ""))
+		for r in lobby.ROOMS:
+			var rr: Rect2 = r.rect
+			var mr := Rect2(ox + rr.position.x * sx, oy + rr.position.y * sy, rr.size.x * sx, rr.size.y * sy)
+			var active: bool = str(r.id) == cur_room
+			var fill := Color(0.32, 0.3, 0.38, 0.95) if active else Color(0.18, 0.17, 0.22, 0.92)
+			draw_rect(mr, fill)
+			draw_rect(mr, Color(1.0, 0.85, 0.35) if active else Color(0.55, 0.52, 0.56), false, 1.0)
+		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Giếng Ước (ngọc)
+		draw_rect(Rect2(ox + 680 * sx - 2, oy + 115 * sy - 2, 4, 4), Color(0.45, 0.85, 1.0))
+		draw_rect(Rect2(ox + 1032 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(1.0, 0.58, 0.25))
+		draw_rect(Rect2(ox + 245 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(0.45, 0.95, 0.88))
+		# Chấm vị trí người chơi
+		var dp := Vector2(ox + ppos.x * sx, oy + ppos.y * sy)
+		draw_circle(dp, 2.8, Color(1.0, 0.92, 0.3))
 
 
 func _ready() -> void:
@@ -21,17 +63,28 @@ func _ready() -> void:
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.theme = UI.make_theme()
 	add_child(top)
-	var title := UI.label("DOANH TRẠI ANH HÙNG", 22, Color(1, 0.82, 0.3))
-	title.position = Vector2(8, 2)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	top.add_child(title)
-	_coin_label = UI.label("", 18, Color(1, 0.88, 0.45))
+
+	_room_label = UI.label("DOANH TRẠI — ĐẠI SẢNH ANH HÙNG", 18, Color(1, 0.82, 0.3))
+	_room_label.position = Vector2(8, 3)
+	_room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	top.add_child(_room_label)
+
+	_minimap = LobbyMinimap.new()
+	_minimap.lobby = lobby
+	_minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_minimap.position = Vector2(-114, 6)
+	_minimap.size = Vector2(106, 62)
+	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(_minimap)
+
+	_coin_label = UI.label("", 17, Color(1, 0.88, 0.45))
 	_coin_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_coin_label.position = Vector2(-120, 4)
-	_coin_label.size = Vector2(112, 20)
+	_coin_label.position = Vector2(-232, 4)
+	_coin_label.size = Vector2(110, 20)
 	_coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top.add_child(_coin_label)
-	var hint := UI.label("Lăn chuột / Q: đổi vũ khí  -  E: nhặt / dùng  -  Bước vào cổng xanh để xuất trận", 13, Color(0.95, 0.9, 0.8))
+
+	var hint := UI.label("WASD: đi quanh 4 phòng  -  Lăn chuột / Q: đổi vũ khí  -  E: tương tác  -  Cổng Bắc để xuất trận", 12, Color(0.95, 0.9, 0.8))
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	hint.position.y = -18
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -40,6 +93,13 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_coin_label.text = "Xu: %d" % Global.coins
+	if lobby != null and lobby.player != null and is_instance_valid(lobby.player):
+		var rm: Dictionary = lobby.room_at(lobby.player.global_position)
+		var rname: String = str(rm.get("name", "Doanh Trại Anh Hùng"))
+		_room_label.text = "DOANH TRẠI — %s" % rname.to_upper()
+		if _minimap != null:
+			_minimap.lobby = lobby
+			_minimap.queue_redraw()
 
 
 func is_open() -> bool:
@@ -482,4 +542,157 @@ func open_stele() -> void:
 	]
 	for t in lines:
 		box.add_child(UI.label(t, 18, Color(0.95, 0.9, 0.82)))
+	_end(box)
+
+
+# ------------------------------------------------------------------ Giếng Ước
+
+func _do_wish() -> void:
+	if lobby == null or int(lobby.well_uses) <= 0 or Global.coins < 10:
+		return
+	Global.coins -= 10
+	lobby.well_uses = int(lobby.well_uses) - 1
+	var roll: float = randf()
+	var msg := ""
+	var col := Color(0.5, 0.95, 1.0)
+	if roll < 0.40:
+		var mid: String = str(MaterialData.ORDER[randi() % MaterialData.ORDER.size()])
+		var qty: int = 2 if randf() < 0.35 else 1
+		Global.materials[mid] = Global.material_count(mid) + qty
+		msg = "Giếng ban tặng +%d %s!" % [qty, str(MaterialData.DATA[mid].name)]
+		col = Color(0.65, 1.0, 0.68)
+		Sfx.play("forge")
+	elif roll < 0.72:
+		var bonus: int = 22 if randf() < 0.4 else 16
+		Global.coins += bonus
+		msg = "Lộc giếng cổ: nhận +%d xu!" % bonus
+		col = Color(1.0, 0.88, 0.38)
+		Sfx.play("coin")
+	else:
+		msg = "Mặt nước gợn sóng lấp lánh... thử lại lần sau!"
+		col = Color(0.72, 0.86, 0.98)
+		Sfx.play("pickup")
+	Global.save_game()
+	if lobby.has_method("on_well_result"):
+		lobby.on_well_result(msg, col)
+	open_well(msg)
+
+
+func open_well(last_msg: String = "") -> void:
+	var box := _begin("Giếng Ước Cổ")
+	var left: int = int(lobby.well_uses) if lobby != null else 0
+	var info := UI.label("Thả 10 xu xuống giếng để nhận nguyên liệu rèn hoặc lộc may mắn trước khi xuất trận.", 13, Color(0.88, 0.92, 0.96), true)
+	info.custom_minimum_size = Vector2(440, 0)
+	box.add_child(info)
+	box.add_child(UI.label("Xu hiện có: %d   |   Lượt còn lại: %d / 3" % [Global.coins, left], 15, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 15, Color(0.55, 0.98, 0.75)))
+	var btn := UI.button("Thả 10 xu cầu may" if left > 0 else "Hết lượt cầu hôm nay", _do_wish, 16, 220.0)
+	btn.disabled = left <= 0 or Global.coins < 10
+	box.add_child(UI.center(btn))
+	_end(box)
+
+
+# ------------------------------------------------------------------ Bảng Khiêu Chiến
+
+func open_challenge() -> void:
+	var box := _begin("Bảng Khiêu Chiến")
+	var cur_diff: String = str(Global.settings.get("difficulty", "thuong"))
+	var diff_names := {"de": "Dễ (máu địch ×0,7)", "thuong": "Thường (cân bằng chuẩn)", "kho": "Khó (máu địch ×1,4 - Thử thách!)"}
+	box.add_child(UI.label("Chế độ hiện tại: %s" % str(diff_names.get(cur_diff, cur_diff)), 15, Color(1.0, 0.88, 0.45)))
+	var drow := HBoxContainer.new()
+	drow.alignment = BoxContainer.ALIGNMENT_CENTER
+	drow.add_theme_constant_override("separation", 8)
+	box.add_child(drow)
+	for spec in [["de", "Dễ"], ["thuong", "Thường"], ["kho", "Khó"]]:
+		var did: String = str(spec[0])
+		var dname: String = str(spec[1])
+		var b := UI.button(dname, func():
+			Global.set_setting("difficulty", did)
+			Global.save_game()
+			open_challenge(), 14, 96.0)
+		b.modulate = Color(1.0, 0.9, 0.42) if did == cur_diff else Color(0.75, 0.75, 0.78)
+		drow.add_child(b)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(500, 130)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+	var trials := [
+		["Chinh phục Màn 6", "Đạt màn 6 trở lên để mở khóa Thánh Gióng.", Global.best_level >= 6],
+		["Kho Tàng Binh Khí", "Sưu tầm từ 12 vũ khí để mở nhiều công thức rèn cấp cao.", Global.discovered.size() >= 12],
+		["Chiến Tích Đánh Trùm", "Hạ ít nhất 3 Trùm lịch sử qua các chương.", int(Global.stats.get("bosses", 0)) >= 3],
+	]
+	for t in trials:
+		var done: bool = bool(t[2])
+		var row := PanelContainer.new()
+		row.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 2)
+		row.add_child(vb)
+		var hdr := UI.label("%s  [%s]" % [str(t[0]), "Hoàn thành" if done else "Đang thử thách"], 14, Color(0.55, 0.96, 0.62) if done else Color(1.0, 0.85, 0.42))
+		hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		vb.add_child(hdr)
+		var dsc := UI.label(str(t[1]), 12, Color(0.88, 0.86, 0.82), true)
+		dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		vb.add_child(dsc)
+		list.add_child(row)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Bách Khoa Toàn Thư
+
+func open_codex(tab: String = "buffs") -> void:
+	var box := _begin("Bách Khoa Toàn Thư")
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	box.add_child(tabs)
+	var b_buff := UI.button("Phúc lành (%d)" % BuffData.DATA.size(), open_codex.bind("buffs"), 14, 150.0)
+	b_buff.disabled = (tab == "buffs")
+	var b_boss := UI.button("Trùm & Chương (%d)" % EnemyData.CHAPTERS.size(), open_codex.bind("bosses"), 14, 160.0)
+	b_boss.disabled = (tab == "bosses")
+	tabs.add_child(b_buff)
+	tabs.add_child(b_boss)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(540, 190)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	scroll.add_child(list)
+
+	if tab == "buffs":
+		for bid in BuffData.DATA:
+			var bd: Dictionary = BuffData.DATA[bid]
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			var nm := UI.label("%s (%s)" % [str(bd.name), BuffData.category_name(str(bid))], 13, BuffData.tier_color(str(bid)))
+			nm.custom_minimum_size = Vector2(215, 0)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(nm)
+			var dsc := UI.label(str(bd.desc), 12, Color(0.88, 0.88, 0.85), true)
+			dsc.custom_minimum_size = Vector2(300, 0)
+			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(dsc)
+			list.add_child(row)
+	else:
+		for ch in EnemyData.CHAPTERS:
+			var bid2: String = str(ch.get("boss", ""))
+			var binfo: Dictionary = EnemyData.BOSSES.get(bid2, {})
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			var nm := UI.label("%s — %s" % [str(ch.get("name", "")), str(binfo.get("name", bid2))], 13, Color(1.0, 0.78, 0.45))
+			nm.custom_minimum_size = Vector2(225, 0)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(nm)
+			var dsc := UI.label("%s: %s (%s)" % [str(ch.get("year", "")), str(binfo.get("title", "")), str(binfo.get("form2", ""))], 12, Color(0.88, 0.86, 0.84), true)
+			dsc.custom_minimum_size = Vector2(290, 0)
+			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(dsc)
+			list.add_child(row)
 	_end(box)
