@@ -8,6 +8,8 @@
   - Đồ trang trí phòng: prop_tea_table, prop_war_map, prop_stone_lantern, prop_bench,
     prop_weapon_barrel, prop_coal_pile, prop_brazier (3 khung), prop_flag_stand
 """
+import math
+import random
 from px import hexc, shade, outline, auto_shade, sheet, save, canvas, Image, ImageDraw
 
 
@@ -361,17 +363,68 @@ def build_props():
     d.rectangle([38, 25, 41, 31], fill=w_d)
     save(_with_shadow(outline(img), 5, 25, 44, 33, 95), "world/prop_war_map.png")
 
-    # 3. Đèn đá sân vườn có rêu & ánh đèn ấm (22x34)
-    img, d = canvas(22, 34)
-    d.rectangle([6, 26, 15, 30], fill=sd)
-    d.rectangle([9, 17, 12, 26], fill=st)
-    d.rectangle([6, 10, 15, 17], fill=st)
-    auto_shade(img, st, sl, sd)
-    d.rectangle([8, 12, 13, 15], fill=_c("ffd866"))
-    d.polygon([(3, 11), (11, 4), (18, 11)], fill=st, outline=sd)
-    d.ellipse([9, 2, 12, 5], fill=sl)
-    d.point([7, 27], fill=_c("54863c"))
-    save(_with_shadow(outline(img), 4, 27, 17, 32, 85), "world/prop_stone_lantern.png")
+    # 3. Đèn đá chạm trổ mái cong nhiều tầng 3 khung động (32x48 mỗi khung)
+    dl_frames = []
+    for f in range(3):
+        img, d = canvas(32, 48)
+        # Chân bệ đá chạm cánh sen & rêu xanh chân đế
+        d.rectangle([7, 40, 24, 44], fill=sd)
+        d.rectangle([9, 36, 22, 41], fill=st)
+        d.polygon([(8, 36), (11, 34), (20, 34), (23, 36)], fill=sl)
+        # Trụ bát giác thuôn dần lên trên + dây leo xanh bám trụ
+        d.polygon([(12, 34), (19, 34), (18, 22), (13, 22)], fill=st)
+        auto_shade(img, st, sl, sd)
+        d.line([(15, 23), (15, 34)], fill=sl)
+        d.line([(12, 33), (15, 29), (18, 25)], fill=_c("4a8a3a"))
+        for vx, vy in ((13, 30), (17, 26), (9, 41), (22, 42)):
+            d.point([vx, vy], fill=_c("6ec04c"))
+        # Đài đỡ lồng đèn + buồng đèn lưới gỗ phát sáng 3 khung
+        d.rectangle([9, 20, 22, 23], fill=sd)
+        d.rectangle([10, 12, 21, 20], fill=st)
+        glow_col = _c("ffb43a") if f == 0 else (_c("ffd866") if f == 1 else _c("ff9c2c"))
+        d.rectangle([12, 13, 19, 19], fill=glow_col)
+        d.ellipse([14, 14, 17, 18], fill=_c("fff6b8"))
+        # Nan chấn song trước mặt đèn
+        d.line([(15, 13), (15, 19)], fill=_c("462e1e"))
+        d.line([(12, 16), (19, 16)], fill=_c("462e1e"))
+        # Mái ngói đá cong đầu đao & chóp búp sen
+        d.polygon([(4, 13), (27, 13), (29, 9), (23, 10), (16, 4), (8, 10), (2, 9)], fill=st, outline=sd)
+        d.line([(9, 10), (16, 4), (22, 10)], fill=sl)
+        d.ellipse([14, 1, 17, 4], fill=sl)
+        d.point([15, 1], fill=_c("e8e2d2"))
+        dl_frames.append(_with_shadow(outline(img), 5, 39, 26, 46, 95))
+    save(sheet(dl_frames), "world/prop_stone_lantern.png")
+
+    # 3b. Cột Đèn Lồng Gỗ Sơn Son Tay Treo Đầu Rồng 3 khung (30x52 mỗi khung)
+    wl_frames = []
+    red, r_l, r_d = _c("b82a30"), _c("e4524a"), _c("6e161c")
+    for f in range(3):
+        img, d = canvas(30, 52)
+        sw = [-1, 0, 1][f]
+        # Chân tảng đá & cột gỗ sơn son đai đồng vàng
+        d.rectangle([5, 44, 13, 48], fill=sd)
+        d.rectangle([6, 42, 12, 45], fill=sl)
+        d.rectangle([7, 7, 10, 42], fill=red)
+        auto_shade(img, red, r_l, r_d)
+        for ry in (15, 29, 39):
+            d.rectangle([7, ry, 10, ry + 1], fill=gold)
+        # Tay xà gỗ vươn ra treo đèn lồng chạm hoa văn đồng
+        d.rectangle([6, 5, 22, 8], fill=wood)
+        d.line([(6, 5), (22, 5)], fill=w_l)
+        d.polygon([(11, 8), (15, 8), (11, 13)], fill=gold)
+        d.rectangle([4, 4, 7, 7], fill=gold)
+        # Dây treo + lồng đèn lụa đỏ lục giác phát sáng & tua vàng lắc nhẹ
+        lx = 20 + sw
+        d.line([(20, 8), (lx, 12)], fill=gold)
+        d.rectangle([lx - 2, 12, lx + 2, 13], fill=gold)
+        d.ellipse([lx - 5, 13, lx + 5, 25], fill=red)
+        d.ellipse([lx - 3, 15, lx + 3, 23], fill=_c("ff7a2e"))
+        d.ellipse([lx - 1, 16, lx + 1, 21], fill=_c("fff0a0"))
+        d.line([(lx, 13), (lx, 25)], fill=r_d)
+        d.rectangle([lx - 2, 24, lx + 2, 25], fill=gold)
+        d.line([(lx, 26), (lx + sw, 31)], fill=gold_l)
+        wl_frames.append(_with_shadow(outline(img), 3, 43, 17, 50, 90))
+    save(sheet(wl_frames), "world/prop_wood_lamp.png")
 
     # 4. Ghế đá / gỗ dài nghỉ chân sân vườn (40x20)
     img, d = canvas(40, 20)
@@ -617,6 +670,356 @@ def build_supply():
     return _with_shadow(outline(img), 5, 32, 40, 39, 95)
 
 
+def _blossom_tree(w, h, seed, bark_cols, petal_cols, fallen_col):
+    """Vẽ cây cổ thụ thân uốn sần sùi, rễ bạnh & tán hoa nhiều tầng ánh sáng."""
+    rng = random.Random(seed)
+    img, d = canvas(w, h)
+    bk, bk_l, bk_d = [_c(c) for c in bark_cols]
+    p_sh, p_mid, p_hi, p_tip, stamen = [_c(c) for c in petal_cols]
+    cx = w // 2
+    by = h - 7
+
+    # Rễ bạnh & gốc cây cổ thụ thuôn dần + nhánh uốn lượn
+    d.polygon([(cx - 8, by), (cx - 4, by - 14), (cx + 4, by - 14), (cx + 8, by)], fill=bk_d)
+    d.polygon([(cx - 5, by), (cx - 3, by - 22), (cx + 3, by - 22), (cx + 5, by)], fill=bk)
+    branches = [
+        [(cx - 1, by - 18), (cx - 12, by - 31), (cx - 19, by - 37)],
+        [(cx + 1, by - 19), (cx + 11, by - 30), (cx + 19, by - 35)],
+        [(cx, by - 22), (cx - 5, by - 35), (cx - 9, by - 44)],
+        [(cx, by - 21), (cx + 6, by - 36), (cx + 10, by - 43)],
+    ]
+    for br in branches:
+        d.line(br, fill=bk_d, width=3)
+        d.line([(br[0][0], br[0][1] - 1), (br[1][0], br[1][1] - 1)], fill=bk_l, width=1)
+    # Vân vỏ cây & rêu gốc
+    for y in range(by - 20, by - 1, 3):
+        d.line([(cx - 1, y), (cx - 1, y + 1)], fill=bk_l)
+        d.line([(cx + 2, y + 1), (cx + 2, y + 2)], fill=bk_d)
+    for mx, my in ((cx - 6, by - 1), (cx - 4, by - 2), (cx + 5, by - 1)):
+        d.point([mx, my], fill=_c("4e8836"))
+
+    # Tán hoa 4 tầng khối tròn chồng lớp (bóng đậm -> giữa -> sáng -> chồi non -> nhị)
+    clusters = [
+        (cx - 16, by - 35, 10), (cx + 15, by - 33, 10), (cx - 7, by - 42, 11),
+        (cx + 8, by - 40, 11), (cx, by - 33, 10), (cx, by - 46, 9),
+    ]
+    for rx, ry, r in clusters:
+        d.ellipse([rx - r, ry - int(r * 0.78), rx + r, ry + int(r * 0.85)], fill=p_sh)
+    for rx, ry, r in clusters:
+        d.ellipse([rx - r + 1, ry - int(r * 0.78), rx + r - 1, ry + int(r * 0.62)], fill=p_mid)
+    for rx, ry, r in clusters:
+        d.ellipse([rx - r + 2, ry - int(r * 0.76), rx + int(r * 0.45), ry + int(r * 0.2)], fill=p_hi)
+    # Điểm xuyết từng cụm hoa 4 cánh, lá non và nhị vàng
+    for _ in range(52):
+        rx, ry, r = rng.choice(clusters)
+        fx = rx + rng.randint(-r + 2, r - 2)
+        fy = ry + rng.randint(-int(r * 0.65), int(r * 0.55))
+        if 2 <= fx < w - 2 and 2 <= fy < h - 8:
+            d.point([fx, fy], fill=p_tip)
+            d.point([fx + 1, fy], fill=p_tip)
+            if rng.random() < 0.35:
+                d.point([fx, fy + 1], fill=stamen)
+    for _ in range(14):
+        rx, ry, r = rng.choice(clusters)
+        lx = rx + rng.randint(-r + 3, r - 3)
+        ly = ry + rng.randint(-int(r * 0.6), int(r * 0.4))
+        d.rectangle([lx, ly, lx + 1, ly + 1], fill=_c("56a642"))
+
+    out = _with_shadow(outline(img), 9, h - 10, w - 10, h - 2, 95)
+    od = ImageDraw.Draw(out)
+    for px, py in ((cx - 14, h - 4), (cx - 8, h - 3), (cx + 9, h - 4), (cx + 15, h - 5), (cx + 2, h - 3)):
+        od.point([px, py], fill=_c(fallen_col, 220))
+    return out
+
+
+def build_flora():
+    """Cây Đào, Cây Mai, Khóm Tre, Chậu Bonsai, Khóm Hoa, Lá & Hoa Sen chi tiết."""
+    save(_blossom_tree(56, 62, 11, ("5e3824", "865438", "3a2014"),
+                       ("a6365e", "dc6892", "f6a6c4", "ffeef6", "ffda60"), "f49ec0"), "world/lobby_peach.png")
+    save(_blossom_tree(54, 60, 29, ("4c3222", "724e36", "2c1b12"),
+                       ("aa6c16", "e0a624", "f8d84e", "fff6b4", "c85a1c"), "f6d24c"), "world/lobby_apricot.png")
+
+    # Khóm Tre Làng Việt: 5 thân đốt tre, măng non & tán lá lông chim (44x58)
+    img, d = canvas(44, 58)
+    culms = [(11, 40, "6f8e38", "9cc050", "445a1e"),
+             (17, 50, "7ea240", "aed25c", "4c6622"),
+             (22, 54, "688a34", "94bc4c", "3e561c"),
+             (28, 46, "84a844", "b4d862", "506824"),
+             (33, 36, "688836", "94ba4a", "40561e")]
+    for bx, bh, c_m, c_l, c_d in culms:
+        top = 53 - bh
+        lean = -2 if bx < 20 else (2 if bx > 24 else 0)
+        d.line([(bx, 53), (bx + lean, top)], fill=_c(c_m), width=2)
+        d.line([(bx, 53), (bx + lean, top)], fill=_c(c_l), width=1)
+        for ny in range(top + 6, 52, 7):
+            nx = bx + int(lean * (53 - ny) / max(1, bh))
+            d.line([(nx - 1, ny), (nx + 1, ny)], fill=_c(c_d))
+            d.point([nx, ny - 1], fill=_c("d6e29c"))
+        # Cành lá lông chim nhiều tầng
+        for ly in range(top + 2, top + 20, 6):
+            lx = bx + int(lean * (53 - ly) / max(1, bh))
+            for sgn in (-1, 1):
+                d.polygon([(lx, ly), (lx + 9 * sgn, ly - 3), (lx + 6 * sgn, ly + 1)], fill=_c("4b8a32"))
+                d.polygon([(lx + 2 * sgn, ly + 1), (lx + 11 * sgn, ly + 1), (lx + 5 * sgn, ly + 4)], fill=_c("6eb648"))
+                d.point([lx + 9 * sgn, ly - 3], fill=_c("9ee066"))
+    # Măng non nhú ở chân khóm tre
+    d.polygon([(7, 53), (9, 46), (11, 53)], fill=_c("84a840"))
+    d.polygon([(35, 53), (37, 47), (39, 53)], fill=_c("84a840"))
+    save(_with_shadow(outline(img), 5, 48, 39, 56, 95), "world/lobby_bamboo.png")
+
+    # Chậu Tùng Bonsai Bát Tràng lục giác (32x36)
+    img, d = canvas(32, 36)
+    d.polygon([(8, 25), (23, 25), (21, 32), (10, 32)], fill=_c("2858a8"), outline=_c("18346e"))
+    d.rectangle([7, 23, 24, 25], fill=_c("e4e8f4"), outline=_c("2858a8"))
+    d.line([(10, 28), (21, 28)], fill=_c("88b8f0"))
+    d.rectangle([10, 32, 12, 33], fill=_c("18346e"))
+    d.rectangle([19, 32, 21, 33], fill=_c("18346e"))
+    d.ellipse([9, 21, 22, 24], fill=_c("4a7c32"))
+    # Thân uốn S cổ thụ
+    d.line([(16, 22), (13, 17), (18, 12), (14, 7)], fill=_c("62381e"), width=2)
+    d.line([(15, 22), (12, 17), (17, 12)], fill=_c("8a5432"), width=1)
+    # 4 tán lá tùng xếp tầng mây
+    for px, py, rx, ry in ((9, 16, 6, 3), (22, 13, 6, 3), (14, 8, 7, 4), (17, 5, 5, 3)):
+        d.ellipse([px - rx, py - ry, px + rx, py + ry], fill=_c("2a642a"))
+        d.ellipse([px - rx + 1, py - ry, px + rx - 1, py + ry - 1], fill=_c("46963c"))
+        d.ellipse([px - rx + 2, py - ry, px + 1, py], fill=_c("7cd056"))
+    save(_with_shadow(outline(img), 6, 29, 25, 35, 85), "world/lobby_bonsai.png")
+
+    # 2 Khóm Hoa Sân Vườn (Cúc Vàng & Mẫu Đơn Đỏ, 34x26)
+    for variant, fname, fl_cols in (
+        ("gold", "world/lobby_bush_gold.png", ("d88c1e", "f6cc44", "fff2a4")),
+        ("red", "world/lobby_bush_red.png", ("a21c26", "e4444a", "ffb4bc")),
+    ):
+        img, d = canvas(34, 26)
+        for bx, by, rx, ry in ((11, 15, 8, 6), (22, 15, 8, 6), (17, 11, 10, 7)):
+            d.ellipse([bx - rx, by - ry, bx + rx, by + ry], fill=_c("285c24"))
+            d.ellipse([bx - rx + 1, by - ry, bx + rx - 1, by + ry - 2], fill=_c("408632"))
+            d.ellipse([bx - rx + 2, by - ry, bx + 2, by], fill=_c("66b848"))
+        fc_d, fc_m, fc_l = [_c(c) for c in fl_cols]
+        for fx, fy in ((9, 13), (15, 8), (21, 10), (25, 14), (14, 15), (19, 16)):
+            d.ellipse([fx - 2, fy - 2, fx + 2, fy + 2], fill=fc_d)
+            d.ellipse([fx - 1, fy - 2, fx + 1, fy + 1], fill=fc_m)
+            d.point([fx, fy - 1], fill=fc_l)
+        save(_with_shadow(outline(img), 3, 18, 30, 25, 85), fname)
+
+    # Lá sen gân nổi + giọt sương (24x16) & Hoa sen hồng nở rộ (18x16)
+    img, d = canvas(24, 16)
+    d.ellipse([1, 2, 22, 14], fill=_c("347434"))
+    d.ellipse([2, 2, 21, 12], fill=_c("4c9a42"))
+    d.polygon([(12, 8), (23, 5), (23, 10)], fill=(0, 0, 0, 0))
+    for vx, vy in ((4, 6), (5, 11), (11, 13), (17, 12), (10, 3)):
+        d.line([(11, 8), (vx, vy)], fill=_c("255825"))
+    d.ellipse([7, 5, 9, 7], fill=_c("baf8ff"))
+    d.point([7, 5], fill=_c("ffffff"))
+    save(outline(img), "world/lotus_leaf.png")
+
+    img, d = canvas(18, 16)
+    for pts in (((3, 12), (1, 6), (6, 8)), ((14, 12), (16, 6), (11, 8)),
+                ((5, 13), (4, 3), (9, 8)), ((12, 13), (13, 3), (8, 8))):
+        d.polygon(pts, fill=_c("e46e9a"))
+    d.polygon([(9, 1), (12, 9), (6, 9)], fill=_c("ffa4c6"))
+    d.polygon([(9, 2), (10, 8), (8, 8)], fill=_c("ffe8f2"))
+    d.ellipse([6, 9, 11, 12], fill=_c("f4ca44"))
+    save(outline(img), "world/lotus.png")
+
+
+def _draw_koi_sheet(variant):
+    """Cá Koi 4 khung uốn lượn mượt mà (22x12 mỗi khung)."""
+    frames = []
+    for f in range(4):
+        img, d = canvas(22, 12)
+        dy = [0, 1, 0, -1][f]
+        ty = [0, -2, 0, 2][f]
+        if variant == "red":
+            body, patch, rim = _c("f6f4ee"), _c("e4422a"), _c("1a4a5a")
+        elif variant == "calico":
+            body, patch, rim = _c("f6f2e8"), _c("e45a2a"), _c("1a4a5a")
+        else:
+            body, patch, rim = _c("f4be36"), _c("ffe678"), _c("244a58")
+        # Đuôi quạt bán trong suốt + thân thuôn uốn chữ S
+        d.polygon([(6, 6), (1, 3 + ty), (3, 6 + ty // 2), (1, 9 + ty)], fill=shade(body, 0.25))
+        d.polygon([(7, 4), (12, 3 + dy), (18, 4), (20, 6), (18, 8), (12, 8 + dy), (7, 7)], fill=body)
+        # Vây ngực hai bên
+        d.polygon([(14, 4), (11, 1), (15, 3)], fill=shade(body, 0.3))
+        d.polygon([(14, 8), (11, 11), (15, 9)], fill=shade(body, 0.3))
+        # Mảng hoa văn Kohaku / Sanke / Yamabuki + mắt & râu cá
+        d.ellipse([12, 4 + dy // 2, 16, 7 + dy // 2], fill=patch)
+        d.ellipse([8, 5, 11, 7], fill=patch)
+        if variant == "calico":
+            d.rectangle([10, 5, 11, 6], fill=_c("222028"))
+            d.rectangle([14, 6, 15, 7], fill=_c("222028"))
+        d.point([18, 5], fill=_c("18141c"))
+        d.line([(20, 5), (21, 4)], fill=patch)
+        d.line([(20, 7), (21, 8)], fill=patch)
+        frames.append(outline(img, color=rim))
+    return sheet(frames)
+
+
+def build_animals():
+    """Các loài động vật chi tiết trong doanh trại."""
+    save(_draw_koi_sheet("red"), "world/animal_koi_red.png")
+    save(_draw_koi_sheet("calico"), "world/animal_koi_calico.png")
+    save(_draw_koi_sheet("gold"), "world/animal_koi_gold.png")
+
+    # Chuồn chuồn nước 2 khung đập cánh (14x12)
+    df_frames = []
+    for f in range(2):
+        img, d = canvas(14, 12)
+        d.line([(2, 6), (10, 6)], fill=_c("22b8dc"))
+        d.ellipse([9, 5, 12, 7], fill=_c("44ecff"))
+        d.point([11, 5], fill=_c("142430"))
+        if f == 0:
+            d.polygon([(7, 5), (3, 1), (9, 2)], fill=_c("d8f8ff", 210))
+            d.polygon([(7, 7), (4, 10), (9, 9)], fill=_c("b8eeff", 210))
+        else:
+            d.polygon([(7, 5), (5, 3), (10, 4)], fill=_c("d8f8ff", 210))
+            d.polygon([(7, 7), (5, 9), (10, 8)], fill=_c("b8eeff", 210))
+        df_frames.append(img)
+    save(sheet(df_frames), "world/animal_dragonfly.png")
+
+    # Gà trống chọi Việt Nam 4 khung (24x24): bước 1, bước 2, vươn cổ gáy, mổ thóc
+    r_frames = []
+    for f in range(4):
+        img, d = canvas(24, 24)
+        lean_y = 2 if f == 3 else (-1 if f == 2 else 0)
+        lean_x = 1 if f == 3 else 0
+        # Chân vàng chắc khỏe bước luân phiên
+        l1x, l2x = [(10, 14), (13, 10), (11, 13), (11, 13)][f]
+        d.line([(l1x, 17), (l1x, 21)], fill=_c("f2a22a"))
+        d.line([(l2x, 17), (l2x, 21)], fill=_c("c67a18"))
+        # Đuôi cong lông ngũ sắc xanh lục ánh biếc
+        d.arc([1, 4, 11, 16], 110, 270, fill=_c("165c4a"), width=2)
+        d.arc([2, 5, 10, 15], 120, 250, fill=_c("2ea880"), width=1)
+        d.arc([3, 7, 10, 15], 130, 240, fill=_c("e4a836"), width=1)
+        # Thân nâu gụ, cánh xếp lớp & cổ lông kim cam
+        d.ellipse([6, 10 + lean_y // 2, 16, 18 + lean_y // 2], fill=_c("7c321c"))
+        d.ellipse([8, 11 + lean_y // 2, 14, 16 + lean_y // 2], fill=_c("a64a24"))
+        d.polygon([(12, 11), (15, 6 + lean_y), (18 + lean_x, 8 + lean_y), (16, 14)], fill=_c("e8922c"))
+        d.ellipse([14 + lean_x, 5 + lean_y, 19 + lean_x, 10 + lean_y], fill=_c("f6b43c"))
+        # Mào đỏ răng cưa, tích đỏ, mắt & mỏ nhọn
+        d.polygon([(15 + lean_x, 5 + lean_y), (16 + lean_x, 2 + lean_y), (18 + lean_x, 4 + lean_y), (19 + lean_x, 2 + lean_y), (19 + lean_x, 6 + lean_y)], fill=_c("dc2828"))
+        d.ellipse([16 + lean_x, 9 + lean_y, 18 + lean_x, 12 + lean_y], fill=_c("dc2828"))
+        d.polygon([(19 + lean_x, 7 + lean_y), (22 + lean_x, 8 + lean_y), (19 + lean_x, 9 + lean_y)], fill=_c("f6bc38"))
+        d.point([18 + lean_x, 7 + lean_y], fill=_c("1a101c"))
+        r_frames.append(_with_shadow(outline(img), 6, 19, 19, 23, 80))
+    save(sheet(r_frames), "world/animal_rooster.png")
+
+    # Gà con lông xù 4 khung (16x15)
+    ch_frames = []
+    for f in range(4):
+        img, d = canvas(16, 15)
+        hop = -2 if f == 2 else 0
+        peck = 2 if f == 3 else 0
+        d.ellipse([3, 6 + hop, 11, 12 + hop], fill=_c("f4cc50"))
+        d.ellipse([4, 6 + hop, 9, 10 + hop], fill=_c("fff0a4"))
+        d.ellipse([8, 2 + hop + peck, 13, 7 + hop + peck], fill=_c("f8dc68"))
+        d.point([11, 4 + hop + peck], fill=_c("18101c"))
+        d.point([10, 5 + hop + peck], fill=_c("f48888"))   # má hồng
+        d.polygon([(13, 4 + hop + peck), (15, 5 + hop + peck), (13, 6 + hop + peck)], fill=_c("f28228"))
+        lx = 6 if f != 1 else 8
+        d.line([(lx, 12 + hop), (lx, 13)], fill=_c("f28228"))
+        d.line([(lx + 2, 12 + hop), (lx + 2, 13)], fill=_c("f28228"))
+        ch_frames.append(_with_shadow(outline(img), 3, 11, 12, 14, 70))
+    save(sheet(ch_frames), "world/animal_chick.png")
+
+    # Cún Vàng (Chó Cỏ đuôi xoăn) 4 khung (26x22)
+    d_frames = []
+    tan, tan_l, tan_d = _c("dc9442"), _c("f6bc6a"), _c("9e6022")
+    cream = _c("f8f2e4")
+    for f in range(4):
+        img, d = canvas(26, 22)
+        tail_dx = 1 if f in (1, 3) else 0
+        sit_dy = 2 if f in (2, 3) else 0
+        # Đuôi xoăn vểnh lên vui vẻ
+        d.arc([2, 5 + sit_dy, 9, 13 + sit_dy], 90, 320, fill=tan, width=2)
+        d.point([5 + tail_dx, 6 + sit_dy], fill=tan_l)
+        # Thân lông vàng mật & ức trắng
+        d.ellipse([6, 10 + sit_dy, 17, 17 + sit_dy // 2], fill=tan)
+        auto_shade(img, tan, tan_l, tan_d)
+        d.ellipse([13, 12 + sit_dy // 2, 17, 17], fill=cream)
+        # Chân chạy luân phiên + bàn chân trắng
+        for lx, ly in ([(8, 17), (14, 17)], [(7, 16), (15, 16)], [(9, 17), (15, 17)], [(9, 17), (15, 17)])[f]:
+            d.line([(lx, 15), (lx, ly + 2)], fill=tan_d, width=2)
+            d.point([lx, ly + 2], fill=cream)
+        # Đầu tròn, mõm trắng, tai cụp dễ thương & vòng cổ đỏ gắn chuông vàng
+        d.rectangle([14, 11, 17, 13], fill=_c("d82c2c"))
+        d.point([16, 13], fill=_c("ffe258"))
+        d.ellipse([13, 3, 22, 12], fill=tan)
+        d.ellipse([17, 7, 23, 11], fill=cream)
+        d.point([22, 8], fill=_c("1c141c"))   # mũi đen
+        d.point([19, 6], fill=_c("1c141c"))   # mắt tròn
+        d.point([19, 5], fill=_c("ffffff"))
+        d.polygon([(14, 4), (12, 8), (15, 8)], fill=tan_d)   # tai cụp
+        if f in (2, 3):
+            d.point([20, 10], fill=_c("f67488"))  # thè lưỡi cười
+        d_frames.append(_with_shadow(outline(img), 5, 17, 20, 21, 85))
+    save(sheet(d_frames), "world/animal_dog.png")
+
+    # Mèo Tam Thể 4 khung (24x20): ngồi, nháy mắt, vẫy đuôi, cuộn tròn ngủ
+    c_frames = []
+    cr = _c("f6efe2")
+    for f in range(4):
+        img, d = canvas(24, 20)
+        if f == 3:
+            # Cuộn tròn ngủ ngon
+            d.ellipse([5, 9, 19, 17], fill=cr)
+            d.ellipse([7, 10, 12, 14], fill=_c("e07e34"))
+            d.ellipse([13, 12, 17, 15], fill=_c("38343c"))
+            d.ellipse([12, 7, 19, 14], fill=cr)
+            d.polygon([(13, 8), (14, 5), (15, 8)], fill=_c("e07e34"))
+            d.polygon([(17, 8), (18, 5), (19, 8)], fill=_c("38343c"))
+            d.line([(14, 11), (15, 11)], fill=_c("342828"))
+            d.line([(17, 11), (18, 11)], fill=_c("342828"))
+        else:
+            tx = 1 if f == 2 else 0
+            d.arc([3 + tx, 7, 10 + tx, 16], 110, 270, fill=_c("e07e34"), width=2)
+            d.ellipse([7, 9, 16, 17], fill=cr)
+            d.ellipse([8, 11, 12, 15], fill=_c("38343c"))
+            d.ellipse([9, 3, 18, 11], fill=cr)
+            d.polygon([(9, 5), (10, 1), (12, 4)], fill=_c("e07e34"))
+            d.polygon([(15, 4), (17, 1), (18, 5)], fill=_c("38343c"))
+            d.point([11, 3], fill=_c("f49eb0"))
+            d.point([16, 3], fill=_c("f49eb0"))
+            eye_col = _c("46c874") if f != 1 else _c("382c28")
+            d.point([12, 7], fill=eye_col)
+            d.point([16, 7], fill=eye_col)
+            d.point([14, 8], fill=_c("f48ca4"))
+        c_frames.append(_with_shadow(outline(img), 4, 15, 20, 19, 80))
+    save(sheet(c_frames), "world/animal_cat.png")
+
+    # Chim Hạc Trắng Hồ Sen 4 khung (26x34): đứng khoan thai, ngoái đầu, cúi mỏ, xòe nhẹ cánh
+    cr_frames = []
+    wh, wh_s = _c("f6f8fa"), _c("c6d0de")
+    for f in range(4):
+        img, d = canvas(26, 34)
+        # Đôi chân cao thanh mảnh đứng bên mép nước
+        d.line([(11, 20), (11, 31)], fill=_c("44424a"))
+        d.line([(14, 20), (14, 31)], fill=_c("44424a"))
+        d.line([(10, 31), (13, 31)], fill=_c("44424a"))
+        # Thân & cánh lông trắng viền xám nhạt
+        d.ellipse([6, 13, 18, 22], fill=wh)
+        if f == 3:
+            d.polygon([(7, 13), (3, 9), (12, 15)], fill=wh_s)
+        d.polygon([(6, 16), (3, 21), (9, 20)], fill=_c("383c48"))   # đuôi lông đen thanh lịch
+        d.arc([7, 14, 16, 20], 10, 160, fill=wh_s)
+        # Cổ cong chữ S, chỏm lông đỏ & mỏ dài vàng nhọn
+        if f == 2:
+            d.line([(15, 15), (19, 17), (18, 22)], fill=wh, width=2)
+            d.ellipse([16, 21, 20, 25], fill=wh)
+            d.point([17, 21], fill=_c("e03030"))
+            d.line([(19, 24), (23, 29)], fill=_c("e8aa34"))
+        else:
+            hx = 13 if f == 1 else 16
+            d.line([(15, 15), (17, 10), (hx, 6)], fill=wh, width=2)
+            d.ellipse([hx - 2, 3, hx + 2, 7], fill=wh)
+            d.point([hx, 3], fill=_c("e03030"))
+            d.point([hx + (1 if f != 1 else -1), 5], fill=_c("18141c"))
+            beak_x = hx - 5 if f == 1 else hx + 6
+            d.line([(hx + (1 if f != 1 else -1), 5), (beak_x, 6)], fill=_c("e8aa34"))
+        cr_frames.append(_with_shadow(outline(img), 6, 28, 19, 33, 75))
+    save(sheet(cr_frames), "world/animal_crane.png")
+
+
 def build():
     save(build_stele(), "world/lobby_stele.png")
     save(build_well(), "world/lobby_well.png")
@@ -630,6 +1033,8 @@ def build():
     save(build_enchant(), "world/lobby_enchant.png")
     save(build_shrine(), "world/lobby_shrine.png")
     save(build_supply(), "world/lobby_supply.png")
+    build_flora()
+    build_animals()
     build_props()
 
 

@@ -38,8 +38,15 @@ func _ready() -> void:
 	add_child(_falling("fx/leaf.png", 10, 11.0, [Color(0.95, 0.65, 0.2), Color(0.85, 0.45, 0.15), Color(0.55, 0.75, 0.3)]))
 	add_child(_falling("fx/petal.png", 18, 9.0, [Color(1, 0.8, 0.88), Color(1, 0.7, 0.8)]))
 	add_child(_motes())
-	for i in 3:
-		_butterflies.append({"p": Vector2.ZERO, "seed": randf() * 10.0, "col": [Color(1, 0.85, 0.3), Color(0.6, 0.85, 1.0), Color(1, 0.6, 0.8)][i]})
+	for i in 6:
+		_butterflies.append({"p": Vector2.ZERO, "seed": randf() * 20.0, "col": [
+			Color(1.0, 0.85, 0.28),
+			Color(0.55, 0.88, 1.0),
+			Color(1.0, 0.58, 0.78),
+			Color(0.98, 0.96, 0.92),
+			Color(1.0, 0.68, 0.28),
+			Color(0.75, 0.65, 1.0),
+		][i]})
 
 
 func _falling(tex: String, amount: int, life: float, colors: Array) -> CPUParticles2D:
@@ -101,13 +108,22 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# bướm bay lượn theo đường cong, đập cánh
+	# bướm 2 đôi cánh có đốm màu bay lượn quanh 4 phòng
 	for b in _butterflies:
 		var s: float = b.seed
 		var c := area.get_center()
-		var p := c + Vector2(sin(_t * 0.31 + s) * area.size.x * 0.4, sin(_t * 0.53 + s * 2.0) * area.size.y * 0.35 + sin(_t * 3.0 + s) * 4.0)
-		var flap := absf(sin(_t * 14.0 + s))
+		var p := c + Vector2(sin(_t * 0.28 + s) * area.size.x * 0.44, sin(_t * 0.49 + s * 1.7) * area.size.y * 0.40 + sin(_t * 3.0 + s) * 4.0)
+		var flap := maxf(0.15, absf(sin(_t * 14.0 + s)))
 		var col: Color = b.col
-		draw_colored_polygon(PackedVector2Array([p, p + Vector2(-3, -3.0 * flap - 1), p + Vector2(-3, 1)]), col)
-		draw_colored_polygon(PackedVector2Array([p, p + Vector2(3, -3.0 * flap - 1), p + Vector2(3, 1)]), col.darkened(0.15))
-		draw_rect(Rect2(p - Vector2(0.5, 1), Vector2(1, 3)), Color(0.15, 0.1, 0.15))
+		var w_top := 3.6 * flap
+		var w_bot := 2.4 * flap
+		# Cánh trên + cánh dưới hai bên
+		draw_colored_polygon(PackedVector2Array([p, p + Vector2(-w_top, -3.2 * flap), p + Vector2(-w_top * 0.8, 0.5)]), col)
+		draw_colored_polygon(PackedVector2Array([p, p + Vector2(-w_bot, 0.6), p + Vector2(-w_bot * 0.7, 2.8)]), col.darkened(0.16))
+		draw_colored_polygon(PackedVector2Array([p, p + Vector2(w_top, -3.2 * flap), p + Vector2(w_top * 0.8, 0.5)]), col.darkened(0.08))
+		draw_colored_polygon(PackedVector2Array([p, p + Vector2(w_bot, 0.6), p + Vector2(w_bot * 0.7, 2.8)]), col.darkened(0.24))
+		# Chấm sáng trên cánh & thân bướm
+		if flap > 0.45:
+			draw_circle(p + Vector2(-w_top * 0.55, -1.2 * flap), 0.7, Color(1, 1, 1, 0.75))
+			draw_circle(p + Vector2(w_top * 0.55, -1.2 * flap), 0.7, Color(1, 1, 1, 0.75))
+		draw_rect(Rect2(p - Vector2(0.5, 1.5), Vector2(1.0, 3.5)), Color(0.14, 0.08, 0.16))

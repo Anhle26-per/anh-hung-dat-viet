@@ -47,6 +47,8 @@ var garden_watered: bool = false
 var _hero_npcs := {}
 var _leaving := false
 var _forged_icon: Sprite2D
+var _sway_nodes: Array = []
+var _sway_t: float = 0.0
 var _well_pos := Vector2(245, 345)
 var _forge_pos := Vector2(1032, 345)
 
@@ -194,6 +196,16 @@ func _anim_prop(rel: String, fw: int, fh: int, fps: float, pos: Vector2, light_c
 	return a
 
 
+func _sway_prop(rel: String, pos: Vector2, offset := Vector2.ZERO) -> Sprite2D:
+	var pivot := Node2D.new()
+	pivot.position = pos
+	world.add_child(pivot)
+	var sp := _sprite(rel, offset)
+	pivot.add_child(sp)
+	_sway_nodes.append(pivot)
+	return sp
+
+
 func _sign_label(text: String, pos: Vector2, col := Color(1.0, 0.9, 0.62)) -> void:
 	var lb := Label.new()
 	lb.text = text
@@ -245,10 +257,17 @@ func _decorate() -> void:
 	_prop("world/prop_flag_stand.png", Vector2(884, 430), Vector2(0, -10))
 	for pp in [Vector2(472, 412), Vector2(888, 412), Vector2(472, 526), Vector2(888, 526)]:
 		_prop("world/pillar.png", pp, Vector2(0, -14))
-	_prop("world/bonsai.png", Vector2(492, 294))
-	_prop("world/bonsai.png", Vector2(868, 294))
-	for p in [Vector2(492, 654), Vector2(868, 654), Vector2(632, 666), Vector2(728, 666)]:
+	# Cột đèn lồng gỗ sơn son & bonsai, khóm hoa, thú cưng Đại Sảnh
+	for lp in [Vector2(476, 654), Vector2(884, 654), Vector2(630, 534), Vector2(730, 534)]:
+		_anim_prop("world/prop_wood_lamp.png", 30, 52, 4.0, lp + Vector2(0, -18), Color(1.0, 0.56, 0.34))
+	_prop("world/lobby_bonsai.png", Vector2(490, 294), Vector2(0, -12))
+	_prop("world/lobby_bonsai.png", Vector2(870, 294), Vector2(0, -12))
+	_prop("world/lobby_bush_gold.png", Vector2(624, 672), Vector2(0, -8))
+	_prop("world/lobby_bush_red.png", Vector2(736, 672), Vector2(0, -8))
+	for p in [Vector2(492, 654), Vector2(868, 654)]:
 		_decor("pot", p)
+	_life("dog", Vector2(680, 622))
+	_life("cat", Vector2(598, 628))
 	var pa := _life("patrol", Vector2.ZERO)
 	pa.a = Vector2(510, 672)
 	pa.b = Vector2(850, 672)
@@ -265,36 +284,47 @@ func _decorate() -> void:
 	_prop("world/nghe.png", Vector2(742, 118))
 	_prop("world/drum_stand.png", Vector2(546, 182))
 	_prop("world/drum_stand.png", Vector2(814, 182))
-	for lp in [Vector2(496, 186), Vector2(864, 186)]:
-		var sl := _prop("world/prop_stone_lantern.png", lp, Vector2(0, -8))
-		sl.add_child(Art.light(Color(1.0, 0.78, 0.42), 0.75, 0.6))
+	for lp in [Vector2(486, 184), Vector2(874, 184)]:
+		_anim_prop("world/prop_stone_lantern.png", 32, 48, 4.0, lp + Vector2(0, -14), Color(1.0, 0.78, 0.42))
+	for lp in [Vector2(630, 194), Vector2(730, 194)]:
+		_anim_prop("world/prop_wood_lamp.png", 30, 52, 4.0, lp + Vector2(0, -18), Color(1.0, 0.56, 0.34))
+	_prop("world/lobby_bush_red.png", Vector2(594, 186), Vector2(0, -8))
+	_prop("world/lobby_bush_gold.png", Vector2(766, 186), Vector2(0, -8))
 	_decor("banner", Vector2(618, 76))
 	_decor("banner", Vector2(742, 76))
 
 	# ---- 3. Vườn Sen & Chiến Tích (Tây) ----
 	_life("pond", Vector2(215, 585), Vector2(130, 74))
-	for lp in [Vector2(78, 368), Vector2(398, 368), Vector2(110, 566), Vector2(322, 566)]:
-		var sl2 := _prop("world/prop_stone_lantern.png", lp, Vector2(0, -8))
-		sl2.add_child(Art.light(Color(1.0, 0.78, 0.42), 0.8, 0.6))
+	for lp in [Vector2(72, 368), Vector2(398, 368), Vector2(114, 578), Vector2(318, 578)]:
+		_anim_prop("world/prop_stone_lantern.png", 32, 48, 4.0, lp + Vector2(0, -14), Color(1.0, 0.78, 0.42))
 	_prop("world/prop_bench.png", Vector2(215, 512), Vector2(0, -4))
 	_prop("world/prop_bench.png", Vector2(356, 592), Vector2(0, -4))
-	_decor("peach", Vector2(74, 518))
-	_decor("peach", Vector2(376, 500))
-	_decor("peach", Vector2(108, 646))
-	_decor("bamboo", Vector2(68, 282))
-	_decor("bamboo", Vector2(392, 282))
-	_decor("bamboo", Vector2(68, 656))
-	_decor("bamboo", Vector2(392, 656))
-	for p in [Vector2(92, 578), Vector2(342, 616), Vector2(392, 416)]:
-		_prop("world/bonsai.png", p)
-	for p in [Vector2(180, 396), Vector2(296, 396), Vector2(280, 514)]:
-		_decor("pot", p)
-	for i in 4:
-		_life("chicken", Vector2(118 + i * 24, 492 + (i % 2) * 14))
+	# Cây Đào, Cây Mai, Khóm Tre, Bonsai & Khóm Hoa chi tiết
+	_sway_prop("world/lobby_peach.png", Vector2(72, 540), Vector2(0, -24))
+	_sway_prop("world/lobby_peach.png", Vector2(382, 514), Vector2(0, -24))
+	_sway_prop("world/lobby_apricot.png", Vector2(382, 636), Vector2(0, -24))
+	_sway_prop("world/lobby_apricot.png", Vector2(78, 648), Vector2(0, -24))
+	_sway_prop("world/lobby_bamboo.png", Vector2(64, 286), Vector2(0, -22))
+	_sway_prop("world/lobby_bamboo.png", Vector2(396, 286), Vector2(0, -22))
+	_prop("world/lobby_bonsai.png", Vector2(386, 412), Vector2(0, -12))
+	_prop("world/lobby_bonsai.png", Vector2(148, 520), Vector2(0, -12))
+	_prop("world/lobby_bush_gold.png", Vector2(164, 404), Vector2(0, -8))
+	_prop("world/lobby_bush_red.png", Vector2(298, 404), Vector2(0, -8))
+	_prop("world/lobby_bush_red.png", Vector2(282, 522), Vector2(0, -8))
+	_prop("world/lobby_bush_gold.png", Vector2(142, 654), Vector2(0, -8))
+	_prop("world/lobby_bush_red.png", Vector2(308, 658), Vector2(0, -8))
+	# Đàn động vật sống động trong Vườn Sen
+	_life("rooster", Vector2(154, 476))
+	for cp in [Vector2(126, 496), Vector2(166, 502), Vector2(186, 488)]:
+		_life("chick", cp)
+	_life("crane", Vector2(146, 616))
+	_life("cat", Vector2(246, 506))
 
 	# ---- 4. Xưởng Rèn & Võ Đường (Đông) ----
 	for p in [Vector2(968, 274), Vector2(1292, 274)]:
 		_decor("torch", p)
+	for lp in [Vector2(956, 424), Vector2(1304, 424)]:
+		_anim_prop("world/prop_wood_lamp.png", 30, 52, 4.0, lp + Vector2(0, -18), Color(1.0, 0.56, 0.34))
 	_prop("world/prop_coal_pile.png", Vector2(976, 372), Vector2(0, -4))
 	_decor("crate", Vector2(1086, 378))
 	_decor("pot", Vector2(968, 418))
@@ -303,8 +333,8 @@ func _decorate() -> void:
 		_prop("world/prop_weapon_barrel.png", bp, Vector2(0, -6))
 	_prop("world/sandbag.png", Vector2(1024, 506))
 	_prop("world/sandbag.png", Vector2(1238, 506))
-	_prop("world/bonsai.png", Vector2(968, 666))
-	_prop("world/bonsai.png", Vector2(1292, 666))
+	_prop("world/lobby_bonsai.png", Vector2(964, 668), Vector2(0, -12))
+	_prop("world/lobby_bonsai.png", Vector2(1296, 668), Vector2(0, -12))
 
 	var embers := CPUParticles2D.new()
 	embers.position = _forge_pos + Vector2(-8, -16)
@@ -519,7 +549,12 @@ func _spawn_player(pos: Vector2) -> void:
 		touch.player = player
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_sway_t += delta
+	for i in _sway_nodes.size():
+		var nd: Node2D = _sway_nodes[i]
+		if nd != null and is_instance_valid(nd):
+			nd.rotation = sin(_sway_t * 1.4 + float(i) * 1.3) * 0.025
 	if player == null or not is_instance_valid(player):
 		return
 	if camera != null and is_instance_valid(camera):
