@@ -41,7 +41,7 @@ Cập nhật: 24/11/2026. Người lập: "sếp" dự án (Claude).
 | G08 | Vẽ lại tướng đầu to kiểu chibi | 3 | — | Chưa làm |
 | G09 | Nội dung mới theo ý nhóm (mỗi món một thẻ) | 3 | — | Chưa làm |
 | G10 | Hoạt ảnh tấn công, kỹ năng, chết riêng cho từng tướng | 3 | G08 (nên làm sau) | Chưa làm |
-| G12 | Vật cản che đạn thuần Việt | 3 | G15 | Chưa làm |
+| G12 | Vật cản che đạn thuần Việt | 3 | G15 | **Xong** 25/11/2026 (Gemini làm, đã qua K1, cover, bugfix, audio, input, synergy, progression, K2) |
 | G13 | Phúc lành Hộ tâm kính | 3 | — | Chưa làm |
 | G11 | Cân bằng độ khó theo phản hồi của nhóm chơi | 1–3 | G03, G04 | Bước 1 xong, chờ số liệu |
 
