@@ -142,7 +142,10 @@ func _collect(p) -> void:
 		"coin":
 			Sfx.play("coin")
 			var v := amount * Global.coin_mult()
-			Global.run_coins += int(v) + (1 if randf() < v - int(v) else 0)
+			var gained: int = int(v) + (1 if randf() < v - int(v) else 0)
+			Global.run_coins += gained
+			if p.has_method("on_coins_collected"):
+				p.on_coins_collected(gained)
 			p.stats_changed.emit()
 			Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 30.0, 0.6, 0.0, Color(1, 0.9, 0.4), true)
 		"energy":

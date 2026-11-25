@@ -27,6 +27,11 @@ func _ready() -> void:
 func apply(kind: String, duration: float) -> void:
 	if not INFO.has(kind):
 		return
+	if unit != null and is_instance_valid(unit) and unit.is_in_group("player"):
+		if kind == "burn" and unit.has_method("buff") and unit.buff("khien_lua") > 0:
+			return
+		if kind == "poison" and unit.has_method("buff") and unit.buff("khien_doc") > 0:
+			return
 	if not _time.has(kind):
 		_acc[kind] = 0.0
 	_time[kind] = maxf(float(_time.get(kind, 0.0)), duration)

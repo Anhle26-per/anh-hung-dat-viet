@@ -267,10 +267,21 @@ func _on_portal() -> void:
 	_open_buffs.call_deferred(title)
 
 
+func _is_boss_cleared_level() -> bool:
+	if Global.level % 3 == 0:
+		return true
+	if dungeon != null:
+		for c in dungeon.rooms:
+			var r = dungeon.rooms[c]
+			if str(r.kind) in ["boss", "legend"] and str(r.state) == "done":
+				return true
+	return false
+
+
 func _open_buffs(title: String) -> void:
 	if Global.challenge_code != "":
 		seed(Global.challenge_seed(Global.challenge_code) + Global.level * 7919 + 31)
-	if not buff_ui.open(title):
+	if not buff_ui.open(title, _is_boss_cleared_level()):
 		_advance()
 
 
@@ -279,7 +290,7 @@ func _open_lan_buffs() -> void:
 	touch.reset()
 	var nxt := EnemyData.chapter(Global.level + 1)
 	var title := "%s - %s" % [nxt.name, nxt.year]
-	if not buff_ui.open(title):
+	if not buff_ui.open(title, _is_boss_cleared_level()):
 		_notify_buff_done()
 
 
@@ -331,7 +342,7 @@ func _advance_to(lvl: int) -> void:
 
 
 func can_pause() -> bool:
-	return not player.dead and _game_over == null and not buff_ui.visible
+	return not player.dead and _game_over == null and not buff_ui.visible and get_tree().get_nodes_in_group("shop_ui_open").is_empty()
 
 
 # ------------------------------------------------------------------ Mạng LAN

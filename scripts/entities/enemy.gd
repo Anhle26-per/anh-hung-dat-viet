@@ -70,6 +70,7 @@ var _shadow: Sprite2D
 var _shape: CircleShape2D
 var _submerged := false     # Ngư Tinh lặn: không trúng đòn
 var _hp_bar_t: float = 0.0
+var last_hit_crit: bool = false
 var net_id: int = 0
 var is_replica: bool = false
 var _net_pos: Vector2 = Vector2.ZERO
@@ -1066,13 +1067,25 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 		Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 6.0), str(amount), Color(1, 1, 1) if amount < 10 else Color(1, 0.85, 0.3), 14 if amount < 10 else 18)
 		return
 	# phúc lành của người chơi: tăng sát thương, chí mạng
+	last_hit_crit = false
 	var crit := false
 	var dmg := amount
+	var dmg_mult: float = 1.0
 	if player != null and is_instance_valid(player):
-		dmg = int(round(amount * player.damage_mult()))
-		if randf() < player.crit_chance():
+		dmg_mult *= player.damage_mult()
+		if player.has_method("buff") and player.buff("ngu_hanh") > 0:
+			var has_fx: bool = _stun_t > 0.0 or (status != null and (status.has("burn") or status.has("poison")))
+			if has_fx:
+				dmg_mult *= 1.3
+		dmg = int(round(float(amount) * dmg_mult))
+		var forced_crit: bool = player.has_method("is_kinetic_ready") and player.is_kinetic_ready()
+		if forced_crit:
+			dmg = (dmg + 8) * 2
+			crit = true
+		elif randf() < player.crit_chance():
 			dmg *= 2
 			crit = true
+	last_hit_crit = crit
 	var blocked: bool = false
 	if data.ai == "tank" and knock != Vector2.ZERO and _stun_t <= 0.0:
 		# đòn đánh từ phía trước bị khiên đỡ bớt
@@ -1099,6 +1112,8 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	elif crit:
 		Sfx.play("hit_crit")
 		Fx.hitstop(get_tree(), 0.035)
+		if player != null and is_instance_valid(player) and player.has_method("on_crit_enemy"):
+			player.on_crit_enemy(self)
 	elif is_boss():
 		Sfx.play("hit_boss")
 	else:
@@ -1114,8 +1129,10 @@ func dot_damage(amount: int, kind: String) -> void:
 	if dead or is_replica or _spawn_t > 0.0 or _morph_t > 0.0 or _submerged:
 		return
 	var dmg := amount
+	if kind == "burn" and player != null and is_instance_valid(player) and player.has_method("buff") and player.buff("khien_lua") > 0:
+		dmg = int(round(float(dmg) * 1.5))
 	if is_boss():
-		dmg = maxi(1, amount)
+		dmg = maxi(1, dmg)
 	hp -= dmg
 	_flash = maxf(_flash, 0.4)
 	if not is_boss():
@@ -1185,7 +1202,7 @@ func _finish_die(drop: bool, spawn_shared_loot: bool) -> void:
 func _drop_loot(spawn_shared_loot: bool = true) -> void:
 	var lp: Node = Global.local_player()
 	if lp != null and is_instance_valid(lp):
-		lp.on_kill()
+		lp.on_kill(global_position)
 	if elite:
 		Fx.float_text(get_parent(), global_position + Vector2(0, -20), "Hạ tinh nhuệ!", Color(1, 0.85, 0.35), 16)
 		if spawn_shared_loot and randf() < 0.45 and room != null:

@@ -106,6 +106,16 @@ func draw_hud(ci: Control) -> void:
 		_panel(ci, Rect2(4, left_y, 118, 16))
 		Art.draw_text(ci, Vector2(10, left_y + 12), "Nạp nhanh %.1fs" % player.rapid_reload_timer, 12, SynergyData.family_color("sung"), false)
 		left_y += 20.0
+	if player.has_method("buff") and player.buff("tich_luc") > 0:
+		var kpct: float = clampf(float(player.get("_kinetic_charge")) / 100.0, 0.0, 1.0)
+		_panel(ci, Rect2(4, left_y, 118, 16))
+		ci.draw_rect(Rect2(8, left_y + 11, 110.0 * kpct, 3.0), Color(1.0, 0.88, 0.3) if kpct >= 1.0 else Color(0.85, 0.65, 0.25))
+		Art.draw_text(ci, Vector2(10, left_y + 10), "Xung kích: %d%%" % int(round(kpct * 100.0)), 11, Color(1.0, 0.92, 0.45), false)
+		left_y += 18.0
+	if float(player.get("_frenzy_timer")) > 0.0:
+		_panel(ci, Rect2(4, left_y, 118, 16))
+		Art.draw_text(ci, Vector2(10, left_y + 12), "Cuồng chiến %.1fs" % float(player.get("_frenzy_timer")), 12, Color(1.0, 0.42, 0.45), false)
+		left_y += 18.0
 
 	# --- Trạng thái đồng đội trong phòng LAN
 	if Net != null and Net.is_online():
@@ -218,8 +228,10 @@ func draw_hud(ci: Control) -> void:
 	# --- Mũi tên chỉ đường tới phòng quan trọng khi không giao tranh
 	_draw_wayfinders(ci, w, h)
 
-	# --- Gợi ý nhặt vũ khí
-	if player.nearby_pickup != null and is_instance_valid(player.nearby_pickup):
+	# --- Gợi ý nhặt vũ khí hoặc Thẻ soi hàng Thương Nhân ---
+	if player.interact_target != null and is_instance_valid(player.interact_target) and player.interact_target.has_method("inspect_info"):
+		_draw_shop_inspect(ci, w, h, player.interact_target)
+	elif player.nearby_pickup != null and is_instance_valid(player.nearby_pickup):
 		var pid: String = player.nearby_pickup.weapon_id
 		var key := "Bấm ĐỔI" if Global.touch_mode else "Nhấn E"
 		Art.draw_text(ci, Vector2(w / 2.0, h - 76), "%s để nhặt: %s" % [key, WeaponData.get_data(pid).name], 18, WeaponData.tier_color(pid))
@@ -240,6 +252,56 @@ func draw_hud(ci: Control) -> void:
 	elif _banner_t > 0.0:
 		var a2 := clampf(_banner_t / 0.5, 0.0, 1.0)
 		Art.draw_text(ci, Vector2(w / 2.0, h * 0.3), _banner, 26, Color(1, 0.85, 0.4, a2))
+
+
+func _draw_shop_inspect(ci: Control, _w: float, h: float, target: Node) -> void:
+	var info: Dictionary = target.inspect_info(player)
+	if bool(info.get("sold", false)):
+		return
+	var cw: float = 282.0
+	var ch: float = 76.0
+	var cx: float = 8.0
+	var cy: float = h - ch - (92.0 if Global.touch_mode else 6.0)
+	var bcol: Color = info.get("badge_color", Color(0.9, 0.75, 0.35)) as Color
+	ci.draw_rect(Rect2(cx, cy, cw, ch), Color(0.09, 0.04, 0.07, 0.90))
+	ci.draw_rect(Rect2(cx, cy, cw, ch), bcol, false, 1.5)
+	ci.draw_rect(Rect2(cx + 2, cy + 2, cw - 4, ch - 4), Color(bcol, 0.32), false, 1.0)
+
+	var ic_box := Rect2(cx + 8, cy + 12, 34, 34)
+	ci.draw_rect(ic_box, Color(0.05, 0.02, 0.05, 0.9))
+	ci.draw_rect(ic_box, Color(bcol, 0.7), false, 1.0)
+	var tex_v: Variant = info.get("icon", null)
+	if tex_v is Texture2D:
+		var tex: Texture2D = tex_v as Texture2D
+		var sc: float = minf(28.0 / maxf(1.0, float(tex.get_width())), 28.0 / maxf(1.0, float(tex.get_height())))
+		var sz := Vector2(tex.get_width(), tex.get_height()) * sc
+		ci.draw_texture_rect(tex, Rect2(ic_box.get_center() - sz * 0.5, sz), false)
+
+	var tx: float = cx + 48.0
+	var tcol: Color = info.get("title_color", Color.WHITE) as Color
+	Art.draw_text(ci, Vector2(tx, cy + 16), str(info.get("title", "")), 14, tcol, false)
+	Art.draw_text(ci, Vector2(tx, cy + 28), str(info.get("badge", "")), 10, bcol, false)
+	var sub_line: String = str(info.get("stats", ""))
+	if sub_line == "":
+		sub_line = str(info.get("desc", ""))
+	if sub_line.length() > 42:
+		sub_line = sub_line.substr(0, 41) + "…"
+	Art.draw_text(ci, Vector2(tx, cy + 41), sub_line, 11, Color(0.88, 0.9, 0.94), false)
+	var syn_s: String = str(info.get("synergy", ""))
+	if syn_s != "":
+		var sc_col: Color = info.get("synergy_color", Color(1.0, 0.88, 0.4)) as Color
+		Art.draw_text(ci, Vector2(tx, cy + 53), syn_s, 10, sc_col, false)
+	else:
+		var d2: String = str(info.get("desc", ""))
+		if d2 != sub_line:
+			if d2.length() > 42:
+				d2 = d2.substr(0, 41) + "…"
+			Art.draw_text(ci, Vector2(tx, cy + 53), d2, 10, Color(0.82, 0.8, 0.76), false)
+
+	var pr: int = int(info.get("price", 0))
+	var key_lbl: String = "DÙNG" if Global.touch_mode else "E"
+	var pcol: Color = Color(0.55, 1.0, 0.65) if Global.run_coins >= pr else Color(1.0, 0.45, 0.42)
+	Art.draw_text(ci, Vector2(tx, cy + 68), "[%s] Mua: %d xu" % [key_lbl, pr], 12, pcol, false)
 
 
 func _panel(ci: Control, r: Rect2) -> void:

@@ -41,6 +41,8 @@ var stun_duration := 0.0
 var burn_duration := 2.2
 var force_burn: bool = false
 var visual_only: bool = false
+var qi_wave: bool = false
+var crit_pierce: bool = false
 var spawn_origin: Vector2 = Vector2.INF
 var bounces: int = 0
 var _hit: Array = []
@@ -172,6 +174,10 @@ func _physics_process(delta: float) -> void:
 				position = next_pos
 	if not swept:
 		position = next_pos
+	if qi_wave and from_player and is_inside_tree():
+		for eb in get_tree().get_nodes_in_group("enemy_bullets"):
+			if is_instance_valid(eb) and global_position.distance_to((eb as Node2D).global_position) < 16.0:
+				eb.destroy()
 	life -= delta
 	if life <= 0.0:
 		_finish()
@@ -215,6 +221,9 @@ func _on_body_entered(body: Node) -> void:
 			return
 		Sfx.play("hit_bullet")
 		var hit_dmg: int = damage
+		var has_fire_shield: bool = owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("buff") and owner_node.buff("khien_lua") > 0
+		if has_fire_shield and (force_burn or proj == "fireball" or explode_radius > 0.0):
+			hit_dmg = int(round(float(hit_dmg) * 1.5))
 		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("burn_bonus_mult"):
 			hit_dmg *= int(owner_node.burn_bonus_mult(body))
 		body.take_damage(hit_dmg, dir * knock)
@@ -227,7 +236,11 @@ func _on_body_entered(body: Node) -> void:
 			body.apply_status(st, burn_duration if st == "burn" else 2.2)
 		if force_burn and st != "burn" and is_instance_valid(body) and body.has_method("apply_status"):
 			body.apply_status("burn", burn_duration)
-		Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, color.lerp(Color(1, 0.9, 0.6), 0.5), true)
+		var lhc: Variant = body.get("last_hit_crit") if is_instance_valid(body) else null
+		var was_crit: bool = typeof(lhc) == TYPE_BOOL and (lhc as bool)
+		Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1.0, 0.92, 0.35) if was_crit else color.lerp(Color(1, 0.9, 0.6), 0.5), true)
+		if crit_pierce and was_crit:
+			return
 		if pierce > 0:
 			pierce -= 1
 			return
@@ -271,7 +284,11 @@ func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
 	if bounces > 0:
 		bounces -= 1
 		dir = dir.bounce(n).normalized()
-		speed = maxf(speed * 0.72, 45.0)
+		if from_player and not PROJ.get(proj, {}).get("grenade", false):
+			speed = maxf(speed * 0.9, 90.0)
+			life = maxf(life, 0.35)
+		else:
+			speed = maxf(speed * 0.72, 45.0)
 		global_position = hit_pos + n * 3.0
 		if not PROJ.get(proj, {}).get("spin", false):
 			rotation = dir.angle()
@@ -311,13 +328,19 @@ func _finish() -> void:
 		Sfx.play("explode")
 		if not visual_only:
 			if from_player:
+				var exp_dmg: int = damage
+				if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("buff") and owner_node.buff("khien_lua") > 0:
+					exp_dmg = int(round(float(exp_dmg) * 1.5))
 				for e in get_tree().get_nodes_in_group("enemies"):
 					if global_position.distance_to(e.global_position) < explode_radius + e.radius:
-						e.take_damage(damage, (e.global_position - global_position).normalized() * 220.0)
+						e.take_damage(exp_dmg, (e.global_position - global_position).normalized() * 220.0)
 			else:
 				var p: Node = Global.local_player()
 				if p != null and not bool(p.get("downed")) and global_position.distance_to((p as Node2D).global_position) < explode_radius + 6.0:
-					p.take_damage(damage)
+					var incoming_exp: int = damage
+					if p.has_method("buff") and p.buff("khien_lua") > 0:
+						incoming_exp = maxi(1, int(floor(float(incoming_exp) * 0.5)))
+					p.take_damage(incoming_exp)
 			for c in get_tree().get_nodes_in_group("cover"):
 				if is_instance_valid(c) and c.destructible and global_position.distance_to(c.global_position) < explode_radius + c.radius:
 					c.take_hit(maxi(1, damage), c.global_position, (c.global_position - global_position).normalized())

@@ -210,6 +210,8 @@ func net_apply_clear() -> void:
 	var near: Vector2 = (p as Node2D).global_position if (p != null and is_instance_valid(p)) else c
 	for i in 3:
 		_drop_local("energy", 5, near)
+	if p != null and is_instance_valid(p) and p.has_method("buff") and p.buff("hut_nang_luong") > 0 and p.has_method("restore_armor"):
+		p.restore_armor(2 * p.buff("hut_nang_luong"))
 	if kind == "boss":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
@@ -383,6 +385,8 @@ func _clear() -> void:
 	var near: Vector2 = (p as Node2D).global_position if (p != null and is_instance_valid(p)) else c
 	for i in 3:
 		_drop_local("energy", 5, near)
+	if p != null and is_instance_valid(p) and p.has_method("buff") and p.buff("hut_nang_luong") > 0 and p.has_method("restore_armor"):
+		p.restore_armor(2 * p.buff("hut_nang_luong"))
 	if kind == "boss":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
