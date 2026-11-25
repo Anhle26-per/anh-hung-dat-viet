@@ -5,6 +5,7 @@ extends Node
 
 const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
 
 var _fail := 0
 
@@ -146,30 +147,39 @@ func _run() -> void:
 			p.hp = p.max_hp
 			p.armor = p.max_armor
 
-		# Tướng đầu đi hết 10 chương (30 màn, 10 trùm), các tướng khác đánh 1 màn
-		var levels := 30 if hi == 0 else 1
+		# Tướng đầu đi hết 1-1..3-6 + Thần Thoại 4-1..6-5 (tới Sảnh 6-6), các tướng khác đánh 1 màn
+		var levels := 31 if hi == 0 else 1
 		for i in levels:
 			await _clear_level(game, p)
 		_check(Global.level == levels + 1, "không qua được %d màn, đang ở màn %d" % [levels, Global.level])
 		if hi == 0:
 			_check(Global.run_buffs.size() > 0, "không nhận được phúc lành nào")
-			_check(_shops > 0, "30 màn mà không gặp gánh hàng rong nào")
+			_check(_shops > 0, "31 màn mà không gặp gánh hàng rong nào")
 			_check(_chests > 0, "không mở được rương nào")
 			print("   gánh hàng: %d, rương: %d" % [_shops, _chests])
-			# trùm ngẫu nhiên, không trùng trong 10 trận, máu tăng dần theo thứ tự gặp
-			var first10: Array = Global.boss_order.slice(0, 10)
+			# 3 trùm lịch sử không trùng + 3 trùm Thần Thoại, máu tăng dần theo thứ tự gặp
+			var hist3: Array = Global.boss_order.slice(0, 3)
 			var uniq := {}
-			for b in first10:
+			for b in hist3:
 				uniq[b] = true
-			_check(uniq.size() == 10, "10 trùm đầu bị trùng: %s" % str(first10))
-			_check(_boss_hp.size() == 10, "không gặp đủ 10 trùm (%d)" % _boss_hp.size())
+			_check(uniq.size() == 3, "3 trùm lịch sử đầu bị trùng: %s" % str(hist3))
+			_check(_boss_hp.size() == 6, "không gặp đủ 6 trùm (%d)" % _boss_hp.size())
 			for i in range(1, _boss_hp.size()):
 				_check(_boss_hp[i] > _boss_hp[i - 1], "máu trùm không tăng dần: %s" % str(_boss_hp))
-			print("   thứ tự trùm: ", first10)
+			print("   thứ tự trùm: ", hist3, " + [cuu_vi_ho, xuong_cuong, hac_hai_ngu]")
 			print("   máu trùm: ", _boss_hp)
 			_check(_legends.size() == 3, "không gặp đủ Tam Yêu: %s" % str(_legends.keys()))
-			_check(_morphs == 20, "phải biến hình đủ 20 lần (10 trùm + 10 Tam Yêu), mới có %d" % _morphs)
+			_check(_morphs == 12, "phải biến hình đủ 12 lần (6 trùm + 6 Tam Yêu), mới có %d" % _morphs)
 			print("   Tam Yêu: ", _legends.keys(), "  số lần biến hình: ", _morphs)
+			var altars_end := get_tree().get_nodes_in_group("victory_altars")
+			_check(altars_end.size() == 1, "thiếu Đài Huyền Thoại ở 6-6")
+			if not altars_end.is_empty():
+				altars_end[0].interact()
+				await _frames(3)
+				_check(game._victory_ui != null, "không mở được Đại Thắng Thần Thoại ở 6-6")
+				game._victory_ui.queue_free()
+				game._victory_ui = null
+				await _frames(2)
 
 		# Chết rồi hồi sinh
 		Global.run_buffs.erase("bua_ho_menh")   # bỏ né đòn để thử chết
@@ -201,22 +211,30 @@ func _clear_level(game, p) -> void:
 	for cell in d.rooms:
 		var r = d.rooms[cell]
 		kinds[r.kind] = true
-		if r.kind in ["exit", "boss", "legend"]:
+		if r.kind in ["exit", "boss", "legend", "victory_hall"]:
 			continue
 		await _visit(p, r)
-	# Phòng cuối cùng (cổng / trùm)
+	# Phòng cuối cùng (cổng / trùm / sảnh khải hoàn)
 	for cell in d.rooms:
 		var r = d.rooms[cell]
-		if r.kind in ["exit", "boss", "legend"]:
+		if r.kind in ["exit", "boss", "legend", "victory_hall"]:
 			await _visit(p, r)
-	_check(kinds.has("boss") == (level_before % 3 == 0), "phòng trùm sai ở màn %d" % level_before)
+	_check(kinds.has("boss") == EnemyData.is_boss_level(level_before), "phòng trùm sai ở màn %d" % level_before)
 	if Global.legend_chance >= 1.0:
-		_check(kinds.has("legend") == (level_before % 3 == 2), "phòng Tam Yêu sai ở màn %d" % level_before)
+		_check(kinds.has("legend") == EnemyData.is_legend_mid_level(level_before), "phòng Tam Yêu sai ở màn %d" % level_before)
 	var portals := get_tree().get_nodes_in_group("portals")
 	_check(portals.size() > 0, "không có cổng ở màn %d" % level_before)
 	if portals.is_empty():
 		return
 	p.global_position = portals[0].global_position
+	if level_before == 16 or level_before == 31:
+		var wait_adv := 0
+		while Global.level == level_before and wait_adv < 180:
+			wait_adv += 1
+			await _frames(1)
+		_check(Global.level == level_before + 1, "vào cổng %d không sang màn %d" % [level_before, level_before + 1])
+		await _frames(5)
+		return
 	# chờ màn chọn phúc lành hiện ra (cổng chỉ mở sau 0.5 giây) rồi chọn thẻ đầu
 	var wait := 0
 	while not game.buff_ui.visible and wait < 180:

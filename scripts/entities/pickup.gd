@@ -41,11 +41,45 @@ func _ready() -> void:
 			_spr.rotation = -0.35
 			var tier := int(WeaponData.get_data(weapon_id).get("tier", 1))
 			if tier >= 3:
-				var l := Art.light(WeaponData.tier_color(weapon_id), 0.9, 0.9)
+				var l := Art.light(WeaponData.tier_color(weapon_id), 1.35 if tier >= 5 else 0.9, 1.3 if tier >= 5 else 0.9)
 				add_child(l)
+			if tier >= 5:
+				var leg_pt := CPUParticles2D.new()
+				leg_pt.amount = 14
+				leg_pt.lifetime = 1.2
+				leg_pt.direction = Vector2.UP
+				leg_pt.spread = 30.0
+				leg_pt.gravity = Vector2(0, -32)
+				leg_pt.initial_velocity_min = 12.0
+				leg_pt.initial_velocity_max = 26.0
+				leg_pt.scale_amount_min = 1.4
+				leg_pt.scale_amount_max = 2.4
+				var lg := Gradient.new()
+				lg.set_color(0, Color(1.0, 0.86, 0.35, 0.95))
+				lg.set_color(1, Color(1.0, 0.55, 0.15, 0.0))
+				leg_pt.color_ramp = lg
+				leg_pt.material = Art.additive()
+				leg_pt.z_index = 2
+				add_child(leg_pt)
+				_play_legendary_reveal.call_deferred()
 	add_child(_spr)
 	if kind == "coin" or kind == "energy" or kind == "material":
 		_vel = Vector2.from_angle(randf() * TAU) * randf_range(40.0, 90.0)
+
+
+func _play_legendary_reveal() -> void:
+	if not is_inside_tree() or get_parent() == null:
+		return
+	var par := get_parent()
+	var w := WeaponData.get_data(weapon_id)
+	var wname: String = str(w.get("name", weapon_id))
+	Fx.burst(par, global_position, Color(1.0, 0.65, 0.18), 58.0, 0.65)
+	Fx.burst(par, global_position, Color(1.0, 0.94, 0.55), 34.0, 0.4)
+	Fx.particles(par, global_position, Color(1.0, 0.82, 0.25), 24, 120.0, 0.75, -55.0, 2.2)
+	Fx.float_text(par, global_position + Vector2(0, -26), "★ HUYỀN THOẠI: %s ★" % wname, Color(1.0, 0.85, 0.28), 16)
+	Fx.shake(get_tree(), 4.5)
+	Sfx.play("chest_open")
+	get_tree().call_group("hud", "show_banner", "★ Xuất hiện binh khí Huyền Thoại: %s! ★" % wname)
 
 
 func _anim(rel: String, fw: int, fh: int, fps: float) -> AnimatedSprite2D:
@@ -178,14 +212,19 @@ func _draw() -> void:
 	var w := WeaponData.get_data(weapon_id)
 	var tier := int(w.get("tier", 1))
 	var col: Color = WeaponData.TIER_COLORS[tier]
-	# cột sáng theo cấp
-	var h := 10.0 + tier * 6.0
+	# cột sáng theo cấp (cấp 5 Huyền Thoại có chùm sáng vút trời & hào quang vàng cam)
+	var h := 130.0 if tier >= 5 else (10.0 + tier * 6.0)
 	var pulse := 0.5 + 0.5 * sin(_t * 3.0)
+	if tier >= 5:
+		draw_rect(Rect2(-9.0, -h, 18.0, h), Color(1.0, 0.62, 0.16, 0.08 + 0.05 * pulse))
+		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.84, 0.36, 0.18 + 0.10 * pulse))
+		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.96, 0.78, 0.42 + 0.20 * pulse))
+		draw_arc(Vector2(0, 4), 13.0 + pulse * 3.0, 0.0, TAU, 24, Color(1.0, 0.82, 0.28, 0.55 + 0.25 * pulse), 1.4)
 	for i in 6:
 		var k := float(i) / 6.0
 		draw_rect(Rect2(-3.0 + k * 1.5, -h * (1.0 - k) - 2.0, 6.0 - k * 3.0, h * (1.0 - k) * 0.25), Color(col, (0.12 + 0.1 * pulse) * (1.0 - k)))
 	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.4))
-	draw_circle(Vector2.ZERO, 9.0, Color(col, 0.25 + 0.15 * pulse))
+	draw_circle(Vector2.ZERO, 12.0 if tier >= 5 else 9.0, Color(col, 0.34 if tier >= 5 else 0.25 + 0.15 * pulse))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# mũi tên nhấp nhô chỉ vào vũ khí
 	var ay := -20.0 - absf(sin(_t * 5.0)) * 4.0

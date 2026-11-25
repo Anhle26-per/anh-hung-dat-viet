@@ -6,6 +6,7 @@ signal entered
 const Art = preload("res://scripts/art/art.gd")
 
 var label := "Cổng sang màn sau"
+var mythic: bool = false
 var _t := 0.0
 var _used := false
 var _counting: bool = false
@@ -16,9 +17,11 @@ func _ready() -> void:
 	add_to_group("portals")
 	var s := AnimatedSprite2D.new()
 	s.sprite_frames = Art.strip("fx/portal.png", 44, 44, 12.0, true)
+	if mythic:
+		s.modulate = Color(0.86, 0.55, 1.0)
 	s.play("play")
 	add_child(s)
-	add_child(Art.light(Color(0.4, 0.8, 1.0), 1.6, 1.2))
+	add_child(Art.light(Color(0.76, 0.45, 1.0) if mythic else Color(0.4, 0.8, 1.0), 1.8 if mythic else 1.6, 1.4 if mythic else 1.2))
 	scale = Vector2(0.1, 0.1)
 	create_tween().tween_property(self, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
@@ -59,4 +62,8 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	Art.draw_text(self, Vector2(0, -28), label, 14, Color(0.8, 0.95, 1.0))
+	if mythic:
+		var p: float = 0.5 + 0.5 * sin(_t * 4.2)
+		draw_arc(Vector2.ZERO, 24.0 + p * 3.0, 0.0, TAU, 32, Color(0.76, 0.42, 1.0, 0.55), 1.8)
+		draw_arc(Vector2.ZERO, 19.0 - p * 2.0, 0.0, TAU, 28, Color(1.0, 0.86, 0.42, 0.55), 1.2)
+	Art.draw_text(self, Vector2(0, -28), label, 14, Color(0.95, 0.82, 1.0) if mythic else Color(0.8, 0.95, 1.0))

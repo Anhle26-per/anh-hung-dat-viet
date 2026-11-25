@@ -19,10 +19,25 @@ var _wait := 0.0
 var _home := Vector2.ZERO
 var _feed_t := 0.0
 var _feed_pos := Vector2(0, -24)
+var _happy_t := 0.0
 
 
 func trigger_koi_feed() -> void:
 	_feed_t = 5.5
+	if get_parent() != null:
+		var wp: Vector2 = global_position + _feed_pos
+		Fx.burst(get_parent(), wp, Color(0.55, 0.92, 1.0), 26.0, 0.45)
+		Fx.particles(get_parent(), wp, Color(0.75, 0.96, 1.0), 14, 52.0, 0.55, 45.0, 1.8)
+		Fx.particles(get_parent(), wp, Color(1.0, 0.88, 0.42), 8, 36.0, 0.5, 25.0, 1.5)
+
+
+func trigger_happy(dur: float = 2.8) -> void:
+	_happy_t = maxf(_happy_t, dur)
+	if get_parent() != null:
+		var wp: Vector2 = global_position + Vector2(0, -10)
+		Fx.burst(get_parent(), wp, Color(1.0, 0.55, 0.78), 26.0, 0.45)
+		Fx.particles(get_parent(), wp, Color(1.0, 0.65, 0.84), 12, 60.0, 0.65, -24.0, 1.8)
+		Fx.particles(get_parent(), wp, Color(1.0, 0.9, 0.45), 8, 48.0, 0.55, -28.0, 1.5)
 
 
 func _ready() -> void:
@@ -236,9 +251,52 @@ func _process(delta: float) -> void:
 			if _wait <= 0.0:
 				_spr.play("nap" if randf() < 0.45 else "idle")
 				_wait = randf_range(3.5, 7.0)
+	if _happy_t > 0.0:
+		_happy_t = maxf(0.0, _happy_t - delta)
+		if _spr != null:
+			var jump: float = absf(sin(_t * 14.0)) * 5.0
+			var base_y: float = -5.0 if kind in ["chicken", "chick"] else (-9.0 if kind == "rooster" else (-14.0 if kind == "crane" else (-7.0 if kind == "cat" else -8.0)))
+			_spr.position.y = base_y - jump
+			var sq: float = 0.08 * sin(_t * 16.0)
+			_spr.scale = Vector2(1.0 + sq, 1.0 - sq * 0.8)
+		queue_redraw()
+	elif _spr != null and _spr.scale != Vector2.ONE:
+		_spr.scale = Vector2.ONE
+		queue_redraw()
+
+
+func _draw_heart(pos: Vector2, sz: float, col: Color) -> void:
+	var r: float = sz * 0.36
+	var edge := Color(0.55, 0.08, 0.25, col.a)
+	draw_circle(pos + Vector2(-r * 0.85, -r * 0.2), r + 1.0, edge)
+	draw_circle(pos + Vector2(r * 0.85, -r * 0.2), r + 1.0, edge)
+	draw_colored_polygon(PackedVector2Array([
+		pos + Vector2(-r * 1.85, -0.4),
+		pos + Vector2(r * 1.85, -0.4),
+		pos + Vector2(0.0, sz * 1.08),
+	]), edge)
+	draw_circle(pos + Vector2(-r * 0.85, -r * 0.2), r, col)
+	draw_circle(pos + Vector2(r * 0.85, -r * 0.2), r, col)
+	draw_colored_polygon(PackedVector2Array([
+		pos + Vector2(-r * 1.72, 0.0),
+		pos + Vector2(r * 1.72, 0.0),
+		pos + Vector2(0.0, sz * 0.95),
+	]), col)
+	draw_circle(pos + Vector2(-r * 0.85, -r * 0.35), r * 0.35, Color(1.0, 0.92, 0.96, col.a))
 
 
 func _draw() -> void:
+	if _happy_t > 0.0 and kind in ["chicken", "chick", "rooster", "dog", "cat", "crane"]:
+		var fade: float = clampf(_happy_t * 1.4, 0.0, 1.0)
+		for hi in 3:
+			var phase: float = fmod((2.8 - _happy_t) * 1.1 + float(hi) * 0.33, 1.0)
+			var hx: float = sin((_t * 3.0) + float(hi) * 2.1) * 10.0 + float(hi - 1) * 8.0
+			var hy: float = -22.0 - phase * 24.0
+			var ha: float = fade * sin(phase * PI)
+			_draw_heart(Vector2(hx, hy), 6.2, Color(1.0, 0.44, 0.68, maxf(0.45, ha)))
+		for si in 2:
+			var sp_p: Vector2 = Vector2(cos(_t * 4.0 + float(si) * PI) * 15.0, -18.0 - float(si) * 10.0)
+			draw_circle(sp_p, 2.0, Color(1.0, 0.92, 0.42, 0.9 * fade))
 	match kind:
 		"carpet":
 			var r := Rect2(-size / 2.0, size)

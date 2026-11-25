@@ -506,6 +506,8 @@ func _slam_ai(delta: float, dir: Vector2, dist: float) -> Vector2:
 
 func _fire(angle: float, spd: float, proj := "orb_pink", dmg := 1) -> void:
 	var dir := Vector2.from_angle(angle)
+	if EnemyData.is_mythic_level(level):
+		spd *= 1.12
 	if is_boss():
 		spd *= 1.0 + 0.035 * minf(power(), 10.0)   # đạn trùm sau bay nhanh hơn
 	var bpos: Vector2 = global_position + dir * radius
@@ -667,6 +669,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		_charge_state = ""
 	_shoot_t -= delta
 	var cd_mult := 0.65 if rage else 0.9
+	if bool(data.get("mythic", false)) or EnemyData.is_mythic_level(level):
+		cd_mult *= 0.85
 	# trùm càng về sau ra chiêu càng dồn dập (tối đa nhanh hơn ~45%)
 	cd_mult /= 1.0 + 0.07 * minf(power(), 12.0)
 	if _slowed:
@@ -1233,9 +1237,10 @@ func _drop_loot(spawn_shared_loot: bool = true) -> void:
 		Fx.float_text(get_parent(), global_position + Vector2(0, -20), "Hạ tinh nhuệ!", Color(1, 0.85, 0.35), 16)
 		if spawn_shared_loot and randf() < 0.45 and room != null:
 			room.drop_weapon_at(global_position, 1)
-	var pieces: int = 10 if is_boss() else data.coins * (3 if elite else 1)
+	var pieces: int = 6 if is_boss() else maxi(1, int(data.coins)) * (2 if elite else 1)
+	var coin_val: int = (3 if EnemyData.is_mythic_level(level) else 2) if is_boss() else 1
 	for i in pieces:
-		_spawn_pickup("coin", 3 if is_boss() else 1)
+		_spawn_pickup("coin", coin_val)
 	for i in randi_range(1, 2):
 		_spawn_pickup("energy", 5)
 	if spawn_shared_loot and not is_boss() and randf() < 0.04:
@@ -1243,7 +1248,8 @@ func _drop_loot(spawn_shared_loot: bool = true) -> void:
 	var is_legend: bool = bool(data.get("legend", false))
 	var is_folk: bool = EnemyData.FOLK.has(kind)
 	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
-	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern):
+	var mythic: bool = EnemyData.is_mythic_level(level)
+	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern, mythic):
 		_spawn_material(str(mid))
 
 

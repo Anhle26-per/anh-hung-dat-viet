@@ -1455,7 +1455,9 @@ func open_pet(pet_id: String, last_msg: String = "") -> void:
 				msg = "Chim Hạc nhả tặng +1 Hoa dược!"
 		Global.save_game()
 		Sfx.play("coin")
-		if lobby.has_method("on_station_fx") and lobby.player != null and is_instance_valid(lobby.player):
+		if lobby.has_method("on_pet_interacted"):
+			lobby.on_pet_interacted(pet_id, msg, pinfo.color)
+		elif lobby.has_method("on_station_fx") and lobby.player != null and is_instance_valid(lobby.player):
 			lobby.on_station_fx(lobby.player.global_position, msg, pinfo.color)
 		open_pet(pet_id, msg), 14, 170.0)
 	b_pet.disabled = gifted

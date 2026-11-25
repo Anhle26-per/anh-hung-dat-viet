@@ -3,7 +3,7 @@ extends Node
 ## Chạy: godot --headless --path . res://tests/pacing_test.tscn  -> in "PACING TEST OK"
 
 const Dungeon = preload("res://scripts/game/dungeon.gd")
-const Room = preload("res://scripts/game/room.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
 
 var _fail: int = 0
 
@@ -63,3 +63,19 @@ func _run() -> void:
 				_check(total_waves == exp_w, "màn %d seed %d có %d đợt (kỳ vọng %d)" % [lv, s, total_waves, exp_w])
 			d.queue_free()
 		await _frames(1)
+
+	# Kiểm tra thêm cấu trúc 5 màn/chương kiểu Soul Knight: 3-6 & 6-6 là Sảnh Khải Hoàn 2 phòng, 4-1+ là Thần Thoại 8 phòng 3 đợt
+	for hall_lv in [16, 32]:
+		var dh: Node2D = Dungeon.new()
+		add_child(dh)
+		dh.generate(hall_lv)
+		_check(dh.rooms.size() == 2, "Sảnh Khải Hoàn màn %d phải có đúng 2 phòng (nhận %d)" % [hall_lv, dh.rooms.size()])
+		var has_vh: bool = false
+		for r in dh.rooms.values():
+			if r.kind == "victory_hall":
+				has_vh = true
+		_check(has_vh, "màn %d thiếu phòng victory_hall" % hall_lv)
+		dh.queue_free()
+	await _frames(1)
+	_check(EnemyData.is_boss_level(5) and EnemyData.is_boss_level(10) and EnemyData.is_boss_level(15), "1-5, 2-5, 3-5 phải là Boss")
+	_check(EnemyData.is_boss_level(21) and EnemyData.is_boss_level(26) and EnemyData.is_boss_level(31), "4-5, 5-5, 6-5 phải là Boss Thần Thoại")

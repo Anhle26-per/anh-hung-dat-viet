@@ -214,6 +214,8 @@ func _process(delta: float) -> void:
 func _build_level() -> void:
 	_portal_triggered = false
 	_buff_done_peers.clear()
+	if hud != null and hud.has_method("clear_boss_intro"):
+		hud.clear_boss_intro()
 	if net_sync != null:
 		net_sync.is_clearing_level = true
 		net_sync.clear_level_maps()
@@ -268,12 +270,17 @@ func _build_level() -> void:
 	camera.reset_smoothing()
 	if not Net.is_online() or Net.is_host():
 		Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
-	var stage := (Global.level - 1) % 3 + 1
+	var stage := EnemyData.stage_in_chapter(Global.level)
 	var chn := EnemyData.stage_chapter_num(Global.level)
-	if stage == 1:
+	if Global.level == 16:
+		hud.show_banner("Màn 3-6  -  Sảnh Khải Hoàn!")
+	elif Global.level >= 32:
+		hud.show_banner("Màn 6-6  -  Sảnh Huyền Thoại!")
+	elif stage == 1:
 		hud.show_chapter(chn, ch)
 	else:
-		hud.show_banner("Màn %d-%d%s" % [chn, stage, "  -  Trận quyết chiến!" if stage == 3 else ""])
+		var prefix: String = "Thần thoại " if EnemyData.is_mythic_level(Global.level) else "Màn "
+		hud.show_banner("%s%d-%d%s" % [prefix, chn, stage, "  -  Trận quyết chiến!" if EnemyData.is_boss_level(Global.level) else ""])
 
 
 func _on_portal() -> void:
@@ -283,20 +290,32 @@ func _on_portal() -> void:
 		if not Net.is_host():
 			return
 		_portal_triggered = true
+		if Global.level == 16 or Global.level == 31:
+			var next_lvl: int = Global.level + 1
+			Net.send_world_event("advance", {"level": next_lvl}, false)
+			_advance_to.call_deferred(next_lvl)
+			return
 		_buff_done_peers.clear()
 		Net.send_world_event("portal_open_buffs", {"level": Global.level}, false)
 		_open_lan_buffs.call_deferred()
 		return
-	# qua màn: chọn 1 phúc lành rồi mới sang màn mới
 	Sfx.play("level_clear")
 	touch.reset()
-	var nxt := EnemyData.chapter(Global.level + 1)
-	var title := "%s - %s" % [nxt.name, nxt.year]
+	if Global.level == 16 or Global.level == 31:
+		_advance.call_deferred()
+		return
+	# qua màn: chọn 1 phúc lành rồi mới sang màn mới
+	var title: String
+	if Global.level == 15:
+		title = "Sảnh Khải Hoàn (Màn 3-6)"
+	else:
+		var nxt := EnemyData.chapter(Global.level + 1)
+		title = "%s - %s" % [nxt.name, nxt.year]
 	_open_buffs.call_deferred(title)
 
 
 func _is_boss_cleared_level() -> bool:
-	if Global.level % 3 == 0:
+	if EnemyData.is_boss_level(Global.level):
 		return true
 	if dungeon != null:
 		for c in dungeon.rooms:
@@ -619,23 +638,34 @@ func _on_player_died() -> void:
 	_show_game_over()
 
 
-func show_victory() -> void:
+func show_victory(mythic: bool = false) -> void:
 	if _victory_ui != null:
 		return
 	touch.reset()
+	if hud != null and hud.has_method("clear_boss_intro"):
+		hud.clear_boss_intro()
+	var bonus_coins: int = 90 if mythic else 50
 	if not Net.is_online() or Net.is_host():
-		Global.coins += 150
-		Global.materials["ngoc_than"] = Global.material_count("ngoc_than") + 1
+		Global.coins += bonus_coins
+		Global.materials["ngoc_than"] = Global.material_count("ngoc_than") + (2 if mythic else 1)
+		if mythic:
+			Global.materials["yeu_hon"] = Global.material_count("yeu_hon") + 2
+			Global.stats["mythic_clears"] = int(Global.stats.get("mythic_clears", 0)) + 1
 	var entry: Dictionary = Global.record_score("thang")
 	Global.save_game()
 	_victory_ui = CanvasLayer.new()
 	_victory_ui.layer = 30
 	add_child(_victory_ui)
 	var box := UI.overlay(_victory_ui, 0.72)
-	box.add_child(UI.label("ĐẠI THẮNG! KHẢI HOÀN!", 30, Color(1.0, 0.88, 0.35)))
-	var ch := EnemyData.chapter(Global.level)
-	box.add_child(UI.label("Hoàn thành 3 Chương (9 Màn) tại %s - %s!" % [ch.name, ch.year], 15, Color(0.86, 0.94, 0.98)))
-	box.add_child(UI.label("Thưởng khải hoàn: +150 xu & +1 Ngọc thần", 15, Color(0.55, 0.98, 0.72)))
+	if mythic:
+		box.add_child(UI.label("VANG DANH SỬ SÁCH! ĐẠI THẮNG THẦN THOẠI!", 26, Color(0.92, 0.72, 1.0)))
+		box.add_child(UI.label("Chinh phục trọn vẹn 6 Chương & Yêu Vương Lĩnh Nam (Màn 4-1 → 6-6)!", 15, Color(0.86, 0.94, 0.98)))
+		box.add_child(UI.label("Thưởng Huyền Thoại: +90 xu, +2 Ngọc thần, +2 Yêu hồn  |  Xu trận: %d xu" % Global.run_coins, 14, Color(0.62, 0.98, 0.76)))
+	else:
+		box.add_child(UI.label("ĐẠI THẮNG! KHẢI HOÀN!", 30, Color(1.0, 0.88, 0.35)))
+		var ch := EnemyData.chapter(Global.level)
+		box.add_child(UI.label("Hoàn thành 3 Chương (Màn 1-1 → 3-6) tại %s - %s!" % [ch.name, ch.year], 15, Color(0.86, 0.94, 0.98)))
+		box.add_child(UI.label("Thưởng khải hoàn: +50 xu & +1 Ngọc thần  |  Tổng kết xu trận: %d xu" % Global.run_coins, 14, Color(0.55, 0.98, 0.72)))
 	var score_line: String = "Thời gian: %s  |  Số giặc: %d  |  Điểm: %d" % [
 		Global.format_time(float(entry.get("time", Global.run_elapsed))),
 		int(entry.get("kills", Global.run_kills)),
@@ -646,10 +676,14 @@ func show_victory() -> void:
 	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 16, 200.0)
 	box.add_child(UI.center(_copy_btn))
 	if not Net.is_online():
-		box.add_child(UI.center(UI.button("Về Doanh Trại (Vinh danh)", _on_victory_lobby, 16, 230.0)))
-		box.add_child(UI.center(UI.button("Chơi tiếp Vô Tận", _on_victory_continue, 16, 230.0)))
+		if mythic:
+			box.add_child(UI.center(UI.button("Chính Thức Về Sảnh Chính (Đợt Hai)", _on_victory_lobby, 16, 270.0)))
+		else:
+			box.add_child(UI.center(UI.button("Về Doanh Trại (Tổng kết xu)", _on_victory_lobby, 16, 250.0)))
+			box.add_child(UI.center(UI.button("Khởi Hành Thần Thoại (4-1 → 6-6)", _on_victory_continue, 16, 270.0)))
 	else:
-		box.add_child(UI.center(UI.button("Chơi tiếp Vô Tận", _on_victory_continue, 16, 220.0)))
+		if not mythic:
+			box.add_child(UI.center(UI.button("Khởi Hành Thần Thoại", _on_victory_continue, 16, 240.0)))
 		box.add_child(UI.center(UI.button("Rời phòng LAN", _on_menu, 16, 220.0)))
 
 
@@ -664,7 +698,7 @@ func _on_victory_continue() -> void:
 	if _victory_ui != null:
 		_victory_ui.queue_free()
 		_victory_ui = null
-	hud.show_banner("Bước vào Cổng Vô Tận để thử thách tiếp!")
+	hud.show_banner("Bước vào Cổng Thần Thoại để đối mặt Yêu Vương Lĩnh Nam (4-1)!")
 
 
 func _show_game_over() -> void:

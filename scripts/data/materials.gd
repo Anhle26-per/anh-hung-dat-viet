@@ -60,15 +60,26 @@ static func recipe_for(wid: String) -> Dictionary:
 	return {"coins": int(base.coins), "mats": mats}
 
 
-static func roll_enemy_drops(is_boss: bool, is_legend: bool, is_folk: bool, elite: bool, modern: bool) -> Array:
+static func roll_enemy_drops(is_boss: bool, is_legend: bool, is_folk: bool, elite: bool, modern: bool, mythic: bool = false) -> Array:
 	var out: Array = []
 	var pool: Array = MODERN_POOL if modern else ANCIENT_POOL
 	if is_legend:
 		out.append("ngoc_than")
 		out.append("yeu_hon")
 		out.append("yeu_hon")
+		if mythic:
+			out.append("ngoc_than")
+			out.append("yeu_hon")
 		return out
 	if is_boss:
+		if mythic:
+			out.append("ngoc_than")
+			out.append("yeu_hon")
+			out.append("yeu_hon")
+			out.append(str(pool.pick_random()))
+			if randf() < 0.65:
+				out.append("ngoc_than")
+			return out
 		var count: int = randi_range(2, 3)
 		for i in count:
 			out.append(str(pool.pick_random()))
@@ -76,23 +87,38 @@ static func roll_enemy_drops(is_boss: bool, is_legend: bool, is_folk: bool, elit
 			out.append("ngoc_than")
 		return out
 	if elite:
+		if mythic:
+			if randf() < 0.72:
+				out.append("ngoc_than" if randf() < 0.25 else "yeu_hon")
+			return out
 		if randf() < DROP_ELITE:
 			out.append("yeu_hon" if is_folk else str(pool.pick_random()))
 		return out
 	if is_folk:
-		if randf() < DROP_FOLK:
+		if randf() < (0.46 if mythic else DROP_FOLK):
 			out.append("yeu_hon")
+		return out
+	if mythic:
+		if randf() < 0.30:
+			out.append("yeu_hon" if randf() < 0.55 else str(pool.pick_random()))
 		return out
 	if randf() < DROP_NORMAL:
 		out.append(str(pool.pick_random()))
 	return out
 
 
-static func roll_chest_drops(modern: bool) -> Array:
+static func roll_chest_drops(modern: bool, mythic: bool = false) -> Array:
 	var out: Array = []
-	if randf() >= DROP_CHEST:
+	if not mythic and randf() >= DROP_CHEST:
 		return out
 	var pool: Array = MODERN_POOL if modern else ANCIENT_POOL
+	if mythic:
+		out.append("yeu_hon" if randf() < 0.65 else str(pool.pick_random()))
+		if randf() < 0.55:
+			out.append("yeu_hon")
+		if randf() < 0.28:
+			out.append("ngoc_than")
+		return out
 	var count: int = randi_range(1, 2)
 	for i in count:
 		out.append(str(pool.pick_random()))

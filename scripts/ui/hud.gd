@@ -20,6 +20,10 @@ var _chapter_num := 0
 var _chapter_t := 0.0
 var _cutin_hero := ""
 var _cutin_t := 0.0
+var _boss_intro_t := 0.0
+var _boss_intro_name := ""
+var _boss_intro_title := ""
+var _boss_intro_mythic := false
 var _icons := {}
 
 
@@ -66,6 +70,20 @@ func show_cutin(hero_id: String) -> void:
 	_cutin_t = 0.9
 
 
+func show_boss_intro(bname: String, btitle: String, mythic: bool = false) -> void:
+	_boss_intro_name = bname
+	_boss_intro_title = btitle
+	_boss_intro_mythic = mythic
+	_boss_intro_t = 3.2
+
+
+func clear_boss_intro() -> void:
+	_boss_intro_t = 0.0
+	_chapter_t = 0.0
+	_banner_t = 0.0
+	_banner_queue.clear()
+
+
 func _process(delta: float) -> void:
 	_banner_t -= delta
 	if _banner_t <= 0.0 and not _banner_queue.is_empty():
@@ -73,6 +91,7 @@ func _process(delta: float) -> void:
 		_banner_t = 2.0
 	_chapter_t -= delta
 	_cutin_t -= delta
+	_boss_intro_t -= delta
 
 
 func draw_hud(ci: Control) -> void:
@@ -123,9 +142,11 @@ func draw_hud(ci: Control) -> void:
 
 	# --- Màn + xu + bản đồ nhỏ
 	_panel(ci, Rect2(w - 100, 4, 96, 104))
-	var stage := (Global.level - 1) % 3 + 1
+	var stage := EnemyData.stage_in_chapter(Global.level)
 	var chn := EnemyData.stage_chapter_num(Global.level)
-	Art.draw_text(ci, Vector2(w - 92, 19), "Màn %d-%d" % [chn, stage], 16, Color(1, 0.92, 0.75), false)
+	var is_m_hud: bool = EnemyData.is_mythic_level(Global.level) or Global.level >= 32
+	var stage_lbl: String = ("Thần %d-%d" if is_m_hud else "Màn %d-%d") % [chn, stage]
+	Art.draw_text(ci, Vector2(w - 92, 19), stage_lbl, 15 if is_m_hud else 16, Color(0.92, 0.76, 1.0) if is_m_hud else Color(1, 0.92, 0.75), false)
 	ci.draw_texture_rect_region(_icons.coin, Rect2(w - 92, 25, 9, 9), Rect2(0, 0, 9, 9))
 	Art.draw_text(ci, Vector2(w - 79, 34), str(Global.run_coins), 16, Color(1, 0.88, 0.45), false)
 	_draw_minimap(ci, Vector2(w - 96, 40), Vector2(88, 64))
@@ -240,8 +261,19 @@ func draw_hud(ci: Control) -> void:
 	if _cutin_t > 0.0 and _cutin_hero != "":
 		_draw_cutin(ci, w, h)
 
-	# --- Giới thiệu chương
-	if _chapter_t > 0.0:
+	# --- Giới thiệu chương / Trùm xuất hiện
+	if _boss_intro_t > 0.0:
+		var ba := clampf(_boss_intro_t / 0.5, 0.0, 1.0) * clampf((3.2 - _boss_intro_t) / 0.3, 0.0, 1.0)
+		var b_bg := Color(0.14, 0.04, 0.18, 0.84 * ba) if _boss_intro_mythic else Color(0.18, 0.03, 0.04, 0.84 * ba)
+		var b_edge := Color(0.84, 0.48, 1.0, ba) if _boss_intro_mythic else Color(1.0, 0.48, 0.25, ba)
+		ci.draw_rect(Rect2(0, h * 0.17, w, 62), b_bg)
+		ci.draw_rect(Rect2(0, h * 0.17, w, 2), b_edge)
+		ci.draw_rect(Rect2(0, h * 0.17 + 60, w, 2), b_edge)
+		var tag: String = "★ YÊU VƯƠNG THẦN THOẠI XUẤT HIỆN ★" if _boss_intro_mythic else "★ CẢNH BÁO TRÙM XUẤT HIỆN ★"
+		Art.draw_text(ci, Vector2(w / 2.0, h * 0.17 + 16), tag, 13, Color(1.0, 0.86, 0.45, ba))
+		Art.draw_text(ci, Vector2(w / 2.0, h * 0.17 + 37), _boss_intro_name.to_upper(), 26, Color(0.96, 0.84, 1.0, ba) if _boss_intro_mythic else Color(1.0, 0.78, 0.45, ba))
+		Art.draw_text(ci, Vector2(w / 2.0, h * 0.17 + 53), _boss_intro_title, 13, Color(0.95, 0.9, 0.86, ba))
+	elif _chapter_t > 0.0:
 		var a := clampf(_chapter_t / 0.6, 0.0, 1.0) * clampf((3.6 - _chapter_t) / 0.4, 0.0, 1.0)
 		ci.draw_rect(Rect2(0, h * 0.24, w, 64), Color(0.05, 0.02, 0.04, 0.7 * a))
 		ci.draw_rect(Rect2(0, h * 0.24, w, 2), Color(0.9, 0.7, 0.3, a))
@@ -251,7 +283,8 @@ func draw_hud(ci: Control) -> void:
 		Art.draw_text(ci, Vector2(w / 2.0, h * 0.24 + 56), _chapter.intro, 14, Color(0.95, 0.9, 0.85, a))
 	elif _banner_t > 0.0:
 		var a2 := clampf(_banner_t / 0.5, 0.0, 1.0)
-		Art.draw_text(ci, Vector2(w / 2.0, h * 0.3), _banner, 26, Color(1, 0.85, 0.4, a2))
+		var b_sz: int = 18 if _banner.length() > 34 else 26
+		Art.draw_text(ci, Vector2(w / 2.0, h * 0.3), _banner, b_sz, Color(1, 0.85, 0.4, a2))
 
 
 func _draw_shop_inspect(ci: Control, _w: float, h: float, target: Node) -> void:

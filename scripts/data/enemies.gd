@@ -116,33 +116,188 @@ const CHAPTERS := [
 ]
 
 
+const MYTHIC_CHAPTERS := [
+	{
+		"name": "Đầm Xác Cáo",
+		"year": "Thần Thoại · Lĩnh Nam",
+		"intro": "Cửu Vĩ Hồ Tinh khuấy động chướng khí đầm Xác Cáo!",
+		"army": "dong_han",
+		"army_name": "Yêu Quân Đầm Cáo",
+		"boss": "cuu_vi_ho",
+		"theme": 3,
+		"decor": ["lantern", "pot", "bamboo"],
+		"folk": ["ho_tinh", "tieu_yeu", "ma_troi"],
+		"dark": Color(0.76, 0.68, 0.88),
+		"mythic": true,
+	},
+	{
+		"name": "Rừng Chiên Đàn",
+		"year": "Thần Thoại · Lĩnh Nam",
+		"intro": "Xương Cuồng Mộc Tinh nghìn năm vươn rễ nuốt chửng đại ngàn!",
+		"army": "minh",
+		"army_name": "Yêu Binh Rừng Già",
+		"boss": "xuong_cuong",
+		"theme": 0,
+		"decor": ["bamboo", "pot", "banner"],
+		"folk": ["moc_tinh", "chan_tinh", "dai_bang"],
+		"dark": Color(0.68, 0.80, 0.72),
+		"mythic": true,
+	},
+	{
+		"name": "Biển Đông Hắc Hải",
+		"year": "Thần Thoại · Lĩnh Nam",
+		"intro": "Hắc Hải Ngư Tinh Vương dâng sóng thần thử lửa anh hùng!",
+		"army": "nam_han",
+		"army_name": "Thủy Yêu Biển Đông",
+		"boss": "hac_hai_ngu",
+		"theme": 1,
+		"decor": ["lantern", "pot", "banner"],
+		"folk": ["ngu_tinh", "dai_bang", "ho_tinh"],
+		"dark": Color(0.66, 0.74, 0.90),
+		"mythic": true,
+	},
+]
+
+const MYTHIC_BOSSES := {
+	"cuu_vi_ho": {
+		"name": "Cửu Vĩ Hồ Vương",
+		"title": "Yêu Cáo Chín Đuôi Đầm Xác Cáo",
+		"hp": 920,
+		"speed": 74.0,
+		"radius": 16.0,
+		"radius2": 16.0,
+		"patterns": ["tails", "clone", "sweep", "charge"],
+		"patterns2": ["tails", "clone", "spiral", "charge"],
+		"summon": "ho_tinh",
+		"special": "cuu_vi",
+		"form2": "Cửu Vĩ Yêu Vương",
+		"sheet": "enemies/boss_ho_tinh_vuong.png",
+		"sheet2": "enemies/boss_ho_tinh_vuong_2.png",
+		"size": Vector2i(84, 60),
+		"size2": Vector2i(84, 60),
+		"frames": 7,
+		"mythic": true,
+	},
+	"xuong_cuong": {
+		"name": "Xương Cuồng Mộc Tinh",
+		"title": "Thần Mộc Nghìn Năm Rừng Chiên Đàn",
+		"hp": 1180,
+		"speed": 30.0,
+		"radius": 18.0,
+		"radius2": 18.0,
+		"patterns": ["roots", "ring", "summon", "fan"],
+		"patterns2": ["roots", "ring", "spiral", "roots"],
+		"summon": "moc_tinh",
+		"special": "rung_gia",
+		"form2": "Xương Cuồng Ma Thụ",
+		"sheet": "enemies/boss_moc_tinh_vuong.png",
+		"sheet2": "enemies/boss_moc_tinh_vuong_2.png",
+		"size": Vector2i(72, 72),
+		"size2": Vector2i(72, 72),
+		"frames": 7,
+		"mythic": true,
+	},
+	"hac_hai_ngu": {
+		"name": "Hắc Hải Ngư Tinh Vương",
+		"title": "Thủy Quái Hung Tàn Biển Đông",
+		"hp": 1450,
+		"speed": 52.0,
+		"radius": 18.0,
+		"radius2": 18.0,
+		"patterns": ["dive", "spiral", "fan", "summon"],
+		"patterns2": ["dive", "tidal", "spiral", "fan"],
+		"summon": "ngu_tinh",
+		"special": "song_than",
+		"form2": "Bá Chủ Biển Đen",
+		"sheet": "enemies/boss_ngu_tinh_vuong.png",
+		"sheet2": "enemies/boss_ngu_tinh_vuong_2.png",
+		"size": Vector2i(84, 60),
+		"size2": Vector2i(84, 60),
+		"frames": 7,
+		"mythic": true,
+	},
+}
+
+
+static func is_victory_hall(level: int) -> bool:
+	return level == 16 or level >= 32
+
+
+static func is_mythic_level(level: int) -> bool:
+	return level >= 17 and level <= 31
+
+
+static func is_boss_level(level: int) -> bool:
+	if level >= 1 and level <= 15:
+		return level % 5 == 0
+	if level >= 17 and level <= 31:
+		return (level - 16) % 5 == 0
+	return false
+
+
+static func is_legend_mid_level(level: int) -> bool:
+	return stage_in_chapter(level) == 3 and not is_victory_hall(level)
+
+
 static func stage_chapter_num(level: int) -> int:
-	return int((level - 1) / 3) + 1
+	if level <= 15:
+		return int((maxi(level, 1) - 1) / 5) + 1
+	if level == 16:
+		return 3
+	if level <= 31:
+		return 4 + int((level - 17) / 5)
+	return 6
+
+
+static func stage_in_chapter(level: int) -> int:
+	if level == 16 or level >= 32:
+		return 6
+	if level <= 15:
+		return (maxi(level, 1) - 1) % 5 + 1
+	return (level - 17) % 5 + 1
 
 
 static func chapter_index(level: int) -> int:
-	var ch_seq: int = int((level - 1) / 3)
+	if is_mythic_level(level):
+		return int((level - 17) / 5) % MYTHIC_CHAPTERS.size()
+	if level >= 32:
+		return MYTHIC_CHAPTERS.size() - 1
+	var eff_lv: int = mini(maxi(level, 1), 15)
+	var ch_seq: int = int((eff_lv - 1) / 5)
 	if Global != null and Global.has_method("chapter_at"):
 		return Global.chapter_at(ch_seq) % CHAPTERS.size()
 	return ch_seq % CHAPTERS.size()
 
 
 static func chapter(level: int) -> Dictionary:
+	if is_mythic_level(level) or level >= 32:
+		return MYTHIC_CHAPTERS[chapter_index(level)]
 	return CHAPTERS[chapter_index(level)]
 
 
-## Vòng lặp: sau chương cuối quay lại chương 1 nhưng giặc mạnh hơn
+## Độ khó theo tiến trình màn (tăng dần từ 1-1 -> 3-5, sang 4-1 -> 6-5 nâng cấp rõ rệt)
 static func loop_mult(level: int) -> float:
-	return 1.0 + float(int((level - 1) / (3 * CHAPTERS.size()))) * 0.6
+	if level <= 16:
+		return 1.0
+	return 1.45
 
 
-## Trùm thứ mấy của lượt chơi (0, 1, 2...): mỗi 3 màn gặp 1 trùm
+## Trùm thứ mấy của lượt chơi (0..2 ở 3 chương lịch sử, 3..5 ở Chuyến Du Hành Thần Thoại)
 static func boss_index(level: int) -> int:
-	return int((level - 1) / 3)
+	if level <= 15:
+		return int((maxi(level, 1) - 1) / 5)
+	if level == 16:
+		return 2
+	if level <= 31:
+		return 3 + int((level - 17) / 5)
+	return 5
 
 
-## Mã trùm ở màn này: ngẫu nhiên theo lượt chơi (xem Global.boss_at)
+## Mã trùm ở màn này
 static func boss_id(level: int) -> String:
+	if is_mythic_level(level) or level >= 32:
+		var mch: Dictionary = MYTHIC_CHAPTERS[chapter_index(level)]
+		return str(mch.boss)
 	return Global.boss_at(boss_index(level))
 
 
@@ -151,6 +306,9 @@ static func home_chapter(boss: String) -> Dictionary:
 	for ch in CHAPTERS:
 		if ch.boss == boss:
 			return ch
+	for mch in MYTHIC_CHAPTERS:
+		if mch.boss == boss:
+			return mch
 	return CHAPTERS[0]
 
 
@@ -158,13 +316,16 @@ static func army_name(army: String) -> String:
 	for ch in CHAPTERS:
 		if ch.army == army:
 			return ch.army_name
+	for mch in MYTHIC_CHAPTERS:
+		if mch.army == army:
+			return mch.army_name
 	return ""
 
 
-## Máu trùm chỉ phụ thuộc thứ tự gặp, không phụ thuộc trùm nào:
-## trùm thứ 1: 300, thứ 2: 426, ... thứ 10: 1434 (đi vòng 2 tiếp tục tăng).
+## Máu trùm tăng rõ rệt qua từng chương (trùm 1: 300, trùm 2: 480, trùm 3: 660;
+## trùm Thần Thoại dùng mức máu riêng: 920 -> 1180 -> 1450)
 const BOSS_BASE_HP := 300
-const BOSS_HP_STEP := 0.48
+const BOSS_HP_STEP := 0.60
 
 
 ## Trả về thông tin đầy đủ của 1 loại địch. id ví dụ: "bo_binh", "tieu_yeu", "boss".
@@ -179,7 +340,8 @@ static func info(id: String, level: int) -> Dictionary:
 		army = parts[1]
 	if id == "boss":
 		var bid := boss_id(level)
-		var b: Dictionary = BOSSES[bid]
+		var is_mythic_boss: bool = MYTHIC_BOSSES.has(bid)
+		var b: Dictionary = MYTHIC_BOSSES[bid] if is_mythic_boss else BOSSES[bid]
 		var home := home_chapter(bid)
 		var power := boss_index(level)
 		d = b.duplicate()
@@ -187,21 +349,20 @@ static func info(id: String, level: int) -> Dictionary:
 		d["boss"] = true
 		d["ai"] = "boss"
 		d["radius"] = b.get("radius", 14.0)
-		d["coins"] = 30
+		d["coins"] = 28 if is_mythic_boss else 16
 		d["sheet"] = b.get("sheet", "enemies/boss_%s.png" % bid)
 		d["size"] = b.get("size", Vector2i(48, 48))
 		d["frames"] = b.get("frames", 7)
 		d["army"] = home.army
 		d["summon"] = "%s@%s" % [b.summon, home.army]
 		d["power"] = power
-		var boss_hp: int = int(round(BOSS_BASE_HP * (1.0 + BOSS_HP_STEP * power)))
+		var boss_hp: int = int(b["hp"]) if is_mythic_boss else int(round(BOSS_BASE_HP * (1.0 + BOSS_HP_STEP * power)))
 		var hp_mult: float = Global.difficulty_hp_mult()
 		d["hp"] = boss_hp if is_equal_approx(hp_mult, 1.0) else maxi(1, int(round(float(boss_hp) * hp_mult)))
-		# hình ma tướng: phóng to gấp đôi + chừa chỗ cho sừng và hào quang
 		var sz: Vector2i = d.size
-		d["sheet2"] = "enemies/boss_%s_2.png" % bid
-		d["size2"] = Vector2i(sz.x * 2 + 16, sz.y * 2 + 18)
-		d["radius2"] = d.radius * 1.6
+		d["sheet2"] = b.get("sheet2", "enemies/boss_%s_2.png" % bid)
+		d["size2"] = b.get("size2", Vector2i(sz.x * 2 + 16, sz.y * 2 + 18))
+		d["radius2"] = b.get("radius2", d.radius * 1.6)
 		return d
 	if id.begins_with("legend:"):
 		var lid := id.substr(7)
@@ -211,7 +372,7 @@ static func info(id: String, level: int) -> Dictionary:
 		d["boss"] = true
 		d["legend"] = true
 		d["ai"] = "boss"
-		d["coins"] = 30
+		d["coins"] = 18
 		d["frames"] = 7
 		d["sheet"] = "enemies/boss_%s.png" % lid
 		d["sheet2"] = "enemies/boss_%s_2.png" % lid
@@ -233,9 +394,9 @@ static func info(id: String, level: int) -> Dictionary:
 			d["size"] = Vector2i(24, 26)
 			d["frames"] = 5
 		d["name"] = "%s (%s)" % [d.name, army_name(army)]
-	# chỉ số tăng theo chương (độ khó) và theo màn
-	var depth := float((level - 1) % (3 * CHAPTERS.size()))
-	var unit_hp: int = int(float(d.hp) * (1.0 + 0.22 * depth) * loop_mult(level))
+	# Chỉ số tăng đều theo từng màn & nhảy bậc rõ khi vào Chuyến Du Hành Thần Thoại (4-1+)
+	var depth: float = float(maxi(level - 1, 0)) if level <= 15 else float(14 + maxi(level - 17, 0))
+	var unit_hp: int = int(round(float(d.hp) * (1.0 + 0.16 * depth) * loop_mult(level)))
 	var hp_mult_u: float = Global.difficulty_hp_mult()
 	d["hp"] = unit_hp if is_equal_approx(hp_mult_u, 1.0) else maxi(1, int(round(float(unit_hp) * hp_mult_u)))
 	return d
@@ -243,21 +404,33 @@ static func info(id: String, level: int) -> Dictionary:
 
 static func pool(level: int) -> Array:
 	var ch := chapter(level)
+	var stg := stage_in_chapter(level)
 	var p: Array
+	if is_mythic_level(level):
+		if stage_chapter_num(level) == 6:
+			p = ["bo_binh", "cung_thu", "khien_binh", "phap_su", "ky_binh", "xe_tang"]
+		else:
+			p = ["bo_binh", "cung_thu", "cung_thu", "khien_binh", "phap_su", "ky_binh"]
+		# Yêu quái dày đặc hơn ở vùng Thần Thoại
+		p.append(ch.folk.pick_random())
+		p.append(ch.folk.pick_random())
+		if stg >= 3:
+			p.append(ch.folk.pick_random())
+		return p
 	if ch.get("modern", false):
 		p = ["bo_binh", "bo_binh", "linh_sung", "linh_sung", "linh_sung", "phao_binh"]
 		if ch.army != "phap_thuy":
 			p += ["xa_thu", "xa_thu"]
-		if ch.army == "phap_1954" and level % 3 != 1:
+		if ch.army == "phap_1954" and stg >= 3:
 			p.append("xe_tang")
 	else:
 		p = ["bo_binh", "bo_binh", "bo_binh", "cung_thu", "cung_thu"]
-		if level % 3 != 1:
+		if stg >= 2:
 			p += ["khien_binh", "phap_su"]
 		if ch.army == "nguyen_mong":
 			p += ["ky_binh", "ky_binh"]
 	# yêu quái do tà thuật (hư cấu)
 	p.append(ch.folk.pick_random())
-	if level % 3 == 2:
+	if stg >= 3:
 		p.append(ch.folk.pick_random())
 	return p

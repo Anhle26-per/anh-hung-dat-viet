@@ -63,7 +63,7 @@ func interact() -> void:
 	Fx.particles(par, global_position, Color(1, 0.85, 0.35), 18, 90.0, 0.6, -50.0, 2.0)
 	var r := randf()
 	if r < 0.58:
-		for i in randi_range(6, 10):
+		for i in randi_range(3, 5):
 			_drop("coin", 1, c)
 		for i in 3:
 			_drop("energy", 5, c)
@@ -75,7 +75,7 @@ func interact() -> void:
 			_drop("potion_energy", 80, c)
 		else:
 			_drop("potion_big", 5, c)
-		for i in 3:
+		for i in 2:
 			_drop("coin", 1, c)
 	else:
 		var p := Pickup.new()
@@ -85,7 +85,8 @@ func interact() -> void:
 		par.add_child(p)
 		Fx.burst(par, global_position, WeaponData.tier_color(p.weapon_id), 40.0, 0.5)
 	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
-	for mid in MaterialData.roll_chest_drops(modern):
+	var mythic: bool = EnemyData.is_mythic_level(level)
+	for mid in MaterialData.roll_chest_drops(modern, mythic):
 		var mp := Pickup.new()
 		mp.kind = "material"
 		mp.material_id = str(mid)
@@ -111,7 +112,7 @@ func host_open_and_broadcast() -> void:
 	var drops: Array = []
 	var r: float = randf()
 	if r < 0.58:
-		for i in randi_range(6, 10):
+		for i in randi_range(3, 5):
 			drops.append({"kind": "coin", "amount": 1, "weapon_id": "", "material_id": "", "pickup_id": 0})
 		for i in 3:
 			drops.append({"kind": "energy", "amount": 5, "weapon_id": "", "material_id": "", "pickup_id": 0})
@@ -124,14 +125,15 @@ func host_open_and_broadcast() -> void:
 			drops.append({"kind": "potion_energy", "amount": 80, "weapon_id": "", "material_id": "", "pickup_id": pid})
 		else:
 			drops.append({"kind": "potion_big", "amount": 5, "weapon_id": "", "material_id": "", "pickup_id": pid})
-		for i in 3:
+		for i in 2:
 			drops.append({"kind": "coin", "amount": 1, "weapon_id": "", "material_id": "", "pickup_id": 0})
 	else:
 		var wid: String = WeaponData.roll(level, 1 if level >= 10 else 0)
 		var pid2: int = ns.alloc_pickup_id() if ns != null else 0
 		drops.append({"kind": "weapon", "amount": 1, "weapon_id": wid, "material_id": "", "pickup_id": pid2})
 	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
-	for mid in MaterialData.roll_chest_drops(modern):
+	var mythic: bool = EnemyData.is_mythic_level(level)
+	for mid in MaterialData.roll_chest_drops(modern, mythic):
 		drops.append({"kind": "material", "amount": 1, "weapon_id": "", "material_id": str(mid), "pickup_id": 0})
 	Net.send_world_event("chest_open", {"id": chest_id, "drops": drops}, false)
 	apply_open_drops(drops)

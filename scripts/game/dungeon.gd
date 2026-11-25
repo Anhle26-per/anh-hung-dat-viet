@@ -91,21 +91,21 @@ class RoomOverlay extends Node2D:
 			var col: Color = it["accent"]
 			var shape_kind: String = it["shape"]
 			# Mảng màu ấm nhẹ giữa phòng phá cảm giác đơn sắc
-			var glow_col: Color = Color(1.0, 0.85, 0.55, 0.08) if kind in ["treasure", "shop", "start"] else Color(col.r, col.g, col.b, 0.07)
+			var glow_col: Color = Color(1.0, 0.85, 0.55, 0.08) if kind in ["treasure", "shop", "start", "victory_hall"] else Color(col.r, col.g, col.b, 0.07)
 			if kind == "boss" or kind == "legend":
 				glow_col = Color(0.95, 0.32, 0.28, 0.09)
 			draw_circle(c, 58.0, glow_col)
 			draw_circle(c, 34.0, Color(glow_col.r, glow_col.g, glow_col.b, glow_col.a * 1.15))
 			# Vòng hoa văn sân tròn / trống đồng giữa phòng
-			var ring_col: Color = Color(0.95, 0.78, 0.36, 0.26) if kind in ["boss", "legend", "treasure", "shop"] else Color(col.r, col.g, col.b, 0.18)
+			var ring_col: Color = Color(0.95, 0.78, 0.36, 0.26) if kind in ["boss", "legend", "treasure", "shop", "victory_hall"] else Color(col.r, col.g, col.b, 0.18)
 			var pts := PackedVector2Array()
 			var sides: int = 8 if shape_kind == "octagon" else 24
-			var r_out: float = 54.0 if kind in ["boss", "legend"] else 38.0
+			var r_out: float = 54.0 if kind in ["boss", "legend", "victory_hall"] else 38.0
 			for i in range(sides + 1):
 				var a: float = TAU * float(i) / float(sides)
 				pts.append(c + Vector2(cos(a) * r_out, sin(a) * r_out * 0.78))
 			draw_polyline(pts, ring_col, 1.5, true)
-			if kind in ["boss", "legend", "treasure", "start"]:
+			if kind in ["boss", "legend", "treasure", "start", "victory_hall"]:
 				var inner := PackedVector2Array()
 				for i in range(sides + 1):
 					var a2: float = TAU * float(i) / float(sides)
@@ -125,18 +125,24 @@ func generate(level: int) -> void:
 	var row: int = chapter.theme
 	add_child(tiles)
 
-	# 1) Chọn vị trí các phòng trên lưới
-	var count := 5 + mini(level, 3)
+	# 1) Chọn vị trí các phòng trên lưới (Màn 3-6 / 6-6 là Sảnh Khải Hoàn 2 phòng)
+	var is_hall := EnemyData.is_victory_hall(level)
+	var count := 2 if is_hall else (5 + mini(level, 3))
 	var cells: Array = [Vector2i.ZERO]
-	var guard := 0
-	while cells.size() < count and guard < 2000:
-		guard += 1
-		var from: Vector2i = cells.pick_random() if randf() < 0.4 else cells.back()
-		var to: Vector2i = from + DIRS.pick_random()
-		if cells.has(to) or _neighbor_count(to, cells) > 1:
-			continue
-		cells.append(to)
-		links.append([from, to])
+	if is_hall:
+		var hall_cell := Vector2i(0, -1)
+		cells.append(hall_cell)
+		links.append([Vector2i.ZERO, hall_cell])
+	else:
+		var guard := 0
+		while cells.size() < count and guard < 2000:
+			guard += 1
+			var from: Vector2i = cells.pick_random() if randf() < 0.4 else cells.back()
+			var to: Vector2i = from + DIRS.pick_random()
+			if cells.has(to) or _neighbor_count(to, cells) > 1:
+				continue
+			cells.append(to)
+			links.append([from, to])
 
 	# 2) Tính khoảng cách từ phòng đầu để tìm phòng xa nhất
 	var adj := {}
@@ -162,14 +168,15 @@ func generate(level: int) -> void:
 	var others := cells.filter(func(c): return c != Vector2i.ZERO and c != exit_cell)
 	var leaves := others.filter(func(c): return adj[c].size() == 1)
 	var treasure_cell := Vector2i(9999, 9999)
-	if not leaves.is_empty():
-		treasure_cell = leaves.pick_random()
-	elif others.size() >= 3:
-		treasure_cell = others.pick_random()
+	if not is_hall:
+		if not leaves.is_empty():
+			treasure_cell = leaves.pick_random()
+		elif others.size() >= 3:
+			treasure_cell = others.pick_random()
 
 	# phòng gánh hàng rong (từ màn 2, 65%): ưu tiên phòng cụt khác phòng kho báu
 	var shop_cell := Vector2i(9999, 9999)
-	if level >= 2 and randf() < 0.65:
+	if not is_hall and level >= 2 and randf() < 0.65:
 		var cand := leaves.filter(func(c): return c != treasure_cell)
 		if cand.is_empty() and others.size() >= 4:
 			cand = others.filter(func(c): return c != treasure_cell)
@@ -187,15 +194,18 @@ func generate(level: int) -> void:
 		if c == Vector2i.ZERO:
 			k = "start"
 		elif c == exit_cell:
-			k = "boss" if level % 3 == 0 else "exit"
-			if level % 3 == 2 and randf() < Global.legend_chance:
-				k = "legend"
+			if is_hall:
+				k = "victory_hall"
+			else:
+				k = "boss" if EnemyData.is_boss_level(level) else "exit"
+				if EnemyData.is_legend_mid_level(level) and randf() < Global.legend_chance:
+					k = "legend"
 		elif c == treasure_cell:
 			k = "treasure"
 		elif c == shop_cell:
 			k = "shop"
 		room_kinds[c] = k
-		if k in ["boss", "legend", "treasure", "start", "exit"]:
+		if k in ["boss", "legend", "treasure", "start", "exit", "victory_hall"]:
 			room_shapes[c] = "octagon"
 		elif k == "shop":
 			room_shapes[c] = "buttress"
@@ -275,8 +285,8 @@ func generate(level: int) -> void:
 		rooms_by_key[r.room_key] = r
 		_decorate(c, r.kind, doors[c], chapter, floor_cells)
 		ov_items.append({"center": r.rect.get_center(), "kind": r.kind, "shape": str(room_shapes[c]), "accent": theme_accents[row % theme_accents.size()]})
-		if r.kind in ["start", "treasure", "shop", "boss", "legend"]:
-			var lcol: Color = Color(1.0, 0.55, 0.35) if r.kind in ["boss", "legend"] else Color(1.0, 0.86, 0.55)
+		if r.kind in ["start", "treasure", "shop", "boss", "legend", "victory_hall"]:
+			var lcol: Color = Color(1.0, 0.55, 0.35) if r.kind in ["boss", "legend"] else (Color(0.84, 0.56, 1.0) if (r.kind == "victory_hall" and level >= 32) else Color(1.0, 0.86, 0.55))
 			var pl := Art.light(lcol, 0.42 if r.kind == "boss" else 0.52, 2.2)
 			pl.position = r.rect.get_center()
 			add_child(pl)
@@ -518,7 +528,7 @@ func _paint_zones(floor_cells: Dictionary, corridor_cells: Dictionary, cells: Ar
 
 		# 3) Sân trung tâm (cột 10 / thảm son vàng cột 12 cho phòng quan trọng)
 		var k: String = str(room_kinds[c])
-		var royal: bool = k in ["boss", "legend", "treasure", "shop"]
+		var royal: bool = k in ["boss", "legend", "treasure", "shop", "victory_hall"]
 		for dx in range(-3, 4):
 			for dy in range(-2, 3):
 				if abs(dx) + abs(dy) > 4:

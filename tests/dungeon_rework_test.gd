@@ -7,7 +7,10 @@ extends Node
 
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const MaterialData = preload("res://scripts/data/materials.gd")
 const Dungeon = preload("res://scripts/game/dungeon.gd")
+const Pickup = preload("res://scripts/entities/pickup.gd")
+const LobbyLife = preload("res://scripts/game/lobby_life.gd")
 const TEST_SAVE := "user://dungeon_rework_test_save.json"
 
 var _fail: int = 0
@@ -67,7 +70,8 @@ func _run() -> void:
 		for ci in 10:
 			uniq[Global.chapter_at(ci)] = true
 		_check(uniq.size() == 10, "10 chương đầu không được trùng: %s" % str(Global.chapter_order.slice(0, 10)))
-	_check(EnemyData.stage_chapter_num(1) == 1 and EnemyData.stage_chapter_num(9) == 3, "stage_chapter_num sai")
+	_check(EnemyData.stage_chapter_num(1) == 1 and EnemyData.stage_chapter_num(5) == 1 and EnemyData.stage_chapter_num(15) == 3, "stage_chapter_num lịch sử sai")
+	_check(EnemyData.stage_chapter_num(17) == 4 and EnemyData.stage_chapter_num(31) == 6 and EnemyData.stage_in_chapter(16) == 6, "stage Thần Thoại / 3-6 sai")
 
 	print("== 2. Kiểm tra tỉ lệ rơi vũ khí hiếm (Huyền thoại Cấp 5)")
 	seed(202611)
@@ -130,38 +134,83 @@ func _run() -> void:
 	_check(saw_barrel, "chưa thấy thùng thuốc nổ phá được")
 	_check(rooms_with_traps > 0 and rooms_without_traps > 0, "bẫy phải xuất hiện ngẫu nhiên (vừa có phòng có vừa có phòng không)")
 
-	print("== 4. Kiểm tra Đài Chiến Thắng & Màn hình Khải Hoàn ở Boss màn 9 (3-3)")
+	print("== 4. Kiểm tra Sảnh 3-6, Cổng Thần Thoại (4-1..6-6), Boss Thần Thoại & rớt nguyên liệu hiếm")
+	_check(int(EnemyData.info("bo_binh", 17).hp) > int(EnemyData.info("bo_binh", 15).hp), "Quái 4-1 phải khỏe hơn 3-5")
+	_check(int(EnemyData.info("boss", 21).hp) == 920 and int(EnemyData.info("boss", 26).hp) == 1180 and int(EnemyData.info("boss", 31).hp) == 1450, "Máu 3 Boss Thần Thoại sai")
+	seed(4242)
+	var rare_norm: int = 0
+	var rare_myth: int = 0
+	for _i in 300:
+		for m1 in MaterialData.roll_enemy_drops(false, false, false, true, false, false):
+			if str(m1) in ["yeu_hon", "ngoc_than"]:
+				rare_norm += 1
+		for m2 in MaterialData.roll_enemy_drops(false, false, false, true, false, true):
+			if str(m2) in ["yeu_hon", "ngoc_than"]:
+				rare_myth += 1
+	_check(rare_myth > rare_norm, "Nguyên liệu hiếm ở Thần Thoại (%d) phải cao hơn thường (%d)" % [rare_myth, rare_norm])
+
 	Global.start_run()
-	Global.level = 9
+	Global.level = 16
 	var coins_before: int = Global.coins
 	var ngoc_before: int = Global.material_count("ngoc_than")
 	var game_scene: PackedScene = load("res://scenes/game.tscn")
 	var game: Node = game_scene.instantiate()
 	add_child(game)
 	await _frames(4)
-	var boss_room = null
+	_check(game.dungeon.rooms.size() == 2, "Sảnh 3-6 phải có đúng 2 phòng")
+	var hall_room = null
 	for cell in game.dungeon.rooms:
 		var rm = game.dungeon.rooms[cell]
-		if rm.kind == "boss":
-			boss_room = rm
+		if rm.kind == "victory_hall":
+			hall_room = rm
 			break
-	_check(boss_room != null, "màn 9 phải có phòng Boss")
-	if boss_room != null:
-		game.player.global_position = boss_room.rect.get_center()
-		await _frames(5)
-		var boss = get_tree().get_first_node_in_group("boss")
-		_check(boss != null, "không sinh ra Boss ở màn 9")
-		if boss != null:
-			boss.die(false)
-			await _frames(4)
-		_check(boss_room.victory_altar != null and is_instance_valid(boss_room.victory_altar), "hạ Boss màn 9 phải hiện Đài Chiến Thắng")
-		_check(get_tree().get_nodes_in_group("portals").size() >= 1, "hạ Boss màn 9 vẫn phải có Cổng Vô Tận")
-		if boss_room.victory_altar != null:
-			boss_room.victory_altar.interact()
+	_check(hall_room != null, "màn 16 (3-6) phải có phòng victory_hall")
+	if hall_room != null:
+		_check(hall_room.victory_altar != null and is_instance_valid(hall_room.victory_altar), "3-6 phải có Đài Chiến Thắng")
+		_check(get_tree().get_nodes_in_group("portals").size() >= 1, "3-6 phải có Cổng Thần Thoại")
+		if hall_room.victory_altar != null:
+			hall_room.victory_altar.interact()
 			await _frames(2)
-			_check(game._victory_ui != null, "tương tác Đài Chiến Thắng không mở màn hình Đại Thắng")
-			_check(Global.coins >= coins_before + 150, "Đại Thắng phải thưởng +150 xu")
-			_check(Global.material_count("ngoc_than") >= ngoc_before + 1, "Đại Thắng phải thưởng +1 Ngọc thần")
+			_check(game._victory_ui != null, "chạm Đài 3-6 không mở bảng lựa chọn")
+			_check(Global.coins == coins_before + 50, "Đài 3-6 phải thưởng đúng +50 xu (đã tinh chỉnh không tràn lan)")
+			_check(Global.material_count("ngoc_than") == ngoc_before + 1, "Đài 3-6 phải thưởng +1 Ngọc thần")
+			game._on_victory_continue()
+			await _frames(2)
+			_check(game._victory_ui == null, "chọn tiếp Thần Thoại phải đóng bảng tổng kết")
+
+	# Kiểm tra HUD Boss Intro & Rơi vũ khí Huyền Thoại Cấp 5 & Pet Tim
+	game.hud.show_boss_intro("Cửu Vĩ Hồ Vương", "Thần Thoại", true)
+	_check(game.hud._boss_intro_t > 0.0 and game.hud._boss_intro_mythic, "show_boss_intro không bật")
+	var leg_pk := Pickup.new()
+	leg_pk.kind = "weapon"
+	leg_pk.weapon_id = "thuan_thien"
+	leg_pk.position = game.player.global_position + Vector2(36, 0)
+	game.world.add_child(leg_pk)
+	await _frames(3)
+	_check(is_instance_valid(leg_pk), "vũ khí Huyền Thoại Cấp 5 bị lỗi khi tạo")
+	var pet_life := LobbyLife.new()
+	pet_life.kind = "dog"
+	pet_life.position = Vector2(100, 100)
+	game.world.add_child(pet_life)
+	await _frames(1)
+	pet_life.trigger_happy(2.5)
+	_check(pet_life._happy_t > 0.0, "hiệu ứng vuốt ve thú cưng không kích hoạt")
+
+	# Kiểm tra Màn 6-6 (Sảnh Huyền Thoại Đợt Hai: chỉ có Đài Huyền Thoại, không còn cổng tiếp)
+	var coins_m0: int = Global.coins
+	var yeu_m0: int = Global.material_count("yeu_hon")
+	Global.level = 32
+	game._build_level()
+	await _frames(4)
+	_check(game.dungeon.rooms.size() == 2, "6-6 phải có 2 phòng")
+	_check(get_tree().get_nodes_in_group("portals").is_empty(), "6-6 không được có cổng đi tiếp")
+	var altars6: Array = get_tree().get_nodes_in_group("victory_altars")
+	_check(altars6.size() == 1 and bool(altars6[0].mythic), "6-6 phải có Đài Huyền Thoại")
+	if not altars6.is_empty():
+		altars6[0].interact()
+		await _frames(2)
+		_check(game._victory_ui != null, "chạm Đài 6-6 không mở Đại Thắng Thần Thoại")
+		_check(Global.coins == coins_m0 + 90 and Global.material_count("yeu_hon") == yeu_m0 + 2, "Thưởng 6-6 sai")
 
 	print("== 5. Kiểm tra bẫy, thùng thuốc nổ và thú cưng gây sát thương địch không lỗi")
 	var dummy_e = load("res://scripts/entities/enemy.gd").new()

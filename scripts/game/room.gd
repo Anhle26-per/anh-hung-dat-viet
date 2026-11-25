@@ -64,6 +64,15 @@ func _ready() -> void:
 		_spawn_blacksmith(rect.get_center() + Vector2(-95, -35))
 	if kind == "exit" and randf() < 0.55:
 		_spawn_blacksmith(rect.get_center() + Vector2(-70, 0))
+	if kind == "victory_hall":
+		state = "done"
+		var vc: Vector2 = rect.get_center()
+		victory_altar = VictoryAltar.new()
+		victory_altar.mythic = (level >= 32)
+		victory_altar.position = vc + Vector2(0, 14)
+		get_parent().add_child.call_deferred(victory_altar)
+		if level == 16:
+			_spawn_portal.call_deferred(vc + Vector2(0, -56), "Cổng Thần Thoại (4-1)", true)
 	if kind == "treasure":
 		_chest = AnimatedSprite2D.new()
 		_chest.sprite_frames = Art.frames("items/chest.png", 18, 11, {"closed": [[0], 1.0, false], "open": [[1], 1.0, false]})
@@ -102,7 +111,7 @@ func _process(_delta: float) -> void:
 static func waves_for_level(lv: int) -> int:
 	if lv <= 1:
 		return 1
-	if lv <= 4:
+	if lv <= 10:
 		return 2
 	return 3
 
@@ -138,11 +147,17 @@ func _enter() -> void:
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			Sfx.play("boss_appear")
 			Sfx.play_music("boss")
-			spawn_enemy("boss", rect.get_center() + Vector2(0, -20))
+			var bpos: Vector2 = rect.get_center() + Vector2(0, -20)
+			spawn_enemy("boss", bpos)
 			var bid := EnemyData.boss_id(level)
-			var b: Dictionary = EnemyData.BOSSES[bid]
-			var n := EnemyData.boss_index(level) + 1
-			get_tree().call_group("hud", "show_banner", "Trùm thứ %d: %s - %s" % [n, b.name, b.title])
+			var b: Dictionary = EnemyData.MYTHIC_BOSSES[bid] if EnemyData.MYTHIC_BOSSES.has(bid) else EnemyData.BOSSES[bid]
+			var is_mythic_b: bool = EnemyData.MYTHIC_BOSSES.has(bid) or EnemyData.is_mythic_level(level)
+			var bcol: Color = Color(0.84, 0.45, 1.0) if is_mythic_b else Color(1.0, 0.35, 0.25)
+			Fx.shake(get_tree(), 6.5)
+			Fx.burst(get_parent(), bpos, bcol, 80.0, 0.7)
+			Fx.burst(get_parent(), bpos, Color.WHITE, 46.0, 0.45)
+			Fx.particles(get_parent(), bpos, bcol, 28, 120.0, 0.8, -50.0, 2.5)
+			get_tree().call_group("hud", "show_boss_intro", str(b.name), str(b.title), is_mythic_b)
 		"legend":
 			state = "fighting"
 			_lock()
@@ -151,9 +166,16 @@ func _enter() -> void:
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			Sfx.play("boss_appear")
 			Sfx.play_music("boss")
-			spawn_enemy("legend:" + legend_id, rect.get_center() + Vector2(0, -20))
+			var lpos: Vector2 = rect.get_center() + Vector2(0, -20)
+			spawn_enemy("legend:" + legend_id, lpos)
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
-			get_tree().call_group("hud", "show_banner", "Tam Yêu xuất hiện: %s - %s" % [lg.name, lg.title])
+			var is_mythic_l: bool = EnemyData.is_mythic_level(level)
+			var lcol: Color = Color(0.86, 0.48, 1.0)
+			Fx.shake(get_tree(), 6.5)
+			Fx.burst(get_parent(), lpos, lcol, 80.0, 0.7)
+			Fx.burst(get_parent(), lpos, Color.WHITE, 46.0, 0.45)
+			Fx.particles(get_parent(), lpos, lcol, 26, 115.0, 0.75, -45.0, 2.5)
+			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), is_mythic_l)
 		"treasure":
 			state = "done"
 			_chest.play("open")
@@ -188,9 +210,10 @@ func net_apply_lock(rkind: String, leg_id: String) -> void:
 		Sfx.play("boss_appear")
 		Sfx.play_music("boss")
 		var bid: String = EnemyData.boss_id(level)
-		var b: Dictionary = EnemyData.BOSSES[bid]
-		var n: int = EnemyData.boss_index(level) + 1
-		get_tree().call_group("hud", "show_banner", "Trùm thứ %d: %s - %s" % [n, b.name, b.title])
+		var b: Dictionary = EnemyData.MYTHIC_BOSSES[bid] if EnemyData.MYTHIC_BOSSES.has(bid) else EnemyData.BOSSES[bid]
+		var is_mythic_b: bool = EnemyData.MYTHIC_BOSSES.has(bid) or EnemyData.is_mythic_level(level)
+		Fx.shake(get_tree(), 6.5)
+		get_tree().call_group("hud", "show_boss_intro", str(b.name), str(b.title), is_mythic_b)
 	elif rkind == "legend":
 		if leg_id != "":
 			legend_id = leg_id
@@ -198,7 +221,8 @@ func net_apply_lock(rkind: String, leg_id: String) -> void:
 		Sfx.play_music("boss")
 		if EnemyData.LEGENDS.has(legend_id):
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
-			get_tree().call_group("hud", "show_banner", "Tam Yêu xuất hiện: %s - %s" % [lg.name, lg.title])
+			Fx.shake(get_tree(), 6.5)
+			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), EnemyData.is_mythic_level(level))
 
 
 func net_apply_clear() -> void:
@@ -220,13 +244,15 @@ func net_apply_clear() -> void:
 	if kind == "boss":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
-		_spawn_portal(c + Vector2(0, -30))
+		var is_m: bool = EnemyData.is_mythic_level(level)
+		var plabel: String = "Sảnh Khải Hoàn (3-6)" if level == 15 else ("Sảnh Huyền Thoại (6-6)" if level == 31 else "")
+		_spawn_portal(c + Vector2(0, -30), plabel, is_m or level == 31)
 		get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 	elif kind == "legend":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
-		_spawn_portal(c + Vector2(0, -30))
-		for i in 12:
+		_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
+		for i in 5:
 			_drop_local("coin", 2, c)
 		get_tree().call_group("hud", "show_banner", "Diệt yêu trừ hại, như Lạc Long Quân năm xưa!")
 	else:
@@ -269,9 +295,16 @@ func _spawn_wave() -> void:
 		return
 	_waves_left -= 1
 	var pool := EnemyData.pool(level)
-	var depth := (level - 1) % 30
-	var n := mini(4 + int(depth / 2) + randi() % 3, 11)
-	var elite_chance: float = minf(0.12 + 0.025 * float(depth), 0.45)
+	var n: int
+	var elite_chance: float
+	if EnemyData.is_mythic_level(level):
+		var mdepth: int = level - 17
+		n = mini(7 + int(mdepth / 4) + randi() % 3, 12)
+		elite_chance = clampf(0.36 + 0.012 * float(mdepth), 0.36, 0.52)
+	else:
+		var depth: int = mini(maxi(level - 1, 0), 15)
+		n = mini(4 + int(depth / 3) + randi() % 3, 10)
+		elite_chance = minf(0.10 + 0.022 * float(depth), 0.42)
 	for i in n:
 		spawn_enemy(pool.pick_random(), _random_point(), randf() < elite_chance)
 
@@ -449,23 +482,24 @@ func _clear() -> void:
 	if kind == "boss":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
-		if level == 9:
-			_spawn_portal(c + Vector2(0, -48), "Cổng Vô Tận")
-			victory_altar = VictoryAltar.new()
-			victory_altar.position = c + Vector2(0, 6)
-			get_parent().add_child(victory_altar)
-			_spawn_weapon(c + Vector2(46, 20), 2)
-			get_tree().call_group("hud", "show_banner", "ĐẠI THẮNG 3 CHƯƠNG! Chạm Đài Chiến Thắng để khải hoàn hoặc qua Cổng Vô Tận!")
+		if level == 15:
+			_spawn_portal(c + Vector2(0, -30), "Sảnh Khải Hoàn (3-6)")
+			_spawn_weapon(c + Vector2(0, 24), 2)
+			get_tree().call_group("hud", "show_banner", "Đại thắng 3 Chương! Bước qua cổng vào Sảnh Khải Hoàn (3-6)!")
+		elif level == 31:
+			_spawn_portal(c + Vector2(0, -30), "Sảnh Huyền Thoại (6-6)", true)
+			_spawn_weapon(c + Vector2(0, 24), 2)
+			get_tree().call_group("hud", "show_banner", "ĐẠI THẮNG THẦN THOẠI! Vào Sảnh Huyền Thoại (6-6)!")
 		else:
-			_spawn_portal(c + Vector2(0, -30))
+			_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
 			_spawn_weapon(c + Vector2(0, 24), 2)
 			get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 	elif kind == "legend":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
-		_spawn_portal(c + Vector2(0, -30))
+		_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
 		_spawn_weapon(c + Vector2(0, 24), 1)
-		for i in 12:
+		for i in 5:
 			_drop_local("coin", 2, c)
 		get_tree().call_group("hud", "show_banner", "Diệt yêu trừ hại, như Lạc Long Quân năm xưa!")
 	else:
@@ -550,9 +584,10 @@ func _drop_local(k: String, amount: int, pos: Vector2) -> void:
 	get_parent().add_child(p)
 
 
-func _spawn_portal(pos: Vector2, portal_label: String = "") -> void:
+func _spawn_portal(pos: Vector2, portal_label: String = "", is_mythic: bool = false) -> void:
 	var portal := Portal.new()
 	portal.position = pos
+	portal.mythic = is_mythic
 	if portal_label != "":
 		portal.label = portal_label
 	portal.entered.connect(func(): portal_entered.emit())

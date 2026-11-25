@@ -787,8 +787,25 @@ func on_well_result(msg: String, reward_col := Color(0.5, 0.95, 1.0)) -> void:
 
 func on_station_fx(pos: Vector2, msg: String, col := Color(1.0, 0.9, 0.45)) -> void:
 	if world != null:
+		Fx.burst(world, pos + Vector2(0, -4), col, 28.0, 0.45)
 		Fx.particles(world, pos + Vector2(0, -6), col, 16, 72.0, 0.55, -24.0, 2.0)
 		Fx.float_text(world, pos + Vector2(0, -26), msg, col, 14)
+
+
+func on_pet_interacted(pet_id: String, msg: String, col := Color(1.0, 0.6, 0.78)) -> void:
+	var any_triggered: bool = false
+	for ps in _pet_stations:
+		if str(ps.get("pet_id", "")) != pet_id:
+			continue
+		var nd: Node2D = ps.get("node", null) as Node2D
+		if nd != null and is_instance_valid(nd):
+			if nd.has_method("trigger_happy"):
+				nd.trigger_happy(2.8)
+			if not any_triggered:
+				on_station_fx(nd.position, msg, col)
+				any_triggered = true
+	if not any_triggered and player != null and is_instance_valid(player):
+		on_station_fx(player.global_position, msg, col)
 
 
 func refresh_pet_stations() -> void:
