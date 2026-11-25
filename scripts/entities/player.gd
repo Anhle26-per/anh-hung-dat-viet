@@ -498,6 +498,7 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		var dir := Vector2.from_angle(a)
 		var b := Bullet.new()
 		b.setup(true, start - aim_dir * 4.0, dir, w.speed, w.damage, float(w.life) * life_mult, w.get("proj", "bullet"))
+		b.spawn_origin = global_position + offset
 		b.pierce = int(w.get("pierce", 0)) + (int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0)
 		b.explode_radius = maxf(w.get("explode", 0.0) * (1.0 + 0.35 * buff("hoa_duoc")), extra_explode)
 		b.knock = w.get("knock", 60.0)
@@ -514,6 +515,7 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 			var ea := aim_dir.angle() + deg_to_rad(12.0 * sgn)
 			var eb := Bullet.new()
 			eb.setup(true, start - aim_dir * 4.0, Vector2.from_angle(ea), 440.0, maxi(3, int(round(float(w.damage) * 0.8))), 0.75, "arrow")
+			eb.spawn_origin = global_position + offset
 			eb.pierce = int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0
 			eb.owner_node = self
 			get_parent().add_child(eb)
@@ -552,6 +554,9 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if _in_arc(b.global_position - offset, reach + 4.0, arc, 4.0):
 			b.destroy()
+	for c in get_tree().get_nodes_in_group("cover"):
+		if is_instance_valid(c) and c.destructible and _in_arc(c.global_position - offset, reach + c.radius, arc, c.radius):
+			c.take_hit(dmg, c.global_position, aim_dir)
 	if first_hit != null and offset == Vector2.ZERO:
 		Sfx.play("hit_flesh")
 		for ch in get_children():
@@ -560,6 +565,7 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 	if twin_timer > 0.0 and _twin_syn == 2:
 		var tw_b := Bullet.new()
 		tw_b.setup(true, global_position + offset + aim_dir * 14.0, aim_dir, 300.0, maxi(1, int(round(float(dmg) * 0.5))), 0.7, "sword_wave")
+		tw_b.spawn_origin = global_position + offset
 		tw_b.pierce = 99
 		tw_b.knock = knock
 		tw_b.color = Color(1, 0.75, 0.85) if offset != Vector2.ZERO else _tier_color(w)
@@ -588,6 +594,7 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		var b := Bullet.new()
 		var kind: String = w.wave
 		b.setup(true, global_position + aim_dir * 14.0, aim_dir, 300.0 if kind == "sword_wave" else 240.0, int(dmg * 0.8), 0.7, kind)
+		b.spawn_origin = global_position
 		b.pierce = 99
 		b.knock = knock
 		b.color = _tier_color(w)
@@ -597,6 +604,7 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		if _melee_swing_count % 3 == 0:
 			var bw := Bullet.new()
 			bw.setup(true, global_position + aim_dir * 14.0, aim_dir, 300.0, maxi(1, int(ceil(float(dmg) * 0.6))), 0.7, "sword_wave")
+			bw.spawn_origin = global_position
 			bw.pierce = 99
 			bw.knock = knock
 			bw.color = Color(1.0, 0.88, 0.35)
@@ -642,10 +650,21 @@ func _beam(w: Dictionary) -> void:
 	var length: float = w.length
 	var end := start + aim_dir * length
 	var space := get_world_2d().direct_space_state
-	var q := PhysicsRayQueryParameters2D.create(start, end, 1)
+	var q := PhysicsRayQueryParameters2D.create(global_position, end, 1)
+	q.hit_from_inside = true
 	var res := space.intersect_ray(q)
 	if not res.is_empty():
-		end = res.position
+		var hit_pos: Vector2 = res["position"]
+		end = hit_pos
+		if (hit_pos - global_position).dot(aim_dir) < (start - global_position).dot(aim_dir):
+			start = hit_pos
+		var col: Object = res["collider"]
+		if col is Node and (col as Node).is_in_group("cover") and col.has_method("take_hit"):
+			col.take_hit(w.damage, hit_pos, aim_dir)
+		elif col is Node and (col as Node).is_in_group("doors"):
+			Sfx.play("hit_wood")
+		else:
+			Sfx.play("hit_wall")
 	var width: float = w.get("width", 3.0)
 	var seg := end - start
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -689,8 +708,19 @@ func _spikes(w: Dictionary) -> void:
 	var origin := global_position
 	var wr: WeakRef = weakref(get_parent())
 	var dmg: int = w.damage
+	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	for i in count:
 		var pos := origin + dir * spacing * (i + 1)
+		var q := PhysicsRayQueryParameters2D.create(origin, pos, 1)
+		q.hit_from_inside = true
+		var res: Dictionary = space.intersect_ray(q)
+		if not res.is_empty():
+			var col: Object = res["collider"]
+			if col is Node and (col as Node).is_in_group("cover") and col.has_method("take_hit") and col.destructible:
+				if not col.take_hit(dmg, res["position"], dir):
+					break
+			else:
+				break
 		get_tree().create_timer(0.05 * i).timeout.connect(func():
 			var par = wr.get_ref()
 			if par == null:

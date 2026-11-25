@@ -14,6 +14,7 @@ const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const LootChest = preload("res://scripts/entities/loot_chest.gd")
 const Shop = preload("res://scripts/game/shop.gd")
+const Cover = preload("res://scripts/entities/cover.gd")
 
 const T := 16
 const MAX_ENEMIES := 14
@@ -33,9 +34,12 @@ var _chest: AnimatedSprite2D = null
 var shop: Node2D = null
 var legend_id := ""          # phòng Tam Yêu: mã yêu quái
 var loot_chest: Node2D = null
+var covers: Array = []
 
 
 func _ready() -> void:
+	if kind == "combat":
+		_spawn_covers()
 	if kind == "start":
 		state = "done"
 		# phòng đầu: màn 1 luôn có 1 vũ khí để nhặt (các màn sau 35%)
@@ -148,9 +152,42 @@ func _random_point() -> Vector2:
 	var pos := inner.get_center()
 	for i in 20:
 		pos = Vector2(randf_range(inner.position.x, inner.end.x), randf_range(inner.position.y, inner.end.y))
-		if p == null or pos.distance_to(p.global_position) > 90.0:
+		var ok := p == null or pos.distance_to(p.global_position) > 90.0
+		if ok:
+			for c in covers:
+				if is_instance_valid(c) and pos.distance_to(c.global_position) < 24.0:
+					ok = false
+					break
+		if ok:
 			break
 	return pos
+
+
+func _spawn_covers() -> void:
+	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
+	var dest_kind: String = "crate" if modern else "pot"
+	var solid_kind: String = "sandbag" if modern else "stele"
+	var c: Vector2 = rect.get_center()
+	var layouts: Array = [
+		[[Vector2(-72, -46), solid_kind], [Vector2(72, 46), solid_kind], [Vector2(72, -46), dest_kind], [Vector2(-72, 46), dest_kind]],
+		[[Vector2(-68, -42), solid_kind], [Vector2(68, 42), solid_kind], [Vector2(-68, 42), dest_kind], [Vector2(68, -42), dest_kind]],
+		[[Vector2(-76, -42), solid_kind], [Vector2(76, 42), solid_kind], [Vector2(64, -48), dest_kind], [Vector2(-64, 48), dest_kind]],
+	]
+	var chosen: Array = layouts[randi() % layouts.size()]
+	for item in chosen:
+		var pos: Vector2 = c + (item[0] as Vector2)
+		var near_door: bool = false
+		for dr in door_rects:
+			if (dr as Rect2).grow(44.0).has_point(pos):
+				near_door = true
+				break
+		if near_door:
+			continue
+		var cv := Cover.new()
+		cv.kind = str(item[1])
+		cv.position = pos
+		add_child(cv)
+		covers.append(cv)
 
 
 func _on_enemy_killed(e) -> void:

@@ -39,6 +39,8 @@ var boomerang := false
 var owner_node = null
 var stun_duration := 0.0
 var burn_duration := 2.2
+var spawn_origin: Vector2 = Vector2.INF
+var bounces: int = 0
 var _hit: Array = []
 var _done := false
 var _t := 0.0
@@ -47,6 +49,7 @@ var _start_life := 1.0
 var _spr: Node2D
 var _trail_t := 0.0
 var _floor_chk_t := 0.0
+var _checked_spawn: bool = false
 
 
 func setup(player_owned: bool, pos: Vector2, direction: Vector2, spd: float, dmg: int, lifetime: float, kind: String) -> void:
@@ -62,6 +65,8 @@ func setup(player_owned: bool, pos: Vector2, direction: Vector2, spd: float, dmg
 func _ready() -> void:
 	var info: Dictionary = PROJ.get(proj, PROJ["orb_pink"])
 	_start_life = life
+	if info.get("grenade", false):
+		bounces = maxi(bounces, 2)
 	var shape := CircleShape2D.new()
 	shape.radius = info.get("r", 3.0)
 	var cs := CollisionShape2D.new()
@@ -130,7 +135,41 @@ func _physics_process(delta: float) -> void:
 		if _trail_t <= 0.0:
 			_trail_t = 0.03
 			Fx.anim(get_parent(), global_position - dir * 6.0, "fx/poof.png", 28, 28, 18.0, 0.3, 0.0, Color(1, 1, 1, 0.7))
-	position += dir * speed * delta
+	if not _checked_spawn:
+		_checked_spawn = true
+		if spawn_origin != Vector2.INF and not (boomerang and _returning) and (global_position - spawn_origin).length_squared() > 1.0:
+			var space0: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+			var q0 := PhysicsRayQueryParameters2D.create(spawn_origin, global_position, 1)
+			q0.hit_from_inside = true
+			var hit0: Dictionary = space0.intersect_ray(q0)
+			if not hit0.is_empty():
+				var col0: Object = hit0["collider"]
+				var hpos0: Vector2 = hit0["position"]
+				var hnorm0: Vector2 = hit0["normal"]
+				_hit_solid(col0, hpos0, hnorm0)
+				if _done:
+					return
+	var prev_pos: Vector2 = global_position
+	var next_pos: Vector2 = prev_pos + dir * speed * delta
+	var swept: bool = false
+	if not (boomerang and _returning) and not _done and (next_pos - prev_pos).length_squared() > 0.0001:
+		var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+		var q := PhysicsRayQueryParameters2D.create(prev_pos, next_pos, 1)
+		q.hit_from_inside = true
+		var hit: Dictionary = space.intersect_ray(q)
+		if not hit.is_empty():
+			swept = true
+			var old_dir: Vector2 = dir
+			var col: Object = hit["collider"]
+			var hpos: Vector2 = hit["position"]
+			var hnorm: Vector2 = hit["normal"]
+			_hit_solid(col, hpos, hnorm)
+			if _done:
+				return
+			if dir.dot(old_dir) >= 0.999 and not (boomerang and _returning):
+				position = next_pos
+	if not swept:
+		position = next_pos
 	life -= delta
 	if life <= 0.0:
 		_finish()
@@ -189,11 +228,66 @@ func _on_body_entered(body: Node) -> void:
 			body.status.apply(st2, 1.6 if st2 == "burn" else 2.8)
 		_finish()
 	elif body is TileMapLayer or body is StaticBody2D:
-		Sfx.play("hit_wall")
-		if boomerang:
-			_returning = true
+		if boomerang and _returning:
 			return
-		_finish()
+		_hit_solid(body, global_position, -dir)
+
+
+func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
+	if _done:
+		return
+	var n: Vector2 = normal.normalized() if normal.length_squared() > 0.0001 else -dir.normalized()
+	var sfx_id: String = "hit_wall"
+	var broke_cover: bool = false
+	if body is Node and (body as Node).is_in_group("doors"):
+		sfx_id = "hit_wood"
+	if body is Node and (body as Node).is_in_group("cover") and body.has_method("take_hit"):
+		broke_cover = body.take_hit(maxi(1, damage), hit_pos, dir)
+		if broke_cover and pierce > 0:
+			if pierce < 99:
+				pierce -= 1
+			return
+	else:
+		Sfx.play(sfx_id)
+	if boomerang:
+		_spawn_wall_fx(hit_pos, n)
+		_returning = true
+		_hit.clear()
+		global_position = hit_pos + n * 2.0
+		return
+	if bounces > 0:
+		bounces -= 1
+		dir = dir.bounce(n).normalized()
+		speed = maxf(speed * 0.72, 45.0)
+		global_position = hit_pos + n * 3.0
+		if not PROJ.get(proj, {}).get("spin", false):
+			rotation = dir.angle()
+		_spawn_wall_fx(hit_pos, n)
+		return
+	global_position = hit_pos + n * 1.5
+	if explode_radius <= 0.0:
+		_spawn_wall_fx(hit_pos, n)
+	_finish()
+
+
+func _spawn_wall_fx(hit_pos: Vector2, normal: Vector2) -> void:
+	var par: Node = get_parent()
+	if par == null or not is_instance_valid(par):
+		return
+	var info: Dictionary = PROJ.get(proj, {})
+	var st: String = str(info.get("status", ""))
+	if st == "burn":
+		Fx.particles(par, hit_pos, Color(1.0, 0.55, 0.2), 5, 65.0, 0.25, 40.0, 1.8, 70.0, normal)
+		return
+	var tint_col: Color = color * info.get("tint", Color.WHITE)
+	if proj in ["plasma", "orb_pink", "orb_poison", "orb_water", "sword_wave", "water_wave"]:
+		var col: Color = tint_col if tint_col != Color.WHITE else Color(0.95, 0.75, 1.0)
+		Fx.anim(par, hit_pos, "fx/spark.png", 15, 15, 24.0, 0.65, 0.0, col, true)
+		Fx.particles(par, hit_pos, col, 4, 70.0, 0.2, 60.0, 1.4, 75.0, normal)
+		return
+	var spark_col: Color = tint_col.lerp(Color(1.0, 0.9, 0.65), 0.5)
+	Fx.anim(par, hit_pos, "fx/spark.png", 15, 15, 24.0, 0.55, 0.0, spark_col, true)
+	Fx.particles(par, hit_pos, Color(0.95, 0.85, 0.55), 4, 75.0, 0.22, 110.0, 1.4, 75.0, normal)
 
 
 func _finish() -> void:
@@ -210,6 +304,9 @@ func _finish() -> void:
 			var p = get_tree().get_first_node_in_group("player")
 			if p != null and global_position.distance_to(p.global_position) < explode_radius + 6.0:
 				p.take_damage(damage)
+		for c in get_tree().get_nodes_in_group("cover"):
+			if is_instance_valid(c) and c.destructible and global_position.distance_to(c.global_position) < explode_radius + c.radius:
+				c.take_hit(maxi(1, damage), c.global_position, (c.global_position - global_position).normalized())
 		var sc := explode_radius / 22.0
 		Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 18.0, sc, 0.0, Color.WHITE, false, 6)
 		Fx.particles(get_parent(), global_position, Color(1, 0.7, 0.3), 14, 140.0, 0.5, 0.0, 2.0, 180.0, Vector2.UP, Color(0.5, 0.4, 0.5))

@@ -8,6 +8,7 @@ var _t := 0.0
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
+	add_to_group("doors")
 	var shape := RectangleShape2D.new()
 	shape.size = size
 	var cs := CollisionShape2D.new()

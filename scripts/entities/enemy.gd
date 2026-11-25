@@ -375,6 +375,7 @@ func _mortar(pos: Vector2, delay: float) -> void:
 func _cannon(dir: Vector2, dmg: int) -> void:
 	var b := Bullet.new()
 	b.setup(false, global_position + dir * (radius + 4.0), dir, 160.0, dmg, 3.0, "cannonball")
+	b.spawn_origin = global_position
 	b.explode_radius = 22.0
 	get_parent().add_child(b)
 	Fx.anim(get_parent(), global_position + dir * (radius + 4.0), "fx/muzzle.png", 12, 10, 24.0, 1.4, dir.angle(), Color.WHITE, true, 6)
@@ -406,6 +407,7 @@ func _fire(angle: float, spd: float, proj := "orb_pink", dmg := 1) -> void:
 		spd *= 1.0 + 0.035 * minf(power(), 10.0)   # đạn trùm sau bay nhanh hơn
 	var b := Bullet.new()
 	b.setup(false, global_position + dir * radius, dir, spd, dmg, 4.0, proj)
+	b.spawn_origin = global_position
 	if proj == "arrow" or proj == "bullet":
 		b.color = Color(1, 0.55, 0.5)
 	get_parent().add_child(b)

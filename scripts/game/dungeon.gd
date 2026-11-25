@@ -7,6 +7,7 @@ signal portal_entered
 
 const Room = preload("res://scripts/game/room.gd")
 const Decor = preload("res://scripts/game/decor.gd")
+const Cover = preload("res://scripts/entities/cover.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 
@@ -311,15 +312,26 @@ func _decorate(c: Vector2i, kind: String, door_list: Array, chapter: Dictionary)
 	var corners := [Vector2(o.x + 1.5, o.y + 1.6), Vector2(o.x + ROOM_W - 1.5, o.y + 1.6),
 		Vector2(o.x + 1.5, o.y + ROOM_H - 1.0), Vector2(o.x + ROOM_W - 1.5, o.y + ROOM_H - 1.0)]
 	var plants := hang.filter(func(k): return k == "bamboo" or k == "peach")
+	var allow_cover: bool = kind in ["combat", "treasure", "shop", "exit"]
 	for k in corners.size():
 		if randf() < 0.55:
-			var d2 := Decor.new()
 			var props := hang.filter(func(x): return x == "pot" or x == "crate" or x == "sandbag")
 			if not plants.is_empty() and k < 2 and randf() < 0.7:
+				var d2 := Decor.new()
 				d2.kind = plants[0]
-			elif not props.is_empty():
-				d2.kind = props.pick_random()
-			else:
-				continue
-			d2.position = corners[k] * T
-			add_child(d2)
+				d2.position = corners[k] * T
+				add_child(d2)
+			elif allow_cover and not props.is_empty():
+				var pos: Vector2 = corners[k] * T
+				var ok_c := true
+				for r in blocked:
+					if (r as Rect2).grow(T * 2.5).has_point(pos):
+						ok_c = false
+						break
+				if ok_c:
+					var cv := Cover.new()
+					cv.kind = props.pick_random()
+					cv.position = pos
+					add_child(cv)
+					if rooms.has(c):
+						rooms[c].covers.append(cv)

@@ -64,6 +64,7 @@ func _process(delta: float) -> void:
 		var dmg: int = 15 if target_marked else 10
 		var b := Bullet.new()
 		b.setup(true, global_position + dir * 14.0 + Vector2(0, -4), dir, 340.0, dmg, 1.0, "cannonball")
+		b.spawn_origin = global_position
 		b.explode_radius = 30.0
 		get_parent().add_child(b)
 		_spr.play("fire")
