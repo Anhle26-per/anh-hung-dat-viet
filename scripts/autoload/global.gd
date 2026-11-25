@@ -133,6 +133,7 @@ var level: int = 1
 var run_coins: int = 0
 var revived: bool = false
 var boss_order: Array = []
+var chapter_order: Array = []
 var legend_chance := 0.4         # tỉ lệ màn giữa chương có trùm Tam Yêu
 var legend_last := ""      # thứ tự trùm ngẫu nhiên của lượt chơi này
 var run_buffs: Dictionary = {}   # phúc lành đã chọn trong lượt: mã -> số lần
@@ -297,6 +298,7 @@ func start_run(code: String = "") -> void:
 	resume_data = {}
 	level = 1
 	boss_order = []
+	chapter_order = []
 	legend_last = ""
 	run_coins = 0
 	revived = false
@@ -317,8 +319,38 @@ func start_run(code: String = "") -> void:
 	if challenge_code != "":
 		seed(challenge_seed(challenge_code))
 		boss_at(0)
+		chapter_at(0)
 	else:
 		randomize()
+
+
+## Chọn ngẫu nhiên 10 chương theo kiểu Soul Knight: mỗi vòng 10 chương lấy ngẫu nhiên
+## 1 Cổ Đại (Mê Linh/Núi Nưa/Bạch Đằng), 1 Trung Đại (Như Nguyệt/Thăng Long/Chi Lăng/Đống Đa),
+## 1 Cận Đại (Nhật Tảo/Yên Thế/Điện Biên Phủ) cho 3 chương đầu, rồi xáo 7 chương còn lại.
+func chapter_at(idx: int) -> int:
+	while chapter_order.size() <= idx:
+		if challenge_code != "" and not chapter_order.is_empty():
+			seed(challenge_seed(challenge_code) + chapter_order.size() * 2713)
+		var tier1: Array[int] = [0, 1, 2]
+		var tier2: Array[int] = [3, 4, 5, 6]
+		var tier3: Array[int] = [7, 8, 9]
+		tier1.shuffle()
+		tier2.shuffle()
+		tier3.shuffle()
+		var c1: int = int(tier1.pop_front())
+		var c2: int = int(tier2.pop_front())
+		var c3: int = int(tier3.pop_front())
+		chapter_order.append(c1)
+		chapter_order.append(c2)
+		chapter_order.append(c3)
+		var rest: Array[int] = []
+		rest.append_array(tier1)
+		rest.append_array(tier2)
+		rest.append_array(tier3)
+		rest.shuffle()
+		for rc in rest:
+			chapter_order.append(int(rc))
+	return int(chapter_order[idx])
 
 
 ## Trùm thứ idx (0 = trùm đầu tiên) của lượt chơi: xáo ngẫu nhiên cả 10 trùm,
@@ -992,6 +1024,7 @@ func save_run(p = null) -> bool:
 		"run_weapon_mods": run_weapon_mods,
 		"run_coins": run_coins,
 		"boss_order": boss_order,
+		"chapter_order": chapter_order,
 		"legend_last": legend_last,
 		"revived": revived,
 		"free_revives": free_revives,
@@ -1034,6 +1067,9 @@ func load_run() -> bool:
 	boss_order = []
 	for b in d.get("boss_order", []):
 		boss_order.append(str(b))
+	chapter_order = []
+	for ch_v in d.get("chapter_order", []):
+		chapter_order.append(int(ch_v))
 	run_buffs = {}
 	var rb: Variant = d.get("run_buffs", {})
 	if typeof(rb) == TYPE_DICTIONARY:

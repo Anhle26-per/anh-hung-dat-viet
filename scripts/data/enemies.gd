@@ -6,35 +6,35 @@ extends RefCounted
 # Loại lính (hình: enemies/<quân>_<loại>.png)
 const ARCHETYPES := {
 	# thời phong kiến
-	"bo_binh": {"name": "Bộ binh", "hp": 8, "speed": 66.0, "radius": 7.0, "ai": "chase", "coins": 1},
-	"cung_thu": {"name": "Cung thủ", "hp": 6, "speed": 56.0, "radius": 7.0, "ai": "shoot", "shoot_cd": 1.7, "coins": 1},
-	"khien_binh": {"name": "Khiên binh", "hp": 18, "speed": 36.0, "radius": 8.0, "ai": "tank", "coins": 2},
-	"phap_su": {"name": "Pháp sư", "hp": 10, "speed": 44.0, "radius": 7.0, "ai": "caster", "shoot_cd": 2.8, "coins": 2},
-	"ky_binh": {"name": "Kỵ binh", "hp": 14, "speed": 70.0, "radius": 10.0, "ai": "charge", "coins": 2,
+	"bo_binh": {"name": "Bộ binh", "hp": 15, "speed": 74.0, "radius": 7.0, "ai": "chase", "coins": 1},
+	"cung_thu": {"name": "Cung thủ", "hp": 12, "speed": 62.0, "radius": 7.0, "ai": "shoot", "shoot_cd": 1.35, "coins": 1},
+	"khien_binh": {"name": "Khiên binh", "hp": 30, "speed": 42.0, "radius": 8.0, "ai": "tank", "coins": 2},
+	"phap_su": {"name": "Pháp sư", "hp": 19, "speed": 50.0, "radius": 7.0, "ai": "caster", "shoot_cd": 2.2, "coins": 2},
+	"ky_binh": {"name": "Kỵ binh", "hp": 24, "speed": 78.0, "radius": 10.0, "ai": "charge", "coins": 2,
 		"sheet": "enemies/nguyen_mong_ky_binh.png", "size": Vector2i(34, 30)},
 	# thời cận đại
-	"linh_sung": {"name": "Lính súng trường", "hp": 8, "speed": 54.0, "radius": 7.0, "ai": "rifle", "shoot_cd": 1.5, "coins": 1},
-	"xa_thu": {"name": "Xạ thủ súng máy", "hp": 12, "speed": 40.0, "radius": 7.0, "ai": "mg", "shoot_cd": 2.6, "coins": 2},
-	"phao_binh": {"name": "Pháo cối", "hp": 9, "speed": 38.0, "radius": 7.0, "ai": "mortar", "shoot_cd": 3.2, "coins": 2},
-	"xe_tang": {"name": "Xe tăng", "hp": 70, "speed": 26.0, "radius": 14.0, "ai": "tank_elite", "shoot_cd": 2.4, "coins": 6,
+	"linh_sung": {"name": "Lính súng trường", "hp": 16, "speed": 60.0, "radius": 7.0, "ai": "rifle", "shoot_cd": 1.2, "coins": 1},
+	"xa_thu": {"name": "Xạ thủ súng máy", "hp": 22, "speed": 46.0, "radius": 7.0, "ai": "mg", "shoot_cd": 2.1, "coins": 2},
+	"phao_binh": {"name": "Pháo cối", "hp": 17, "speed": 44.0, "radius": 7.0, "ai": "mortar", "shoot_cd": 2.5, "coins": 2},
+	"xe_tang": {"name": "Xe tăng", "hp": 95, "speed": 30.0, "radius": 14.0, "ai": "tank_elite", "shoot_cd": 2.0, "coins": 6,
 		"sheet": "enemies/xe_tang.png", "size": Vector2i(40, 30)},
 }
 
 # Yêu quái do tà thuật gọi ra
 const FOLK := {
-	"tieu_yeu": {"name": "Tiểu yêu", "hp": 6, "speed": 74.0, "radius": 7.0, "ai": "chase", "coins": 1,
+	"tieu_yeu": {"name": "Tiểu yêu", "hp": 12, "speed": 82.0, "radius": 7.0, "ai": "chase", "coins": 1,
 		"sheet": "enemies/tieu_yeu.png", "size": Vector2i(16, 17)},
-	"ho_tinh": {"name": "Hồ tinh", "hp": 6, "speed": 60.0, "radius": 7.0, "ai": "shoot", "shoot_cd": 1.6, "coins": 1,
+	"ho_tinh": {"name": "Hồ tinh", "hp": 13, "speed": 66.0, "radius": 7.0, "ai": "shoot", "shoot_cd": 1.3, "coins": 1,
 		"sheet": "enemies/ho_tinh.png", "size": Vector2i(22, 16), "proj": "orb_pink"},
-	"moc_tinh": {"name": "Mộc tinh", "hp": 18, "speed": 26.0, "radius": 10.0, "ai": "ring", "shoot_cd": 2.8, "coins": 2,
+	"moc_tinh": {"name": "Mộc tinh", "hp": 30, "speed": 32.0, "radius": 10.0, "ai": "ring", "shoot_cd": 2.2, "coins": 2,
 		"sheet": "enemies/moc_tinh.png", "size": Vector2i(26, 28)},
-	"chan_tinh": {"name": "Chằn tinh", "hp": 34, "speed": 34.0, "radius": 11.0, "ai": "slam", "shoot_cd": 3.5, "coins": 3,
+	"chan_tinh": {"name": "Chằn tinh", "hp": 52, "speed": 40.0, "radius": 11.0, "ai": "slam", "shoot_cd": 2.7, "coins": 3,
 		"sheet": "enemies/chan_tinh.png", "size": Vector2i(30, 32)},
-	"dai_bang": {"name": "Đại bàng tinh", "hp": 10, "speed": 80.0, "radius": 9.0, "ai": "charge", "coins": 2,
+	"dai_bang": {"name": "Đại bàng tinh", "hp": 18, "speed": 88.0, "radius": 9.0, "ai": "charge", "coins": 2,
 		"sheet": "enemies/dai_bang.png", "size": Vector2i(36, 26)},
-	"ma_troi": {"name": "Ma trơi", "hp": 3, "speed": 62.0, "radius": 6.0, "ai": "kamikaze", "coins": 1,
+	"ma_troi": {"name": "Ma trơi", "hp": 7, "speed": 74.0, "radius": 6.0, "ai": "kamikaze", "coins": 1,
 		"sheet": "enemies/ma_troi.png", "size": Vector2i(14, 18)},
-	"ngu_tinh": {"name": "Thủy quái Ngư Tinh", "hp": 120, "speed": 45.0, "radius": 18.0, "ai": "ngu", "coins": 6,
+	"ngu_tinh": {"name": "Thủy quái Ngư Tinh", "hp": 150, "speed": 50.0, "radius": 18.0, "ai": "ngu", "coins": 6,
 		"sheet": "enemies/ngu_tinh.png", "size": Vector2i(60, 46), "frames": 6},
 }
 
@@ -116,8 +116,15 @@ const CHAPTERS := [
 ]
 
 
+static func stage_chapter_num(level: int) -> int:
+	return int((level - 1) / 3) + 1
+
+
 static func chapter_index(level: int) -> int:
-	return int((level - 1) / 3) % CHAPTERS.size()
+	var ch_seq: int = int((level - 1) / 3)
+	if Global != null and Global.has_method("chapter_at"):
+		return Global.chapter_at(ch_seq) % CHAPTERS.size()
+	return ch_seq % CHAPTERS.size()
 
 
 static func chapter(level: int) -> Dictionary:
@@ -157,7 +164,7 @@ static func army_name(army: String) -> String:
 ## Máu trùm chỉ phụ thuộc thứ tự gặp, không phụ thuộc trùm nào:
 ## trùm thứ 1: 300, thứ 2: 426, ... thứ 10: 1434 (đi vòng 2 tiếp tục tăng).
 const BOSS_BASE_HP := 300
-const BOSS_HP_STEP := 0.42
+const BOSS_HP_STEP := 0.48
 
 
 ## Trả về thông tin đầy đủ của 1 loại địch. id ví dụ: "bo_binh", "tieu_yeu", "boss".
@@ -228,7 +235,7 @@ static func info(id: String, level: int) -> Dictionary:
 		d["name"] = "%s (%s)" % [d.name, army_name(army)]
 	# chỉ số tăng theo chương (độ khó) và theo màn
 	var depth := float((level - 1) % (3 * CHAPTERS.size()))
-	var unit_hp: int = int(float(d.hp) * (1.0 + 0.12 * depth) * loop_mult(level))
+	var unit_hp: int = int(float(d.hp) * (1.0 + 0.22 * depth) * loop_mult(level))
 	var hp_mult_u: float = Global.difficulty_hp_mult()
 	d["hp"] = unit_hp if is_equal_approx(hp_mult_u, 1.0) else maxi(1, int(round(float(unit_hp) * hp_mult_u)))
 	return d

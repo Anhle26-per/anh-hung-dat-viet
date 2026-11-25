@@ -73,11 +73,11 @@ const DATA := {
 		"desc": "Phẩy quạt chém tan đạn, tung lưỡi gió."},
 	"kiem_rong_tien": {"name": "Kiếm Rồng Tiên", "tier": 4, "type": "melee", "damage": 10, "cooldown": 0.34, "reach": 38.0, "arc": 140.0, "wave": "sword_wave",
 		"desc": "Kiếm ngọc dòng dõi Rồng Tiên, mỗi nhát bắn sóng kiếm."},
-	"thuan_thien": {"name": "Gươm Thuận Thiên", "tier": 5, "type": "melee", "damage": 16, "cooldown": 0.3, "reach": 42.0, "arc": 160.0, "wave": "sword_wave", "hits": 2,
+	"thuan_thien": {"name": "Gươm Thuận Thiên", "tier": 5, "type": "melee", "damage": 10, "cooldown": 0.42, "reach": 42.0, "arc": 160.0, "wave": "sword_wave", "hits": 2,
 		"desc": "Gươm thần của Lê Lợi. Sóng kiếm xuyên giáp."},
-	"roi_sat_giong": {"name": "Roi sắt Thánh Gióng", "tier": 5, "type": "melee", "damage": 18, "cooldown": 0.45, "reach": 50.0, "arc": 220.0, "fire": true, "knock": 320.0,
+	"roi_sat_giong": {"name": "Roi sắt Thánh Gióng", "tier": 5, "type": "melee", "damage": 13, "cooldown": 0.55, "reach": 50.0, "arc": 220.0, "fire": true, "knock": 320.0,
 		"desc": "Roi sắt rực lửa, quét bay cả đám giặc."},
-	"kiem_tia_sang": {"name": "Kiếm tia sáng", "tier": 5, "type": "melee", "damage": 14, "cooldown": 0.2, "reach": 40.0, "arc": 150.0,
+	"kiem_tia_sang": {"name": "Kiếm tia sáng", "tier": 5, "type": "melee", "damage": 9, "cooldown": 0.30, "reach": 40.0, "arc": 150.0,
 		"desc": "Lưỡi kiếm năng lượng của tương lai."},
 
 	# ============================================================ BẮN XA CỔ
@@ -101,10 +101,10 @@ const DATA := {
 		"desc": "Đạn pháo nổ tung."},
 	"cung_rong": {"name": "Cung Lạc Long", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 8, "cooldown": 0.45, "energy": 2, "speed": 330.0, "life": 1.4, "count": 2, "spread": 14.0, "homing": 4.0, "pierce": 1,
 		"desc": "Tên lửa rồng tự đuổi theo giặc."},
-	"no_lien_chau": {"name": "Nỏ thần Liên Châu", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 6, "cooldown": 0.32, "energy": 2, "speed": 500.0, "life": 0.9, "count": 5, "spread": 34.0, "pierce": 1,
-		"desc": "Nỏ thần An Dương Vương: 5 mũi tên một phát."},
-	"dai_bac_than_cong": {"name": "Đại bác thần công", "tier": 5, "type": "ranged", "proj": "cannonball", "damage": 26, "cooldown": 1.1, "energy": 5, "speed": 300.0, "life": 1.2, "explode": 64.0, "recoil": 7.0, "muzzle": "flash", "shake": 5.0,
-		"desc": "Một phát nổ cả phòng."},
+	"no_lien_chau": {"name": "Nỏ thần Liên Châu", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 4, "cooldown": 0.42, "energy": 3, "speed": 500.0, "life": 0.9, "count": 4, "spread": 32.0, "pierce": 1,
+		"desc": "Nỏ thần An Dương Vương: 4 mũi tên một phát."},
+	"dai_bac_than_cong": {"name": "Đại bác thần công", "tier": 5, "type": "ranged", "proj": "cannonball", "damage": 18, "cooldown": 1.30, "energy": 6, "speed": 300.0, "life": 1.2, "explode": 56.0, "recoil": 7.0, "muzzle": "flash", "shake": 5.0,
+		"desc": "Đạn thần công nổ lớn."},
 	"trong_dong": {"name": "Trống đồng thần", "tier": 5, "type": "wave", "damage": 9, "cooldown": 0.85, "energy": 3, "radius": 110.0,
 		"desc": "Tiếng trống Đông Sơn lan ra, đánh mọi kẻ xung quanh và xóa đạn."},
 	"hoa_mai": {"name": "Súng hỏa mai", "tier": 2, "type": "ranged", "proj": "cannonball", "damage": 9, "cooldown": 0.8, "energy": 2, "speed": 460.0, "life": 0.9, "recoil": 4.0, "muzzle": "smoke",
@@ -121,43 +121,43 @@ const DATA := {
 		"desc": "Bắn chùm đạn tầm gần."},
 	"sung_truong": {"name": "Súng trường", "tier": 2, "type": "ranged", "proj": "bullet", "damage": 9, "cooldown": 0.62, "energy": 1, "speed": 640.0, "life": 0.9, "pierce": 1, "recoil": 4.0, "muzzle": "flash",
 		"desc": "Bắn phát một, chính xác."},
-	"sung_hai_nong": {"name": "Súng hai nòng", "tier": 3, "type": "ranged", "proj": "pellet", "damage": 3, "cooldown": 0.7, "energy": 3, "speed": 440.0, "life": 0.42, "count": 10, "spread": 40.0, "inaccuracy": 6.0, "recoil": 6.0, "muzzle": "flash", "shake": 3.0,
+	"sung_hai_nong": {"name": "Súng hai nòng", "tier": 3, "type": "ranged", "proj": "pellet", "damage": 2, "cooldown": 0.80, "energy": 3, "speed": 440.0, "life": 0.42, "count": 7, "spread": 38.0, "inaccuracy": 6.0, "recoil": 6.0, "muzzle": "flash", "shake": 3.0,
 		"desc": "Hai nòng cùng nổ, chùm đạn dày."},
-	"tieu_lien": {"name": "Tiểu liên", "tier": 3, "type": "ranged", "proj": "bullet", "damage": 2, "cooldown": 0.07, "energy": 1, "speed": 560.0, "life": 0.6, "inaccuracy": 8.0, "recoil": 1.5, "muzzle": "flash",
+	"tieu_lien": {"name": "Tiểu liên", "tier": 3, "type": "ranged", "proj": "bullet", "damage": 2, "cooldown": 0.10, "energy": 1, "speed": 560.0, "life": 0.6, "inaccuracy": 8.0, "recoil": 1.5, "muzzle": "flash",
 		"desc": "Bắn liên thanh cực nhanh."},
-	"sung_truong_tan_cong": {"name": "Súng trường tấn công", "tier": 3, "type": "ranged", "proj": "bullet", "damage": 4, "cooldown": 0.11, "energy": 1, "speed": 600.0, "life": 0.8, "inaccuracy": 4.0, "recoil": 2.0, "muzzle": "flash",
+	"sung_truong_tan_cong": {"name": "Súng trường tấn công", "tier": 3, "type": "ranged", "proj": "bullet", "damage": 3, "cooldown": 0.14, "energy": 1, "speed": 600.0, "life": 0.8, "inaccuracy": 4.0, "recoil": 2.0, "muzzle": "flash",
 		"desc": "Cân bằng giữa tốc độ và sức mạnh."},
-	"sung_ban_tia": {"name": "Súng bắn tỉa", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 24, "cooldown": 0.95, "energy": 2, "speed": 900.0, "life": 1.0, "pierce": 99, "recoil": 6.0, "muzzle": "flash", "shake": 2.0,
+	"sung_ban_tia": {"name": "Súng bắn tỉa", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 18, "cooldown": 1.10, "energy": 3, "speed": 900.0, "life": 1.0, "pierce": 99, "recoil": 6.0, "muzzle": "flash", "shake": 2.0,
 		"desc": "Một phát xuyên thủng cả hàng giặc."},
-	"sung_may": {"name": "Súng máy", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 4, "cooldown": 0.06, "energy": 1, "speed": 600.0, "life": 0.8, "inaccuracy": 9.0, "recoil": 2.0, "muzzle": "flash", "shake": 0.6,
+	"sung_may": {"name": "Súng máy", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 3, "cooldown": 0.10, "energy": 1, "speed": 600.0, "life": 0.8, "inaccuracy": 10.0, "recoil": 2.0, "muzzle": "flash", "shake": 0.6,
 		"desc": "Mưa đạn không ngớt."},
-	"sung_phong_luu": {"name": "Súng phóng lựu", "tier": 4, "type": "ranged", "proj": "grenade", "damage": 12, "cooldown": 0.75, "energy": 3, "speed": 260.0, "life": 0.7, "explode": 50.0, "recoil": 4.0, "muzzle": "smoke",
+	"sung_phong_luu": {"name": "Súng phóng lựu", "tier": 4, "type": "ranged", "proj": "grenade", "damage": 10, "cooldown": 0.85, "energy": 3, "speed": 260.0, "life": 0.7, "explode": 46.0, "recoil": 4.0, "muzzle": "smoke",
 		"desc": "Lựu đạn nổ khi chạm hoặc hết đà."},
-	"sung_phong_ten_lua": {"name": "Súng phóng tên lửa", "tier": 4, "type": "ranged", "proj": "rocket", "damage": 20, "cooldown": 1.0, "energy": 4, "speed": 340.0, "life": 1.4, "explode": 60.0, "recoil": 6.0, "muzzle": "smoke", "shake": 3.0,
-		"desc": "Tên lửa nổ cực mạnh."},
-	"sung_phun_lua": {"name": "Súng phun lửa", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 3, "cooldown": 0.05, "energy": 1, "speed": 260.0, "life": 0.5, "count": 2, "spread": 20.0, "inaccuracy": 12.0, "pierce": 2, "muzzle": "fire",
-		"desc": "Lửa xuyên qua nhiều kẻ địch."},
-	"sung_plasma": {"name": "Súng plasma", "tier": 4, "type": "ranged", "proj": "plasma", "damage": 9, "cooldown": 0.26, "energy": 2, "speed": 380.0, "life": 1.0, "explode": 24.0, "muzzle": "flash",
+	"sung_phong_ten_lua": {"name": "Súng phóng tên lửa", "tier": 4, "type": "ranged", "proj": "rocket", "damage": 15, "cooldown": 1.15, "energy": 5, "speed": 340.0, "life": 1.4, "explode": 52.0, "recoil": 6.0, "muzzle": "smoke", "shake": 3.0,
+		"desc": "Tên lửa nổ mạnh."},
+	"sung_phun_lua": {"name": "Súng phun lửa", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 2, "cooldown": 0.09, "energy": 1, "speed": 250.0, "life": 0.45, "count": 1, "spread": 16.0, "inaccuracy": 12.0, "pierce": 1, "muzzle": "fire",
+		"desc": "Lửa xuyên qua kẻ địch."},
+	"sung_plasma": {"name": "Súng plasma", "tier": 4, "type": "ranged", "proj": "plasma", "damage": 7, "cooldown": 0.32, "energy": 2, "speed": 380.0, "life": 1.0, "explode": 22.0, "muzzle": "flash",
 		"desc": "Cầu plasma nổ nhỏ."},
 	# ============================================================ TRUYỀN KỲ VIỆT NAM
-	"riu_thach_sanh": {"name": "Rìu Thạch Sanh", "tier": 5, "type": "ranged", "proj": "axe", "boomerang": true, "damage": 14, "cooldown": 0.55, "energy": 0, "speed": 320.0, "life": 0.9, "pierce": 99, "knock": 160.0,
+	"riu_thach_sanh": {"name": "Rìu Thạch Sanh", "tier": 5, "type": "ranged", "proj": "axe", "boomerang": true, "damage": 10, "cooldown": 0.65, "energy": 1, "speed": 320.0, "life": 0.9, "pierce": 99, "knock": 160.0,
 		"desc": "Rìu chém chằn tinh. Ném ra rồi bay vòng về tay."},
 	"dan_than": {"name": "Đàn thần Thạch Sanh", "tier": 5, "type": "wave", "damage": 4, "cooldown": 1.0, "energy": 3, "radius": 130.0, "stun": 2.0, "color": Color("ffe08a"),
 		"desc": "Tiếng đàn làm giặc bủn rủn tay chân, đứng im."},
-	"cung_vang": {"name": "Cung vàng Thạch Sanh", "tier": 4, "type": "ranged", "proj": "arrow", "damage": 9, "cooldown": 0.4, "energy": 1, "speed": 520.0, "life": 1.2, "pierce": 2, "homing": 5.0, "color": Color("ffd84a"),
+	"cung_vang": {"name": "Cung vàng Thạch Sanh", "tier": 4, "type": "ranged", "proj": "arrow", "damage": 7, "cooldown": 0.45, "energy": 1, "speed": 520.0, "life": 1.2, "pierce": 2, "homing": 5.0, "color": Color("ffd84a"),
 		"desc": "Mũi tên vàng bắn hạ đại bàng, tự đuổi mục tiêu."},
-	"gay_son_tinh": {"name": "Gậy thần Sơn Tinh", "tier": 5, "type": "spikes", "damage": 12, "cooldown": 0.8, "energy": 3, "count": 7, "spacing": 18.0, "shake": 3.0,
+	"gay_son_tinh": {"name": "Gậy thần Sơn Tinh", "tier": 5, "type": "spikes", "damage": 9, "cooldown": 0.90, "energy": 4, "count": 7, "spacing": 18.0, "shake": 3.0,
 		"desc": "Vẫy gậy dâng núi: gai đá trồi lên thành hàng."},
-	"dinh_ba_thuy_tinh": {"name": "Đinh ba Thủy Tinh", "tier": 5, "type": "melee", "style": "thrust", "damage": 12, "cooldown": 0.42, "reach": 56.0, "arc": 40.0, "wave": "water_wave", "knock": 260.0,
+	"dinh_ba_thuy_tinh": {"name": "Đinh ba Thủy Tinh", "tier": 5, "type": "melee", "style": "thrust", "damage": 9, "cooldown": 0.48, "reach": 56.0, "arc": 40.0, "wave": "water_wave", "knock": 260.0,
 		"desc": "Đâm kèm sóng nước cuốn phăng giặc."},
-	"bua_thien_loi": {"name": "Búa Thiên Lôi", "tier": 5, "type": "melee", "damage": 14, "cooldown": 0.55, "reach": 38.0, "arc": 160.0, "chain": 5, "knock": 200.0, "shake": 2.0,
-		"desc": "Thiên Lôi chỉ đâu đánh đấy: sét lan qua 5 kẻ địch."},
+	"bua_thien_loi": {"name": "Búa Thiên Lôi", "tier": 5, "type": "melee", "damage": 10, "cooldown": 0.65, "reach": 38.0, "arc": 160.0, "chain": 4, "knock": 200.0, "shake": 2.0,
+		"desc": "Thiên Lôi chỉ đâu đánh đấy: sét lan qua 4 kẻ địch."},
 	"tre_tram_dot": {"name": "Cây tre trăm đốt", "tier": 4, "type": "melee", "style": "thrust", "damage": 8, "cooldown": 0.38, "reach": 86.0, "arc": 22.0,
 		"desc": "Khắc nhập, khắc xuất! Roi tre dài vươn xa."},
 
-	"sung_laze": {"name": "Súng laze", "tier": 5, "type": "beam", "damage": 9, "cooldown": 0.18, "energy": 2, "length": 320.0, "width": 3.0, "color": Color("4ae0ff"),
+	"sung_laze": {"name": "Súng laze", "tier": 5, "type": "beam", "damage": 6, "cooldown": 0.26, "energy": 2, "length": 320.0, "width": 3.0, "color": Color("4ae0ff"),
 		"desc": "Tia laze tức thì, xuyên mọi quái."},
-	"sung_dien_tu": {"name": "Súng điện từ", "tier": 5, "type": "beam", "damage": 34, "cooldown": 0.9, "energy": 4, "length": 420.0, "width": 6.0, "color": Color("c8f8ff"), "shake": 4.0,
+	"sung_dien_tu": {"name": "Súng điện từ", "tier": 5, "type": "beam", "damage": 22, "cooldown": 1.15, "energy": 5, "length": 420.0, "width": 6.0, "color": Color("c8f8ff"), "shake": 4.0,
 		"desc": "Bắn tia điện từ khổng lồ."},
 }
 
@@ -185,15 +185,18 @@ static func grip(id: String) -> Vector2:
 	return Vector2(g[0], g[1])
 
 
-## Chọn ngẫu nhiên 1 vũ khí. Màn càng sâu, bonus càng cao thì càng dễ ra đồ xịn.
+## Chọn ngẫu nhiên 1 vũ khí theo tỉ lệ chuẩn (Huyền thoại Cấp 5 rất hiếm).
 static func roll(level: int, bonus := 0) -> String:
-	var weights := [0.0, 40.0, 30.0, 18.0, 8.0, 3.0]
-	var boost := float(level - 1) * 2.0 + bonus * 10.0
-	weights[1] = maxf(weights[1] - boost * 1.5, 6.0)
-	weights[2] = maxf(weights[2] - boost * 0.5, 10.0)
-	weights[3] += boost * 0.6
-	weights[4] += boost * 0.8
-	weights[5] += boost * 0.5
+	var t_idx: float = float(mini(maxi(level - 1, 0), 12))
+	var b: float = float(maxi(bonus, 0))
+	var weights: Array[float] = [
+		0.0,
+		maxf(54.0 - t_idx * 2.5 - b * 9.0, 12.0),
+		maxf(30.0 - t_idx * 0.6 - b * 2.0, 16.0),
+		12.0 + t_idx * 1.6 + b * 6.0,
+		3.5 + t_idx * 0.9 + b * 3.2,
+		0.5 + t_idx * 0.25 + (b * b) * 0.55,
+	]
 	var total := 0.0
 	for t in range(1, 6):
 		total += weights[t]

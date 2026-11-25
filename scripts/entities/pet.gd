@@ -160,15 +160,15 @@ func _attack_enemy(e: Node, dir: Vector2) -> void:
 	match pet_id:
 		"cat":
 			_atk_cd = 0.95
-			e.take_damage(4, dir * 130.0, "Mèo Tam Thể")
+			e.take_damage(4, dir * 130.0)
 			Fx.slash(get_parent(), global_position, dir, 22.0, 0.35, Color(1.0, 0.78, 0.45), "swing")
 		"rooster":
 			_atk_cd = 0.55
-			e.take_damage(3, dir * 60.0, "Gà Trống Chọi")
+			e.take_damage(3, dir * 60.0)
 			Fx.slash(get_parent(), global_position, dir, 20.0, 0.3, Color(1.0, 0.45, 0.32), "thrust")
 		_:
 			_atk_cd = 0.85
-			e.take_damage(3, dir * 70.0, "Cún Vàng")
+			e.take_damage(3, dir * 70.0)
 			Fx.slash(get_parent(), global_position, dir, 22.0, 0.35, Color(1.0, 0.9, 0.42), "thrust")
 
 

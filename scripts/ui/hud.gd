@@ -124,7 +124,7 @@ func draw_hud(ci: Control) -> void:
 	# --- Màn + xu + bản đồ nhỏ
 	_panel(ci, Rect2(w - 100, 4, 96, 104))
 	var stage := (Global.level - 1) % 3 + 1
-	var chn := EnemyData.chapter_index(Global.level) + 1
+	var chn := EnemyData.stage_chapter_num(Global.level)
 	Art.draw_text(ci, Vector2(w - 92, 19), "Màn %d-%d" % [chn, stage], 16, Color(1, 0.92, 0.75), false)
 	ci.draw_texture_rect_region(_icons.coin, Rect2(w - 92, 25, 9, 9), Rect2(0, 0, 9, 9))
 	Art.draw_text(ci, Vector2(w - 79, 34), str(Global.run_coins), 16, Color(1, 0.88, 0.45), false)

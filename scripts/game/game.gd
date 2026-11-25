@@ -34,6 +34,7 @@ var pet: Node = null
 var net_sync: Node = null
 var players_by_peer: Dictionary = {}
 var _game_over: CanvasLayer = null
+var _victory_ui: CanvasLayer = null
 var _copy_btn: Button = null
 var _shake := 0.0
 var _start_bonus := false
@@ -268,10 +269,11 @@ func _build_level() -> void:
 	if not Net.is_online() or Net.is_host():
 		Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
 	var stage := (Global.level - 1) % 3 + 1
+	var chn := EnemyData.stage_chapter_num(Global.level)
 	if stage == 1:
-		hud.show_chapter(EnemyData.chapter_index(Global.level) + 1, ch)
+		hud.show_chapter(chn, ch)
 	else:
-		hud.show_banner("Màn %d-%d%s" % [EnemyData.chapter_index(Global.level) + 1, stage, "  -  Trận quyết chiến!" if stage == 3 else ""])
+		hud.show_banner("Màn %d-%d%s" % [chn, stage, "  -  Trận quyết chiến!" if stage == 3 else ""])
 
 
 func _on_portal() -> void:
@@ -370,7 +372,7 @@ func _advance_to(lvl: int) -> void:
 
 
 func can_pause() -> bool:
-	return not player.dead and _game_over == null and not buff_ui.visible and get_tree().get_nodes_in_group("shop_ui_open").is_empty()
+	return not player.dead and _game_over == null and _victory_ui == null and not buff_ui.visible and get_tree().get_nodes_in_group("shop_ui_open").is_empty()
 
 
 # ------------------------------------------------------------------ Mạng LAN
@@ -615,6 +617,54 @@ func _on_player_died() -> void:
 		return
 	await get_tree().create_timer(1.0).timeout
 	_show_game_over()
+
+
+func show_victory() -> void:
+	if _victory_ui != null:
+		return
+	touch.reset()
+	if not Net.is_online() or Net.is_host():
+		Global.coins += 150
+		Global.materials["ngoc_than"] = Global.material_count("ngoc_than") + 1
+	var entry: Dictionary = Global.record_score("thang")
+	Global.save_game()
+	_victory_ui = CanvasLayer.new()
+	_victory_ui.layer = 30
+	add_child(_victory_ui)
+	var box := UI.overlay(_victory_ui, 0.72)
+	box.add_child(UI.label("ĐẠI THẮNG! KHẢI HOÀN!", 30, Color(1.0, 0.88, 0.35)))
+	var ch := EnemyData.chapter(Global.level)
+	box.add_child(UI.label("Hoàn thành 3 Chương (9 Màn) tại %s - %s!" % [ch.name, ch.year], 15, Color(0.86, 0.94, 0.98)))
+	box.add_child(UI.label("Thưởng khải hoàn: +150 xu & +1 Ngọc thần", 15, Color(0.55, 0.98, 0.72)))
+	var score_line: String = "Thời gian: %s  |  Số giặc: %d  |  Điểm: %d" % [
+		Global.format_time(float(entry.get("time", Global.run_elapsed))),
+		int(entry.get("kills", Global.run_kills)),
+		int(entry.get("score", 0)),
+	]
+	box.add_child(UI.label(score_line, 16, Color(1.0, 0.88, 0.45)))
+	var share_txt: String = Global.format_share_text(entry)
+	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 16, 200.0)
+	box.add_child(UI.center(_copy_btn))
+	if not Net.is_online():
+		box.add_child(UI.center(UI.button("Về Doanh Trại (Vinh danh)", _on_victory_lobby, 16, 230.0)))
+		box.add_child(UI.center(UI.button("Chơi tiếp Vô Tận", _on_victory_continue, 16, 230.0)))
+	else:
+		box.add_child(UI.center(UI.button("Chơi tiếp Vô Tận", _on_victory_continue, 16, 220.0)))
+		box.add_child(UI.center(UI.button("Rời phòng LAN", _on_menu, 16, 220.0)))
+
+
+func _on_victory_lobby() -> void:
+	Global.end_run("thang")
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+
+func _on_victory_continue() -> void:
+	_copy_btn = null
+	if _victory_ui != null:
+		_victory_ui.queue_free()
+		_victory_ui = null
+	hud.show_banner("Bước vào Cổng Vô Tận để thử thách tiếp!")
 
 
 func _show_game_over() -> void:

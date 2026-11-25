@@ -12,8 +12,8 @@ const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 
 const T := 16          # kích thước 1 ô (pixel)
-const ROOM_W := 21     # chiều rộng phòng (ô)
-const ROOM_H := 15     # chiều cao phòng (ô)
+const ROOM_W := 29     # chiều rộng phòng (ô) - rộng rãi để né đạn, né bẫy & chiến đấu
+const ROOM_H := 21     # chiều cao phòng (ô)
 const GAP := 6         # độ dài hành lang (ô)
 const CORR := 3        # bề rộng hành lang (ô)
 const DIRS := [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP, Vector2i.DOWN]
@@ -100,7 +100,7 @@ class RoomOverlay extends Node2D:
 			var ring_col: Color = Color(0.95, 0.78, 0.36, 0.26) if kind in ["boss", "legend", "treasure", "shop"] else Color(col.r, col.g, col.b, 0.18)
 			var pts := PackedVector2Array()
 			var sides: int = 8 if shape_kind == "octagon" else 24
-			var r_out: float = 40.0 if kind in ["boss", "legend"] else 30.0
+			var r_out: float = 54.0 if kind in ["boss", "legend"] else 38.0
 			for i in range(sides + 1):
 				var a: float = TAU * float(i) / float(sides)
 				pts.append(c + Vector2(cos(a) * r_out, sin(a) * r_out * 0.78))

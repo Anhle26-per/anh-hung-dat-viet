@@ -15,6 +15,8 @@ const Fx = preload("res://scripts/effects/fx.gd")
 const LootChest = preload("res://scripts/entities/loot_chest.gd")
 const Shop = preload("res://scripts/game/shop.gd")
 const Cover = preload("res://scripts/entities/cover.gd")
+const Trap = preload("res://scripts/entities/trap.gd")
+const VictoryAltar = preload("res://scripts/entities/victory_altar.gd")
 const BlacksmithNpc = preload("res://scripts/entities/blacksmith_npc.gd")
 
 const T := 16
@@ -37,12 +39,15 @@ var shop: Node2D = null
 var blacksmith: Node2D = null
 var legend_id := ""          # phòng Tam Yêu: mã yêu quái
 var loot_chest: Node2D = null
+var victory_altar: Node2D = null
 var covers: Array = []
+var traps: Array = []
 
 
 func _ready() -> void:
-	if kind == "combat":
+	if kind in ["combat", "boss", "legend"]:
 		_spawn_covers()
+		_spawn_traps()
 	if kind == "start":
 		state = "done"
 		# phòng đầu: màn 1 luôn có 1 vũ khí để nhặt (các màn sau 35%)
@@ -97,7 +102,7 @@ func _process(_delta: float) -> void:
 static func waves_for_level(lv: int) -> int:
 	if lv <= 1:
 		return 1
-	if lv <= 12:
+	if lv <= 4:
 		return 2
 	return 3
 
@@ -154,7 +159,7 @@ func _enter() -> void:
 			_chest.play("open")
 			Sfx.play("chest_open")
 			var c := rect.get_center()
-			_spawn_weapon(c + Vector2(0, 18), 2)
+			_spawn_weapon(c + Vector2(0, 18), 1)
 			_drop("potion", 2, c + Vector2(-16, 16))
 			Fx.particles(get_parent(), c, Color(1, 0.85, 0.3), 24, 120.0, 0.7, -40.0, 2.0)
 			Fx.burst(get_parent(), c, Color(1, 0.85, 0.3), 40.0, 0.5)
@@ -265,9 +270,10 @@ func _spawn_wave() -> void:
 	_waves_left -= 1
 	var pool := EnemyData.pool(level)
 	var depth := (level - 1) % 30
-	var n := mini(3 + int(depth / 3) + randi() % 3, 10)
+	var n := mini(4 + int(depth / 2) + randi() % 3, 11)
+	var elite_chance: float = minf(0.12 + 0.025 * float(depth), 0.45)
 	for i in n:
-		spawn_enemy(pool.pick_random(), _random_point(), randf() < 0.06 + 0.01 * depth)
+		spawn_enemy(pool.pick_random(), _random_point(), randf() < elite_chance)
 
 
 func spawn_enemy(k: String, pos: Vector2, elite := false) -> void:
@@ -332,17 +338,30 @@ func _spawn_covers() -> void:
 	var dest_kind: String = "crate" if modern else "pot"
 	var solid_kind: String = "sandbag" if modern else "stele"
 	var c: Vector2 = rect.get_center()
-	var layouts: Array = [
-		[[Vector2(-72, -46), solid_kind], [Vector2(72, 46), solid_kind], [Vector2(72, -46), dest_kind], [Vector2(-72, 46), dest_kind]],
-		[[Vector2(-68, -42), solid_kind], [Vector2(68, 42), solid_kind], [Vector2(-68, 42), dest_kind], [Vector2(68, -42), dest_kind]],
-		[[Vector2(-76, -42), solid_kind], [Vector2(76, 42), solid_kind], [Vector2(64, -48), dest_kind], [Vector2(-64, 48), dest_kind]],
-	]
+	var layouts: Array = []
+	if kind == "boss" or kind == "legend":
+		layouts = [
+			[[Vector2(-126, -78), "pillar"], [Vector2(126, -78), "pillar"], [Vector2(-126, 78), "pillar"], [Vector2(126, 78), "pillar"], [Vector2(-152, 0), "barrel_boom"], [Vector2(152, 0), "barrel_boom"]],
+			[[Vector2(-112, -76), "wall_h"], [Vector2(112, 76), "wall_h"], [Vector2(112, -76), "pillar"], [Vector2(-112, 76), "pillar"], [Vector2(-78, 84), "barrel_boom"], [Vector2(78, -84), "barrel_boom"]],
+			[[Vector2(-122, -74), solid_kind], [Vector2(122, -74), solid_kind], [Vector2(-122, 74), solid_kind], [Vector2(122, 74), solid_kind], [Vector2(-86, 82), "barrel_boom"], [Vector2(86, -82), "barrel_boom"]],
+		]
+	else:
+		layouts = [
+			[[Vector2(-120, -68), "wall_h"], [Vector2(120, 68), "wall_h"], [Vector2(120, -64), "wall_v"], [Vector2(-120, 64), "wall_v"], [Vector2(-68, 74), "barrel_boom"], [Vector2(68, -74), "barrel_boom"], [Vector2(68, 74), dest_kind], [Vector2(-68, -74), dest_kind]],
+			[[Vector2(-108, -66), "pillar"], [Vector2(108, -66), "pillar"], [Vector2(-108, 66), "pillar"], [Vector2(108, 66), "pillar"], [Vector2(-148, 0), "wall_v"], [Vector2(148, 0), "wall_v"], [Vector2(-66, -74), "barrel_boom"], [Vector2(66, 74), "barrel_boom"]],
+			[[Vector2(-86, -76), "wall_h"], [Vector2(86, 76), "wall_h"], [Vector2(144, 0), "pillar"], [Vector2(-144, 0), "pillar"], [Vector2(-128, 64), "barrel_boom"], [Vector2(128, -64), "barrel_boom"], [Vector2(-86, 76), dest_kind], [Vector2(86, -76), dest_kind]],
+			[[Vector2(-124, -78), "wall_h"], [Vector2(124, -78), "wall_h"], [Vector2(-124, 78), "wall_h"], [Vector2(124, 78), "wall_h"], [Vector2(-86, -78), dest_kind], [Vector2(86, 78), dest_kind], [Vector2(-116, 42), "barrel_boom"], [Vector2(116, -42), "barrel_boom"]],
+			[[Vector2(-136, -68), "pillar"], [Vector2(0, -82), "pillar"], [Vector2(136, -68), "pillar"], [Vector2(-136, 68), "pillar"], [Vector2(0, 82), "pillar"], [Vector2(136, 68), "pillar"], [Vector2(-84, 0), "barrel_boom"], [Vector2(84, 0), "barrel_boom"]],
+			[[Vector2(-98, -60), "wall_v"], [Vector2(98, 60), "wall_v"], [Vector2(114, -64), solid_kind], [Vector2(-114, 64), solid_kind], [Vector2(-72, 68), "barrel_boom"], [Vector2(72, -68), "barrel_boom"], [Vector2(142, 0), "barrel_boom"], [Vector2(-142, 0), dest_kind]],
+		]
 	var chosen: Array = layouts[randi() % layouts.size()]
 	for item in chosen:
 		var pos: Vector2 = c + (item[0] as Vector2)
+		if pos.distance_to(c) < 48.0:
+			continue
 		var near_door: bool = false
 		for dr in door_rects:
-			if (dr as Rect2).grow(44.0).has_point(pos):
+			if (dr as Rect2).grow(54.0).has_point(pos):
 				near_door = true
 				break
 		if near_door:
@@ -352,6 +371,46 @@ func _spawn_covers() -> void:
 		cv.position = pos
 		add_child(cv)
 		covers.append(cv)
+
+
+func _spawn_traps() -> void:
+	var chance: float = 0.35 if (kind == "boss" or kind == "legend") else 0.55
+	if randf() >= chance:
+		return
+	var c: Vector2 = rect.get_center()
+	var patterns: Array = [
+		[Vector2(-88, -56), Vector2(88, -56), Vector2(-88, 56), Vector2(88, 56)],
+		[Vector2(-132, -48), Vector2(132, 48), Vector2(-72, 68), Vector2(72, -68)],
+		[Vector2(-104, 0), Vector2(104, 0), Vector2(0, -76), Vector2(0, 76)],
+		[Vector2(-76, -54), Vector2(76, -54), Vector2(-76, 54), Vector2(76, 54), Vector2(0, -82), Vector2(0, 82)],
+	]
+	var trap_kinds: Array[String] = ["spike", "fire_vent", "poison_vent"]
+	var primary: String = trap_kinds[randi() % trap_kinds.size()]
+	var mix_other: bool = randf() < 0.35
+	var chosen_pts: Array = patterns[randi() % patterns.size()]
+	for idx in chosen_pts.size():
+		var pos: Vector2 = c + (chosen_pts[idx] as Vector2)
+		if pos.distance_to(c) < 48.0:
+			continue
+		var bad: bool = false
+		for dr in door_rects:
+			if (dr as Rect2).grow(52.0).has_point(pos):
+				bad = true
+				break
+		if not bad:
+			for cv in covers:
+				if is_instance_valid(cv) and pos.distance_to((cv as Node2D).global_position) < 28.0:
+					bad = true
+					break
+		if bad:
+			continue
+		var tp := Trap.new()
+		tp.kind = trap_kinds[(trap_kinds.find(primary) + (idx % 2)) % trap_kinds.size()] if mix_other else primary
+		tp.room = self
+		tp.phase_offset = 0.0 if (idx % 2 == 0) else 1.9
+		tp.position = pos
+		add_child(tp)
+		traps.append(tp)
 
 
 func _on_enemy_killed(e) -> void:
@@ -390,14 +449,22 @@ func _clear() -> void:
 	if kind == "boss":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
-		_spawn_portal(c + Vector2(0, -30))
-		_spawn_weapon(c + Vector2(0, 24), 3)
-		get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
+		if level == 9:
+			_spawn_portal(c + Vector2(0, -48), "Cổng Vô Tận")
+			victory_altar = VictoryAltar.new()
+			victory_altar.position = c + Vector2(0, 6)
+			get_parent().add_child(victory_altar)
+			_spawn_weapon(c + Vector2(46, 20), 2)
+			get_tree().call_group("hud", "show_banner", "ĐẠI THẮNG 3 CHƯƠNG! Chạm Đài Chiến Thắng để khải hoàn hoặc qua Cổng Vô Tận!")
+		else:
+			_spawn_portal(c + Vector2(0, -30))
+			_spawn_weapon(c + Vector2(0, 24), 2)
+			get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 	elif kind == "legend":
 		Sfx.play("level_clear")
 		Sfx.play_music("battle")
 		_spawn_portal(c + Vector2(0, -30))
-		_spawn_weapon(c + Vector2(0, 24), 2)
+		_spawn_weapon(c + Vector2(0, 24), 1)
 		for i in 12:
 			_drop_local("coin", 2, c)
 		get_tree().call_group("hud", "show_banner", "Diệt yêu trừ hại, như Lạc Long Quân năm xưa!")
@@ -483,9 +550,11 @@ func _drop_local(k: String, amount: int, pos: Vector2) -> void:
 	get_parent().add_child(p)
 
 
-func _spawn_portal(pos: Vector2) -> void:
+func _spawn_portal(pos: Vector2, portal_label: String = "") -> void:
 	var portal := Portal.new()
 	portal.position = pos
+	if portal_label != "":
+		portal.label = portal_label
 	portal.entered.connect(func(): portal_entered.emit())
 	get_parent().add_child(portal)
 

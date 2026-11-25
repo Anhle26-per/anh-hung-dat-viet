@@ -280,24 +280,33 @@ func _physics_process(delta: float) -> void:
 			"chase":
 				desired = (dir + _wander_vec(delta) * 0.35).normalized() * speed
 			"shoot":
-				desired = _keep_distance(delta, dir, dist, 150.0, 80.0)
+				desired = _keep_distance(delta, dir, dist, 160.0, 85.0)
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 1.7) * randf_range(0.8, 1.2)
-					_fire(dir.angle(), 150.0, data.get("proj", "arrow"))
+					_shoot_t = data.get("shoot_cd", 1.35) * randf_range(0.8, 1.15)
+					var edmg: int = 2 if (elite and level >= 4) else 1
+					var epj: String = str(data.get("proj", "arrow"))
+					if level >= 4 and not elite:
+						_fire(dir.angle() - 0.12, 185.0, epj, edmg)
+						_fire(dir.angle() + 0.12, 185.0, epj, edmg)
+					elif elite:
+						for si in range(-1, 2):
+							_fire(dir.angle() + float(si) * 0.14, 190.0, epj, edmg)
+					else:
+						_fire(dir.angle(), 185.0, epj, edmg)
 					_attack_anim_t = 0.3
 			"tank":
 				desired = (dir + _wander_vec(delta) * 0.2).normalized() * speed
 			"caster":
-				desired = _keep_distance(delta, dir, dist, 140.0, 100.0)
+				desired = _keep_distance(delta, dir, dist, 150.0, 95.0)
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.8) * randf_range(0.8, 1.2)
-					_fire_ring(8, randf() * TAU, 95.0, "orb_poison")
+					_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15)
+					_fire_ring(10, randf() * TAU, 115.0, "orb_poison")
 					_attack_anim_t = 0.3
 				_summon_t -= delta
 				if _summon_t <= 0.0 and room != null:
-					_summon_t = randf_range(6.0, 8.0)
+					_summon_t = randf_range(5.0, 7.0)
 					var folk: Array = EnemyData.chapter(level).folk
 					var p := global_position + Vector2.from_angle(randf() * TAU) * 26.0
 					Fx.particles(get_parent(), p, Color(0.8, 0.4, 1.0), 16, 90.0, 0.5)
@@ -306,38 +315,38 @@ func _physics_process(delta: float) -> void:
 				desired = (dir + _wander_vec(delta) * 0.5).normalized() * speed
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.8) * randf_range(0.8, 1.2)
-					_fire_ring(8, randf() * TAU, 100.0, "orb_pink")
+					_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15)
+					_fire_ring(10, randf() * TAU, 120.0, "orb_pink")
 			"charge":
-				desired = _charge_ai(delta, dir, dist, 4.0)
+				desired = _charge_ai(delta, dir, dist, 4.2)
 			"rifle":
-				desired = _keep_distance(delta, dir, dist, 170.0, 90.0)
+				desired = _keep_distance(delta, dir, dist, 175.0, 90.0)
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 1.5) * randf_range(0.8, 1.2)
-					_fire(dir.angle() + randf_range(-0.05, 0.05), 210.0, "bullet")
+					_shoot_t = data.get("shoot_cd", 1.2) * randf_range(0.8, 1.15)
+					_fire(dir.angle() + randf_range(-0.04, 0.04), 245.0, "bullet", 2 if elite else 1)
 					_attack_anim_t = 0.2
 			"mg":
-				desired = _keep_distance(delta, dir, dist, 170.0, 110.0) * 0.6
+				desired = _keep_distance(delta, dir, dist, 175.0, 110.0) * 0.6
 				_shoot_t -= delta
 				if _shoot_t <= 0.0 and _burst_left == 0:
-					_shoot_t = data.get("shoot_cd", 2.6) * randf_range(0.8, 1.2)
-					_start_burst(6, 8.0)
+					_shoot_t = data.get("shoot_cd", 2.1) * randf_range(0.8, 1.15)
+					_start_burst(7, 8.0)
 			"mortar":
 				desired = _keep_distance(delta, dir, dist, 190.0, 120.0)
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 3.2) * randf_range(0.8, 1.2)
-					_mortar(player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10)), 1.0)
+					_shoot_t = data.get("shoot_cd", 2.5) * randf_range(0.8, 1.15)
+					_mortar(player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10)), 0.9)
 			"tank_elite":
 				desired = (dir + _wander_vec(delta) * 0.2).normalized() * speed
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.4) * randf_range(0.8, 1.2)
+					_shoot_t = data.get("shoot_cd", 2.0) * randf_range(0.8, 1.15)
 					if randf() < 0.5:
-						_cannon(dir, 1)
+						_cannon(dir, 2)
 					else:
-						_start_burst(8, 14.0)
+						_start_burst(9, 14.0)
 			"slam":
 				desired = _slam_ai(delta, dir, dist)
 			"kamikaze":
@@ -442,10 +451,10 @@ func _update_burst(delta: float) -> void:
 		return
 	_burst_t -= delta
 	if _burst_t <= 0.0:
-		_burst_t = 0.09
+		_burst_t = 0.08
 		_burst_left -= 1
 		var a: float = (player.global_position - global_position).angle() + deg_to_rad(randf_range(-_burst_spread, _burst_spread))
-		_fire(a, 230.0, "bullet")
+		_fire(a, 255.0, "bullet", 2 if (elite and level >= 5) else 1)
 
 
 func _mortar(pos: Vector2, delay: float) -> void:
@@ -657,9 +666,9 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		_volleys = 0
 		_charge_state = ""
 	_shoot_t -= delta
-	var cd_mult := 0.7 if rage else 1.0
-	# trùm càng về sau ra chiêu càng dồn dập (tối đa nhanh hơn ~40%)
-	cd_mult /= 1.0 + 0.06 * minf(power(), 12.0)
+	var cd_mult := 0.65 if rage else 0.9
+	# trùm càng về sau ra chiêu càng dồn dập (tối đa nhanh hơn ~45%)
+	cd_mult /= 1.0 + 0.07 * minf(power(), 12.0)
 	if _slowed:
 		cd_mult *= 1.3
 	match patterns[_phase]:
