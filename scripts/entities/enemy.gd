@@ -246,6 +246,23 @@ func _physics_process(delta: float) -> void:
 		spr.modulate.a = 1.0 - clampf(_spawn_t / 0.6, 0.0, 1.0)
 		return
 	spr.modulate.a = 1.0
+	if is_boss():
+		if _morph_t > 0.0:
+			_morph_t -= delta
+			_flash = 0.5 + 0.5 * sin(_morph_t * 30.0)
+			spr.position.x = sin(_morph_t * 60.0) * 1.5
+			if int(_morph_t * 20.0) % 2 == 0:
+				Fx.particles(get_parent(), global_position + Vector2(randf_range(-16, 16), randf_range(-24, 4)), Color(0.55, 0.2, 0.7), 3, 50.0, 0.6, -50.0, 2.5)
+			if _morph_t <= 0.0:
+				_finish_morph()
+			velocity = Vector2.ZERO
+			move_and_slide()
+			_update_anim()
+			return
+		if hp < max_hp / 2 and not transformed and data.has("sheet2"):
+			_stun_t = 0.0
+			_start_morph()
+			return
 
 	var desired := Vector2.ZERO
 	if _stun_t > 0.0:

@@ -12,6 +12,11 @@ static var _flash_shader: Shader = null
 static var _tex := {}
 
 
+static func clear_cache() -> void:
+	_tex.clear()
+	_frames.clear()
+
+
 static func tex(rel: String) -> Texture2D:
 	if not _tex.has(rel):
 		_tex[rel] = load(BASE + rel)

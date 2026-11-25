@@ -7,9 +7,13 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const SettingsMenu = preload("res://scripts/ui/settings_menu.gd")
 const ChallengeMenu = preload("res://scripts/ui/challenge_menu.gd")
+const UpdatePopup = preload("res://scripts/ui/update_popup.gd")
 
 var _settings: CanvasLayer = null
 var _challenge: CanvasLayer = null
+var _update_popup: CanvasLayer = null
+var _update_badge: Button = null
+var _ver_label: Label = null
 
 
 class Backdrop extends Control:
@@ -117,6 +121,64 @@ func _ready() -> void:
 	add_child(_settings)
 	_challenge = ChallengeMenu.new()
 	add_child(_challenge)
+	_update_popup = UpdatePopup.new()
+	add_child(_update_popup)
+
+	# Nhãn phiên bản góc dưới-phải & nút thông báo cập nhật góc trên-phải
+	var ver_str: String = "v%s%s" % [Updater.current_version, " (đã vá)" if Updater.patch_loaded else ""]
+	_ver_label = UI.label(ver_str, 13, Color(0.85, 0.82, 0.75, 0.85))
+	_ver_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_ver_label.offset_left = -180.0
+	_ver_label.offset_top = -22.0
+	_ver_label.offset_right = -8.0
+	_ver_label.offset_bottom = -4.0
+	_ver_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(_ver_label)
+
+	_update_badge = UI.button("Có bản mới!", _on_open_update, 14, 152.0)
+	_update_badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_update_badge.offset_left = -162.0
+	_update_badge.offset_top = 8.0
+	_update_badge.offset_right = -8.0
+	_update_badge.offset_bottom = 34.0
+	_update_badge.modulate = Color(1.0, 0.92, 0.45)
+	_update_badge.visible = false
+	add_child(_update_badge)
+
+	if not Updater.update_available.is_connected(_on_update_available):
+		Updater.update_available.connect(_on_update_available)
+	if Updater.state in ["available", "engine_too_old", "ready_restart"] and not Updater.latest_info.is_empty():
+		_refresh_update_badge(Updater.latest_info)
+	Updater.check_for_updates(false)
+
+
+func _exit_tree() -> void:
+	if Updater.update_available.is_connected(_on_update_available):
+		Updater.update_available.disconnect(_on_update_available)
+
+
+func _refresh_update_badge(info: Dictionary) -> void:
+	if _update_badge == null or not is_instance_valid(_update_badge):
+		return
+	var nv: String = str(info.get("version", ""))
+	if Updater.state == "ready_restart":
+		_update_badge.text = "Khởi động lại (v%s)" % nv
+	else:
+		_update_badge.text = "Có bản mới v%s!" % nv
+	_update_badge.visible = true
+
+
+func _on_update_available(info: Dictionary) -> void:
+	_refresh_update_badge(info)
+	if DisplayServer.get_name() != "headless" and Updater.should_auto_show_popup():
+		Updater.mark_popup_shown()
+		if _update_popup != null:
+			_update_popup.open(info)
+
+
+func _on_open_update() -> void:
+	if _update_popup != null and not Updater.latest_info.is_empty():
+		_update_popup.open(Updater.latest_info)
 
 
 func _on_continue() -> void:

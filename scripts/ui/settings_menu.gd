@@ -4,6 +4,7 @@ extends CanvasLayer
 signal closed
 
 const UI = preload("res://scripts/ui/ui.gd")
+const UpdatePopup = preload("res://scripts/ui/update_popup.gd")
 
 var _music_slider: HSlider = null
 var _music_val: Label = null
@@ -15,6 +16,9 @@ var _fs_btn: Button = null
 var _touch_row: HBoxContainer = null
 var _touch_btns: Dictionary = {}
 var _diff_btns: Dictionary = {}
+var _upd_btn: Button = null
+var _upd_status: Label = null
+var _upd_popup: CanvasLayer = null
 var _syncing: bool = false
 
 
@@ -38,10 +42,10 @@ func _ready() -> void:
 	center.add_child(panel)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 5)
 	panel.add_child(box)
 
-	box.add_child(UI.label("CÀI ĐẶT", 28, Color(1.0, 0.85, 0.35)))
+	box.add_child(UI.label("CÀI ĐẶT", 26, Color(1.0, 0.85, 0.35)))
 
 	# 1. Âm lượng nhạc
 	var r_mus := _make_row("Âm lượng nhạc")
@@ -109,12 +113,32 @@ func _ready() -> void:
 	box.add_child(r_diff)
 
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 4)
+	spacer.custom_minimum_size = Vector2(0, 2)
 	box.add_child(spacer)
-	box.add_child(UI.center(UI.button("Mở thư mục nhật ký", _on_open_log_dir, 14, 190.0)))
-	box.add_child(UI.center(UI.button("Đóng", close, 18, 140.0)))
+	_upd_btn = UI.button("Kiểm tra cập nhật (v%s)" % Updater.current_version, _on_check_update, 14, 240.0)
+	_upd_btn.custom_minimum_size = Vector2(240, 24)
+	box.add_child(UI.center(_upd_btn))
+	_upd_status = UI.label("", 12, Color(0.8, 0.92, 1.0))
+	_upd_status.visible = false
+	box.add_child(_upd_status)
+	var b_log := UI.button("Mở thư mục nhật ký", _on_open_log_dir, 14, 190.0)
+	b_log.custom_minimum_size = Vector2(190, 24)
+	box.add_child(UI.center(b_log))
+	var b_close := UI.button("Đóng", close, 16, 140.0)
+	b_close.custom_minimum_size = Vector2(140, 26)
+	box.add_child(UI.center(b_close))
+
+	_upd_popup = UpdatePopup.new()
+	add_child(_upd_popup)
+	if not Updater.check_finished.is_connected(_on_upd_check_finished):
+		Updater.check_finished.connect(_on_upd_check_finished)
 
 	refresh()
+
+
+func _exit_tree() -> void:
+	if Updater.check_finished.is_connected(_on_upd_check_finished):
+		Updater.check_finished.disconnect(_on_upd_check_finished)
 
 
 func _make_row(title: String) -> HBoxContainer:
@@ -167,6 +191,7 @@ func refresh() -> void:
 	for did in _diff_btns:
 		var b2: Button = _diff_btns[did]
 		b2.modulate = Color(1.0, 0.9, 0.45) if str(did) == cur_diff else Color(0.75, 0.72, 0.7)
+	_upd_btn.text = "Kiểm tra cập nhật (v%s)" % Updater.current_version
 	_syncing = false
 
 
@@ -206,3 +231,34 @@ func _on_difficulty(did: String) -> void:
 
 func _on_open_log_dir() -> void:
 	OS.shell_open(ProjectSettings.globalize_path("user://"))
+
+
+func _on_check_update() -> void:
+	if _upd_status != null:
+		_upd_status.text = "Đang kiểm tra máy chủ cập nhật..."
+		_upd_status.modulate = Color(0.85, 0.92, 1.0)
+		_upd_status.visible = true
+	if _upd_btn != null:
+		_upd_btn.disabled = true
+	Updater.check_for_updates(true)
+
+
+func _on_upd_check_finished(has_update: bool, info: Dictionary, error_msg: String) -> void:
+	if _upd_btn != null and is_instance_valid(_upd_btn):
+		_upd_btn.disabled = false
+	if not visible or _upd_status == null or not is_instance_valid(_upd_status):
+		return
+	if has_update:
+		_upd_status.text = "Có bản mới v%s!" % str(info.get("version", ""))
+		_upd_status.modulate = Color(1.0, 0.88, 0.35)
+		_upd_status.visible = true
+		if _upd_popup != null:
+			_upd_popup.open(info)
+	elif error_msg != "":
+		_upd_status.text = error_msg
+		_upd_status.modulate = Color(1.0, 0.52, 0.48)
+		_upd_status.visible = true
+	else:
+		_upd_status.text = "Bạn đang dùng bản mới nhất (v%s)!" % Updater.current_version
+		_upd_status.modulate = Color(0.55, 1.0, 0.65)
+		_upd_status.visible = true

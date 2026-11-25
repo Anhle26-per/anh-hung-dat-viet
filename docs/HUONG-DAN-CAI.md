@@ -141,3 +141,11 @@ Game hỗ trợ **2 đến 4 người** chơi chung trực tiếp trong cùng m�
 ### Gục ngã, cứu đồng đội và vào lại khi rớt mạng
 - **Gục ngã & Cứu đồng đội:** khi có từ 2 người trở lên, nếu máu của bạn về 0 trong lúc đồng đội vẫn còn sống, bạn sẽ **gục ngã** thay vì thua ngay. Đồng đội chỉ cần chạy tới **đứng cạnh trong 3 giây** để cứu dậy (hồi **2 máu** và có thời gian bất tử ngắn để rút lui). Trận đấu chỉ kết thúc khi **toàn bộ đội đều gục ngã**.
 - **Rớt mạng giữa trận:** nếu máy Khách bị mất kết nối, chỗ của bạn được giữ trong **60 giây** — chỉ cần vào lại đúng phòng với **cùng tên nhân vật** để tiếp tục chiến đấu bên cạnh đồng đội. Nếu Chủ phòng thoát, phòng sẽ đóng và các máy còn lại quay về màn hình chính với thông báo *"Chủ phòng đã rời"*.
+
+---
+
+## 7. Tự động cập nhật ngay trong game (~2,4 MB)
+
+- Khi mở game có kết nối Internet, **Anh Hùng Đất Việt** tự kiểm tra phiên bản mới từ GitHub Releases (`https://github.com/Anhle26-per/anh-hung-dat-viet`). Nếu đang chơi offline, game bỏ qua im lặng.
+- Khi có bản cập nhật mới, màn hình chính tự hiện hộp thoại thông báo cùng nút **"Có bản mới!"** ở góc trên phải (hoặc bạn có thể bấm **Cài đặt → Kiểm tra cập nhật** bất cứ lúc nào).
+- Bấm **Cập nhật ngay** → game tự tải bản vá `.pck` (~2,4 MB), kiểm tra mã `SHA-256` chống lỗi tệp và tự khởi động lại lên bản mới — **không cần tải lại tệp `.zip` nặng và giữ nguyên 100% dữ liệu lưu (`save.json`)**.

@@ -47,6 +47,8 @@ func setup_good(g: String, it: String, lvl: int) -> void:
 
 
 func refresh_price() -> void:
+	if sold:
+		return
 	var p: Node = Global.local_player()
 	var disc: bool = p != null and is_instance_valid(p) and p.has_method("buff") and p.buff("thuong_khach") > 0
 	if disc:
