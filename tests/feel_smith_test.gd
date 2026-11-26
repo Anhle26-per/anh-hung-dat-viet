@@ -176,7 +176,7 @@ func _run() -> void:
 	_check(is_equal_approx(Engine.time_scale, 1.0), "Fx.hitstop() ở headless phải giữ Engine.time_scale == 1.0")
 	_check(not Fx._hitstop_active, "Fx._hitstop_active phải là false ở headless")
 
-	print("== 5. Kiểm tra mũi tên chỉ đường & huy hiệu bùa trên HUD")
+	print("== 5. Kiểm tra đã bỏ mũi tên chỉ đường rương/phòng & huy hiệu bùa trên HUD")
 	seed(4242)
 	var d := Dungeon.new()
 	add_child(d)
@@ -188,19 +188,14 @@ func _run() -> void:
 	await _frames(3)
 
 	var targets_done: Array = hud.get_wayfinder_targets()
-	_check(targets_done.size() >= 1 and targets_done.size() <= 2, "khi phòng an toàn/đã dọn, HUD phải trả 1..2 mục tiêu chỉ đường (nhận %d)" % targets_done.size())
-	for t in targets_done:
-		var td: Dictionary = t
-		var tpos: Vector2 = td["pos"]
-		_check(tpos.distance_to(p.global_position) > 140.0, "mục tiêu chỉ đường phải ở xa hơn 140px")
+	_check(targets_done.is_empty(), "HUD không còn vẽ mũi tên chỉ rương/phòng khi an toàn (nhận %d)" % targets_done.size())
 
-	# Khi phòng đang giao tranh (state == "fighting"), phải ẩn mũi tên chỉ đường
 	var start_room = d.rooms[Vector2i.ZERO]
 	start_room.state = "fighting"
 	start_room.player_inside = true
 	await _frames(2)
 	var targets_fight: Array = hud.get_wayfinder_targets()
-	_check(targets_fight.is_empty(), "khi đang giao tranh phải ẩn mũi tên chỉ đường (nhận %d)" % targets_fight.size())
+	_check(targets_fight.is_empty(), "khi đang giao tranh cũng phải trống mục tiêu mũi tên (nhận %d)" % targets_fight.size())
 
 	start_room.state = "done"
 	Global.set_weapon_mod(wid, "da_mai")

@@ -153,11 +153,14 @@ func _enter() -> void:
 			var b: Dictionary = EnemyData.MYTHIC_BOSSES[bid] if EnemyData.MYTHIC_BOSSES.has(bid) else EnemyData.BOSSES[bid]
 			var is_mythic_b: bool = EnemyData.MYTHIC_BOSSES.has(bid) or EnemyData.is_mythic_level(level)
 			var bcol: Color = Color(0.84, 0.45, 1.0) if is_mythic_b else Color(1.0, 0.35, 0.25)
+			var bsheet: String = str(b.get("sheet", "enemies/boss_%s.png" % bid))
+			var bsize: Vector2i = b.get("size", Vector2i(48, 48))
 			Fx.shake(get_tree(), 6.5)
-			Fx.burst(get_parent(), bpos, bcol, 80.0, 0.7)
+			Fx.burst(get_parent(), bpos, bcol, 88.0, 0.7)
 			Fx.burst(get_parent(), bpos, Color.WHITE, 46.0, 0.45)
+			Fx.anim(get_parent(), bpos, "fx/poof.png", 28, 28, 16.0, 2.2, 0.0, bcol)
 			Fx.particles(get_parent(), bpos, bcol, 28, 120.0, 0.8, -50.0, 2.5)
-			get_tree().call_group("hud", "show_boss_intro", str(b.name), str(b.title), is_mythic_b)
+			get_tree().call_group("hud", "show_boss_intro", str(b.name), str(b.title), is_mythic_b, str(b.get("intro", "")), bsheet, bsize)
 		"legend":
 			state = "fighting"
 			_lock()
@@ -171,11 +174,14 @@ func _enter() -> void:
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
 			var is_mythic_l: bool = EnemyData.is_mythic_level(level)
 			var lcol: Color = Color(0.86, 0.48, 1.0)
+			var lsheet: String = "enemies/boss_%s.png" % legend_id
+			var lsize: Vector2i = lg.get("size", Vector2i(84, 60))
 			Fx.shake(get_tree(), 6.5)
-			Fx.burst(get_parent(), lpos, lcol, 80.0, 0.7)
+			Fx.burst(get_parent(), lpos, lcol, 88.0, 0.7)
 			Fx.burst(get_parent(), lpos, Color.WHITE, 46.0, 0.45)
+			Fx.anim(get_parent(), lpos, "fx/poof.png", 28, 28, 16.0, 2.2, 0.0, lcol)
 			Fx.particles(get_parent(), lpos, lcol, 26, 115.0, 0.75, -45.0, 2.5)
-			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), is_mythic_l)
+			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), is_mythic_l, str(lg.get("intro", "")), lsheet, lsize)
 		"treasure":
 			state = "done"
 			_chest.play("open")
@@ -212,8 +218,10 @@ func net_apply_lock(rkind: String, leg_id: String) -> void:
 		var bid: String = EnemyData.boss_id(level)
 		var b: Dictionary = EnemyData.MYTHIC_BOSSES[bid] if EnemyData.MYTHIC_BOSSES.has(bid) else EnemyData.BOSSES[bid]
 		var is_mythic_b: bool = EnemyData.MYTHIC_BOSSES.has(bid) or EnemyData.is_mythic_level(level)
+		var bsheet: String = str(b.get("sheet", "enemies/boss_%s.png" % bid))
+		var bsize: Vector2i = b.get("size", Vector2i(48, 48))
 		Fx.shake(get_tree(), 6.5)
-		get_tree().call_group("hud", "show_boss_intro", str(b.name), str(b.title), is_mythic_b)
+		get_tree().call_group("hud", "show_boss_intro", str(b.name), str(b.title), is_mythic_b, str(b.get("intro", "")), bsheet, bsize)
 	elif rkind == "legend":
 		if leg_id != "":
 			legend_id = leg_id
@@ -221,8 +229,10 @@ func net_apply_lock(rkind: String, leg_id: String) -> void:
 		Sfx.play_music("boss")
 		if EnemyData.LEGENDS.has(legend_id):
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
+			var lsheet: String = "enemies/boss_%s.png" % legend_id
+			var lsize: Vector2i = lg.get("size", Vector2i(84, 60))
 			Fx.shake(get_tree(), 6.5)
-			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), EnemyData.is_mythic_level(level))
+			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), EnemyData.is_mythic_level(level), str(lg.get("intro", "")), lsheet, lsize)
 
 
 func net_apply_clear() -> void:

@@ -178,9 +178,16 @@ func _run() -> void:
 			await _frames(2)
 			_check(game._victory_ui == null, "chọn tiếp Thần Thoại phải đóng bảng tổng kết")
 
-	# Kiểm tra HUD Boss Intro & Rơi vũ khí Huyền Thoại Cấp 5 & Pet Tim
-	game.hud.show_boss_intro("Cửu Vĩ Hồ Vương", "Thần Thoại", true)
-	_check(game.hud._boss_intro_t > 0.0 and game.hud._boss_intro_mythic, "show_boss_intro không bật")
+	# Kiểm tra HUD Boss Intro nâng cấp & bỏ mũi tên chỉ rương/phòng
+	for bid_i in EnemyData.BOSSES:
+		_check(str(EnemyData.BOSSES[bid_i].get("intro", "")).length() >= 10, "Boss %s thiếu mô tả intro" % str(bid_i))
+	for lid_i in EnemyData.LEGENDS:
+		_check(str(EnemyData.LEGENDS[lid_i].get("intro", "")).length() >= 10, "Tam Yêu %s thiếu mô tả intro" % str(lid_i))
+	for mid_i in EnemyData.MYTHIC_BOSSES:
+		_check(str(EnemyData.MYTHIC_BOSSES[mid_i].get("intro", "")).length() >= 10, "Boss Thần Thoại %s thiếu mô tả intro" % str(mid_i))
+	game.hud.show_boss_intro("Cửu Vĩ Hồ Vương", "Thần Thoại", true, "Cửu Vĩ Yêu Vương — chín đuôi xoay lửa!", "enemies/boss_ho_tinh_vuong.png", Vector2i(84, 60))
+	_check(game.hud._boss_intro_t > 0.0 and game.hud._boss_intro_mythic and game.hud._boss_intro_desc != "" and game.hud._boss_intro_sheet != "", "show_boss_intro không lưu đủ dữ liệu giới thiệu Boss")
+	_check(game.hud.get_wayfinder_targets().is_empty(), "phải bỏ hoàn toàn mũi tên chỉ rương/phòng")
 	var leg_pk := Pickup.new()
 	leg_pk.kind = "weapon"
 	leg_pk.weapon_id = "thuan_thien"
