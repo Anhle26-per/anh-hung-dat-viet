@@ -60,6 +60,7 @@ func _ready() -> void:
 	if hs != null and hs.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/game.tscn"):
 		return
 	add_to_group("game")
+	add_to_group("game_controller")
 	get_tree().paused = false
 	world = Node2D.new()
 	add_child(world)
@@ -487,6 +488,61 @@ func _on_net_player_action(peer_id: int, kind: String, data: Dictionary) -> void
 		rp.play_remote_action(kind, data)
 
 
+func host_spawn_shared_weapon(wid: String, pos: Vector2) -> Node:
+	if wid == "" or not WeaponData.DATA.has(wid):
+		return null
+	var par: Node = dungeon if (dungeon != null and is_instance_valid(dungeon)) else (world if (world != null and is_instance_valid(world)) else self)
+	var pk := Pickup.new()
+	pk.kind = "weapon"
+	pk.weapon_id = wid
+	pk.position = pos
+	if Net != null and Net.is_online() and Net.is_host() and net_sync != null:
+		pk.pickup_id = net_sync.alloc_pickup_id()
+		par.add_child(pk)
+		net_sync.register_pickup(pk)
+		Net.send_world_event("spawn_pickup", {
+			"id": pk.pickup_id,
+			"kind": "weapon",
+			"amount": 1,
+			"weapon_id": wid,
+			"material_id": "",
+			"blueprint_id": "",
+			"x": pos.x,
+			"y": pos.y,
+		}, false)
+		return pk
+	par.add_child(pk)
+	return pk
+
+
+func host_handle_weapon_pickup_req(claimer_peer: int, data: Dictionary) -> void:
+	if Net != null and Net.is_online() and not Net.is_host():
+		return
+	if net_sync == null:
+		return
+	var pid: int = int(data.get("pickup_id", 0))
+	if pid <= 0 or net_sync.claimed_pickups.has(pid):
+		return
+	var pk: Node = net_sync.get_pickup(pid)
+	if pk == null or not is_instance_valid(pk) or str(pk.get("kind")) != "weapon":
+		return
+	var wid: String = str(pk.get("weapon_id"))
+	if wid == "":
+		return
+	net_sync.claimed_pickups[pid] = true
+	var drop_wid: String = str(data.get("drop_wid", ""))
+	var drop_pos := Vector2(float(data.get("x", (pk as Node2D).global_position.x)), float(data.get("y", (pk as Node2D).global_position.y)))
+	Net.send_world_event("pickup_claimed", {"id": pid, "claimer": claimer_peer, "kind": "weapon", "weapon_id": wid}, false)
+	if pk.has_method("net_remove_claimed"):
+		pk.net_remove_claimed()
+	else:
+		pk.queue_free()
+	if claimer_peer == Net.local_peer_id() and player != null and is_instance_valid(player) and player.has_method("net_apply_weapon_pickup"):
+		player.net_apply_weapon_pickup(wid)
+	if drop_wid != "" and WeaponData.DATA.has(drop_wid):
+		host_spawn_shared_weapon(drop_wid, drop_pos)
+
+
 func _on_net_world_event(kind: String, data: Dictionary) -> void:
 	match kind:
 		"room_lock":
@@ -525,10 +581,33 @@ func _on_net_world_event(kind: String, data: Dictionary) -> void:
 			pk.amount = int(data.get("amount", 1))
 			pk.weapon_id = str(data.get("weapon_id", ""))
 			pk.material_id = str(data.get("material_id", ""))
+			pk.blueprint_id = str(data.get("blueprint_id", ""))
 			pk.position = Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
 			dungeon.add_child(pk)
 			if pid > 0 and net_sync != null:
 				net_sync.register_pickup(pk)
+		"drop_weapon_req":
+			if not Net.is_host():
+				return
+			var d_wid: String = str(data.get("weapon_id", ""))
+			var d_pos := Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
+			if d_wid != "" and WeaponData.DATA.has(d_wid):
+				host_spawn_shared_weapon(d_wid, d_pos)
+		"weapon_pickup_req":
+			if not Net.is_host():
+				return
+			var sender_w: int = int(data.get("sender", 0))
+			if sender_w > 0:
+				host_handle_weapon_pickup_req(sender_w, data)
+		"treasure_open_req":
+			if not Net.is_host() or dungeon == null:
+				return
+			var rkey_t: String = str(data.get("key", ""))
+			if rkey_t == "" and data.has("gx") and data.has("gy"):
+				rkey_t = "%d,%d" % [int(data.get("gx", 0)), int(data.get("gy", 0))]
+			var rm_t: Node = dungeon.get_room_by_key(rkey_t)
+			if rm_t != null and rm_t.has_method("open_treasure_authoritative"):
+				rm_t.open_treasure_authoritative()
 		"pickup_claim":
 			if not Net.is_host() or net_sync == null:
 				return
@@ -546,8 +625,17 @@ func _on_net_world_event(kind: String, data: Dictionary) -> void:
 				return
 			var pid3: int = int(data.get("id", 0))
 			var claimer: int = int(data.get("claimer", 0))
+			var claim_kind: String = str(data.get("kind", ""))
+			var claim_wid: String = str(data.get("weapon_id", ""))
 			var pk2: Node = net_sync.get_pickup(pid3)
-			if pk2 != null:
+			if claim_kind == "weapon":
+				if claimer == Net.local_peer_id() and player != null and is_instance_valid(player) and player.has_method("net_apply_weapon_pickup"):
+					var apply_wid: String = claim_wid if claim_wid != "" else (str(pk2.get("weapon_id")) if pk2 != null else "")
+					if apply_wid != "":
+						player.net_apply_weapon_pickup(apply_wid)
+				if pk2 != null and pk2.has_method("net_remove_claimed"):
+					pk2.net_remove_claimed()
+			elif pk2 != null:
 				if claimer == Net.local_peer_id() and str(pk2.get("kind")) != "weapon":
 					pk2.net_collect_approved()
 				else:
@@ -566,10 +654,11 @@ func _on_net_world_event(kind: String, data: Dictionary) -> void:
 				return
 			var cid2: String = str(data.get("id", ""))
 			var drops: Array = data.get("drops", [])
+			var drop_bp: bool = bool(data.get("drop_bp", false))
 			for ch_node2 in get_tree().get_nodes_in_group("loot_chests"):
 				if is_instance_valid(ch_node2) and str(ch_node2.get("chest_id")) == cid2:
 					if ch_node2.has_method("apply_open_drops"):
-						ch_node2.apply_open_drops(drops)
+						ch_node2.apply_open_drops(drops, drop_bp)
 					break
 		"shop_buy":
 			if not Net.is_host() or net_sync == null:

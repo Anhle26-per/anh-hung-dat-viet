@@ -95,10 +95,10 @@ func _ready() -> void:
 
 func _run() -> void:
 	_wipe()
-	print("== 1. Kiểm tra Version 2.1.0 (BUILD 210) & HotpatchSync")
-	_check(VersionData.VERSION == "2.1.0", "VERSION phải là 2.1.0 (hiện %s)" % VersionData.VERSION)
-	_check(VersionData.BUILD == 210, "BUILD phải là 210 (hiện %d)" % VersionData.BUILD)
-	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "HotpatchSync.needs_autoload_sync phải false trên v2.1.0")
+	print("== 1. Kiểm tra Version >= 2.1.0 (BUILD >= 210) & HotpatchSync")
+	_check(VersionData.VERSION != "", "VERSION không được rỗng")
+	_check(VersionData.BUILD >= 210, "BUILD phải >= 210 (hiện %d)" % VersionData.BUILD)
+	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "HotpatchSync.needs_autoload_sync phải false trên bản hiện tại")
 
 	await _test_boss_36_frames()
 	await _test_lobby_select_npcs_pet()

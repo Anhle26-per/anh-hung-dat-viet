@@ -163,7 +163,7 @@ func _run() -> void:
 	_check(Global.materials.is_empty(), "tệp cũ không đặt materials về rỗng")
 	_check(Global.forged == "", "tệp cũ không đặt forged về rỗng")
 
-	print("== 6. Vũ khí cơ bản & chưa mở bản vẽ không rèn được; cấp 1 'gay_tre' rèn được khi có bản vẽ")
+	print("== 6. Vũ khí cơ bản & chưa mở bản vẽ không rèn được; mở khóa bản vẽ rồi mới rèn được")
 	_reset_all()
 	Global.coins = 9999
 	for mid in MaterialData.ORDER:
@@ -171,9 +171,16 @@ func _run() -> void:
 	Global.discovered = ["kiem_dong", "gay_tre", "kiem"]
 	var forgeables: Array = Global.forgeable_weapons()
 	_check(not forgeables.has("kiem_dong") and not Global.try_craft("kiem_dong"), "vũ khí cơ bản rèn được")
-	_check(forgeables.has("gay_tre") and Global.can_craft("gay_tre"), "vũ khí cấp 1 gay_tre phải rèn được trong v1.4.0")
+	_check(not forgeables.has("gay_tre") and not Global.can_craft("gay_tre") and not Global.try_craft("gay_tre"),
+		"chỉ discover('gay_tre') không được phép rèn khi chưa mở bản vẽ")
+	_check(not forgeables.has("kiem") and not Global.can_craft("kiem") and not Global.try_craft("kiem"),
+		"chỉ discover('kiem') không được phép rèn khi chưa mở bản vẽ")
 	_check(not forgeables.has("ma_tau") and not Global.try_craft("ma_tau"), "vũ khí chưa sưu tầm rèn được")
-	_check(forgeables.has("kiem"), "vũ khí cấp 2 đã sưu tầm thiếu trong danh sách rèn")
+	Global.unlock_blueprint("gay_tre")
+	Global.unlock_blueprint("kiem")
+	forgeables = Global.forgeable_weapons()
+	_check(forgeables.has("gay_tre") and Global.can_craft("gay_tre"), "vũ khí cấp 1 gay_tre phải rèn được sau unlock_blueprint")
+	_check(forgeables.has("kiem"), "vũ khí cấp 2 đã mở bản vẽ thiếu trong danh sách rèn")
 	var r_t1: Dictionary = MaterialData.recipe_for("gay_tre")
 	_check(int(r_t1.get("coins", 0)) == 25 and int(r_t1.get("mats", {}).get("dong", 0)) == 2 and int(r_t1.get("mats", {}).get("go_lim", 0)) == 1,
 		"công thức cấp 1 gay_tre sai: %s" % str(r_t1))
@@ -202,6 +209,7 @@ func _run() -> void:
 	print("== 8. Thiếu nguyên liệu hoặc xu thì không rèn được và không trừ")
 	_reset_all()
 	Global.discovered = ["kiem", "ma_tau"]
+	Global.blueprints = ["kiem", "ma_tau"]
 	Global.coins = 54
 	Global.materials = {"dong": 3, "sat": 2, "go_lim": 2}
 	_check(not Global.can_craft("kiem") and not Global.try_craft("kiem"), "rèn được khi thiếu xu")

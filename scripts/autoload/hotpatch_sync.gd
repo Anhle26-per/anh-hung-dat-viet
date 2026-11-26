@@ -86,10 +86,10 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g == null:
 		return false
-	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint", "active_skill_index"]:
+	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint", "active_skill_index", "assemble_blueprint", "add_blueprint_fragment"]:
 		if not g.has_method(m):
 			return true
-	if not InputMap.has_action("sprint") or not InputMap.has_action("dash") or not InputMap.has_action("merge_weapon"):
+	if not InputMap.has_action("sprint") or not InputMap.has_action("dash") or not InputMap.has_action("merge_weapon") or not InputMap.has_action("drop_weapon"):
 		return true
 	var s: Node = tree.root.get_node_or_null("Sfx")
 	if s != null:

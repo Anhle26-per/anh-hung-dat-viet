@@ -9,7 +9,7 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
 const BASE_JOY_R := 40.0
-const BASE_RADII := {"attack": 30.0, "skill": 22.0, "swap": 18.0, "dash": 19.0, "merge": 18.0, "pause": 13.0}
+const BASE_RADII := {"attack": 30.0, "skill": 22.0, "swap": 18.0, "dash": 19.0, "merge": 18.0, "drop": 16.0, "pause": 13.0}
 
 var player = null
 var _joy_finger := -1
@@ -37,6 +37,7 @@ func _ready() -> void:
 		"swap": {"r": 18.0, "finger": -1, "pos": Vector2.ZERO},
 		"dash": {"r": 19.0, "finger": -1, "pos": Vector2.ZERO},
 		"merge": {"r": 18.0, "finger": -1, "pos": Vector2.ZERO},
+		"drop": {"r": 16.0, "finger": -1, "pos": Vector2.ZERO},
 		"pause": {"r": 13.0, "finger": -1, "pos": Vector2.ZERO},
 	}
 	var view := PadView.new()
@@ -65,6 +66,7 @@ func _layout() -> void:
 	_buttons.swap.pos = Vector2(s.x - 38 * sc, s.y - 128 * sc)
 	_buttons.dash.pos = Vector2(s.x - 114 * sc, s.y - 108 * sc)
 	_buttons.merge.pos = Vector2(s.x - 178 * sc, s.y - 68 * sc)
+	_buttons.drop.pos = Vector2(s.x - 38 * sc, s.y - 174 * sc)
 	_buttons.pause.pos = Vector2(s.x - 118, 20)
 
 
@@ -73,6 +75,14 @@ func _is_merge_available() -> bool:
 		return false
 	if player.has_method("can_merge_nearby"):
 		return not player.can_merge_nearby().is_empty()
+	return false
+
+
+func _is_drop_available() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	if player.has_method("can_drop_current_weapon"):
+		return bool(player.can_drop_current_weapon())
 	return false
 
 
@@ -90,6 +100,8 @@ func _input(event: InputEvent) -> void:
 		if event.pressed:
 			for id in _buttons:
 				if id == "merge" and not _is_merge_available():
+					continue
+				if id == "drop" and not _is_drop_available():
 					continue
 				var b: Dictionary = _buttons[id]
 				if b.finger == -1 and event.position.distance_to(b.pos) <= b.r * 1.35:
@@ -135,6 +147,9 @@ func _on_button(id: String, pressed: bool) -> void:
 		"merge":
 			if pressed:
 				Global.touch_merge = true
+		"drop":
+			if pressed:
+				Global.touch_drop_weapon = true
 		"pause":
 			if pressed:
 				reset()
@@ -161,10 +176,13 @@ func draw_pad(ci: Node2D) -> void:
 	for id in _buttons:
 		if id == "merge" and not _is_merge_available():
 			continue
+		if id == "drop" and not _is_drop_available():
+			continue
 		var b: Dictionary = _buttons[id]
 		var pressed: bool = b.finger != -1
 		ci.draw_circle(b.pos, b.r, Color(1, 1, 1, 0.32 if pressed else 0.16))
-		ci.draw_arc(b.pos, b.r, 0.0, TAU, 28, Color(0.45, 1.0, 0.85, 0.85) if id == "merge" else Color(1, 1, 1, 0.45), 1.5)
+		var arc_col := Color(0.45, 1.0, 0.85, 0.85) if id == "merge" else (Color(1.0, 0.82, 0.42, 0.80) if id == "drop" else Color(1, 1, 1, 0.45))
+		ci.draw_arc(b.pos, b.r, 0.0, TAU, 28, arc_col, 1.5)
 		var text := ""
 		var valid: bool = player != null and is_instance_valid(player)
 		match id:
@@ -208,6 +226,8 @@ func draw_pad(ci: Node2D) -> void:
 			"merge":
 				text = "Hợp"
 				ci.draw_arc(b.pos, b.r + 3.0, 0.0, TAU, 24, Color(0.45, 1.0, 0.86, 0.55 + 0.45 * sin(Time.get_ticks_msec() / 120.0)), 2.0)
+			"drop":
+				text = "Vứt"
 			"swap":
 				if valid and player.interact_target != null:
 					text = "Dùng"
@@ -219,4 +239,4 @@ func draw_pad(ci: Node2D) -> void:
 			"pause":
 				text = "II"
 		if text != "":
-			Art.draw_text(ci, b.pos + Vector2(0, 5), text, 15 if id in ["dash", "merge"] else 16, Color.WHITE)
+			Art.draw_text(ci, b.pos + Vector2(0, 5), text, 14 if id == "drop" else (15 if id in ["dash", "merge"] else 16), Color.WHITE)

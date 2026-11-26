@@ -7,11 +7,13 @@ const SynergyData = preload("res://scripts/data/synergy.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
-var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon, material
+var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon, material, blueprint_frag
 var amount := 1
 var weapon_id := ""
 var material_id := ""
+var blueprint_id: String = ""
 var pickup_id: int = 0
+var net_handled_claim: bool = false
 var _claim_pending: bool = false
 var _net_claimed_by_other: bool = false
 var _t := 0.0
@@ -35,6 +37,19 @@ func _ready() -> void:
 			_spr = Sprite2D.new()
 			var minfo: Dictionary = MaterialData.DATA.get(material_id, {})
 			_spr.texture = Art.tex(str(minfo.get("icon", "items/mat_dong.png")))
+		"blueprint_frag":
+			_spr = Sprite2D.new()
+			var bp_needed: int = MaterialData.fragments_needed(blueprint_id)
+			var bp_rel: String = "items/blueprint_frag.png" if bp_needed > 1 else "items/blueprint_scroll.png"
+			if not ResourceLoader.exists("res://assets/sprites/" + bp_rel):
+				bp_rel = "items/mat_ngoc_than.png"
+			_spr.texture = Art.tex(bp_rel)
+			if WeaponData.DATA.has(blueprint_id):
+				var bp_wd := WeaponData.get_data(blueprint_id)
+				var bp_tier := int(bp_wd.get("tier", 1))
+				if bp_tier >= 3 or bool(bp_wd.get("boss_motif", false)):
+					var bp_col: Color = Color("ff384c") if bool(bp_wd.get("boss_motif", false)) else WeaponData.tier_color(blueprint_id)
+					add_child(Art.light(bp_col, 1.0 if bp_tier >= 5 else 0.75, 0.9 if bp_tier >= 5 else 0.7))
 		"weapon":
 			_spr = Sprite2D.new()
 			_spr.texture = Art.tex("weapons/%s.png" % weapon_id)
@@ -70,7 +85,7 @@ func _ready() -> void:
 				add_child(leg_pt)
 				_play_legendary_reveal.call_deferred()
 	add_child(_spr)
-	if kind == "coin" or kind == "energy" or kind == "material":
+	if kind == "coin" or kind == "energy" or kind == "material" or kind == "blueprint_frag":
 		_vel = Vector2.from_angle(randf() * TAU) * randf_range(40.0, 90.0)
 
 
@@ -111,7 +126,7 @@ func _anim(rel: String, fw: int, fh: int, fps: float) -> AnimatedSprite2D:
 func _process(delta: float) -> void:
 	_t += delta
 	_spr.position.y = sin(_t * 4.0) * 1.5 - (3.0 if kind == "weapon" else 0.0)
-	if kind == "weapon":
+	if kind == "weapon" or kind == "blueprint_frag":
 		queue_redraw()
 	var p: Node = Global.local_player()
 	if p == null or not is_instance_valid(p) or bool(p.get("dead")) or bool(p.get("downed")):
@@ -119,7 +134,7 @@ func _process(delta: float) -> void:
 	var to: Vector2 = p.global_position - global_position
 	var d := to.length()
 	match kind:
-		"coin", "energy", "material":
+		"coin", "energy", "material", "blueprint_frag":
 			if _t > 0.35 and d < 80.0:
 				_vel = to.normalized() * 240.0
 			else:
@@ -147,6 +162,11 @@ func _process(delta: float) -> void:
 				else:
 					_collect(p)
 		"weapon":
+			if net_handled_claim or _net_claimed_by_other:
+				_near = false
+				if p.nearby_pickup == self:
+					p.nearby_pickup = null
+				return
 			_near = d < 22.0
 			if _near:
 				if p.nearby_pickup == null or not is_instance_valid(p.nearby_pickup) or p.nearby_pickup == self \
@@ -166,6 +186,7 @@ func net_collect_approved() -> void:
 
 func net_remove_claimed() -> void:
 	_net_claimed_by_other = true
+	net_handled_claim = true
 	var p: Node = Global.local_player() if is_inside_tree() else null
 	if p != null and is_instance_valid(p) and p.nearby_pickup == self:
 		p.nearby_pickup = null
@@ -178,7 +199,7 @@ func _exit_tree() -> void:
 	var ns: Node = get_tree().get_first_node_in_group("net_sync")
 	if ns != null:
 		ns.unregister_pickup(pickup_id)
-	if kind == "weapon" and not _net_claimed_by_other and ns != null and not bool(ns.get("is_clearing_level")):
+	if kind == "weapon" and not _net_claimed_by_other and not net_handled_claim and ns != null and not bool(ns.get("is_clearing_level")):
 		var p: Node = Global.local_player()
 		if p != null and is_instance_valid(p) and p.global_position.distance_to(global_position) < 48.0:
 			if Net.is_host():
@@ -221,34 +242,107 @@ func _collect(p) -> void:
 			Sfx.play("pickup_material")
 			Fx.float_text(get_parent(), global_position + Vector2(0, -14), "+%d %s" % [amount, mname], mcol, 12)
 			Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 30.0, 0.6, 0.0, mcol, true)
+		"blueprint_frag":
+			var w_bp: Dictionary = WeaponData.get_data(blueprint_id)
+			var wname_bp: String = str(w_bp.get("name", blueprint_id))
+			var bp_col: Color = Color("ff384c") if bool(w_bp.get("boss_motif", false)) else WeaponData.tier_color(blueprint_id)
+			var res: Dictionary = Global.add_blueprint_fragment(blueprint_id, maxi(1, amount))
+			if bool(res.get("already_owned", false)):
+				var dup_coins: int = 12 * maxi(1, amount)
+				p.stats_changed.emit()
+				Sfx.play("coin")
+				Fx.float_text(get_parent(), global_position + Vector2(0, -16), "+%d xu (trùng bản vẽ)" % dup_coins, Color(1.0, 0.88, 0.35), 13)
+				Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 30.0, 0.6, 0.0, Color(1.0, 0.88, 0.35), true)
+			elif bool(res.get("unlocked_now", false)):
+				Sfx.play("unlock" if Sfx.SFX_FILES.has("unlock") else "chest_open")
+				Fx.float_text(get_parent(), global_position + Vector2(0, -18), "📜 Bản vẽ: %s" % wname_bp, bp_col, 15)
+				Fx.burst(get_parent(), global_position, bp_col, 38.0, 0.45)
+				Fx.particles(get_parent(), global_position, bp_col, 14, 80.0, 0.55, -35.0, 1.8)
+			elif bool(res.get("ready_to_assemble", false)):
+				var have_r: int = int(res.get("have", 1))
+				var need_r: int = int(res.get("needed", 1))
+				Sfx.play("unlock" if Sfx.SFX_FILES.has("unlock") else "chest_open")
+				Fx.float_text(get_parent(), global_position + Vector2(0, -18), "🧩 Đủ mảnh bản vẽ: %s (%d/%d)!" % [wname_bp, have_r, need_r], bp_col, 15)
+				Fx.burst(get_parent(), global_position, bp_col, 42.0, 0.5)
+				Fx.particles(get_parent(), global_position, bp_col, 16, 85.0, 0.6, -40.0, 2.0)
+				if is_inside_tree():
+					get_tree().call_group("hud", "show_banner", "🧩 Đủ mảnh bản vẽ: %s (%d/%d)!" % [wname_bp, have_r, need_r])
+			elif not res.is_empty():
+				var have_f: int = int(res.get("have", 1))
+				var need_f: int = int(res.get("needed", 1))
+				Sfx.play("pickup_material")
+				Fx.float_text(get_parent(), global_position + Vector2(0, -16), "🧩 Mảnh bản vẽ: %s (%d/%d)" % [wname_bp, have_f, need_f], bp_col, 13)
+				Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 30.0, 0.7, 0.0, bp_col, true)
+			else:
+				Sfx.play("pickup_material")
 	queue_free()
 
 
 func _draw() -> void:
+	if kind == "blueprint_frag":
+		var bw := WeaponData.get_data(blueprint_id)
+		var b_tier := int(bw.get("tier", 1))
+		var b_boss := bool(bw.get("boss_motif", false))
+		var bcol: Color = Color("ff384c") if b_boss else (WeaponData.tier_color(blueprint_id) if WeaponData.DATA.has(blueprint_id) else Color(0.45, 0.92, 1.0))
+		var bp_pulse := 0.5 + 0.5 * sin(_t * 4.2)
+		var bh := 32.0 + float(b_tier) * 6.0
+		draw_rect(Rect2(-5.0, -bh, 10.0, bh), Color(bcol.r, bcol.g, bcol.b, 0.12 + 0.08 * bp_pulse))
+		draw_rect(Rect2(-2.0, -bh * 0.9, 4.0, bh * 0.9), Color(bcol.r, bcol.g, bcol.b, 0.28 + 0.14 * bp_pulse))
+		draw_rect(Rect2(-0.8, -bh * 0.8, 1.6, bh * 0.8), Color(1.0, 1.0, 1.0, 0.35 + 0.25 * bp_pulse))
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.42))
+		draw_circle(Vector2.ZERO, 9.0 + bp_pulse * 2.0, Color(bcol.r, bcol.g, bcol.b, 0.22 + 0.14 * bp_pulse))
+		draw_arc(Vector2.ZERO, 10.5 + bp_pulse * 2.5, 0.0, TAU, 20, Color(bcol.r, bcol.g, bcol.b, 0.55 + 0.28 * bp_pulse), 1.3)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		for si in 4:
+			var ang := _t * 2.4 + float(si) * PI * 0.5
+			var sp := Vector2(cos(ang) * 9.5, -4.0 + sin(ang * 1.5) * 4.0 - float(si) * 2.5)
+			var twk := 0.5 + 0.5 * sin(_t * 6.0 + float(si) * 1.7)
+			draw_rect(Rect2(sp - Vector2(1.0, 1.0), Vector2(2.0, 2.0)), Color(1.0, 0.96, 0.8, 0.55 + 0.4 * twk))
+		return
 	if kind != "weapon":
 		return
 	var w := WeaponData.get_data(weapon_id)
 	var tier := int(w.get("tier", 1))
 	var is_boss_motif: bool = bool(w.get("boss_motif", false))
 	var col: Color = Color("ff384c") if is_boss_motif else WeaponData.tier_color(weapon_id)
-	# cột sáng theo cấp (cấp 5 Huyền Thoại / Thần binh Trùm có chùm sáng vút trời)
-	var h := 130.0 if (tier >= 5 or is_boss_motif) else (10.0 + tier * 6.0)
+	# cột sáng theo cấp (Tier 3 lam, Tier 4 tím, Tier 5 vàng kim, Thần binh Trùm đỏ thẫm)
+	var h := 135.0 if is_boss_motif else (130.0 if tier >= 5 else (68.0 if tier == 4 else (44.0 if tier == 3 else (10.0 + tier * 6.0))))
 	var pulse := 0.5 + 0.5 * sin(_t * 3.0)
 	if is_boss_motif:
-		draw_rect(Rect2(-9.0, -h, 18.0, h), Color(1.0, 0.16, 0.26, 0.10 + 0.06 * pulse))
-		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.28, 0.36, 0.22 + 0.12 * pulse))
-		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.82, 0.85, 0.45 + 0.22 * pulse))
-		draw_arc(Vector2(0, 4), 14.0 + pulse * 3.0, 0.0, TAU, 24, Color(1.0, 0.22, 0.30, 0.65 + 0.25 * pulse), 1.6)
+		draw_rect(Rect2(-9.5, -h, 19.0, h), Color(1.0, 0.16, 0.26, 0.12 + 0.07 * pulse))
+		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.28, 0.36, 0.24 + 0.12 * pulse))
+		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.82, 0.85, 0.48 + 0.22 * pulse))
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.44))
+		draw_arc(Vector2.ZERO, 15.0 + pulse * 3.2, 0.0, TAU, 24, Color(1.0, 0.22, 0.30, 0.70 + 0.25 * pulse), 1.8)
+		draw_arc(Vector2.ZERO, 10.5 + pulse * 2.0, 0.0, TAU, 20, Color(1.0, 0.72, 0.76, 0.50 + 0.25 * pulse), 1.2)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	elif tier >= 5:
-		draw_rect(Rect2(-9.0, -h, 18.0, h), Color(1.0, 0.62, 0.16, 0.08 + 0.05 * pulse))
-		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.84, 0.36, 0.18 + 0.10 * pulse))
-		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.96, 0.78, 0.42 + 0.20 * pulse))
-		draw_arc(Vector2(0, 4), 13.0 + pulse * 3.0, 0.0, TAU, 24, Color(1.0, 0.82, 0.28, 0.55 + 0.25 * pulse), 1.4)
+		draw_rect(Rect2(-9.0, -h, 18.0, h), Color(1.0, 0.62, 0.16, 0.10 + 0.06 * pulse))
+		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.84, 0.36, 0.20 + 0.11 * pulse))
+		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.96, 0.78, 0.44 + 0.20 * pulse))
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.44))
+		draw_arc(Vector2.ZERO, 14.0 + pulse * 3.0, 0.0, TAU, 24, Color(1.0, 0.82, 0.28, 0.62 + 0.25 * pulse), 1.6)
+		draw_arc(Vector2.ZERO, 9.5 + pulse * 1.8, 0.0, TAU, 20, Color(1.0, 0.95, 0.72, 0.42 + 0.22 * pulse), 1.1)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	elif tier == 4:
+		draw_rect(Rect2(-7.0, -h, 14.0, h), Color(0.75, 0.44, 1.0, 0.09 + 0.05 * pulse))
+		draw_rect(Rect2(-3.5, -h * 0.9, 7.0, h * 0.9), Color(0.82, 0.54, 1.0, 0.19 + 0.10 * pulse))
+		draw_rect(Rect2(-1.2, -h * 0.82, 2.4, h * 0.82), Color(0.95, 0.84, 1.0, 0.38 + 0.18 * pulse))
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.42))
+		draw_arc(Vector2.ZERO, 12.5 + pulse * 2.5, 0.0, TAU, 24, Color(0.78, 0.48, 1.0, 0.58 + 0.24 * pulse), 1.4)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	elif tier == 3:
+		draw_rect(Rect2(-5.5, -h, 11.0, h), Color(0.29, 0.66, 1.0, 0.08 + 0.05 * pulse))
+		draw_rect(Rect2(-2.2, -h * 0.88, 4.4, h * 0.88), Color(0.50, 0.82, 1.0, 0.20 + 0.10 * pulse))
+		draw_rect(Rect2(-0.8, -h * 0.78, 1.6, h * 0.78), Color(0.85, 0.96, 1.0, 0.34 + 0.16 * pulse))
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.42))
+		draw_arc(Vector2.ZERO, 11.0 + pulse * 2.0, 0.0, TAU, 22, Color(0.32, 0.76, 1.0, 0.52 + 0.22 * pulse), 1.3)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	for i in 6:
 		var k := float(i) / 6.0
 		draw_rect(Rect2(-3.0 + k * 1.5, -h * (1.0 - k) - 2.0, 6.0 - k * 3.0, h * (1.0 - k) * 0.25), Color(col, (0.12 + 0.1 * pulse) * (1.0 - k)))
 	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.4))
-	draw_circle(Vector2.ZERO, 12.0 if (tier >= 5 or is_boss_motif) else 9.0, Color(col, 0.36 if (tier >= 5 or is_boss_motif) else 0.25 + 0.15 * pulse))
+	draw_circle(Vector2.ZERO, 12.0 if (tier >= 5 or is_boss_motif) else (10.5 if tier >= 3 else 9.0), Color(col, 0.36 if (tier >= 5 or is_boss_motif) else (0.30 if tier >= 3 else 0.25) + 0.15 * pulse))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# mũi tên nhấp nhô chỉ vào vũ khí
 	var ay := -20.0 - absf(sin(_t * 5.0)) * 4.0

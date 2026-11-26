@@ -1068,7 +1068,7 @@ func open_forge(tab: String = "upgrade", tier_filter: int = 0) -> void:
 				continue
 			filtered_wids.append(wid_s)
 		if filtered_wids.is_empty():
-			var empty_msg := "Chưa có công thức. Hãy mở bản vẽ hoặc sưu tầm binh khí trong hầm ngục!" if wids.is_empty() else "Không có công thức Cấp %d đã mở." % tier_filter
+			var empty_msg := "Chưa có bản vẽ. Hãy ghép bản vẽ ở Bàn Bản Vẽ hoặc mở trong hầm ngục!" if wids.is_empty() else "Không có công thức Cấp %d đã mở." % tier_filter
 			box.add_child(UI.label(empty_msg, 13, Color(0.85, 0.82, 0.78)))
 		else:
 			var scroll := ScrollContainer.new()
@@ -1084,6 +1084,9 @@ func open_forge(tab: String = "upgrade", tier_filter: int = 0) -> void:
 				var rec: Dictionary = MaterialData.recipe_for(wid_s)
 				var req_bp: bool = MaterialData.is_achievement_blueprint(wid_s)
 				var has_bp: bool = Global.owns_blueprint(wid_s)
+				var can_asm: bool = Global.can_assemble_blueprint(wid_s)
+				var need_frags: int = Global.fragments_needed(wid_s)
+				var have_frags: int = Global.fragment_count(wid_s)
 				var row := HBoxContainer.new()
 				row.add_theme_constant_override("separation", 4)
 				list.add_child(row)
@@ -1092,14 +1095,14 @@ func open_forge(tab: String = "upgrade", tier_filter: int = 0) -> void:
 				wicon.custom_minimum_size = Vector2(24, 16)
 				wicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				wicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				if req_bp and not has_bp:
-					wicon.modulate = Color(0.55, 0.55, 0.62, 0.85)
+				if not has_bp:
+					wicon.modulate = Color(0.65, 0.65, 0.72, 0.9) if can_asm else Color(0.55, 0.55, 0.62, 0.85)
 				row.add_child(wicon)
 				var name_col := VBoxContainer.new()
-				name_col.custom_minimum_size = Vector2(110, 0)
+				name_col.custom_minimum_size = Vector2(118, 0)
 				name_col.add_theme_constant_override("separation", 0)
 				row.add_child(name_col)
-				var nl := UI.label(str(w.name), 12, WeaponData.tier_color(wid_s) if has_bp else Color(0.66, 0.66, 0.72))
+				var nl := UI.label(str(w.name), 12, WeaponData.tier_color(wid_s) if has_bp else (Color(0.95, 0.92, 0.72) if can_asm else Color(0.66, 0.66, 0.72)))
 				nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 				name_col.add_child(nl)
 				var wtier: int = int(w.get("tier", 1))
@@ -1107,6 +1110,10 @@ func open_forge(tab: String = "upgrade", tier_filter: int = 0) -> void:
 					var bpl := UI.label("📜 Bản vẽ · Cấp %d" % wtier, 10, Color(0.52, 0.92, 1.0) if has_bp else Color(1.0, 0.72, 0.35))
 					bpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 					name_col.add_child(bpl)
+				elif not has_bp:
+					var fgl := UI.label("🧩 Mảnh bản vẽ: %d / %d" % [have_frags, need_frags], 10, Color(0.55, 1.0, 0.78) if can_asm else Color(1.0, 0.78, 0.40))
+					fgl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+					name_col.add_child(fgl)
 				else:
 					var tl := UI.label("Cấp %d · %s" % [wtier, MaterialData.blueprint_tier_label(wid_s)], 10, WeaponData.tier_color(wid_s))
 					tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -1137,6 +1144,21 @@ func open_forge(tab: String = "upgrade", tier_filter: int = 0) -> void:
 					var lk := UI.button("Cần mở khóa bản vẽ ở Tầng Hầm", func(): pass, 10, 166.0)
 					lk.disabled = true
 					row.add_child(lk)
+				elif not has_bp:
+					if can_asm:
+						var ab := UI.button("Ghép Bản Vẽ", func():
+							if Global.assemble_blueprint(wid_s):
+								if Sfx != null:
+									Sfx.play("forge")
+								if lobby != null and lobby.has_method("on_station_fx"):
+									lobby.on_station_fx(Vector2(1032, 345), "Ghép bản vẽ %s!" % str(w.name), WeaponData.tier_color(wid_s))
+								open_forge("craft", tier_filter), 11, 144.0)
+						ab.modulate = Color(0.65, 1.0, 0.80)
+						row.add_child(ab)
+					else:
+						var fb_lk := UI.button("Cần ghép bản vẽ (%d/%d)" % [have_frags, need_frags], func(): pass, 10, 144.0)
+						fb_lk.disabled = true
+						row.add_child(fb_lk)
 				elif Global.forged != "":
 					var wb := UI.button("Đã có binh khí chờ ra trận", func(): pass, 11, 144.0)
 					wb.disabled = true
@@ -2154,43 +2176,95 @@ func open_achievements(cat: String = "all", last_msg: String = "") -> void:
 	_end(box)
 
 
-func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
+func _blueprint_progress_bar(have: int, need: int, ready: bool) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.min_value = 0.0
+	bar.max_value = float(maxi(1, need))
+	bar.value = float(clampi(have, 0, maxi(1, need)))
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(118, 9)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.10, 0.06, 0.12, 0.92)
+	bg.border_color = Color(0.45, 0.35, 0.24, 0.8)
+	bg.set_border_width_all(1)
+	bg.set_corner_radius_all(2)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color(0.42, 0.96, 0.66) if ready else Color(0.45, 0.82, 1.0)
+	fill.set_corner_radius_all(2)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+	return bar
+
+
+func open_blueprints(filter_key: String = "all", last_msg: String = "") -> void:
 	var hs := _hotpatch_sync()
 	if hs != null:
 		hs.ensure_autoloads_synced(get_tree())
 	var box := _begin("Bàn Bản Vẽ Binh Khí")
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", 3)
 
 	var all_bps: Array = MaterialData.all_blueprint_weapons()
 	var total_bp: int = all_bps.size()
 	var owned_bp: int = Global.owned_blueprint_count()
+	var ready_cnt: int = Global.assemblable_blueprint_count()
 
-	box.add_child(UI.label("Bản vẽ đã mở: %d / %d   |   Xu: %d" % [owned_bp, total_bp, Global.coins], 13, Color(1.0, 0.88, 0.45)))
+	var hdr_txt := "Bản vẽ đã mở: %d / %d   |   Xu: %d" % [owned_bp, total_bp, Global.coins]
+	if ready_cnt > 0:
+		hdr_txt += "   |   ✨ Đủ mảnh ghép: %d" % ready_cnt
+	box.add_child(UI.label(hdr_txt, 13, Color(1.0, 0.88, 0.45)))
+
+	var sub_lbl := UI.label("Cần có Bản vẽ để rèn vũ khí. Vũ khí xịn Cấp 3–5 cần nhặt Mảnh Bản Vẽ từ Rương ải & Trùm để ghép!", 10, Color(0.84, 0.90, 0.96), true)
+	sub_lbl.custom_minimum_size = Vector2(560, 0)
+	box.add_child(sub_lbl)
+
+	if ready_cnt > 0:
+		var b_asm_all := UI.button("✨ Ghép tất cả bản vẽ đủ mảnh (%d)" % ready_cnt, func():
+			var assembled_names: PackedStringArray = []
+			for wv in MaterialData.all_blueprint_weapons():
+				var wid_a: String = str(wv)
+				if Global.can_assemble_blueprint(wid_a) and Global.assemble_blueprint(wid_a):
+					assembled_names.append(str(WeaponData.DATA.get(wid_a, {}).get("name", wid_a)))
+			if not assembled_names.is_empty():
+				if Sfx != null:
+					Sfx.play("forge")
+				if lobby != null and lobby.has_method("on_station_fx"):
+					lobby.on_station_fx(Vector2(680, 1255), "Ghép %d bản vẽ!" % assembled_names.size(), Color(0.55, 0.98, 0.72))
+				open_blueprints(filter_key, "Đã ghép %d bản vẽ: %s!" % [assembled_names.size(), ", ".join(assembled_names)])
+			else:
+				open_blueprints(filter_key, ""), 11, 290.0)
+		b_asm_all.custom_minimum_size = Vector2(290.0, 24.0)
+		b_asm_all.modulate = Color(0.75, 1.0, 0.85)
+		box.add_child(UI.center(b_asm_all))
+
 	if last_msg != "":
-		box.add_child(UI.label(last_msg, 12, Color(0.55, 0.98, 0.72)))
+		box.add_child(UI.label(last_msg, 11, Color(0.55, 0.98, 0.72)))
 
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", 3)
+	tabs.add_theme_constant_override("separation", 2)
 	box.add_child(tabs)
 	var tab_specs: Array = [
-		["all", "Tất cả (%d)" % total_bp, 88.0],
-		["owned", "Đã sở hữu", 76.0],
-		["basic", "Cơ bản (1-2)", 86.0],
-		["mid", "Trung cấp (3)", 88.0],
-		["advanced", "Nâng cao (4)", 84.0],
-		["legendary", "★ Huyền Thoại (5)", 112.0],
+		["all", "Tất cả (%d)" % total_bp, 78.0],
+		["owned", "Đã sở hữu", 70.0],
+		["fragments", "🧩 Mảnh ghép", 84.0],
+		["basic", "Cơ bản (1-2)", 76.0],
+		["mid", "Trung cấp (3)", 80.0],
+		["advanced", "Nâng cao (4)", 76.0],
+		["legendary", "★ Huyền Thoại (5)", 104.0],
 	]
 	for spec in tab_specs:
 		var gk: String = str(spec[0])
 		var tb := UI.button(str(spec[1]), open_blueprints.bind(gk, ""), 11, float(spec[2]))
-		tb.disabled = (grade == gk)
+		tb.disabled = (filter_key == gk)
 		if gk == "legendary":
-			tb.modulate = WeaponData.TIER_COLORS[5] if grade == gk else Color(1.0, 0.84, 0.55)
+			tb.modulate = WeaponData.TIER_COLORS[5] if filter_key == gk else Color(1.0, 0.84, 0.55)
+		elif gk == "fragments" and ready_cnt > 0:
+			tb.modulate = Color(0.55, 1.0, 0.78)
 		tabs.add_child(tb)
 
+	var scroll_h: float = 162.0 - (26.0 if ready_cnt > 0 else 0.0) - (16.0 if last_msg != "" else 0.0)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(576, 178)
+	scroll.custom_minimum_size = Vector2(586, scroll_h)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
 	var list := VBoxContainer.new()
@@ -2201,9 +2275,12 @@ func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
 	for wv in all_bps:
 		var wid_s: String = str(wv)
 		var tier: int = int(WeaponData.DATA.get(wid_s, {}).get("tier", 1))
-		match grade:
+		match filter_key:
 			"owned":
 				if not Global.owns_blueprint(wid_s):
+					continue
+			"fragments":
+				if Global.owns_blueprint(wid_s) or Global.fragment_count(wid_s) <= 0:
 					continue
 			"basic":
 				if tier > 2:
@@ -2219,8 +2296,21 @@ func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
 					continue
 		items.append(wid_s)
 
+	if filter_key == "fragments":
+		items.sort_custom(func(a: String, b: String) -> bool:
+			var ra: int = 0 if Global.can_assemble_blueprint(a) else 1
+			var rb: int = 0 if Global.can_assemble_blueprint(b) else 1
+			if ra != rb:
+				return ra < rb
+			var ta: int = int(WeaponData.DATA.get(a, {}).get("tier", 1))
+			var tb: int = int(WeaponData.DATA.get(b, {}).get("tier", 1))
+			if ta != tb:
+				return ta > tb
+			return str(WeaponData.DATA.get(a, {}).get("name", a)) < str(WeaponData.DATA.get(b, {}).get("name", b)))
+
 	if items.is_empty():
-		list.add_child(UI.label("Chưa sở hữu bản vẽ nào trong mục này. Hạ Trùm hoặc nhận thưởng Thành tựu để mở!", 12, Color(0.85, 0.82, 0.78)))
+		var empty_bp_msg := "Chưa có mảnh bản vẽ nào đang ghép. Mở Rương ải & hạ Trùm để nhặt Mảnh Bản Vẽ!" if filter_key == "fragments" else "Chưa sở hữu bản vẽ nào trong mục này. Mở Rương, hạ Trùm hoặc nhận thưởng Thành tựu để mở!"
+		list.add_child(UI.label(empty_bp_msg, 12, Color(0.85, 0.82, 0.78)))
 
 	for wid_v in items:
 		var wid: String = str(wid_v)
@@ -2230,15 +2320,14 @@ func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
 		var tier_lbl: String = MaterialData.blueprint_tier_label(wid)
 		var unlocked_bp: bool = Global.owns_blueprint(wid)
 		var is_ach_bp: bool = MaterialData.is_achievement_blueprint(wid)
-		var src_txt: String = "Trùm rơi / Sưu tầm hầm ngục"
-		if is_ach_bp:
-			var src_aid: String = AchievementData.blueprint_source(wid)
-			var src_name: String = str(AchievementData.DATA.get(src_aid, {}).get("name", "Thành tựu Tầng Hầm"))
-			src_txt = "Thành tựu: %s" % src_name
+		var uses_frags: bool = MaterialData.uses_fragments(wid)
+		var need_frags: int = Global.fragments_needed(wid)
+		var have_frags: int = need_frags if unlocked_bp else Global.fragment_count(wid)
+		var can_asm: bool = Global.can_assemble_blueprint(wid)
 		var rec: Dictionary = MaterialData.recipe_for(wid)
 
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if unlocked_bp else "ui/panel.png"))
+		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if (unlocked_bp or can_asm) else "ui/panel.png"))
 		list.add_child(card)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
@@ -2249,7 +2338,7 @@ func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
 		wicon.custom_minimum_size = Vector2(34, 22)
 		wicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		wicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		if not unlocked_bp:
+		if not unlocked_bp and not can_asm:
 			wicon.modulate = Color(0.42, 0.42, 0.48, 0.85)
 		row.add_child(wicon)
 
@@ -2261,16 +2350,62 @@ func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
 		var top_l := HBoxContainer.new()
 		top_l.add_theme_constant_override("separation", 5)
 		info.add_child(top_l)
-		var nl := UI.label("%s [Cấp %d · %s]" % [wname, wtier, tier_lbl], 12, WeaponData.tier_color(wid) if unlocked_bp else Color(0.72, 0.72, 0.78))
+		var name_col_ui: Color = WeaponData.tier_color(wid) if unlocked_bp else (Color(0.96, 0.94, 0.72) if can_asm else Color(0.72, 0.72, 0.78))
+		var nl := UI.label("%s [Cấp %d · %s]" % [wname, wtier, tier_lbl], 12, name_col_ui)
 		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		top_l.add_child(nl)
-		var stl := UI.label("✓ Đã mở" if unlocked_bp else "🔒 Chưa mở", 11, Color(0.55, 0.96, 0.65) if unlocked_bp else Color(1.0, 0.72, 0.38))
+		var st_txt := "✓ Đã mở bản vẽ" if unlocked_bp else ("✨ Đủ mảnh ghép!" if can_asm else "🔒 Chưa mở")
+		var st_col := Color(0.55, 0.96, 0.65) if unlocked_bp else (Color(0.55, 1.0, 0.78) if can_asm else Color(1.0, 0.72, 0.38))
+		var stl := UI.label(st_txt, 11, st_col)
 		top_l.add_child(stl)
 
-		var srcl := UI.label("Nguồn: %s" % src_txt, 10, Color(0.78, 0.84, 0.92))
-		srcl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		info.add_child(srcl)
+		if unlocked_bp:
+			var owned_src := "✓ Sẵn sàng rèn tại Lò Rèn"
+			if is_ach_bp:
+				var src_aid: String = AchievementData.blueprint_source(wid)
+				var src_name: String = str(AchievementData.DATA.get(src_aid, {}).get("name", "Thành tựu Tầng Hầm"))
+				owned_src = "Thành tựu: %s" % src_name
+			var srcl := UI.label(owned_src, 10, Color(0.78, 0.88, 0.84))
+			srcl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info.add_child(srcl)
+		elif is_ach_bp:
+			var src_aid2: String = AchievementData.blueprint_source(wid)
+			var src_name2: String = str(AchievementData.DATA.get(src_aid2, {}).get("name", "Thành tựu Tầng Hầm"))
+			var achl := UI.label("🏆 Mở khóa tại Bảng Thành Tựu (%s)" % src_name2, 10, Color(1.0, 0.84, 0.45))
+			achl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info.add_child(achl)
+		elif uses_frags:
+			var frow := HBoxContainer.new()
+			frow.add_theme_constant_override("separation", 5)
+			info.add_child(frow)
+			var ficon := TextureRect.new()
+			ficon.texture = Art.tex("items/blueprint_frag.png")
+			ficon.custom_minimum_size = Vector2(12, 12)
+			ficon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ficon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			frow.add_child(ficon)
+			frow.add_child(_blueprint_progress_bar(have_frags, need_frags, can_asm))
+			var flbl := UI.label("🧩 Mảnh: %d / %d" % [have_frags, need_frags], 10, Color(0.55, 1.0, 0.78) if can_asm else Color(0.84, 0.90, 0.98))
+			flbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			frow.add_child(flbl)
+			if not can_asm:
+				var fsrc := UI.label("Nhặt mảnh từ Rương ải & Trùm (%d/%d)" % [have_frags, need_frags], 10, Color(0.76, 0.82, 0.90))
+				fsrc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+				info.add_child(fsrc)
+		else:
+			var srow := HBoxContainer.new()
+			srow.add_theme_constant_override("separation", 4)
+			info.add_child(srow)
+			var sicon := TextureRect.new()
+			sicon.texture = Art.tex("items/blueprint_scroll.png")
+			sicon.custom_minimum_size = Vector2(12, 12)
+			sicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			sicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			srow.add_child(sicon)
+			var ssrc := UI.label("📜 Nhặt bản vẽ từ Rương ải & Tinh nhuệ", 10, Color(0.78, 0.84, 0.92))
+			ssrc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			srow.add_child(ssrc)
 
 		if not rec.is_empty():
 			_add_cost_row(info, int(rec.get("coins", 0)), rec.get("mats", {}))
@@ -2278,25 +2413,24 @@ func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
 		var b_sfx := UI.button("🔊", _preview_weapon_sfx.bind(wid, w), 12, 32.0)
 		row.add_child(b_sfx)
 
-		if not unlocked_bp:
-			var b_lk := UI.button("Chưa mở khóa", func(): pass, 11, 104.0)
+		if unlocked_bp:
+			var b_forge := UI.button("Tới Lò Rèn", open_forge.bind("craft"), 11, 108.0)
+			b_forge.modulate = Color(0.82, 0.96, 1.0)
+			row.add_child(b_forge)
+		elif can_asm:
+			var b_asm := UI.button("Ghép Bản Vẽ", func():
+				if Global.assemble_blueprint(wid):
+					if Sfx != null:
+						Sfx.play("forge")
+					if lobby != null and lobby.has_method("on_station_fx"):
+						lobby.on_station_fx(Vector2(680, 1255), "Ghép bản vẽ %s!" % wname, WeaponData.tier_color(wid))
+					open_blueprints(filter_key, "Đã ghép bản vẽ %s! Có thể rèn tại Lò Rèn." % wname), 11, 108.0)
+			b_asm.modulate = Color(0.65, 1.0, 0.80)
+			row.add_child(b_asm)
+		else:
+			var b_lk := UI.button("Chưa mở khóa", func(): pass, 11, 108.0)
 			b_lk.disabled = true
 			row.add_child(b_lk)
-		elif Global.forged != "":
-			var b_wait := UI.button("Đã có đồ chờ", func(): pass, 11, 104.0)
-			b_wait.disabled = true
-			row.add_child(b_wait)
-		else:
-			var b_craft := UI.button("Chế tạo ngay", func():
-				if Global.try_craft(wid):
-					Sfx.play("forge")
-					if lobby != null:
-						lobby.on_forged()
-						if lobby.has_method("on_station_fx"):
-							lobby.on_station_fx(Vector2(680, 1255), "Chế tạo %s!" % wname, WeaponData.tier_color(wid))
-					open_blueprints(grade, "Đã chế tạo %s chờ mang vào trận!" % wname), 11, 104.0)
-			b_craft.disabled = not Global.can_craft(wid)
-			row.add_child(b_craft)
 
 	_end(box)
 

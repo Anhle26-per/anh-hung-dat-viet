@@ -537,3 +537,60 @@ static func roll(level: int, bonus := 0) -> String:
 		if int(d.tier) == tier and not bool(d.get("basic", false)) and not bool(d.get("blueprint", false)) and not bool(d.get("boss_motif", false)) and not bool(d.get("merged", false)):
 			pool.append(id)
 	return pool.pick_random()
+
+
+## Chọn vũ khí từ rương ải / rương báu theo bucket-first (số lượng cấp 1-2 không làm loãng cấp 3-5)
+## và có cơ hội nổ hũ Thần binh Trùm (boss_motif).
+static func roll_chest_weapon(level: int, is_treasure: bool = false, badass: bool = false) -> String:
+	var lv: float = float(maxi(1, level))
+	var jackpot_chance: float = (0.07 if (badass or lv >= 9.0) else 0.04) if is_treasure else (0.045 if (badass or lv >= 9.0) else 0.02)
+	var boss_pool: Array = []
+	var buckets: Dictionary = {1: [], 2: [], 3: [], 4: [], 5: []}
+	for id in DATA:
+		var d: Dictionary = DATA[id]
+		if bool(d.get("basic", false)) or bool(d.get("blueprint", false)) or bool(d.get("merged", false)):
+			continue
+		if bool(d.get("boss_motif", false)):
+			boss_pool.append(id)
+			continue
+		var t: int = clampi(int(d.get("tier", 1)), 1, 5)
+		(buckets[t] as Array).append(id)
+	if not boss_pool.is_empty() and randf() < jackpot_chance:
+		return str(boss_pool.pick_random())
+	var weights: Dictionary
+	if is_treasure:
+		weights = {
+			1: 0.0,
+			2: 6.0 if badass else maxf(8.0, 22.0 - lv * 1.0),
+			3: 36.0,
+			4: 28.0 + lv * 1.2 + (8.0 if badass else 0.0),
+			5: 12.0 + lv * 0.9 + (8.0 if badass else 0.0),
+		}
+	else:
+		weights = {
+			1: 0.0 if badass else maxf(4.0, 22.0 - lv * 1.4),
+			2: 26.0,
+			3: 32.0 + lv * 0.8,
+			4: 14.0 + lv * 1.1 + (8.0 if badass else 0.0),
+			5: 4.5 + lv * 0.65 + (5.5 if badass else 0.0),
+		}
+	var total: float = 0.0
+	for t in range(1, 6):
+		if not (buckets[t] as Array).is_empty():
+			total += float(weights[t])
+	if total <= 0.0:
+		return roll(level)
+	var r: float = randf() * total
+	var chosen_tier: int = 3
+	for t in range(1, 6):
+		var pool: Array = buckets[t]
+		if pool.is_empty():
+			continue
+		r -= float(weights[t])
+		if r <= 0.0:
+			chosen_tier = t
+			break
+	var chosen_pool: Array = buckets[chosen_tier]
+	if chosen_pool.is_empty():
+		return roll(level)
+	return str(chosen_pool.pick_random())

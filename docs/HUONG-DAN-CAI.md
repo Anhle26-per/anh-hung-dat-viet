@@ -1,4 +1,4 @@
-# Hướng dẫn cài đặt và chơi **Anh Hùng Đất Việt** (`v2.0.0`)
+# Hướng dẫn cài đặt và chơi **Anh Hùng Đất Việt** (`v2.2.0`)
 
 > Tải các gói cài đặt chính thức tại trang [**GitHub Releases**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest).
 
@@ -30,7 +30,7 @@ Hỗ trợ chuẩn **Universal** cho cả **Apple Silicon (M1–M4)** và **Inte
 
 ---
 
-## 2. Bảng phím điều khiển (`v2.0.0`)
+## 2. Bảng phím điều khiển (`v2.2.0`)
 
 | Hành động | Máy tính (`PC`) | Điện thoại (`Touch`) | Tay cầm (`Gamepad`) |
 |---|---|---|---|
@@ -41,11 +41,12 @@ Hỗ trợ chuẩn **Universal** cho cả **Apple Silicon (M1–M4)** và **Inte
 | **Lướt né (i-frame)** | `Space` | Nút Lướt | `X` |
 | **Chạy nhanh** | `Shift` | — | Nhấn cần trái (`L3`) / Cò trái (`LT`) |
 | **Đổi vũ khí** | `Q` hoặc **Lăn chuột** | Nút **Đổi** | `LB` |
+| **Vứt vũ khí (chia sẻ LAN)** | `G` *(khi cầm ≥ 2 món)* | Nút **Vứt** | `D-Pad Xuống` |
 | **Nhặt / Tương tác** | `E` | Nút **Nhặt / Dùng** | `Y` |
 | **Hợp nhất vũ khí** | `R` *(khi đứng cạnh đồ ghép được)* | Nút **Hợp nhất** | `RB` |
 | **Tạm dừng / Cài đặt** | `Esc` hoặc `P` | Nút `II` | `Start` |
 
-*(Gợi ý nhỏ: `E` dùng để nhặt vũ khí dưới chân hoặc tương tác rương, thương nhân, bàn thờ sự kiện `[!]`, thú cưỡi; `R` tự hiện gợi ý khi vũ khí trên tay ghép được với vũ khí gần cạnh hoặc trong túi).*
+*(Gợi ý nhỏ: `E` dùng để nhặt vũ khí dưới chân hoặc tương tác rương, thương nhân, bàn thờ sự kiện `[!]`, thú cưỡi; `G` vứt vũ khí đang cầm xuống sàn để nhường cho đồng đội LAN hoặc dọn ô; `R` tự hiện gợi ý khi vũ khí trên tay ghép được với vũ khí gần cạnh hoặc trong túi).*
 
 ---
 
@@ -75,7 +76,7 @@ Hỗ trợ chuẩn **Universal** cho cả **Apple Silicon (M1–M4)** và **Inte
 Trong Doanh trại (sảnh chính), đứng cạnh tượng tướng đã mở khóa, bấm `E` và mở thẻ **Tu luyện**:
 - **Tu luyện tướng (Cấp 1 → 5):** Cấp 2 `+1 máu` (`150 xu`), Cấp 3 `+1 giáp` (`300 xu`), Cấp 4 `+30 năng lượng` (`500 xu + 2 Yêu hồn`), Cấp 5 `hồi kỹ năng ×0,85` (`800 xu + 1 Ngọc thần`). *(Cộng dồn với nâng cấp Lò rèn.)*
 - **Rèn binh khí khởi đầu (Bậc 1 → 5):** Bậc 2 (`100 xu + 3 Đồng`): sát thương `×1,25`; Bậc 3 (`220 xu + 5 Sắt + 2 Đồng`): sát thương `×1,5`, hồi đòn `×0,92`, mở **Đặc tính 1**; Bậc 4 (`400 xu + 6 Sắt + 2 Yêu hồn`): sát thương `×1,8`, hồi đòn `×0,88`; Bậc 5 — **Thức tỉnh** (`700 xu + 8 Sắt + 3 Yêu hồn + 2 Ngọc thần`): sát thương `×2,2`, hồi đòn `×0,85`, mở **Đặc tính 2**.
-- **Lò rèn & Tầng Hầm Vinh Quang:** Dùng Xu và 6 loại nguyên liệu (*Đồng, Sắt, Gỗ lim, Hỏa dược, Yêu hồn, Ngọc thần*) để rèn sẵn vũ khí mang theo vào trận, hoặc đi xuống **Tầng Hầm** xem Bàn Bản Vẽ (207 bản thiết kế) và tủ thành tựu.
+- **Lò rèn, Rương báu & Tầng Hầm Vinh Quang:** Dùng Xu và 6 loại nguyên liệu (*Đồng, Sắt, Gỗ lim, Hỏa dược, Yêu hồn, Ngọc thần*) để rèn vũ khí mang vào trận khi đã mở **Bản vẽ**. Từ `v2.2.0`, Rương ải (`35%` / `42%` Ác Mộng) và Rương báu ưu tiên rơi vũ khí **Cấp 3–5** và có thể nổ hũ **Thần Binh Đỏ**; đồng thời rơi **Mảnh Bản Vẽ** (`1` mảnh cho Cấp 1–2, `2` cho Cấp 3, `3` cho Cấp 4, `4` cho Cấp 5 thường, `5` cho Thần Binh Đỏ & Hợp nhất) để ghép tại **Bàn Bản Vẽ** dưới Tầng Hầm hoặc ngay trong **Lò Rèn**.
 
 ---
 
@@ -103,7 +104,7 @@ Game hỗ trợ **2 đến 4 người** chơi chung trong cùng mạng Wi-Fi / L
 - Xem IP máy Host: mở `cmd` → gõ `ipconfig` → lấy dòng **`IPv4 Address`** dưới mục Wi-Fi/Ethernet.
 
 ### Quy tắc đồng bộ LAN
-- Đội dùng chung tiến độ mở khóa tướng, nâng cấp Lò rèn, tu luyện và độ khó của **Chủ phòng**; file `save.json` máy Khách **không bị ghi đè**.
+- Đội dùng chung tiến độ mở khóa tướng, nâng cấp Lò rèn, tu luyện và độ khó của **Chủ phòng**; file `save.json` máy Khách **không bị ghi đè**. Có thể bấm **`G`** (hoặc nút **Vứt**) để thả vũ khí đang cầm xuống sàn chia sẻ cho đồng đội; mọi thao tác nhặt/đổi vũ khí và mở rương đều được Chủ phòng xác nhận chống nhặt trùng, còn **Mảnh Bản Vẽ** rơi riêng cho từng người chơi.
 - Khi máu về 0 lúc đồng đội còn sống, bạn chỉ **gục ngã** — đồng đội đứng cạnh **3 giây** sẽ cứu dậy (hồi 2 máu). Nếu Khách rớt mạng, chỗ được giữ **60 giây** để vào lại với đúng tên cũ.
 
 ---

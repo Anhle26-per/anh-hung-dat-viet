@@ -302,7 +302,10 @@ func draw_hud(ci: Control) -> void:
 			panel_w = maxf(panel_w, minf(need_w, 304.0))
 		var panel_h: float = 72.0 + float(maxi(0, slot_cnt - 2)) * 18.0
 		var px: float = w - panel_w - 4.0
-		_panel(ci, Rect2(px, h - panel_h - 4.0, panel_w, panel_h))
+		var panel_y: float = h - panel_h - 4.0
+		if player.has_method("can_drop_current_weapon") and player.can_drop_current_weapon():
+			Art.draw_text(ci, Vector2(px + 6.0, panel_y - 4.0), "[G] Vứt vũ khí", 12, Color(0.95, 0.86, 0.58), false)
+		_panel(ci, Rect2(px, panel_y, panel_w, panel_h))
 		for i in slot_cnt:
 			var id: String = str(player.weapons[i])
 			var y: float = h - panel_h + 2.0 + i * 18.0

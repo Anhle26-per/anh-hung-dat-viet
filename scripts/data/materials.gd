@@ -59,6 +59,24 @@ static func all_blueprint_weapons() -> Array:
 	return out
 
 
+static func fragments_needed(wid: String) -> int:
+	if not can_forge_weapon(wid):
+		return 0
+	var w: Dictionary = WeaponData.DATA.get(wid, {})
+	var tier: int = int(w.get("tier", 1))
+	if tier <= 2:
+		return 1
+	if tier == 3:
+		return 2
+	if tier == 4:
+		return 3
+	return 5 if (bool(w.get("boss_motif", false)) or bool(w.get("merged", false))) else 4
+
+
+static func uses_fragments(wid: String) -> bool:
+	return fragments_needed(wid) > 1
+
+
 static func is_achievement_blueprint(wid: String) -> bool:
 	return bool(WeaponData.DATA.get(wid, {}).get("blueprint", false))
 

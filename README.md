@@ -2,11 +2,11 @@
 
 # ⚔️ ANH HÙNG ĐẤT VIỆT ⚔️
 
-### Phiên bản `v2.1.0` — *Vạn Binh Khởi Trận*
+### Phiên bản `v2.2.0` — *Tàng Kinh & Chia Binh*
 
 *Game hành động Roguelike bắn quái góc nhìn từ trên xuống (Top-Down Bullet-Hell) lấy cảm hứng từ Soul Knight — Tái hiện hào khí 2.000 năm lịch sử & truyền thuyết Việt Nam bằng đồ họa Pixel Art.*
 
-[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.1.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
+[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.2.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
 [![Godot](https://img.shields.io/badge/Godot-4.7.2-478cbf?style=for-the-badge&logo=godot-engine&logoColor=white)](https://godotengine.org/)
 [![Binh khí](https://img.shields.io/badge/Kho_Binh_Khí-217_Món-f59f00?style=for-the-badge)](#%EF%B8%8F-217-binh-khí-hợp-nhất--13-thần-binh-đỏ)
 [![Danh tướng](https://img.shields.io/badge/Danh_Tướng-11_Tướng_•_22_Chiêu-7950f2?style=for-the-badge)](#-11-danh-tướng--nội-tại-chiêu-1--chiêu-2)
@@ -44,12 +44,12 @@ Tất cả bản dựng chính thức được phát hành tại trang [**GitHub
 
 ---
 
-## 🔥 Điểm Nhấn Phiên Bản `v2.1.0 — Vạn Binh Khởi Trận`
+## 🔥 Điểm Nhấn Phiên Bản `v2.2.0 — Tàng Kinh & Chia Binh`
 
-- **13 Đại Trùm 36 Khung Hành Động & Hoạt Ảnh Sinh Động Toàn Bộ**: Nâng cấp toàn bộ 26 bộ sprite Trùm (10 Trùm Lịch Sử + 3 Tam Yêu, cả Pha 1 & Pha 2 Hiện Nguyên Hình) lên **36 khung hành động riêng biệt** (`idle`, `walk`, `windup`, `melee_sweep`, `ranged_shot`, `cast_summon`, `dash`, `leap`, `rage`, `special`), kèm hiệu ứng chém, lướt, bụi chân và hoạt ảnh thở/làm việc cho **5 NPC Doanh Trại**, Thợ Rèn, Thương Nhân, Hình Nhân, Binh Sĩ và Bàn Tế.
-- **Vạn Binh Khởi Trận (Horde Waves)**: Tăng mật độ quái nhỏ lên **8–22 giặc mỗi đợt** (`MAX_ENEMIES = 28`), đội hình phối hợp Cận chiến – Xạ thủ – Hỗ trợ/Khiên, **vòng báo hiệu xuất hiện `0.55s`** và cơ chế gọi sớm đợt kế tiếp khi còn `<= 2` giặc.
-- **Sảnh Chọn Tướng Trực Tiếp, LAN Lobby Chung & Linh Thú Đồng Hành**: Nhấp chuột chọn & xác nhận tướng ngay trên bục Đại Sảnh; **chơi LAN Co-op cùng dạo Doanh Trại**, **cho phép chọn trùng tướng**, đồng bộ hành động/linh thú; và **1 Linh Thú đồng hành theo sau từ Sảnh xuống Tầng Hầm vào trận** (tự ẩn thú nghỉ khi đang dẫn theo).
-- **Nền Tảng `v2.0.0` (11 Tướng • 217 Binh Khí • 6 Phòng `[!]` • 3 Thú Cưỡi)**: Giữ trọn **11 Nội tại + 22 Chiêu chủ động**, **13 Thần Binh Đỏ (`#ff384c`)**, **18 công thức Hợp nhất (`R`)**, **39 Phúc lành**, **Lướt né i-frame (`Space`)**, **Ác Mộng (Badass)**, **Boss Rush 13 tầng**, **8 Biến số**, **4 Địa hình Chiến trường** và **Nhạc nền Folk-Synth BGM**.
+- **Vứt & Chia Sẻ Vũ Khí Trong LAN (`Phím G` / Nút `Vứt`)**: Khi cầm từ 2 vũ khí trở lên, bấm **`G`** (hoặc nút **Vứt** trên màn hình cảm ứng, `D-Pad Xuống` trên tay cầm) để thả vũ khí đang cầm xuống sàn chia sẻ cho đồng đội; cơ chế nhặt & đổi vũ khí đầy ô qua Chủ phòng đồng bộ chặt chẽ, chống nhặt trùng tuyệt đối.
+- **Rương Chiến Lợi Phẩm Hậu Hĩnh Hơn (Ưu Tiên Cấp 3–5 & Nổ Hũ Thần Binh)**: Rương sơn mài có **35%** (`42%` ở Ác Mộng) rơi vũ khí theo trọng số ưu tiên **Cấp 3–5** (>45% rương thường, >75% rương báu) và cơ hội **nổ hũ Thần Binh Đỏ (`boss_motif`)**, tỏa cột sáng hào quang phân biệt bậc hiếm ngay trên sàn.
+- **Mảnh Bản Vẽ & Ghép Bản Vẽ (`Bàn Bản Vẽ` & `Lò Rèn`)**: Để rèn binh khí tại Lò Rèn nay bắt buộc phải sở hữu **Bản vẽ**. Thu thập **Mảnh Bản Vẽ** riêng từng người chơi từ Rương ải (`35%` / `45%` Ác Mộng), Rương báu, Tinh nhuệ (`22%`), Tam Yêu (`65%` / `100%` Thần thoại) và Trùm (`100%`): Cấp 1–2 cần `1` mảnh, Cấp 3 cần `2`, Cấp 4 cần `3`, Cấp 5 thường cần `4`, Thần Binh Đỏ & Hợp nhất cần `5` mảnh — ghép ngay tại **Bàn Bản Vẽ** (kèm lọc tab **🧩 Mảnh ghép** và nút **Ghép tất cả**) hoặc trực tiếp trong **Lò Rèn**.
+- **Nền Tảng `v2.1.0` & `v2.0.0`**: Giữ trọn **13 Đại Trùm 36 khung hành động**, **Vạn Binh Khởi Trận (`8–22` giặc/đợt)**, **LAN Lobby chung chọn trùng tướng**, **Linh Thú đồng hành từ Sảnh**, **11 Tướng • 22 Chiêu**, **217 Binh Khí**, **39 Phúc lành**, **6 Phòng `[!]`**, **3 Thú Cưỡi**, **Ác Mộng** & **Boss Rush 13 tầng**.
 
 ---
 
@@ -64,6 +64,7 @@ Tất cả bản dựng chính thức được phát hành tại trang [**GitHub
 | **Lướt né (i-frame)** | `Space` | Nút Lướt | `X` |
 | **Chạy nhanh** | `Shift` | — | Nhấn cần trái (`L3`) / Cò trái (`LT`) |
 | **Đổi vũ khí** | `Q` / Lăn chuột | Nút **Đổi** | `LB` |
+| **Vứt vũ khí (chia sẻ LAN)** | `G` *(khi cầm ≥ 2 món)* | Nút **Vứt** | `D-Pad Xuống` |
 | **Nhặt / Tương tác** | `E` | Nút **Nhặt / Dùng** | `Y` |
 | **Hợp nhất vũ khí** | `R` *(khi đứng cạnh đồ ghép được)* | Nút **Hợp nhất** | `RB` |
 | **Tạm dừng** | `Esc` / `P` | Nút `II` | `Start` |

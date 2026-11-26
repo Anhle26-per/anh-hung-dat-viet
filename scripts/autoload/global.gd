@@ -25,6 +25,7 @@ const DEFAULT_STATS: Dictionary = {
 	"mythic_bosses": 0,
 	"crafted": 0,
 	"chests": 0,
+	"blueprints_assembled": 0,
 }
 
 # --- Dữ liệu được lưu lại ---
@@ -37,6 +38,7 @@ var discovered: Array = []        # vũ khí đã sưu tầm
 var stats: Dictionary = DEFAULT_STATS.duplicate()
 var achievements_claimed: Array = []  # mã thành tựu đã nhận thưởng
 var blueprints: Array = []            # mã vũ khí bản vẽ đã mở khóa
+var blueprint_fragments: Dictionary = {}  # mã vũ khí -> số mảnh bản vẽ đã thu thập
 var free_revives := 0             # lượt hồi sinh miễn phí còn lại trong lượt chơi
 var materials: Dictionary = {}    # kho nguyên liệu: mã -> số lượng
 var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lượt kế tiếp ("" nếu trống)
@@ -182,6 +184,7 @@ var touch_skill: bool = false    # vừa bấm nút kỹ năng (player đọc xo
 var touch_swap: bool = false     # vừa bấm nút đổi/nhặt vũ khí
 var touch_dash: bool = false     # vừa bấm nút lướt né (player đọc xong sẽ tắt)
 var touch_merge: bool = false    # vừa bấm nút hợp nhất vũ khí (player đọc xong sẽ tắt)
+var touch_drop_weapon: bool = false  # vừa bấm nút vứt vũ khí (player đọc xong sẽ tắt)
 var _force_touch: bool = false
 
 
@@ -350,6 +353,7 @@ func start_run(code: String = "") -> void:
 	active_mount_hp = 0
 	touch_dash = false
 	touch_merge = false
+	touch_drop_weapon = false
 	_run_active = true
 	_run_score_recorded = false
 	run_elapsed = 0.0
@@ -506,16 +510,10 @@ func try_upgrade(id: String) -> bool:
 func discover(weapon_id: String, persist: bool = true) -> void:
 	if weapon_id == "":
 		return
-	var changed: bool = false
 	if not discovered.has(weapon_id):
 		discovered.append(weapon_id)
-		changed = true
-	if MaterialData.can_forge_weapon(weapon_id) and not MaterialData.is_achievement_blueprint(weapon_id):
-		if not blueprints.has(weapon_id):
-			blueprints.append(weapon_id)
-			changed = true
-	if changed and persist:
-		save_game()
+		if persist:
+			save_game()
 
 
 func add_stat(key: String, n := 1) -> void:
@@ -579,15 +577,15 @@ func _commit_run_materials() -> void:
 
 func forgeable_weapons() -> Array:
 	var out: Array = []
-	for wid in discovered:
-		var w: String = str(wid)
-		if MaterialData.can_forge_weapon(w) and not MaterialData.is_achievement_blueprint(w) and not out.has(w):
-			out.append(w)
-	for wid in blueprints:
-		var w2: String = str(wid)
-		if MaterialData.can_forge_weapon(w2) and not out.has(w2):
-			out.append(w2)
+	for wid_v in MaterialData.all_blueprint_weapons():
+		var wid: String = str(wid_v)
+		if owns_blueprint(wid) or fragment_count(wid) > 0:
+			out.append(wid)
 	out.sort_custom(func(a: String, b: String) -> bool:
+		var pa: int = 0 if can_assemble_blueprint(a) else (1 if owns_blueprint(a) else 2)
+		var pb: int = 0 if can_assemble_blueprint(b) else (1 if owns_blueprint(b) else 2)
+		if pa != pb:
+			return pa < pb
 		var ta: int = int(WeaponData.DATA[a].tier)
 		var tb: int = int(WeaponData.DATA[b].tier)
 		if ta != tb:
@@ -617,9 +615,7 @@ func _spend_cost(coins_need: int, mats: Dictionary) -> void:
 
 
 func owns_blueprint(wid: String) -> bool:
-	if has_blueprint(wid):
-		return true
-	return MaterialData.can_forge_weapon(wid) and not MaterialData.is_achievement_blueprint(wid) and discovered.has(wid)
+	return MaterialData.can_forge_weapon(wid) and has_blueprint(wid)
 
 
 func can_craft(wid: String) -> bool:
@@ -659,10 +655,124 @@ func owned_blueprint_count() -> int:
 	return cnt
 
 
-func roll_boss_blueprint(mythic: bool = false) -> String:
+func fragments_needed(wid: String) -> int:
+	return MaterialData.fragments_needed(wid)
+
+
+func fragment_count(wid: String) -> int:
+	return maxi(0, int(blueprint_fragments.get(wid, 0)))
+
+
+func can_assemble_blueprint(wid: String) -> bool:
+	if not MaterialData.can_forge_weapon(wid) or owns_blueprint(wid):
+		return false
+	var need: int = fragments_needed(wid)
+	return need > 0 and fragment_count(wid) >= need
+
+
+func assemblable_blueprint_count() -> int:
+	var cnt: int = 0
+	for wid_v in blueprint_fragments.keys():
+		if can_assemble_blueprint(str(wid_v)):
+			cnt += 1
+	return cnt
+
+
+func add_blueprint_fragment(wid: String, amount: int = 1) -> Dictionary:
+	if wid == "" or amount <= 0 or not MaterialData.can_forge_weapon(wid):
+		return {}
+	var needed: int = fragments_needed(wid)
+	if owns_blueprint(wid):
+		run_coins += 12 * amount
+		return {
+			"wid": wid,
+			"already_owned": true,
+			"unlocked_now": false,
+			"ready_to_assemble": false,
+			"have": needed,
+			"needed": needed,
+		}
+	if needed <= 1:
+		unlock_blueprint(wid)
+		blueprint_fragments.erase(wid)
+		return {
+			"wid": wid,
+			"already_owned": false,
+			"unlocked_now": true,
+			"ready_to_assemble": false,
+			"have": 1,
+			"needed": 1,
+		}
+	var cur: int = mini(needed, fragment_count(wid) + amount)
+	blueprint_fragments[wid] = cur
+	save_game()
+	return {
+		"wid": wid,
+		"already_owned": false,
+		"unlocked_now": false,
+		"ready_to_assemble": cur >= needed,
+		"have": cur,
+		"needed": needed,
+	}
+
+
+func assemble_blueprint(wid: String) -> bool:
+	if not can_assemble_blueprint(wid):
+		return false
+	blueprint_fragments.erase(wid)
+	if not blueprints.has(wid):
+		blueprints.append(wid)
+	add_stat("blueprints_assembled")
+	save_game()
+	return true
+
+
+func roll_blueprint_drop(level: int, source: String = "chest", mythic: bool = false) -> String:
+	var _lv: int = level
+	var tier_weights: Dictionary
+	match source:
+		"elite":
+			tier_weights = {1: 28.0, 2: 34.0, 3: 28.0, 4: 9.0, 5: 1.0}
+		"treasure":
+			tier_weights = {1: 0.0, 2: 14.0, 3: 34.0, 4: 32.0, 5: 20.0}
+		"boss", "legend":
+			tier_weights = {1: 0.0, 2: (0.0 if mythic else 8.0), 3: 26.0, 4: 36.0, 5: (55.0 if mythic else 30.0)}
+		_:
+			tier_weights = {1: 18.0, 2: 24.0, 3: 30.0, 4: 20.0, 5: 8.0}
 	var candidates: Array = []
 	var weights: Array[float] = []
-	var tier_weights: Dictionary = {1: 4.0, 2: 10.0, 3: 24.0, 4: 34.0, 5: 28.0} if mythic else {1: 30.0, 2: 32.0, 3: 24.0, 4: 11.0, 5: 3.0}
+	var fallback: Array = []
+	var total: float = 0.0
+	for wid_v in MaterialData.all_blueprint_weapons():
+		var wid: String = str(wid_v)
+		if MaterialData.is_achievement_blueprint(wid) or owns_blueprint(wid):
+			continue
+		if fragment_count(wid) >= fragments_needed(wid):
+			continue
+		var tier: int = int(WeaponData.DATA.get(wid, {}).get("tier", 1))
+		var w: float = float(tier_weights.get(tier, 10.0))
+		if w <= 0.0:
+			fallback.append(wid)
+			continue
+		if fragment_count(wid) > 0:
+			w *= 2.4
+		candidates.append(wid)
+		weights.append(w)
+		total += w
+	if candidates.is_empty():
+		return str(fallback.pick_random()) if not fallback.is_empty() else ""
+	var r: float = randf() * total
+	for i in candidates.size():
+		r -= weights[i]
+		if r <= 0.0:
+			return str(candidates[i])
+	return str(candidates[0])
+
+
+func roll_boss_blueprint(prefer_high_tier: bool = false) -> String:
+	var candidates: Array = []
+	var weights: Array[float] = []
+	var tier_weights: Dictionary = {1: 4.0, 2: 10.0, 3: 24.0, 4: 34.0, 5: 28.0} if prefer_high_tier else {1: 30.0, 2: 32.0, 3: 24.0, 4: 11.0, 5: 3.0}
 	var total: float = 0.0
 	for wid_v in MaterialData.all_blueprint_weapons():
 		var wid: String = str(wid_v)
@@ -952,6 +1062,7 @@ func end_run(outcome: String = "") -> void:
 		active_mount_hp = 0
 		touch_dash = false
 		touch_merge = false
+		touch_drop_weapon = false
 		resume_data = {}
 		return
 	if _run_active and not _run_score_recorded and outcome != "bo_luot":
@@ -972,6 +1083,7 @@ func end_run(outcome: String = "") -> void:
 	active_mount_hp = 0
 	touch_dash = false
 	touch_merge = false
+	touch_drop_weapon = false
 	ensure_garden_plots()
 	for i in garden_plots.size():
 		var pl: Dictionary = garden_plots[i]
@@ -1225,6 +1337,7 @@ func save_game() -> void:
 		"badass_mode": badass_mode,
 		"achievements_claimed": achievements_claimed,
 		"blueprints": blueprints,
+		"blueprint_fragments": blueprint_fragments,
 	})
 
 
@@ -1461,6 +1574,7 @@ func load_game() -> void:
 	stats = DEFAULT_STATS.duplicate()
 	achievements_claimed = []
 	blueprints = []
+	blueprint_fragments = {}
 	leaderboard = []
 	garden_plots = []
 	selected_pet = ""
@@ -1579,6 +1693,14 @@ func load_game() -> void:
 			var wid: String = str(item)
 			if wid != "" and (WeaponData.DATA.has(wid) or AchievementData.is_blueprint_id(wid)) and not blueprints.has(wid):
 				blueprints.append(wid)
+	var bf_val: Variant = data.get("blueprint_fragments", null)
+	if typeof(bf_val) == TYPE_DICTIONARY:
+		var bfd: Dictionary = bf_val
+		for k in bfd:
+			var wid: String = str(k)
+			var cnt: int = int(bfd[k])
+			if cnt > 0 and MaterialData.can_forge_weapon(wid) and not owns_blueprint(wid):
+				blueprint_fragments[wid] = mini(cnt, MaterialData.fragments_needed(wid))
 
 
 # ------------------------------------------------------------------ Phím bấm
@@ -1625,6 +1747,8 @@ func _ensure_input_actions() -> void:
 	_add_pad("dash", JOY_BUTTON_X)
 	_add_keys("merge_weapon", [KEY_R])
 	_add_pad("merge_weapon", JOY_BUTTON_RIGHT_SHOULDER)
+	_add_keys("drop_weapon", [KEY_G])
+	_add_pad("drop_weapon", JOY_BUTTON_DPAD_DOWN)
 
 
 func _ensure(action: String) -> void:

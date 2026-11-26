@@ -53,6 +53,7 @@ var victory_altar: Node2D = null
 var covers: Array = []
 var traps: Array = []
 var hazards: Array = []
+var _treasure_req_sent: bool = false
 
 
 func _is_badass() -> bool:
@@ -137,6 +138,9 @@ func _process(delta: float) -> void:
 			if Net.is_host() and state == "idle" and not bool(pl.get("dead")) and not bool(pl.get("downed")) and inner_trigger.has_point(ppos):
 				_enter()
 				break
+		if not Net.is_host() and kind == "treasure" and state == "idle" and not _treasure_req_sent:
+			if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")) and inner_trigger.has_point((lp as Node2D).global_position):
+				request_open_treasure()
 
 	if state == "fighting" and (not Net.is_online() or Net.is_host()):
 		if not _spawn_queue.is_empty():
@@ -283,16 +287,10 @@ func _enter() -> void:
 			Fx.particles(get_parent(), lpos, lcol, 26, 115.0, 0.75, -45.0, 2.5)
 			get_tree().call_group("hud", "show_boss_intro", str(lg.name), str(lg.title), is_mythic_l, str(lg.get("intro", "")), lsheet, lsize)
 		"treasure":
-			state = "done"
-			_chest.play("open")
-			Sfx.play("chest_open")
-			var c := rect.get_center()
-			_spawn_weapon(c + Vector2(0, 18), 2 if _is_badass() else 1)
-			_drop("potion", 2, c + Vector2(-16, 16))
-			Fx.particles(get_parent(), c, Color(1, 0.85, 0.3), 24, 120.0, 0.7, -40.0, 2.0)
-			Fx.burst(get_parent(), c, Color(1, 0.85, 0.3), 40.0, 0.5)
-			if Net.is_online() and Net.is_host():
-				Net.send_world_event("room_treasure", {"key": room_key}, false)
+			if Net.is_online() and not Net.is_host():
+				request_open_treasure()
+			else:
+				open_treasure_authoritative()
 		"exit":
 			state = "done"
 			if _is_boss_rush():
@@ -387,6 +385,53 @@ func net_apply_clear() -> void:
 		get_parent().add_child(loot_chest)
 
 
+func request_open_treasure() -> void:
+	if state == "done" or _treasure_req_sent:
+		return
+	_treasure_req_sent = true
+	var parts: PackedStringArray = room_key.split(",")
+	var gx: int = int(parts[0]) if parts.size() >= 2 else 0
+	var gy: int = int(parts[1]) if parts.size() >= 2 else 0
+	Net.send_world_event("treasure_open_req", {"key": room_key, "gx": gx, "gy": gy}, true)
+
+
+func open_treasure_authoritative() -> void:
+	if state == "done":
+		return
+	if Net.is_online() and not Net.is_host():
+		request_open_treasure()
+		return
+	state = "done"
+	visited = true
+	if _chest != null:
+		_chest.play("open")
+	Sfx.play("chest_open")
+	var c := rect.get_center()
+	var chest_wid: String = WeaponData.roll_chest_weapon(level, true, _is_badass())
+	_spawn_weapon(c + Vector2(0, 18), 2 if _is_badass() else 1, chest_wid)
+	_drop("potion", 2, c + Vector2(-16, 16))
+	_spawn_personal_blueprint_frag(c + Vector2(18, 16), "treasure")
+	Fx.particles(get_parent(), c, Color(1, 0.85, 0.3), 24, 120.0, 0.7, -40.0, 2.0)
+	Fx.burst(get_parent(), c, Color(1, 0.85, 0.3), 40.0, 0.5)
+	if Net.is_online() and Net.is_host():
+		Net.send_world_event("room_treasure", {"key": room_key}, false)
+
+
+func _spawn_personal_blueprint_frag(pos: Vector2, source: String = "treasure") -> void:
+	if Global == null or not Global.has_method("roll_blueprint_drop") or get_parent() == null:
+		return
+	var mythic: bool = EnemyData.is_mythic_level(level)
+	var bp_wid: String = str(Global.roll_blueprint_drop(level, source, mythic))
+	if bp_wid == "":
+		return
+	var p := Pickup.new()
+	p.kind = "blueprint_frag"
+	p.blueprint_id = bp_wid
+	p.amount = 1
+	p.position = pos
+	get_parent().add_child(p)
+
+
 func net_apply_treasure() -> void:
 	if state == "done":
 		return
@@ -396,6 +441,7 @@ func net_apply_treasure() -> void:
 		_chest.play("open")
 	Sfx.play("chest_open")
 	var c := rect.get_center()
+	_spawn_personal_blueprint_frag(c + Vector2(18, 16), "treasure")
 	Fx.particles(get_parent(), c, Color(1, 0.85, 0.3), 24, 120.0, 0.7, -40.0, 2.0)
 	Fx.burst(get_parent(), c, Color(1, 0.85, 0.3), 40.0, 0.5)
 
@@ -768,8 +814,9 @@ func drop_weapon_at(pos: Vector2, bonus: int) -> void:
 	_spawn_weapon.call_deferred(pos, bonus)
 
 
-func _spawn_weapon(pos: Vector2, bonus: int) -> void:
-	_spawn_specific_weapon(pos, WeaponData.roll(level, bonus))
+func _spawn_weapon(pos: Vector2, bonus: int, wid_override: String = "") -> void:
+	var wid: String = wid_override if wid_override != "" else WeaponData.roll(level, bonus)
+	_spawn_specific_weapon(pos, wid)
 
 
 func _spawn_specific_weapon(pos: Vector2, wid: String) -> void:

@@ -340,6 +340,7 @@ func current_weapon() -> Dictionary:
 
 const SWAP_COOLDOWN := 0.15
 var _swap_cd := 0.0
+var _drop_input_guard: bool = false
 
 
 func _refresh_weapon_sprite() -> void:
@@ -502,6 +503,13 @@ func _physics_process(delta: float) -> void:
 	if want_merge:
 		try_merge_weapon()
 
+	var want_drop: bool = (bool(Global.get("touch_drop_weapon")) or (InputMap.has_action("drop_weapon") and Input.is_action_just_pressed("drop_weapon"))) and not _drop_input_guard
+	_drop_input_guard = false
+	if Global.get("touch_drop_weapon") != null:
+		Global.set("touch_drop_weapon", false)
+	if want_drop and is_inside_tree() and get_tree().get_first_node_in_group("lobby") == null:
+		drop_current_weapon()
+
 	sprinting = false
 	if _dodge_dash_t > 0.0:
 		_dodge_dash_t = maxf(_dodge_dash_t - delta, 0.0)
@@ -646,6 +654,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	elif InputMap.has_action("merge_weapon") and event.is_action_pressed("merge_weapon"):
 		if try_merge_weapon():
+			get_viewport().set_input_as_handled()
+	elif InputMap.has_action("drop_weapon") and event.is_action_pressed("drop_weapon"):
+		if get_tree().get_first_node_in_group("lobby") == null and drop_current_weapon():
+			_drop_input_guard = true
 			get_viewport().set_input_as_handled()
 
 
@@ -2205,37 +2217,184 @@ func swap_weapon() -> bool:
 	return true
 
 
+func held_weapon_count() -> int:
+	_sync_weapon_slots()
+	var cnt: int = 0
+	for w in weapons:
+		if str(w) != "":
+			cnt += 1
+	return cnt
+
+
+func can_drop_current_weapon() -> bool:
+	if dead or downed:
+		return false
+	if is_inside_tree() and get_tree().get_first_node_in_group("lobby") != null:
+		return false
+	_sync_weapon_slots()
+	return slot >= 0 and slot < weapons.size() and str(weapons[slot]) != "" and held_weapon_count() >= 2
+
+
+func drop_current_weapon() -> bool:
+	if not is_local or not can_drop_current_weapon():
+		return false
+	if is_inside_tree() and get_tree().paused:
+		return false
+	var g = get_tree().get_first_node_in_group("game") if is_inside_tree() else null
+	if g != null and not g.can_pause():
+		return false
+	var dropped_wid: String = str(weapons[slot])
+	var w_data: Dictionary = WeaponData.get_data(dropped_wid)
+	var wname: String = str(w_data.get("name", dropped_wid))
+	weapons[slot] = ""
+	for i in weapons.size():
+		if str(weapons[i]) != "":
+			slot = i
+			break
+	_fire_timer = 0.1
+	_ranged_shot_count = 0
+	_melee_swing_count = 0
+	_charging = false
+	charge_ratio = 0.0
+	_refresh_weapon_sprite()
+	stats_changed.emit()
+	Sfx.play("swap" if Sfx.SFX_FILES.has("swap") else "pickup_weapon")
+	if get_parent() != null:
+		Fx.float_text(get_parent(), global_position + Vector2(0, -24), "Vứt: %s" % wname, WeaponData.tier_color(dropped_wid), 13)
+	var dir: Vector2 = aim_dir.normalized() if aim_dir.length_squared() > 0.001 else Vector2.RIGHT
+	var drop_pos: Vector2 = global_position + dir * 18.0
+	if Net != null and Net.is_online():
+		if Net.is_host():
+			var gm: Node = get_tree().get_first_node_in_group("game_controller") if is_inside_tree() else null
+			if gm == null and is_inside_tree():
+				gm = get_tree().get_first_node_in_group("game")
+			if gm != null and gm.has_method("host_spawn_shared_weapon"):
+				gm.host_spawn_shared_weapon(dropped_wid, drop_pos)
+			elif get_parent() != null:
+				var drop_fb := Pickup.new()
+				drop_fb.kind = "weapon"
+				drop_fb.weapon_id = dropped_wid
+				drop_fb.position = drop_pos
+				get_parent().add_child(drop_fb)
+		else:
+			Net.send_world_event("drop_weapon_req", {"weapon_id": dropped_wid, "x": drop_pos.x, "y": drop_pos.y}, true)
+		_send_net_state()
+	elif get_parent() != null:
+		var drop := Pickup.new()
+		drop.kind = "weapon"
+		drop.weapon_id = dropped_wid
+		drop.position = drop_pos
+		get_parent().add_child(drop)
+	return true
+
+
+func _preview_weapon_slot_for(wid: String) -> Dictionary:
+	_sync_weapon_slots()
+	for i in weapons.size():
+		if str(weapons[i]) == wid:
+			return {"already_has": true, "target_slot": i, "drop_wid": ""}
+	for i in weapons.size():
+		if str(weapons[i]) == "":
+			return {"already_has": false, "target_slot": i, "drop_wid": ""}
+	return {"already_has": false, "target_slot": slot, "drop_wid": str(weapons[slot])}
+
+
+func net_apply_weapon_pickup(wid: String) -> void:
+	if wid == "" or not WeaponData.DATA.has(wid):
+		return
+	_sync_weapon_slots()
+	var empty_idx: int = -1
+	for i in weapons.size():
+		if str(weapons[i]) == "":
+			empty_idx = i
+			break
+	if empty_idx != -1:
+		weapons[empty_idx] = wid
+		slot = empty_idx
+	else:
+		weapons[slot] = wid
+	var w := WeaponData.get_data(wid)
+	var was_disc: bool = Global.discovered.has(wid)
+	Global.discover(wid)
+	if not was_disc and get_parent() != null:
+		Fx.float_text(get_parent(), global_position + Vector2(0, -36), "Vũ khí mới vào kho!", Color(0.7, 1.0, 0.7), 13)
+	if get_parent() != null:
+		Fx.float_text(get_parent(), global_position + Vector2(0, -24), str(w.get("name", wid)), WeaponData.tier_color(wid), 16)
+		if int(w.get("tier", 1)) >= 4:
+			Fx.particles(get_parent(), global_position, WeaponData.tier_color(wid), 16, 90.0, 0.6, -40.0, 2.0)
+	Sfx.play("pickup_weapon")
+	_charging = false
+	charge_ratio = 0.0
+	_refresh_weapon_sprite()
+	stats_changed.emit()
+
+
+func _try_pickup_nearby_weapon() -> bool:
+	if nearby_pickup == null or not is_instance_valid(nearby_pickup):
+		return false
+	var pk: Node = nearby_pickup
+	var wid: String = str(pk.get("weapon_id"))
+	if wid == "":
+		return false
+	var preview: Dictionary = _preview_weapon_slot_for(wid)
+	if bool(preview.get("already_has", false)):
+		if _msg_cd <= 0.0 and get_parent() != null:
+			_msg_cd = 0.8
+			Fx.float_text(get_parent(), global_position + Vector2(0, -24), "Đã có vũ khí này!", Color(1.0, 0.85, 0.4), 13)
+		return true
+	var pid: int = int(pk.get("pickup_id"))
+	if Net != null and Net.is_online() and pid > 0:
+		pk.set("net_handled_claim", true)
+		nearby_pickup = null
+		var drop_wid: String = str(preview.get("drop_wid", ""))
+		var drop_pos: Vector2 = (pk as Node2D).global_position
+		var payload: Dictionary = {
+			"pickup_id": pid,
+			"drop_wid": drop_wid,
+			"x": drop_pos.x,
+			"y": drop_pos.y,
+		}
+		if Net.is_host():
+			var gm: Node = get_tree().get_first_node_in_group("game_controller") if is_inside_tree() else null
+			if gm == null and is_inside_tree():
+				gm = get_tree().get_first_node_in_group("game")
+			if gm != null and gm.has_method("host_handle_weapon_pickup_req"):
+				gm.host_handle_weapon_pickup_req(Net.local_peer_id(), payload)
+			else:
+				net_apply_weapon_pickup(wid)
+				pk.queue_free()
+		else:
+			Net.send_world_event("weapon_pickup_req", payload, true)
+		return true
+	pick_weapon(wid)
+	pk.queue_free()
+	nearby_pickup = null
+	return true
+
+
 func interact_only() -> bool:
 	if dead or get_tree().paused or not is_physics_processing():
 		return false
 	if interact_target != null and is_instance_valid(interact_target):
 		interact_target.interact()
 		return true
-	if nearby_pickup != null and is_instance_valid(nearby_pickup):
-		pick_weapon(nearby_pickup.weapon_id)
-		nearby_pickup.queue_free()
-		nearby_pickup = null
-		return true
-	return false
+	return _try_pickup_nearby_weapon()
 
 
 func _swap_or_pickup() -> void:
 	if interact_target != null and is_instance_valid(interact_target):
 		interact_target.interact()
 		return
-	if nearby_pickup != null and is_instance_valid(nearby_pickup):
-		pick_weapon(nearby_pickup.weapon_id)
-		nearby_pickup.queue_free()
-		nearby_pickup = null
-	else:
-		var nxt: int = _next_filled_slot()
-		if nxt != -1:
-			slot = nxt
-			_fire_timer = 0.1
-			_charging = false
-			charge_ratio = 0.0
-			_refresh_weapon_sprite()
-			stats_changed.emit()
+	if _try_pickup_nearby_weapon():
+		return
+	var nxt: int = _next_filled_slot()
+	if nxt != -1:
+		slot = nxt
+		_fire_timer = 0.1
+		_charging = false
+		charge_ratio = 0.0
+		_refresh_weapon_sprite()
+		stats_changed.emit()
 
 
 func _find_merge_recipe(w1: String, w2: String) -> Dictionary:
@@ -2309,6 +2468,19 @@ func try_merge_weapon() -> bool:
 	var slot_a: int = clampi(int(info.get("slot_a", slot)), 0, weapons.size() - 1)
 	var slot_b: int = int(info.get("slot_b", -1))
 	if pk != null and is_instance_valid(pk):
+		var pk_pid: int = int(pk.get("pickup_id"))
+		if Net != null and Net.is_online() and pk_pid > 0:
+			if Net.is_host():
+				var ns: Node = get_tree().get_first_node_in_group("net_sync") if is_inside_tree() else null
+				if ns != null:
+					if ns.claimed_pickups.has(pk_pid):
+						return false
+					ns.claimed_pickups[pk_pid] = true
+				pk.set("net_handled_claim", true)
+				Net.send_world_event("pickup_claimed", {"id": pk_pid, "claimer": Net.local_peer_id()}, false)
+			else:
+				pk.set("net_handled_claim", true)
+				Net.send_world_event("pickup_claim", {"id": pk_pid}, true)
 		weapons[slot_a] = res
 		slot = slot_a
 		if nearby_pickup == pk:

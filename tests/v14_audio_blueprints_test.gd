@@ -141,7 +141,7 @@ func _run() -> void:
 	_check(MaterialData.blueprint_tier_label("sung_tesla") == "Nâng cao", "tier label cấp 4 phải là Nâng cao")
 	_check(MaterialData.blueprint_tier_label("kiem_thoi_khong") == "★ Huyền thoại", "tier label cấp 5 phải là ★ Huyền thoại")
 
-	print("== 4. Kiểm tra discover() tự mở bản vẽ thường & giữ khóa 14 bản vẽ thành tựu")
+	print("== 4. Kiểm tra discover() không tự mở bản vẽ (cả thường lẫn 14 bản vẽ thành tựu)")
 	_reset_global()
 	Global.save_game()
 	var ach_bp_cnt: int = 0
@@ -151,11 +151,11 @@ func _run() -> void:
 		if MaterialData.is_achievement_blueprint(wid):
 			ach_bp_cnt += 1
 			Global.discover(wid)
-			_check(not Global.has_blueprint(wid), "bản vẽ thành tựu %s không được tự mở khi discover()" % wid)
+			_check(not Global.has_blueprint(wid) and not Global.owns_blueprint(wid), "bản vẽ thành tựu %s không được tự mở khi discover()" % wid)
 		elif non_ach_checked < 10:
 			non_ach_checked += 1
 			Global.discover(wid)
-			_check(Global.has_blueprint(wid), "discover(%s) phải tự mở bản vẽ" % wid)
+			_check(not Global.has_blueprint(wid) and not Global.owns_blueprint(wid), "discover(%s) không được tự mở bản vẽ trong v2.2.0" % wid)
 	_check(ach_bp_cnt == 14, "phải có đúng 14 bản vẽ thành tựu (hiện %d)" % ach_bp_cnt)
 
 	print("== 5. Kiểm tra công thức Cấp 5 Huyền thoại & rèn thành công/thất bại")
@@ -186,11 +186,14 @@ func _run() -> void:
 		Global.coins = 9999
 		for mid_v in MaterialData.ORDER:
 			Global.materials[str(mid_v)] = 99
-		# Chưa có bản vẽ -> rèn thất bại
+		# Chưa có bản vẽ -> rèn thất bại (dù đã discover)
 		_check(not Global.can_craft(target_t5) and not Global.try_craft(target_t5), "chưa có bản vẽ %s không được rèn" % target_t5)
-		# Mở bản vẽ qua discover, nhưng thiếu nguyên liệu -> thất bại
 		Global.discover(target_t5)
-		_check(Global.has_blueprint(target_t5), "discover(%s) phải mở bản vẽ" % target_t5)
+		_check(not Global.owns_blueprint(target_t5) and not Global.can_craft(target_t5), "discover(%s) không được phép mở khóa rèn" % target_t5)
+		# Thu thập đủ mảnh & ghép bản vẽ, nhưng thiếu nguyên liệu -> thất bại
+		var need_t5: int = Global.fragments_needed(target_t5)
+		Global.add_blueprint_fragment(target_t5, need_t5)
+		_check(Global.assemble_blueprint(target_t5) and Global.owns_blueprint(target_t5), "ghép bản vẽ %s phải thành công" % target_t5)
 		Global.materials["ngoc_than"] = 0
 		_check(not Global.can_craft(target_t5) and not Global.try_craft(target_t5), "thiếu ngoc_than không được rèn %s" % target_t5)
 		# Đủ xu + nguyên liệu -> thành công và trừ đúng

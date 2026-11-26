@@ -61,13 +61,22 @@ func interact() -> void:
 	var par := get_parent()
 	var c := global_position + Vector2(0, 14)
 	Fx.particles(par, global_position, Color(1, 0.85, 0.35), 18, 90.0, 0.6, -50.0, 2.0)
+	var is_badass: bool = Global != null and bool(Global.get("badass_mode"))
+	var weapon_chance: float = 0.42 if is_badass else 0.35
 	var r := randf()
-	if r < 0.58:
+	if r < weapon_chance:
+		var p := Pickup.new()
+		p.kind = "weapon"
+		p.weapon_id = WeaponData.roll_chest_weapon(Global.level, false, is_badass)
+		p.position = c
+		par.add_child(p)
+		Fx.burst(par, global_position, WeaponData.tier_color(p.weapon_id), 40.0, 0.5)
+	elif r < weapon_chance + (1.0 - weapon_chance) * 0.68:
 		for i in randi_range(3, 5):
 			_drop("coin", 1, c)
 		for i in 3:
 			_drop("energy", 5, c)
-	elif r < 0.85:
+	else:
 		var q := randf()
 		if q < 0.45:
 			_drop("potion", 2, c)
@@ -77,13 +86,6 @@ func interact() -> void:
 			_drop("potion_big", 5, c)
 		for i in 2:
 			_drop("coin", 1, c)
-	else:
-		var p := Pickup.new()
-		p.kind = "weapon"
-		p.weapon_id = WeaponData.roll(level, 1 if level >= 10 else 0)
-		p.position = c
-		par.add_child(p)
-		Fx.burst(par, global_position, WeaponData.tier_color(p.weapon_id), 40.0, 0.5)
 	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
 	var mythic: bool = EnemyData.is_mythic_level(level)
 	for mid in MaterialData.roll_chest_drops(modern, mythic):
@@ -93,6 +95,9 @@ func interact() -> void:
 		mp.amount = 1
 		mp.position = c
 		par.add_child(mp)
+	var bp_chance: float = 0.45 if is_badass else 0.35
+	if randf() < bp_chance:
+		_spawn_personal_blueprint_frag(c)
 	queue_redraw()
 	# rương mở xong mờ dần
 	var tw := create_tween()
@@ -110,13 +115,19 @@ func host_open_and_broadcast() -> void:
 	if ns != null:
 		ns.opened_chests[chest_id] = true
 	var drops: Array = []
+	var is_badass: bool = Global != null and bool(Global.get("badass_mode"))
+	var weapon_chance: float = 0.42 if is_badass else 0.35
 	var r: float = randf()
-	if r < 0.58:
+	if r < weapon_chance:
+		var wid: String = WeaponData.roll_chest_weapon(Global.level, false, is_badass)
+		var pid2: int = ns.alloc_pickup_id() if ns != null else 0
+		drops.append({"kind": "weapon", "amount": 1, "weapon_id": wid, "material_id": "", "pickup_id": pid2})
+	elif r < weapon_chance + (1.0 - weapon_chance) * 0.68:
 		for i in randi_range(3, 5):
 			drops.append({"kind": "coin", "amount": 1, "weapon_id": "", "material_id": "", "pickup_id": 0})
 		for i in 3:
 			drops.append({"kind": "energy", "amount": 5, "weapon_id": "", "material_id": "", "pickup_id": 0})
-	elif r < 0.85:
+	else:
 		var q: float = randf()
 		var pid: int = ns.alloc_pickup_id() if ns != null else 0
 		if q < 0.45:
@@ -127,19 +138,16 @@ func host_open_and_broadcast() -> void:
 			drops.append({"kind": "potion_big", "amount": 5, "weapon_id": "", "material_id": "", "pickup_id": pid})
 		for i in 2:
 			drops.append({"kind": "coin", "amount": 1, "weapon_id": "", "material_id": "", "pickup_id": 0})
-	else:
-		var wid: String = WeaponData.roll(level, 1 if level >= 10 else 0)
-		var pid2: int = ns.alloc_pickup_id() if ns != null else 0
-		drops.append({"kind": "weapon", "amount": 1, "weapon_id": wid, "material_id": "", "pickup_id": pid2})
 	var modern: bool = bool(EnemyData.chapter(level).get("modern", false))
 	var mythic: bool = EnemyData.is_mythic_level(level)
 	for mid in MaterialData.roll_chest_drops(modern, mythic):
 		drops.append({"kind": "material", "amount": 1, "weapon_id": "", "material_id": str(mid), "pickup_id": 0})
-	Net.send_world_event("chest_open", {"id": chest_id, "drops": drops}, false)
-	apply_open_drops(drops)
+	var drop_bp: bool = randf() < (0.45 if is_badass else 0.35)
+	Net.send_world_event("chest_open", {"id": chest_id, "drops": drops, "drop_bp": drop_bp}, false)
+	apply_open_drops(drops, drop_bp)
 
 
-func apply_open_drops(drops: Array) -> void:
+func apply_open_drops(drops: Array, drop_bp: bool = false) -> void:
 	if opened:
 		return
 	opened = true
@@ -168,11 +176,28 @@ func apply_open_drops(drops: Array) -> void:
 			ns.register_pickup(p)
 		if p.kind == "weapon" and p.weapon_id != "":
 			Fx.burst(par, global_position, WeaponData.tier_color(p.weapon_id), 40.0, 0.5)
+	if drop_bp:
+		_spawn_personal_blueprint_frag(c)
 	queue_redraw()
 	var tw := create_tween()
 	tw.tween_interval(4.0)
 	tw.tween_property(self, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(queue_free)
+
+
+func _spawn_personal_blueprint_frag(pos: Vector2) -> void:
+	if Global == null or not Global.has_method("roll_blueprint_drop") or get_parent() == null:
+		return
+	var mythic: bool = EnemyData.is_mythic_level(level)
+	var bp_wid: String = str(Global.roll_blueprint_drop(level, "chest", mythic))
+	if bp_wid == "":
+		return
+	var p := Pickup.new()
+	p.kind = "blueprint_frag"
+	p.blueprint_id = bp_wid
+	p.amount = 1
+	p.position = pos
+	get_parent().add_child(p)
 
 
 func _drop(k: String, amount: int, pos: Vector2) -> void:

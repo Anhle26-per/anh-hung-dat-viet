@@ -475,6 +475,66 @@ def _statue_draw(base_d, base_m, base_l, aura):
     return outline(img, DARK_LINE)
 
 
+# ==================================================================== 2 Blueprint Icons (16x16)
+def draw_blueprint_scroll():
+    img, _ = canvas(16, 16)
+    # Cuộn bản vẽ lam-vàng sắc nét 16x16
+    _rect(img, 3, 2, 12, 4, C["gold"])
+    _rect(img, 4, 2, 11, 3, C["gold_hi"])
+    _pp(img, 2, 3, C["gold_d"])
+    _pp(img, 13, 3, C["gold_d"])
+    # Thân giấy bản vẽ xanh lam
+    _rect(img, 4, 4, 11, 11, C["blue_d"])
+    _rect(img, 4, 5, 11, 10, C["blue"])
+    _rect(img, 5, 5, 10, 8, C["blue_l"])
+    # Hình vẽ sơ đồ kiếm trắng trên bản vẽ
+    _line(img, 6, 9, 9, 6, C["white"])
+    _pp(img, 9, 6, C["blue_hi"])
+    _pp(img, 6, 8, C["gold_hi"])
+    # Đai đỏ buộc cuộn & trục cuộn dưới
+    _rect(img, 3, 11, 12, 13, C["gold"])
+    _rect(img, 4, 11, 11, 12, C["gold_l"])
+    _pp(img, 2, 12, C["gold_d"])
+    _pp(img, 13, 12, C["gold_d"])
+    _rect(img, 7, 10, 8, 12, C["red_l"])
+    _pp(img, 12, 5, C["gold_hi"])
+    return outline(img, DARK_LINE)
+
+
+def draw_blueprint_frag():
+    img, _ = canvas(16, 16)
+    # Mảnh bản vẽ rách góc phát sáng lam-vàng 16x16
+    rows = [
+        (3, 3, 11),
+        (4, 3, 12),
+        (5, 4, 12),
+        (6, 4, 11),
+        (7, 5, 12),
+        (8, 5, 11),
+        (9, 4, 10),
+        (10, 3, 9),
+        (11, 3, 7),
+        (12, 4, 6),
+    ]
+    for y, x0, x1 in rows:
+        for x in range(x0, x1 + 1):
+            if y <= 5 or x <= x0 + 1:
+                col = C["blue_l"]
+            elif y >= 10 or x >= x1 - 1:
+                col = C["blue_d"]
+            else:
+                col = C["blue"]
+            _pp(img, x, y, col)
+    # Viền vàng góc trên-trái & đường nét bản vẽ
+    _rect(img, 3, 3, 10, 3, C["gold_l"])
+    _rect(img, 3, 3, 3, 5, C["gold_l"])
+    _pp(img, 4, 4, C["gold_hi"])
+    _line(img, 6, 8, 9, 5, C["white"])
+    _pp(img, 6, 7, C["blue_hi"])
+    _spark(img, 12, 4, C["gold_l"], C["white"], 0)
+    return outline(img, DARK_LINE)
+
+
 def build():
     mounts = {
         "voi_chien_mount": draw_voi_chien_mount,
@@ -520,6 +580,9 @@ def build():
     }
     for k, cols in statues.items():
         save(_statue_draw(*cols), f"ui/statue_{k}.png")
+
+    save(draw_blueprint_scroll(), "items/blueprint_scroll.png")
+    save(draw_blueprint_frag(), "items/blueprint_frag.png")
 
 
 if __name__ == "__main__":

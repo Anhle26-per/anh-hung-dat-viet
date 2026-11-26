@@ -1948,12 +1948,23 @@ func _drop_loot(spawn_shared_loot: bool = true) -> void:
 	var mythic: bool = EnemyData.is_mythic_level(level)
 	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern, mythic):
 		_spawn_material(str(mid))
-	if is_boss() and spawn_shared_loot and Global.has_method("roll_boss_blueprint"):
-		var bp_id: String = str(Global.roll_boss_blueprint(mythic))
-		if bp_id != "":
-			var w_res := preload("res://scripts/data/weapons.gd")
-			var wname: String = str(w_res.get_data(bp_id).get("name", bp_id))
-			Fx.float_text(get_parent(), global_position + Vector2(0, -28), "📜 Bản vẽ mới: %s!" % wname, Color(1.0, 0.88, 0.35), 16)
+	if Global != null and Global.has_method("roll_blueprint_drop"):
+		if is_legend:
+			if mythic or randf() < 0.65:
+				var bp_leg: String = str(Global.roll_blueprint_drop(level, "legend", mythic))
+				if bp_leg != "":
+					_spawn_blueprint_frag(bp_leg)
+		elif is_boss():
+			var bp_count: int = 2 if mythic else 1
+			for bi in bp_count:
+				var bp_boss: String = str(Global.roll_blueprint_drop(level, "boss", mythic))
+				if bp_boss != "":
+					_spawn_blueprint_frag(bp_boss, Vector2(float(bi) * 14.0 - 7.0, 0.0))
+		elif elite:
+			if randf() < 0.22:
+				var bp_el: String = str(Global.roll_blueprint_drop(level, "elite", mythic))
+				if bp_el != "":
+					_spawn_blueprint_frag(bp_el)
 
 
 func _spawn_shared_pickup(k: String, amount: int) -> void:
@@ -1986,6 +1997,17 @@ func _spawn_material(mid: String) -> void:
 	p.material_id = mid
 	p.amount = 1
 	p.position = global_position
+	get_parent().add_child(p)
+
+
+func _spawn_blueprint_frag(bp_wid: String, offset: Vector2 = Vector2.ZERO) -> void:
+	if bp_wid == "" or get_parent() == null:
+		return
+	var p := Pickup.new()
+	p.kind = "blueprint_frag"
+	p.blueprint_id = bp_wid
+	p.amount = 1
+	p.position = global_position + offset
 	get_parent().add_child(p)
 
 
