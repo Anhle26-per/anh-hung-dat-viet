@@ -1,7 +1,75 @@
 {
+ "bai_tu_sac": [
+  7,
+  11
+ ],
+ "banh_xe_phong_hoa": [
+  5,
+  11
+ ],
+ "binh_ho_lo_ruou": [
+  7,
+  11
+ ],
+ "bo_bai_than": [
+  7,
+  11
+ ],
+ "bua_bang_ha": [
+  7,
+  11
+ ],
+ "bua_chan_thien": [
+  7,
+  11
+ ],
+ "bua_cuu_le": [
+  7,
+  12
+ ],
+ "bua_giay_vang": [
+  6,
+  8
+ ],
+ "bua_sat": [
+  7,
+  10
+ ],
  "bua_thien_loi": [
   7,
   12
+ ],
+ "bua_thien_su": [
+  6,
+  8
+ ],
+ "bua_tran_yeu": [
+  6,
+  8
+ ],
+ "bua_tru_ta": [
+  6,
+  8
+ ],
+ "but_long_than": [
+  7,
+  8
+ ],
+ "chong_chong_tre": [
+  7,
+  8
+ ],
+ "chuong_chieu_hon": [
+  6,
+  9
+ ],
+ "chuong_dong": [
+  6,
+  9
+ ],
+ "chuong_phat_to": [
+  6,
+  9
  ],
  "chuy_dong": [
   8,
@@ -15,25 +83,69 @@
   6,
   7
  ],
+ "cua_may_cam_tay": [
+  6,
+  8
+ ],
  "cung": [
   11,
   11
  ],
+ "cung_bang": [
+  12,
+  14
+ ],
  "cung_dai": [
   11,
+  15
+ ],
+ "cung_nguyet_anh": [
+  12,
+  15
+ ],
+ "cung_phan_than": [
+  12,
   15
  ],
  "cung_rong": [
   11,
   15
  ],
+ "cung_set": [
+  12,
+  14
+ ],
+ "cung_thai_duong": [
+  12,
+  16
+ ],
+ "cung_tinh_van": [
+  12,
+  15
+ ],
+ "cung_tre": [
+  12,
+  13
+ ],
  "cung_vang": [
   12,
   15
  ],
+ "dai_bac_long_vuong": [
+  7,
+  10
+ ],
  "dai_bac_than_cong": [
   6,
   10
+ ],
+ "dai_dao_huyen_vu": [
+  7,
+  9
+ ],
+ "dai_dao_thanh_long": [
+  7,
+  9
  ],
  "dan_than": [
   8,
@@ -47,8 +159,20 @@
   5,
   7
  ],
+ "dao_gam_ao_anh": [
+  5,
+  12
+ ],
+ "dao_gam_doc": [
+  5,
+  8
+ ],
  "dao_rua": [
   5,
+  8
+ ],
+ "den_ong_sao": [
+  7,
   8
  ],
  "dinh_ba_thuy_tinh": [
@@ -59,9 +183,41 @@
   5,
   7
  ],
+ "dua_bang_suong": [
+  7,
+  8
+ ],
+ "dua_but_long": [
+  7,
+  8
+ ],
+ "dua_giot_nuoc": [
+  7,
+  8
+ ],
+ "dua_linh_hon": [
+  7,
+  8
+ ],
+ "dua_ngoc_hoang": [
+  7,
+  8
+ ],
+ "dua_tia_lua": [
+  7,
+  8
+ ],
+ "gay_sat": [
+  9,
+  9
+ ],
  "gay_son_tinh": [
   9,
   9
+ ],
+ "gay_suong_mu": [
+  7,
+  8
  ],
  "gay_tre": [
   9,
@@ -75,9 +231,17 @@
   10,
   9
  ],
+ "guoc_moc": [
+  6,
+  8
+ ],
  "guom_lenh": [
   5,
   7
+ ],
+ "guong_bat_quai": [
+  6,
+  10
  ],
  "hoa_ho": [
   6,
@@ -99,25 +263,89 @@
   10,
   9
  ],
+ "kich_thien_loi": [
+  9,
+  9
+ ],
  "kiem": [
   4,
   5
+ ],
+ "kiem_bang": [
+  5,
+  8
+ ],
+ "kiem_doc_xa": [
+  5,
+  8
  ],
  "kiem_dong": [
   5,
   7
  ],
+ "kiem_lua": [
+  5,
+  8
+ ],
+ "kiem_luong_tu": [
+  5,
+  8
+ ],
+ "kiem_nhat_nguyet": [
+  5,
+  12
+ ],
+ "kiem_phuong_hoang": [
+  6,
+  8
+ ],
+ "kiem_plasma": [
+  5,
+  8
+ ],
  "kiem_rong_tien": [
   5,
   7
+ ],
+ "kiem_set": [
+  5,
+  8
+ ],
+ "kiem_thoi_khong": [
+  6,
+  8
  ],
  "kiem_tia_sang": [
   6,
   6
  ],
+ "kinh_van_hoa": [
+  7,
+  8
+ ],
  "liem": [
   6,
   11
+ ],
+ "long_den_ma_troi": [
+  6,
+  7
+ ],
+ "luan_hoi_ban": [
+  5,
+  11
+ ],
+ "luoi_hai_bac": [
+  9,
+  12
+ ],
+ "luoi_hai_huyet_nguyet": [
+  9,
+  12
+ ],
+ "luoi_hai_tu_than": [
+  9,
+  12
  ],
  "ma_tau": [
   5,
@@ -127,6 +355,10 @@
   10,
   9
  ],
+ "muoi_duc_anh_trang": [
+  9,
+  12
+ ],
  "na": [
   5,
   9
@@ -134,6 +366,26 @@
  "no": [
   7,
   7
+ ],
+ "no_bang_suong": [
+  7,
+  11
+ ],
+ "no_bao_lua": [
+  7,
+  12
+ ],
+ "no_cuu_long": [
+  7,
+  12
+ ],
+ "no_doc": [
+  7,
+  11
+ ],
+ "no_huyet_anh": [
+  7,
+  12
  ],
  "no_lien_chau": [
   7,
@@ -143,6 +395,14 @@
   6,
   8
  ],
+ "no_thien_co": [
+  7,
+  12
+ ],
+ "non_la_bay": [
+  6,
+  9
+ ],
  "ong_lua": [
   5,
   9
@@ -151,13 +411,49 @@
   6,
   9
  ],
+ "phao_hoa_tet": [
+  7,
+  9
+ ],
+ "phao_thang_thien": [
+  7,
+  9
+ ],
+ "phi_dao_luan_hoi": [
+  5,
+  11
+ ],
  "phi_tieu": [
   6,
   8
  ],
+ "phi_tieu_doc": [
+  5,
+  11
+ ],
+ "phi_tieu_sao_bang": [
+  5,
+  11
+ ],
+ "quat_ba_tieu": [
+  5,
+  12
+ ],
+ "quat_mo": [
+  6,
+  9
+ ],
+ "quat_ngoc_luan": [
+  5,
+  12
+ ],
  "quat_thep": [
   5,
   12
+ ],
+ "quyen_truong_phu_thuy": [
+  9,
+  10
  ],
  "riu_chien": [
   8,
@@ -175,24 +471,136 @@
   9,
   5
  ],
+ "sach_doc_vuong": [
+  6,
+  10
+ ],
+ "sach_gio_loc": [
+  6,
+  10
+ ],
+ "sach_hu_khong": [
+  6,
+  10
+ ],
+ "sach_la_doc": [
+  6,
+  10
+ ],
+ "sach_loi_than": [
+  6,
+  10
+ ],
+ "sach_ma_phap_co": [
+  6,
+  10
+ ],
+ "sach_ngan_ha": [
+  6,
+  10
+ ],
+ "sach_sao_bang": [
+  6,
+  10
+ ],
+ "sach_thien_khai": [
+  6,
+  10
+ ],
+ "sach_thien_thach": [
+  6,
+  10
+ ],
+ "sach_tinh_tu": [
+  6,
+  10
+ ],
+ "sao_truc": [
+  7,
+  7
+ ],
+ "sao_truc_bao_to": [
+  7,
+  7
+ ],
+ "song_dao_phong_ba": [
+  5,
+  12
+ ],
  "song_kiem": [
   5,
   11
  ],
+ "song_kiem_bang_hoa": [
+  5,
+  12
+ ],
+ "sung_axit": [
+  12,
+  12
+ ],
+ "sung_ban_cua": [
+  12,
+  12
+ ],
+ "sung_ban_da": [
+  12,
+  12
+ ],
+ "sung_ban_dinh": [
+  12,
+  12
+ ],
  "sung_ban_tia": [
   14,
+  12
+ ],
+ "sung_bang": [
+  12,
+  12
+ ],
+ "sung_bong_bong": [
+  12,
+  12
+ ],
+ "sung_bong_bong_tien": [
+  12,
+  12
+ ],
+ "sung_cua_xoay": [
+  12,
+  12
+ ],
+ "sung_dan_nay": [
+  12,
+  12
+ ],
+ "sung_dien_giat": [
+  12,
   12
  ],
  "sung_dien_tu": [
   14,
   12
  ],
+ "sung_doc_duoc": [
+  12,
+  12
+ ],
  "sung_hai_nong": [
   14,
   9
  ],
+ "sung_hoa_ti_lien": [
+  12,
+  12
+ ],
  "sung_kip": [
   7,
+  12
+ ],
+ "sung_lang_kinh": [
+  12,
   12
  ],
  "sung_laze": [
@@ -203,12 +611,20 @@
   7,
   12
  ],
+ "sung_luong_tu": [
+  12,
+  12
+ ],
  "sung_may": [
   14,
   12
  ],
  "sung_ngan": [
   7,
+  12
+ ],
+ "sung_phan_vat_chat": [
+  12,
   12
  ],
  "sung_phong_luu": [
@@ -227,8 +643,36 @@
   7,
   12
  ],
+ "sung_quang_tu": [
+  12,
+  12
+ ],
+ "sung_railgun": [
+  12,
+  12
+ ],
  "sung_san": [
   14,
+  12
+ ],
+ "sung_tesla": [
+  12,
+  12
+ ],
+ "sung_tia_nuoc": [
+  12,
+  12
+ ],
+ "sung_tien_xu": [
+  12,
+  12
+ ],
+ "sung_tieu_huy": [
+  12,
+  12
+ ],
+ "sung_trong_luc": [
+  12,
   12
  ],
  "sung_truong": [
@@ -243,6 +687,10 @@
   14,
   12
  ],
+ "sung_tuyet_son": [
+  12,
+  12
+ ],
  "than_co_sang": [
   6,
   6
@@ -250,6 +698,22 @@
  "thuan_thien": [
   6,
   7
+ ],
+ "thuong_bach_long": [
+  9,
+  9
+ ],
+ "thuong_bang": [
+  9,
+  9
+ ],
+ "thuong_dong": [
+  9,
+  9
+ ],
+ "thuong_hoa_long": [
+  9,
+  9
  ],
  "tieu_lien": [
   13,
@@ -259,12 +723,80 @@
   7,
   6
  ],
+ "trong_com_set": [
+  7,
+  9
+ ],
  "trong_dong": [
   4,
   11
  ],
+ "truong_anh_sang": [
+  9,
+  10
+ ],
+ "truong_bang_gia": [
+  9,
+  10
+ ],
+ "truong_bao_tuyet": [
+  9,
+  10
+ ],
+ "truong_cuu_thien": [
+  9,
+  10
+ ],
+ "truong_dia_chan": [
+  9,
+  10
+ ],
+ "truong_doc_to": [
+  9,
+  10
+ ],
+ "truong_ho_den": [
+  9,
+  10
+ ],
+ "truong_hoa_cau": [
+  9,
+  10
+ ],
+ "truong_hoa_nguc": [
+  9,
+  10
+ ],
+ "truong_ngu_hanh": [
+  9,
+  10
+ ],
+ "truong_sam_set": [
+  9,
+  10
+ ],
+ "truong_thai_cuc": [
+  9,
+  10
+ ],
  "truong_thuong": [
   10,
+  9
+ ],
+ "truong_trong_luc": [
+  9,
+  10
+ ],
+ "vong_sen_luan": [
+  5,
+  11
+ ],
+ "xuc_xac_no": [
+  7,
+  9
+ ],
+ "xuc_xac_van_menh": [
+  7,
   9
  ]
 }

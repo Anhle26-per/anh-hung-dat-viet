@@ -491,7 +491,7 @@ func _process(delta: float) -> void:
 	weapon_pivot.visible = _dash_time <= 0.0 and _horse_time <= 0.0 and id != ""
 	weapon_pivot.position = Vector2(-2.0 if face_left else 2.0, 1.0)
 	weapon_pivot.rotation = aim_dir.angle() + swing * (-1.0 if face_left else 1.0)
-	weapon_pivot.z_index = -1 if aim_dir.y < -0.45 else 0
+	weapon_pivot.z_index = 1
 	if weapon_sprite.texture != null:
 		var g := WeaponData.grip(id)
 		var h := float(weapon_sprite.texture.get_height())
@@ -685,7 +685,7 @@ func _twin_offset() -> Vector2:
 func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> void:
 	if offset == Vector2.ZERO:
 		var proj_kind: String = str(w.get("proj", "bullet"))
-		Sfx.play("arrow" if proj_kind in ["arrow", "stone", "dart", "axe"] else "shoot")
+		Sfx.play("arrow" if proj_kind in ["arrow", "stone", "dart", "axe", "chakram", "talisman", "card"] else "shoot")
 	var count: int = w.get("count", 1) + buff("ten_doi")
 	var spread := deg_to_rad(w.get("spread", 0.0))
 	if buff("ten_doi") > 0 and spread == 0.0:
@@ -724,9 +724,15 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 			b.force_burn = true
 			if b.color == Color.WHITE:
 				b.color = Color(1.0, 0.72, 0.45)
-		b.stun_duration = shot_stun
+		b.stun_duration = maxf(shot_stun, float(w.get("stun", 0.0)))
 		b.burn_duration = 2.2 * burn_mult
+		b.status_kind = str(w.get("status", ""))
+		b.slow_duration = float(w.get("slow", 0.0))
+		b.chain_count = int(w.get("chain", 0))
 		b.owner_node = self
+		var w_bounces: int = int(w.get("bounce", w.get("bounces", 0)))
+		if w_bounces > 0:
+			b.bounces = maxi(b.bounces, w_bounces)
 		if buff("dan_nay") > 0 and not w.get("boomerang", false):
 			b.bounces = maxi(b.bounces, 1)
 		if buff("xuyen_tam") > 0:
@@ -805,10 +811,16 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			var hit_dmg: int = dmg * burn_bonus_mult(e)
 			for i in hits:
 				e.take_damage(hit_dmg, (hit_pt - global_position).normalized() * knock)
-			if hit_stun > 0.0 and is_instance_valid(e) and not e.dead and e.has_method("apply_stun"):
-				e.apply_stun(hit_stun)
 			if bool(w.get("mod_fire", false)) and is_instance_valid(e) and e.has_method("apply_status"):
 				e.apply_status("burn", 2.2)
+			var eff_stun: float = maxf(hit_stun, float(w.get("stun", 0.0)))
+			if eff_stun > 0.0 and is_instance_valid(e) and not e.dead and e.has_method("apply_stun"):
+				e.apply_stun(eff_stun)
+			var mst: String = str(w.get("status", ""))
+			if (mst == "burn" or mst == "poison") and is_instance_valid(e) and e.has_method("apply_status"):
+				e.apply_status(mst, 2.2)
+			elif (mst == "slow" or float(w.get("slow", 0.0)) > 0.0) and is_instance_valid(e):
+				_apply_enemy_slow(e, float(w.get("slow", 2.0)))
 			on_hit_enemy(e)
 			if first_hit == null:
 				first_hit = e
@@ -884,6 +896,10 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		b.pierce = 99
 		b.knock = knock
 		b.color = slash_col
+		b.owner_node = self
+		b.status_kind = str(w.get("status", ""))
+		b.slow_duration = float(w.get("slow", 0.0))
+		b.stun_duration = float(w.get("stun", 0.0))
 		get_parent().add_child(b)
 		if broadcast_net:
 			net_waves.append([wpos.x, wpos.y, aim_dir.x, aim_dir.y, wspd, 0.7, kind, b.color.to_html(true)])
@@ -936,6 +952,35 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		})
 
 
+func _apply_enemy_slow(e: Node, dur: float) -> void:
+	if e == null or not is_instance_valid(e) or bool(e.get("dead")) or dur <= 0.0:
+		return
+	var spd_val: Variant = e.get("speed")
+	if spd_val == null:
+		return
+	if not e.has_meta("weapon_slowed"):
+		var cur_spd: float = float(spd_val)
+		var cut: float = cur_spd * 0.35
+		e.set_meta("weapon_slowed", true)
+		e.set_meta("weapon_slow_cut", cut)
+		e.set("speed", maxf(10.0, cur_spd - cut))
+	e.set_meta("weapon_slow_until", Time.get_ticks_msec() + int(dur * 1000.0))
+	if get_parent() != null:
+		Fx.particles(get_parent(), (e as Node2D).global_position, Color(0.55, 0.9, 1.0), 4, 40.0, 0.35)
+	var wr: WeakRef = weakref(e)
+	if is_inside_tree():
+		get_tree().create_timer(dur + 0.05).timeout.connect(func():
+			var ref: Variant = wr.get_ref()
+			if ref == null or not is_instance_valid(ref) or bool(ref.get("dead")):
+				return
+			if Time.get_ticks_msec() >= int(ref.get_meta("weapon_slow_until", 0)) and ref.has_meta("weapon_slowed"):
+				var cut2: float = float(ref.get_meta("weapon_slow_cut", 0.0))
+				ref.set("speed", float(ref.get("speed")) + cut2)
+				ref.remove_meta("weapon_slowed")
+				ref.remove_meta("weapon_slow_cut")
+				ref.remove_meta("weapon_slow_until"))
+
+
 func _chain_lightning(start, count: int, dmg: int) -> Array:
 	var pts: Array = [global_position + aim_dir * 10.0, start.global_position]
 	var done: Array = [start]
@@ -944,7 +989,7 @@ func _chain_lightning(start, count: int, dmg: int) -> Array:
 		var best = null
 		var best_d := 110.0
 		for e in get_tree().get_nodes_in_group("enemies"):
-			if done.has(e):
+			if not is_instance_valid(e) or bool(e.get("dead")) or (e.has_method("is_spawning") and e.is_spawning()) or done.has(e):
 				continue
 			var d: float = cur.global_position.distance_to(e.global_position)
 			if d < best_d:
@@ -986,6 +1031,9 @@ func _beam(w: Dictionary) -> void:
 			Sfx.play("hit_wall")
 	var width: float = w.get("width", 3.0)
 	var seg := end - start
+	var beam_hit: Array = []
+	var bst: String = str(w.get("status", ""))
+	var bstun: float = float(w.get("stun", 0.0))
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
 		var rel: Vector2 = ctr - start
@@ -994,8 +1042,18 @@ func _beam(w: Dictionary) -> void:
 		var dist_e: float = e.distance_to_hurtbox(seg_pt) if e.has_method("distance_to_hurtbox") else (seg_pt.distance_to(e.global_position) - e.radius)
 		if dist_e <= width:
 			e.take_damage(w.damage, aim_dir * 80.0)
+			if is_instance_valid(e) and not bool(e.get("dead")):
+				beam_hit.append(e)
 			if bool(w.get("mod_fire", false)) and is_instance_valid(e) and e.has_method("apply_status"):
 				e.apply_status("burn", 2.2)
+			if (bst == "burn" or bst == "poison") and is_instance_valid(e) and e.has_method("apply_status"):
+				e.apply_status(bst, 2.2)
+			elif (bst == "slow" or float(w.get("slow", 0.0)) > 0.0) and is_instance_valid(e):
+				_apply_enemy_slow(e, float(w.get("slow", 2.0)))
+			if bstun > 0.0 and is_instance_valid(e) and not bool(e.get("dead")) and e.has_method("apply_stun"):
+				e.apply_stun(bstun)
+	if w.has("chain") and not beam_hit.is_empty():
+		_chain_lightning(beam_hit[0], int(w.chain), maxi(1, int(round(float(w.damage) * 0.6))))
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		var relb: Vector2 = b.global_position - start
 		var tb := clampf(relb.dot(seg) / maxf(seg.length_squared(), 1.0), 0.0, 1.0)
@@ -1022,10 +1080,23 @@ func _wave(w: Dictionary) -> void:
 	r.position = global_position
 	r.radius = w.get("radius", 110.0)
 	r.damage = w.damage
+	r.knock = float(w.get("knock", 120.0))
 	r.stun = w.get("stun", 0.0)
 	r.color = w.get("color", Color(1.0, 0.75, 0.35))
 	r.notes = w.has("stun")
 	get_parent().add_child(r)
+	if w.has("chain"):
+		var near_e = null
+		var near_d: float = r.radius + 16.0
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if not is_instance_valid(e) or bool(e.get("dead")) or (e.has_method("is_spawning") and e.is_spawning()):
+				continue
+			var d: float = global_position.distance_to((e as Node2D).global_position)
+			if d < near_d:
+				near_d = d
+				near_e = e
+		if near_e != null:
+			_chain_lightning(near_e, int(w.chain), maxi(1, int(round(float(w.damage) * 0.7))))
 	Fx.shake(get_tree(), 2.0)
 	if is_local and Net != null and Net.is_online():
 		Net.send_player_action("wave", {

@@ -134,18 +134,34 @@ static func family(wid: String) -> String:
 	if w.is_empty():
 		return "kiem"
 	var t: String = str(w.get("type", "melee"))
-	if t == "beam":
-		return "sung"
 	if t == "wave" or t == "spikes":
 		return "than_khi"
+	if t == "beam":
+		if wid.begins_with("sung_"):
+			return "sung"
+		return "than_khi"
 	if t == "melee":
+		if str(w.get("style", "")) == "thrust" or wid.begins_with("thuong_") or wid.begins_with("kich_") or wid.begins_with("bua_") or wid.begins_with("gay_") or wid.begins_with("luoi_hai_") or wid.begins_with("cua_may"):
+			return "truong"
+		if wid == "but_long_than":
+			return "than_khi"
 		return "kiem"
 	var proj: String = str(w.get("proj", "bullet"))
+	if wid.begins_with("cung_") or wid.begins_with("no_") or wid.begins_with("phi_") or wid in ["guoc_moc", "non_la_bay", "vong_sen_luan", "luan_hoi_ban", "banh_xe_phong_hoa", "chong_chong_tre"]:
+		return "cung_no"
+	if wid.begins_with("phao_") or wid.begins_with("dai_bac_") or wid.begins_with("binh_") or wid == "sung_hoa_ti_lien":
+		return "hoa_khi"
+	if wid.begins_with("sung_"):
+		return "sung"
+	if wid.begins_with("truong_") or wid.begins_with("sach_") or wid.begins_with("dua_") or wid.begins_with("quyen_truong") or wid.begins_with("bua_") or wid.begins_with("bai_") or wid.begins_with("bo_bai_") or wid.begins_with("long_den_") or wid.begins_with("den_") or wid.begins_with("xuc_xac_") or wid.begins_with("gay_"):
+		return "than_khi"
 	if proj in ["fireball", "rocket", "grenade", "cannonball"]:
 		return "hoa_khi"
-	if proj in ["bullet", "pellet"]:
+	if proj in ["bullet", "pellet", "plasma", "sawblade"]:
 		return "sung"
-	return "cung_no"
+	if proj in ["arrow", "dart", "stone", "axe", "chakram"]:
+		return "cung_no"
+	return "than_khi"
 
 
 static func family_name(fam: String) -> String:

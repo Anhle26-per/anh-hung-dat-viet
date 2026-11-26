@@ -10,6 +10,7 @@ const ProgressionData = preload("res://scripts/data/progression.gd")
 const BuffData = preload("res://scripts/data/buffs.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
+const AchievementData = preload("res://scripts/data/achievements.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -28,6 +29,33 @@ class LobbyMinimap extends Control:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.06, 0.05, 0.09, 0.78))
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.75, 0.62, 0.35, 0.8), false, 1.0)
 		if lobby == null:
+			return
+		if bool(lobby.get("in_basement")):
+			var br: Rect2 = lobby.BASEMENT_RECT
+			var pad: float = 5.0
+			var sc: float = minf((size.x - pad * 2.0) / br.size.x, (size.y - pad * 2.0) / br.size.y)
+			var bw: float = br.size.x * sc
+			var bh: float = br.size.y * sc
+			var bx: float = (size.x - bw) * 0.5
+			var by: float = (size.y - bh) * 0.5
+			draw_rect(Rect2(bx, by, bw, bh), Color(0.24, 0.20, 0.28, 0.95))
+			draw_rect(Rect2(bx, by, bw, bh), Color(1.0, 0.85, 0.35), false, 1.2)
+			var markers: Array = [
+				[Vector2(680, 972), Color(0.55, 0.92, 1.0)],
+				[Vector2(430, 1170), Color(1.0, 0.86, 0.35)],
+				[Vector2(680, 1275), Color(0.45, 0.92, 0.98)],
+				[Vector2(930, 1170), Color(1.0, 0.65, 0.32)],
+			]
+			for m in markers:
+				var mp: Vector2 = m[0]
+				var mc: Color = m[1]
+				var dp_m := Vector2(bx + (mp.x - br.position.x) * sc, by + (mp.y - br.position.y) * sc)
+				draw_rect(Rect2(dp_m - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), mc)
+			var bp_pos := Vector2(680, 1020)
+			if lobby.player != null and is_instance_valid(lobby.player):
+				bp_pos = lobby.player.global_position
+			var dp_b := Vector2(bx + (bp_pos.x - br.position.x) * sc, by + (bp_pos.y - br.position.y) * sc)
+			draw_circle(dp_b, 2.8, Color(1.0, 0.92, 0.3))
 			return
 		var sx: float = (size.x - 8.0) / 1360.0
 		var sy: float = (size.y - 8.0) / 760.0
@@ -49,11 +77,16 @@ class LobbyMinimap extends Control:
 			var fill := Color(0.32, 0.3, 0.38, 0.95) if active else Color(0.18, 0.17, 0.22, 0.92)
 			draw_rect(mr, fill)
 			draw_rect(mr, Color(1.0, 0.85, 0.35) if active else Color(0.55, 0.52, 0.56), false, 1.0)
-		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Giếng Ước (ngọc), Shop Nguyên Liệu (vàng)
+		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Giếng Ước (ngọc), Shop Nguyên Liệu (vàng), Cầu thang Tầng Hầm (hổ phách)
 		draw_rect(Rect2(ox + 680 * sx - 2, oy + 115 * sy - 2, 4, 4), Color(0.45, 0.85, 1.0))
 		draw_rect(Rect2(ox + 1032 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(1.0, 0.58, 0.25))
 		draw_rect(Rect2(ox + 1204 * sx - 1.5, oy + 452 * sy - 1.5, 3, 3), Color(1.0, 0.84, 0.28))
 		draw_rect(Rect2(ox + 245 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(0.45, 0.95, 0.88))
+		var st_x: float = ox + 680.0 * sx
+		var st_y: float = oy + 662.0 * sy
+		draw_rect(Rect2(st_x - 2.5, st_y - 2.0, 5.0, 4.0), Color(0.95, 0.72, 0.25))
+		draw_line(Vector2(st_x - 1.5, st_y - 1.0), Vector2(st_x + 1.5, st_y - 1.0), Color(0.25, 0.14, 0.05), 1.0)
+		draw_line(Vector2(st_x - 0.5, st_y + 0.5), Vector2(st_x + 1.5, st_y + 0.5), Color(0.25, 0.14, 0.05), 1.0)
 		# Chấm vị trí người chơi
 		var dp := Vector2(ox + ppos.x * sx, oy + ppos.y * sy)
 		draw_circle(dp, 2.8, Color(1.0, 0.92, 0.3))
@@ -798,38 +831,56 @@ func open_forge(tab: String = "upgrade") -> void:
 			pend.add_child(pw)
 			pend.add_child(UI.label(WeaponData.DATA[Global.forged].name, 13, WeaponData.tier_color(Global.forged)))
 			box.add_child(pend)
-		var wids: Array = Global.forgeable_weapons()
+		var wids: Array = Global.forgeable_weapons().duplicate()
+		for tier_key in ["basic", "advanced"]:
+			var bp_arr: Array = AchievementData.BLUEPRINT_TIERS.get(tier_key, [])
+			for bp_v in bp_arr:
+				var bp_wid: String = str(bp_v)
+				if WeaponData.DATA.has(bp_wid) and MaterialData.can_forge_weapon(bp_wid) and not wids.has(bp_wid):
+					wids.append(bp_wid)
 		if wids.is_empty():
 			box.add_child(UI.label("Chưa có công thức. Hãy thu thập binh khí cấp 2 trở lên trong hầm ngục!", 13, Color(0.85, 0.82, 0.78)))
 		else:
 			var scroll := ScrollContainer.new()
-			scroll.custom_minimum_size = Vector2(572, 165)
+			scroll.custom_minimum_size = Vector2(582, 165)
 			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 			box.add_child(scroll)
 			var list := VBoxContainer.new()
 			list.add_theme_constant_override("separation", 4)
 			scroll.add_child(list)
 			for wid in wids:
-				var w: Dictionary = WeaponData.DATA[wid]
-				var rec: Dictionary = MaterialData.recipe_for(str(wid))
+				var wid_s: String = str(wid)
+				var w: Dictionary = WeaponData.DATA[wid_s]
+				var rec: Dictionary = MaterialData.recipe_for(wid_s)
+				var req_bp: bool = MaterialData.requires_blueprint(wid_s)
+				var has_bp: bool = (not req_bp) or Global.has_blueprint(wid_s)
 				var row := HBoxContainer.new()
-				row.add_theme_constant_override("separation", 6)
+				row.add_theme_constant_override("separation", 5)
 				list.add_child(row)
 				var wicon := TextureRect.new()
-				wicon.texture = Art.tex("weapons/%s.png" % wid)
-				wicon.custom_minimum_size = Vector2(26, 16)
+				wicon.texture = Art.tex("weapons/%s.png" % wid_s)
+				wicon.custom_minimum_size = Vector2(24, 16)
 				wicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				wicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				if req_bp and not has_bp:
+					wicon.modulate = Color(0.55, 0.55, 0.62, 0.85)
 				row.add_child(wicon)
-				var nl := UI.label(w.name, 13, WeaponData.tier_color(str(wid)))
-				nl.custom_minimum_size = Vector2(118, 0)
+				var name_col := VBoxContainer.new()
+				name_col.custom_minimum_size = Vector2(118, 0)
+				name_col.add_theme_constant_override("separation", 0)
+				row.add_child(name_col)
+				var nl := UI.label(str(w.name), 12, WeaponData.tier_color(wid_s) if has_bp else Color(0.66, 0.66, 0.72))
 				nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-				row.add_child(nl)
+				name_col.add_child(nl)
+				if req_bp:
+					var bpl := UI.label("📜 Bản vẽ", 10, Color(0.52, 0.92, 1.0) if has_bp else Color(1.0, 0.72, 0.35))
+					bpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+					name_col.add_child(bpl)
 				var reqs := HBoxContainer.new()
-				reqs.add_theme_constant_override("separation", 6)
+				reqs.add_theme_constant_override("separation", 5)
 				reqs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				row.add_child(reqs)
-				var mats: Dictionary = rec.mats
+				var mats: Dictionary = rec.get("mats", {})
 				for mid in MaterialData.ORDER:
 					if not mats.has(mid):
 						continue
@@ -839,19 +890,23 @@ func open_forge(tab: String = "upgrade") -> void:
 					var mc := HBoxContainer.new()
 					mc.add_theme_constant_override("separation", 2)
 					mc.add_child(_mat_icon(str(mid), 11.0))
-					var ml := UI.label("%d/%d" % [have, need], 12, Color(0.88, 0.92, 0.88) if ok else Color(1, 0.35, 0.35))
+					var ml := UI.label("%d/%d" % [have, need], 11, Color(0.88, 0.92, 0.88) if ok else Color(1, 0.35, 0.35))
 					mc.add_child(ml)
 					reqs.add_child(mc)
-				var need_c: int = int(rec.coins)
+				var need_c: int = int(rec.get("coins", 0))
 				var ok_c: bool = Global.coins >= need_c
-				reqs.add_child(UI.label("%d xu" % need_c, 12, Color(1, 0.88, 0.45) if ok_c else Color(1, 0.35, 0.35)))
-				if Global.forged != "":
+				reqs.add_child(UI.label("%dx" % need_c, 11, Color(1, 0.88, 0.45) if ok_c else Color(1, 0.35, 0.35)))
+				if req_bp and not has_bp:
+					var lk := UI.button("Cần mở khóa bản vẽ ở Tầng Hầm", func(): pass, 10, 178.0)
+					lk.disabled = true
+					row.add_child(lk)
+				elif Global.forged != "":
 					var wb := UI.button("Đã có binh khí chờ ra trận", func(): pass, 11, 152.0)
 					wb.disabled = true
 					row.add_child(wb)
 				else:
-					var cb := UI.button("Rèn", _do_craft.bind(str(wid)), 13, 64.0)
-					cb.disabled = not Global.can_craft(str(wid))
+					var cb := UI.button("Rèn", _do_craft.bind(wid_s), 13, 64.0)
+					cb.disabled = not Global.can_craft(wid_s)
 					row.add_child(cb)
 	_end(box)
 
@@ -1721,3 +1776,323 @@ func open_mat_merchant(tab: String = "buy", last_msg: String = "") -> void:
 			cell.add_child(bs5)
 
 	box.add_child(UI.center(UI.button("Đóng", close, 14, 120.0)))
+
+
+# ------------------------------------------------------------------ Tầng Hầm: Thành Tựu, Bản Vẽ, Bảo Tàng
+
+func open_achievements(cat: String = "all", last_msg: String = "") -> void:
+	var box := _begin("Bia Thành Tựu Chiến Tích")
+	box.add_theme_constant_override("separation", 4)
+
+	var total_ach: int = AchievementData.ORDER.size()
+	var done_count: int = 0
+	for aid_v in AchievementData.ORDER:
+		if AchievementData.is_completed(str(aid_v), Global):
+			done_count += 1
+	var unclaimed: int = Global.unclaimed_achievement_count()
+
+	var hdr := HBoxContainer.new()
+	hdr.alignment = BoxContainer.ALIGNMENT_CENTER
+	hdr.add_theme_constant_override("separation", 12)
+	box.add_child(hdr)
+	hdr.add_child(UI.label("Tiến độ: %d / %d   |   Chờ nhận: %d" % [done_count, total_ach, unclaimed], 13, Color(1.0, 0.88, 0.45)))
+	var b_all := UI.button("Nhận tất cả (%d)" % unclaimed if unclaimed > 0 else "Nhận tất cả", func():
+		var claimed: Array = Global.claim_all_achievements()
+		if not claimed.is_empty():
+			Sfx.play("chest_open")
+			if lobby != null and lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(430, 1150), "Nhận %d thành tựu!" % claimed.size(), Color(1.0, 0.88, 0.35))
+			open_achievements(cat, "Đã nhận thưởng %d mốc thành tựu!" % claimed.size()), 12, 138.0)
+	b_all.disabled = unclaimed <= 0
+	hdr.add_child(b_all)
+
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 12, Color(0.55, 0.98, 0.72)))
+
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 4)
+	box.add_child(tabs)
+	var b_all_tab := UI.button("Tất cả", open_achievements.bind("all", ""), 11, 74.0)
+	b_all_tab.disabled = (cat == "all")
+	tabs.add_child(b_all_tab)
+	for cid_v in AchievementData.CATEGORY_ORDER:
+		var cid: String = str(cid_v)
+		var cinfo: Dictionary = AchievementData.CATEGORIES[cid]
+		var cb := UI.button(str(cinfo.name), open_achievements.bind(cid, ""), 11, 88.0)
+		cb.disabled = (cat == cid)
+		cb.modulate = cinfo.color if cat == cid else Color(0.88, 0.88, 0.92)
+		tabs.add_child(cb)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(576, 178)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	scroll.add_child(list)
+
+	for aid_v in AchievementData.ORDER:
+		var aid: String = str(aid_v)
+		var info: Dictionary = AchievementData.DATA[aid]
+		if cat != "all" and str(info.get("cat", "")) != cat:
+			continue
+		var cur: int = Global.achievement_progress(aid)
+		var target: int = maxi(1, int(info.get("target", 1)))
+		var is_claimed: bool = Global.is_achievement_claimed(aid)
+		var can_claim: bool = Global.can_claim_achievement(aid)
+
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if can_claim else "ui/panel.png"))
+		list.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		card.add_child(row)
+
+		var left := VBoxContainer.new()
+		left.custom_minimum_size = Vector2(416, 0)
+		left.add_theme_constant_override("separation", 1)
+		row.add_child(left)
+
+		var top_line := HBoxContainer.new()
+		top_line.add_theme_constant_override("separation", 8)
+		left.add_child(top_line)
+		var title_col := Color(1.0, 0.88, 0.36) if can_claim else (Color(0.58, 0.96, 0.65) if is_claimed else Color(0.95, 0.92, 0.86))
+		var nm := UI.label(str(info.get("name", aid)), 13, title_col)
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top_line.add_child(nm)
+		var prog_l := UI.label("%d / %d" % [mini(cur, target), target], 12, Color(0.62, 0.96, 0.72) if cur >= target else Color(0.84, 0.84, 0.88))
+		top_line.add_child(prog_l)
+
+		var dsc := UI.label(str(info.get("desc", "")), 11, Color(0.84, 0.82, 0.78), true)
+		dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		left.add_child(dsc)
+
+		var rew_row := HBoxContainer.new()
+		rew_row.add_theme_constant_override("separation", 7)
+		left.add_child(rew_row)
+		var rew_c: int = int(info.get("coins", 0))
+		if rew_c > 0:
+			rew_row.add_child(UI.label("+%d xu" % rew_c, 11, Color(1.0, 0.88, 0.45)))
+		var mats: Dictionary = info.get("mats", {})
+		for mid_v in MaterialData.ORDER:
+			var mid: String = str(mid_v)
+			if not mats.has(mid):
+				continue
+			var mc := HBoxContainer.new()
+			mc.add_theme_constant_override("separation", 2)
+			mc.add_child(_mat_icon(mid, 10.0))
+			mc.add_child(UI.label("+%d" % int(mats[mid]), 11, MaterialData.DATA[mid].color))
+			rew_row.add_child(mc)
+		var bp_wid: String = str(info.get("blueprint", ""))
+		if bp_wid != "":
+			var wname: String = str(WeaponData.DATA.get(bp_wid, {}).get("name", bp_wid))
+			var bgrade: String = MaterialData.blueprint_grade(bp_wid)
+			rew_row.add_child(UI.label("📜 Bản vẽ (%s): %s" % [bgrade, wname], 11, Color(0.55, 0.92, 1.0)))
+
+		var btn_txt: String = "Đã nhận ✓" if is_claimed else ("Nhận thưởng" if can_claim else "Chưa đạt")
+		var b_claim := UI.button(btn_txt, func():
+			if not Global.can_claim_achievement(aid):
+				return
+			Global.claim_achievement(aid)
+			Sfx.play("chest_open")
+			if lobby != null and lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(430, 1150), "Nhận: %s!" % str(info.get("name", aid)), Color(1.0, 0.88, 0.35))
+			open_achievements(cat, "Đã nhận thưởng mốc '%s'!" % str(info.get("name", aid))), 12, 112.0)
+		b_claim.disabled = not can_claim
+		row.add_child(b_claim)
+
+	_end(box)
+
+
+func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
+	var box := _begin("Bàn Bản Vẽ Binh Khí")
+	box.add_theme_constant_override("separation", 4)
+
+	var basic_list: Array = AchievementData.BLUEPRINT_TIERS.get("basic", [])
+	var adv_list: Array = AchievementData.BLUEPRINT_TIERS.get("advanced", [])
+	var total_bp: int = basic_list.size() + adv_list.size()
+	var owned_bp: int = 0
+	for wid_v in basic_list:
+		if Global.has_blueprint(str(wid_v)):
+			owned_bp += 1
+	for wid_v in adv_list:
+		if Global.has_blueprint(str(wid_v)):
+			owned_bp += 1
+
+	box.add_child(UI.label("Bản vẽ đã mở: %d / %d   |   Xu: %d" % [owned_bp, total_bp, Global.coins], 13, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 12, Color(0.55, 0.98, 0.72)))
+
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 8)
+	box.add_child(tabs)
+	for spec in [["all", "Tất cả (%d)" % total_bp], ["basic", "Cơ bản (%d)" % basic_list.size()], ["advanced", "Nâng cao (%d)" % adv_list.size()]]:
+		var gk: String = str(spec[0])
+		var tb := UI.button(str(spec[1]), open_blueprints.bind(gk, ""), 12, 124.0)
+		tb.disabled = (grade == gk)
+		tabs.add_child(tb)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(576, 178)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	scroll.add_child(list)
+
+	var items: Array = []
+	if grade == "all" or grade == "basic":
+		for wv in basic_list:
+			items.append(str(wv))
+	if grade == "all" or grade == "advanced":
+		for wv in adv_list:
+			items.append(str(wv))
+
+	for wid in items:
+		var w: Dictionary = WeaponData.DATA.get(wid, {})
+		var wname: String = str(w.get("name", wid))
+		var bgrade: String = MaterialData.blueprint_grade(wid)
+		var unlocked_bp: bool = Global.has_blueprint(wid)
+		var src_aid: String = AchievementData.blueprint_source(wid)
+		var src_name: String = str(AchievementData.DATA.get(src_aid, {}).get("name", "Thành tựu Tầng Hầm"))
+		var rec: Dictionary = MaterialData.recipe_for(wid)
+
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if unlocked_bp else "ui/panel.png"))
+		list.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		card.add_child(row)
+
+		var wicon := TextureRect.new()
+		wicon.texture = Art.tex("weapons/%s.png" % wid)
+		wicon.custom_minimum_size = Vector2(36, 22)
+		wicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		wicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		if not unlocked_bp:
+			wicon.modulate = Color(0.42, 0.42, 0.48, 0.85)
+		row.add_child(wicon)
+
+		var info := VBoxContainer.new()
+		info.custom_minimum_size = Vector2(365, 0)
+		info.add_theme_constant_override("separation", 1)
+		row.add_child(info)
+
+		var top_l := HBoxContainer.new()
+		top_l.add_theme_constant_override("separation", 6)
+		info.add_child(top_l)
+		var nl := UI.label("%s [%s]" % [wname, bgrade], 13, WeaponData.tier_color(wid) if unlocked_bp else Color(0.7, 0.7, 0.76))
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top_l.add_child(nl)
+		var stl := UI.label("✓ Đã mở" if unlocked_bp else "🔒 Chưa mở", 11, Color(0.55, 0.96, 0.65) if unlocked_bp else Color(1.0, 0.72, 0.38))
+		top_l.add_child(stl)
+
+		var srcl := UI.label("Nguồn: %s" % src_name, 11, Color(0.78, 0.84, 0.92))
+		srcl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		info.add_child(srcl)
+
+		if not rec.is_empty():
+			_add_cost_row(info, int(rec.get("coins", 0)), rec.get("mats", {}))
+
+		if not unlocked_bp:
+			var b_lk := UI.button("Chưa mở khóa", func(): pass, 11, 116.0)
+			b_lk.disabled = true
+			row.add_child(b_lk)
+		elif Global.forged != "":
+			var b_wait := UI.button("Đã có đồ chờ", func(): pass, 11, 116.0)
+			b_wait.disabled = true
+			row.add_child(b_wait)
+		else:
+			var b_craft := UI.button("Chế tạo ngay", func():
+				if Global.try_craft(wid):
+					Sfx.play("forge")
+					if lobby != null:
+						lobby.on_forged()
+						if lobby.has_method("on_station_fx"):
+							lobby.on_station_fx(Vector2(680, 1255), "Chế tạo %s!" % wname, WeaponData.tier_color(wid))
+					open_blueprints(grade, "Đã chế tạo %s chờ mang vào trận!" % wname), 12, 116.0)
+			b_craft.disabled = not Global.can_craft(wid)
+			row.add_child(b_craft)
+
+	_end(box)
+
+
+func open_weapon_gallery(tier_filter: int = 0, bp_only: bool = false) -> void:
+	var total_w: int = WeaponData.DATA.size()
+	var box := _begin("Bảo Tàng Binh Khí — %d / %d" % [Global.discovered.size(), total_w])
+	box.add_theme_constant_override("separation", 4)
+
+	var st_runs: int = int(Global.stats.get("runs", 0))
+	var st_kills: int = int(Global.stats.get("kills", 0))
+	var st_bosses: int = int(Global.stats.get("bosses", 0))
+	var st_mythic: int = int(Global.stats.get("mythic_bosses", 0))
+	var st_crafted: int = int(Global.stats.get("crafted", 0))
+	var stat_txt := "Lượt: %d  |  Giặc: %d  |  Trùm: %d  |  Thần thoại: %d  |  Rèn: %d  |  Màn cao nhất: %d" % [
+		st_runs, st_kills, st_bosses, st_mythic, st_crafted, Global.best_level]
+	box.add_child(UI.label(stat_txt, 11, Color(0.88, 0.9, 0.94)))
+
+	var fbar := HBoxContainer.new()
+	fbar.alignment = BoxContainer.ALIGNMENT_CENTER
+	fbar.add_theme_constant_override("separation", 5)
+	box.add_child(fbar)
+	var b_all := UI.button("Tất cả", open_weapon_gallery.bind(0, false), 11, 66.0)
+	b_all.disabled = (tier_filter == 0 and not bp_only)
+	fbar.add_child(b_all)
+	for t_i in range(1, 6):
+		var bt := UI.button("Cấp %d" % t_i, open_weapon_gallery.bind(t_i, bp_only), 11, 58.0)
+		bt.disabled = (tier_filter == t_i)
+		bt.modulate = WeaponData.TIER_COLORS[t_i] if tier_filter == t_i else Color(0.86, 0.86, 0.9)
+		fbar.add_child(bt)
+	var b_bp := UI.button("📜 Bản vẽ", open_weapon_gallery.bind(tier_filter, not bp_only), 11, 88.0)
+	b_bp.modulate = Color(0.55, 0.94, 1.0) if bp_only else Color(0.82, 0.82, 0.88)
+	fbar.add_child(b_bp)
+
+	var ids: Array = []
+	for wid_v in WeaponData.DATA.keys():
+		var wid: String = str(wid_v)
+		var wd: Dictionary = WeaponData.DATA[wid]
+		if tier_filter > 0 and int(wd.get("tier", 1)) != tier_filter:
+			continue
+		if bp_only and not MaterialData.requires_blueprint(wid):
+			continue
+		ids.append(wid)
+	ids.sort_custom(func(a: String, b: String) -> bool:
+		var ta: int = int(WeaponData.DATA[a].get("tier", 1))
+		var tb: int = int(WeaponData.DATA[b].get("tier", 1))
+		if ta != tb:
+			return ta < tb
+		return str(WeaponData.DATA[a].get("name", a)) < str(WeaponData.DATA[b].get("name", b)))
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(576, 178)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var gridc := GridContainer.new()
+	gridc.columns = 7
+	gridc.add_theme_constant_override("h_separation", 4)
+	gridc.add_theme_constant_override("v_separation", 4)
+	scroll.add_child(gridc)
+	for wid_v in ids:
+		var wid: String = str(wid_v)
+		var known: bool = Global.discovered.has(wid)
+		var is_bp: bool = MaterialData.requires_blueprint(wid)
+		var cell := VBoxContainer.new()
+		cell.custom_minimum_size = Vector2(76, 46)
+		var icon := TextureRect.new()
+		icon.texture = Art.tex("weapons/%s.png" % wid)
+		icon.custom_minimum_size = Vector2(76, 26)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.modulate = Color.WHITE if known else Color(0, 0, 0, 0.75)
+		cell.add_child(icon)
+		var lbl_txt: String = str(WeaponData.DATA[wid].get("name", wid)) if known else ("📜 ???" if is_bp else "???")
+		var lbl_col: Color = WeaponData.tier_color(wid) if known else (Color(0.52, 0.72, 0.85) if is_bp else Color(0.5, 0.5, 0.5))
+		var nm := UI.label(lbl_txt, 10, lbl_col, true)
+		cell.add_child(nm)
+		gridc.add_child(cell)
+
+	_end(box)

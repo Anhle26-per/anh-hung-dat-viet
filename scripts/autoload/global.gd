@@ -13,8 +13,19 @@ const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
+const AchievementData = preload("res://scripts/data/achievements.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
+
+const DEFAULT_STATS: Dictionary = {
+	"runs": 0,
+	"kills": 0,
+	"bosses": 0,
+	"mythic_bosses": 0,
+	"crafted": 0,
+	"chests": 0,
+}
 
 # --- Dữ liệu được lưu lại ---
 var selected_hero: String = "ngo_quyen"
@@ -23,7 +34,9 @@ var best_level: int = 0
 var unlocked: Array = []
 var upgrades: Dictionary = {}     # nâng cấp vĩnh viễn ở Lò rèn: mã -> cấp
 var discovered: Array = []        # vũ khí đã sưu tầm
-var stats: Dictionary = {"runs": 0, "kills": 0, "bosses": 0}
+var stats: Dictionary = DEFAULT_STATS.duplicate()
+var achievements_claimed: Array = []  # mã thành tựu đã nhận thưởng
+var blueprints: Array = []            # mã vũ khí bản vẽ đã mở khóa
 var free_revives := 0             # lượt hồi sinh miễn phí còn lại trong lượt chơi
 var materials: Dictionary = {}    # kho nguyên liệu: mã -> số lượng
 var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lượt kế tiếp ("" nếu trống)
@@ -470,6 +483,8 @@ func add_stat(key: String, n := 1) -> void:
 
 
 func on_boss_killed(player_hp: int) -> void:
+	if EnemyData.is_mythic_level(level):
+		add_stat("mythic_bosses")
 	if _run_active:
 		run_boss_hp.append(player_hp)
 
@@ -526,6 +541,10 @@ func forgeable_weapons() -> Array:
 		var w: String = str(wid)
 		if MaterialData.can_forge_weapon(w) and not out.has(w):
 			out.append(w)
+	for wid in blueprints:
+		var w2: String = str(wid)
+		if MaterialData.can_forge_weapon(w2) and not out.has(w2):
+			out.append(w2)
 	out.sort_custom(func(a: String, b: String) -> bool:
 		var ta: int = int(WeaponData.DATA[a].tier)
 		var tb: int = int(WeaponData.DATA[b].tier)
@@ -556,7 +575,12 @@ func _spend_cost(coins_need: int, mats: Dictionary) -> void:
 
 
 func can_craft(wid: String) -> bool:
-	if forged != "" or not discovered.has(wid) or not MaterialData.can_forge_weapon(wid):
+	if forged != "" or not MaterialData.can_forge_weapon(wid):
+		return false
+	if MaterialData.requires_blueprint(wid):
+		if not has_blueprint(wid):
+			return false
+	elif not discovered.has(wid):
 		return false
 	var rec: Dictionary = MaterialData.recipe_for(wid)
 	if rec.is_empty():
@@ -570,8 +594,94 @@ func try_craft(wid: String) -> bool:
 	var rec: Dictionary = MaterialData.recipe_for(wid)
 	_spend_cost(int(rec.coins), rec.mats)
 	forged = wid
+	discover(wid)
+	add_stat("crafted")
 	save_game()
 	return true
+
+
+# ------------------------------------------------------------------ Thành tựu & Bản vẽ
+
+func has_blueprint(wid: String) -> bool:
+	return blueprints.has(wid)
+
+
+func unlock_blueprint(wid: String) -> bool:
+	if wid == "" or blueprints.has(wid):
+		return false
+	if not WeaponData.DATA.has(wid) and not AchievementData.is_blueprint_id(wid):
+		return false
+	blueprints.append(wid)
+	save_game()
+	return true
+
+
+func is_achievement_claimed(aid: String) -> bool:
+	return achievements_claimed.has(aid)
+
+
+func achievement_progress(aid: String) -> int:
+	return AchievementData.progress_for(aid, self)
+
+
+func can_claim_achievement(aid: String) -> bool:
+	return AchievementData.DATA.has(aid) and not is_achievement_claimed(aid) and AchievementData.is_completed(aid, self)
+
+
+func claim_achievement(aid: String) -> Dictionary:
+	if not can_claim_achievement(aid):
+		return {}
+	achievements_claimed.append(aid)
+	var info: Dictionary = AchievementData.DATA[aid]
+	var c: int = int(info.get("coins", 0))
+	if c > 0:
+		coins += c
+	var granted_mats: Dictionary = {}
+	var raw_mats: Variant = info.get("mats", {})
+	if typeof(raw_mats) == TYPE_DICTIONARY:
+		var md: Dictionary = raw_mats
+		for k in md:
+			var mk: String = str(k)
+			var mv: int = int(md[k])
+			if mv > 0 and MaterialData.DATA.has(mk):
+				materials[mk] = material_count(mk) + mv
+				granted_mats[mk] = mv
+	var bp: String = str(info.get("blueprint", ""))
+	if bp != "" and not blueprints.has(bp):
+		blueprints.append(bp)
+	save_game()
+	return {
+		"id": aid,
+		"name": str(info.get("name", "")),
+		"coins": c,
+		"mats": granted_mats,
+		"blueprint": bp,
+	}
+
+
+func unclaimed_achievement_count() -> int:
+	var n: int = 0
+	for aid in AchievementData.ORDER:
+		if can_claim_achievement(str(aid)):
+			n += 1
+	return n
+
+
+func claim_all_achievements() -> Array:
+	var claimed_list: Array = []
+	var changed: bool = true
+	var guard: int = 0
+	while changed and guard <= AchievementData.ORDER.size():
+		changed = false
+		guard += 1
+		for aid in AchievementData.ORDER:
+			var key: String = str(aid)
+			if can_claim_achievement(key):
+				var reward: Dictionary = claim_achievement(key)
+				if not reward.is_empty():
+					claimed_list.append(reward)
+					changed = true
+	return claimed_list
 
 
 func hero_level(id: String) -> int:
@@ -957,6 +1067,8 @@ func save_game() -> void:
 		"leaderboard": leaderboard,
 		"garden_plots": garden_plots,
 		"selected_pet": selected_pet,
+		"achievements_claimed": achievements_claimed,
+		"blueprints": blueprints,
 	})
 
 
@@ -1160,6 +1272,9 @@ func save_on_exit() -> void:
 
 func load_game() -> void:
 	settings = DEFAULT_SETTINGS.duplicate()
+	stats = DEFAULT_STATS.duplicate()
+	achievements_claimed = []
+	blueprints = []
 	leaderboard = []
 	garden_plots = []
 	selected_pet = ""
@@ -1179,10 +1294,11 @@ func load_game() -> void:
 			upgrades[k] = int(up[k])
 	for wid in data.get("discovered", []):
 		discover(str(wid))
-	var st = data.get("stats", {})
+	var st: Variant = data.get("stats", {})
 	if typeof(st) == TYPE_DICTIONARY:
-		for k in st:
-			stats[k] = int(st[k])
+		var std: Dictionary = st
+		for k in std:
+			stats[str(k)] = int(std[k])
 	var sel: String = str(data.get("selected_hero", selected_hero))
 	if unlocked.has(sel):
 		selected_hero = sel
@@ -1253,6 +1369,20 @@ func load_game() -> void:
 	ensure_garden_plots()
 	var sp: String = str(data.get("selected_pet", ""))
 	selected_pet = sp if PETS.has(sp) else ""
+	var ac: Variant = data.get("achievements_claimed", null)
+	if typeof(ac) == TYPE_ARRAY:
+		var ac_arr: Array = ac
+		for item in ac_arr:
+			var aid: String = str(item)
+			if AchievementData.DATA.has(aid) and not achievements_claimed.has(aid):
+				achievements_claimed.append(aid)
+	var bp: Variant = data.get("blueprints", null)
+	if typeof(bp) == TYPE_ARRAY:
+		var bp_arr: Array = bp
+		for item in bp_arr:
+			var wid: String = str(item)
+			if wid != "" and (WeaponData.DATA.has(wid) or AchievementData.is_blueprint_id(wid)) and not blueprints.has(wid):
+				blueprints.append(wid)
 
 
 # ------------------------------------------------------------------ Phím bấm

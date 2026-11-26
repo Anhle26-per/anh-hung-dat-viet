@@ -8,6 +8,7 @@ import json
 import os
 from px import hexc, grid, outline, save, auto_shade, OUT, Image, ImageDraw
 import art_chars
+import art_weapons_ext
 
 M = {
     "wood": ("9a6234", "c08850", "5e3a20"),
@@ -639,6 +640,14 @@ def build():
         img, off = finalize(raw, tier.get(wid, 1))
         save(img, f"weapons/{wid}.png")
         grips[wid] = (g[0] + off, g[1] + off)
+    for wid, fn in art_weapons_ext.PROC_EXT.items():
+        res = fn()
+        raw, g = res
+        raw_imgs[wid] = raw
+        img, off = finalize(raw, tier.get(wid, 1))
+        save(img, f"weapons/{wid}.png")
+        grips[wid] = (g[0] + off, g[1] + off)
+    art_weapons_ext.build_projectiles_ext()
     for wid in BASIC_WEAPONS:
         if wid in raw_imgs:
             save(finalize_rank(raw_imgs[wid], 3), f"weapons/{wid}_b3.png")

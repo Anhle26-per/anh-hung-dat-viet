@@ -19,6 +19,16 @@ const PROJ := {
 	"orb_pink": {"tex": "fx/orb_pink.png", "n": 2, "r": 3.5, "add": true},
 	"orb_poison": {"tex": "fx/orb_pink.png", "n": 2, "r": 3.5, "add": true, "tint": Color(0.45, 1.0, 0.35), "status": "poison"},
 	"orb_water": {"tex": "fx/orb_water.png", "n": 2, "r": 3.5, "add": true},
+	"orb_ice": {"tex": "fx/orb_ice.png", "n": 2, "r": 3.5, "add": true, "light": Color(0.55, 0.9, 1.0), "status": "slow"},
+	"orb_void": {"tex": "fx/orb_void.png", "n": 2, "r": 4.0, "add": true, "light": Color(0.7, 0.35, 1.0)},
+	"orb_star": {"tex": "fx/orb_star.png", "n": 2, "r": 4.0, "add": true, "light": Color(1.0, 0.92, 0.5)},
+	"orb_lightning": {"tex": "fx/orb_lightning.png", "n": 2, "r": 3.5, "add": true, "light": Color(0.5, 0.95, 1.0), "chain": 2},
+	"talisman": {"tex": "fx/talisman.png", "n": 2, "r": 3.5, "light": Color(1.0, 0.78, 0.3), "status": "burn"},
+	"chakram": {"tex": "fx/chakram.png", "n": 2, "r": 5.0, "spin": true, "bounces": 2},
+	"card": {"tex": "fx/card.png", "n": 2, "r": 3.5, "spin": true},
+	"bubble": {"tex": "fx/bubble.png", "n": 2, "r": 4.5, "add": true, "bounces": 1, "status": "slow"},
+	"soul_bolt": {"tex": "fx/soul_bolt.png", "n": 2, "r": 4.0, "add": true, "light": Color(0.4, 1.0, 0.75)},
+	"sawblade": {"tex": "fx/sawblade.png", "n": 2, "r": 5.5, "spin": true, "bounces": 2},
 	"sword_wave": {"tex": "fx/sword_wave.png", "n": 2, "r": 9.0, "add": true},
 	"water_wave": {"tex": "fx/sword_wave.png", "n": 2, "r": 11.0, "add": true, "scale": 1.5, "tint": Color(0.4, 0.8, 1.0)},
 	"axe": {"tex": "weapons/riu_thach_sanh.png", "r": 9.0, "spin": true},
@@ -40,6 +50,9 @@ var owner_node = null
 var stun_duration := 0.0
 var burn_duration := 2.2
 var force_burn: bool = false
+var status_kind: String = ""
+var slow_duration: float = 0.0
+var chain_count: int = 0
 var visual_only: bool = false
 var qi_wave: bool = false
 var crit_pierce: bool = false
@@ -71,6 +84,12 @@ func _ready() -> void:
 	_start_life = life
 	if info.get("grenade", false):
 		bounces = maxi(bounces, 2)
+	var def_bounces: int = int(info.get("bounces", 0))
+	if def_bounces > 0:
+		bounces = maxi(bounces, def_bounces)
+	var def_chain: int = int(info.get("chain", 0))
+	if chain_count <= 0 and def_chain > 0:
+		chain_count = def_chain
 	var shape := CircleShape2D.new()
 	shape.radius = info.get("r", 3.0)
 	var cs := CollisionShape2D.new()
@@ -260,11 +279,16 @@ func _hit_enemy(body: Node) -> void:
 		body.apply_stun(stun_duration)
 	if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_hit_enemy") and is_instance_valid(body):
 		owner_node.on_hit_enemy(body)
-	var st: String = PROJ.get(proj, {}).get("status", "")
-	if st != "" and is_instance_valid(body) and body.has_method("apply_status"):
+	var st: String = status_kind if status_kind != "" else str(PROJ.get(proj, {}).get("status", ""))
+	if st == "slow" or slow_duration > 0.0:
+		_apply_slow_to(body, slow_duration if slow_duration > 0.0 else 2.0)
+	if (st == "burn" or st == "poison") and is_instance_valid(body) and body.has_method("apply_status"):
 		body.apply_status(st, burn_duration if st == "burn" else 2.2)
 	if force_burn and st != "burn" and is_instance_valid(body) and body.has_method("apply_status"):
 		body.apply_status("burn", burn_duration)
+	if chain_count > 0 and is_instance_valid(body) and not bool(body.get("dead")) and owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("_chain_lightning"):
+		owner_node._chain_lightning(body, chain_count, maxi(1, int(round(float(hit_dmg) * 0.6))))
+		chain_count = 0
 	var lhc: Variant = body.get("last_hit_crit") if is_instance_valid(body) else null
 	var was_crit: bool = typeof(lhc) == TYPE_BOOL and (lhc as bool)
 	Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1.0, 0.92, 0.35) if was_crit else color.lerp(Color(1, 0.9, 0.6), 0.5), true)
@@ -317,18 +341,49 @@ func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
 	_finish()
 
 
+func _apply_slow_to(body: Node, dur: float) -> void:
+	if body == null or not is_instance_valid(body) or bool(body.get("dead")) or dur <= 0.0:
+		return
+	var spd_val: Variant = body.get("speed")
+	if spd_val == null:
+		return
+	if not body.has_meta("weapon_slowed"):
+		var cur_spd: float = float(spd_val)
+		var cut: float = cur_spd * 0.35
+		body.set_meta("weapon_slowed", true)
+		body.set_meta("weapon_slow_cut", cut)
+		body.set("speed", maxf(10.0, cur_spd - cut))
+	body.set_meta("weapon_slow_until", Time.get_ticks_msec() + int(dur * 1000.0))
+	var par: Node = get_parent()
+	if par != null and is_instance_valid(par):
+		Fx.particles(par, (body as Node2D).global_position, Color(0.55, 0.9, 1.0), 4, 40.0, 0.35)
+	var wr: WeakRef = weakref(body)
+	if is_inside_tree():
+		get_tree().create_timer(dur + 0.05).timeout.connect(func():
+			var b_ref: Variant = wr.get_ref()
+			if b_ref == null or not is_instance_valid(b_ref) or bool(b_ref.get("dead")):
+				return
+			if Time.get_ticks_msec() >= int(b_ref.get_meta("weapon_slow_until", 0)) and b_ref.has_meta("weapon_slowed"):
+				var cut2: float = float(b_ref.get_meta("weapon_slow_cut", 0.0))
+				b_ref.set("speed", float(b_ref.get("speed")) + cut2)
+				b_ref.remove_meta("weapon_slowed")
+				b_ref.remove_meta("weapon_slow_cut")
+				b_ref.remove_meta("weapon_slow_until"))
+
+
 func _spawn_wall_fx(hit_pos: Vector2, normal: Vector2) -> void:
 	var par: Node = get_parent()
 	if par == null or not is_instance_valid(par):
 		return
 	var info: Dictionary = PROJ.get(proj, {})
-	var st: String = str(info.get("status", ""))
+	var st: String = status_kind if status_kind != "" else str(info.get("status", ""))
 	if st == "burn":
 		Fx.particles(par, hit_pos, Color(1.0, 0.55, 0.2), 5, 65.0, 0.25, 40.0, 1.8, 70.0, normal)
 		return
 	var tint_col: Color = color * info.get("tint", Color.WHITE)
-	if proj in ["plasma", "orb_pink", "orb_poison", "orb_water", "sword_wave", "water_wave"]:
-		var col: Color = tint_col if tint_col != Color.WHITE else Color(0.95, 0.75, 1.0)
+	if proj in ["plasma", "orb_pink", "orb_poison", "orb_water", "orb_ice", "orb_void", "orb_star", "orb_lightning", "talisman", "chakram", "card", "bubble", "soul_bolt", "sawblade", "sword_wave", "water_wave"]:
+		var base_l: Color = info.get("light", Color(0.95, 0.75, 1.0))
+		var col: Color = tint_col if tint_col != Color.WHITE else base_l
 		Fx.anim(par, hit_pos, "fx/spark.png", 15, 15, 24.0, 0.65, 0.0, col, true)
 		Fx.particles(par, hit_pos, col, 4, 70.0, 0.2, 60.0, 1.4, 75.0, normal)
 		return
@@ -348,11 +403,21 @@ func _finish() -> void:
 				var exp_dmg: int = damage
 				if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("buff") and owner_node.buff("khien_lua") > 0:
 					exp_dmg = int(round(float(exp_dmg) * 1.5))
+				var exp_st: String = status_kind if status_kind != "" else str(PROJ.get(proj, {}).get("status", ""))
 				for e in get_tree().get_nodes_in_group("enemies"):
 					var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (global_position.distance_to(e.global_position) - e.radius)
 					if dist_e < explode_radius:
 						var e_ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
-						e.take_damage(exp_dmg, (e_ctr - global_position).normalized() * 220.0)
+						var push_v: Vector2 = (global_position - e_ctr).normalized() * absf(knock) if knock < 0.0 else (e_ctr - global_position).normalized() * 220.0
+						e.take_damage(exp_dmg, push_v)
+						if stun_duration > 0.0 and is_instance_valid(e) and not bool(e.get("dead")) and e.has_method("apply_stun"):
+							e.apply_stun(stun_duration)
+						if (exp_st == "slow" or slow_duration > 0.0) and is_instance_valid(e):
+							_apply_slow_to(e, slow_duration if slow_duration > 0.0 else 2.0)
+						if (exp_st == "burn" or exp_st == "poison") and is_instance_valid(e) and e.has_method("apply_status"):
+							e.apply_status(exp_st, burn_duration if exp_st == "burn" else 2.2)
+						if force_burn and exp_st != "burn" and is_instance_valid(e) and e.has_method("apply_status"):
+							e.apply_status("burn", burn_duration)
 			else:
 				var p: Node = Global.local_player()
 				if p != null and not bool(p.get("downed")) and global_position.distance_to((p as Node2D).global_position) < explode_radius + 6.0:

@@ -21,6 +21,10 @@ const Art = preload("res://scripts/art/art.gd")
 
 const SIZE := Vector2(1360, 760)
 const SPAWN_POS := Vector2(680, 524)
+const BASEMENT_ORIGIN := Vector2(240, 900)
+const BASEMENT_RECT := Rect2(240, 900, 880, 560)
+const BASEMENT_SPAWN := Vector2(680, 1020)
+const SURFACE_RETURN_POS := Vector2(680, 622)
 
 const ROOMS: Array[Dictionary] = [
 	{"id": "center", "name": "Đại Sảnh Anh Hùng", "rect": Rect2(460, 250, 440, 440)},
@@ -41,6 +45,8 @@ var camera: Camera2D
 var ui
 var touch
 var stations: Array = []
+var stair_stations: Array = []
+var in_basement: bool = false
 var well_uses: int = 3
 var supply_claimed: bool = false
 var garden_watered: bool = false
@@ -51,6 +57,11 @@ var merchant_bundle_bought: bool = false
 var _hero_npcs := {}
 var _animal_nodes: Dictionary = {}
 var _pet_stations: Array = []
+var _basement_stations: Array = []
+var _basement_down_st: Node2D = null
+var _basement_up_st: Node2D = null
+var _canvas_mod: CanvasModulate = null
+var _transitioning: bool = false
 var _leaving := false
 var _forged_icon: Sprite2D
 var _garden_sprites: Array[Sprite2D] = []
@@ -71,6 +82,7 @@ func _ready() -> void:
 	var dark := CanvasModulate.new()
 	dark.color = Color(0.96, 0.93, 0.88)
 	add_child(dark)
+	_canvas_mod = dark
 	var deal_pool: Array = preload("res://scripts/data/materials.gd").ORDER
 	merchant_deal = str(deal_pool[randi() % deal_pool.size()])
 	_build_room()
@@ -109,6 +121,8 @@ func _ready() -> void:
 
 
 func room_at(pos: Vector2) -> Dictionary:
+	if in_basement or BASEMENT_RECT.has_point(pos):
+		return {"id": "basement", "name": "Tầng Hầm Chiến Tích", "rect": BASEMENT_RECT}
 	for r in ROOMS:
 		var rect: Rect2 = r.rect
 		if rect.has_point(pos):
@@ -162,6 +176,23 @@ func _build_room() -> void:
 	]
 	for r in walls:
 		_add_wall_rect(r)
+
+	# Tầng Hầm Chiến Tích (bên dưới Doanh Trại)
+	var b_bg := Sprite2D.new()
+	b_bg.texture = Art.tex("world/basement_bg.png")
+	b_bg.centered = false
+	b_bg.position = BASEMENT_ORIGIN
+	b_bg.z_index = -5
+	world.add_child(b_bg)
+
+	var b_walls: Array[Rect2] = [
+		Rect2(224, 884, 912, 36),   # tường Bắc tầng hầm
+		Rect2(224, 1444, 912, 32),  # tường Nam tầng hầm
+		Rect2(224, 900, 32, 560),   # tường Tây tầng hầm
+		Rect2(1104, 900, 32, 560),  # tường Đông tầng hầm
+	]
+	for br in b_walls:
+		_add_wall_rect(br)
 
 
 func _life(kind: String, pos: Vector2, size := Vector2.ZERO) -> Node2D:
@@ -396,6 +427,45 @@ func _decorate() -> void:
 	amb.area = Rect2(Vector2(40, 20), Vector2(1280, 680))
 	world.add_child(amb)
 
+	# Biển cầu thang xuống Tầng Hầm tại Đại Sảnh Anh Hùng
+	_sign_label("▼ Tầng Hầm", Vector2(680, 690), Color(1.0, 0.82, 0.42))
+
+	# ---- 5. Trang trí Tầng Hầm Chiến Tích ----
+	_sign_label("▲ Lên Sảnh", Vector2(680, 926), Color(1.0, 0.86, 0.45))
+	for tp in [Vector2(316, 932), Vector2(540, 932), Vector2(820, 932), Vector2(1044, 932)]:
+		_decor("torch", tp)
+	for bp in [Vector2(304, 1030), Vector2(1056, 1030), Vector2(304, 1380), Vector2(1056, 1380)]:
+		_anim_prop("world/prop_brazier.png", 26, 32, 6.0, bp, Color(1.0, 0.64, 0.28))
+	for pp in [Vector2(356, 944), Vector2(1004, 944)]:
+		_prop("world/pillar.png", pp, Vector2(0, -14))
+	for kp in [Vector2(284, 1170), Vector2(1076, 1170)]:
+		_decor("pot", kp)
+	for flp in [Vector2(618, 938), Vector2(742, 938)]:
+		_decor("banner", flp)
+
+	var bmotes := CPUParticles2D.new()
+	bmotes.position = BASEMENT_RECT.get_center()
+	bmotes.amount = 28
+	bmotes.lifetime = 4.5
+	bmotes.preprocess = 4.5
+	bmotes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	bmotes.emission_rect_extents = Vector2(BASEMENT_RECT.size.x * 0.45, BASEMENT_RECT.size.y * 0.45)
+	bmotes.direction = Vector2.UP
+	bmotes.spread = 180.0
+	bmotes.gravity = Vector2(0, -3)
+	bmotes.initial_velocity_min = 2.0
+	bmotes.initial_velocity_max = 6.0
+	bmotes.scale_amount_min = 1.0
+	bmotes.scale_amount_max = 1.8
+	var bmg := Gradient.new()
+	bmg.set_color(0, Color(1.0, 0.88, 0.42, 0.0))
+	bmg.add_point(0.5, Color(1.0, 0.88, 0.42, 0.85))
+	bmg.set_color(bmg.get_point_count() - 1, Color(1.0, 0.88, 0.42, 0.0))
+	bmotes.color_ramp = bmg
+	bmotes.material = Art.additive()
+	bmotes.z_index = 6
+	world.add_child(bmotes)
+
 
 func _add_station(kind: String, data: String, title: String, hint: String, pos: Vector2, sprite: Node2D, label_y: float = -24.0) -> Node2D:
 	var s := Station.new()
@@ -621,6 +691,47 @@ func _build_stations() -> void:
 	pond_st.radius = 30.0
 	refresh_pet_stations()
 
+	# Cầu thang xuống Tầng Hầm (Đại Sảnh) & lên Đại Sảnh (Tầng Hầm)
+	var down_st := _add_stair_station("basement_down", "Tầng Hầm", "Thành tựu & Bản vẽ", Vector2(680, 662), _sprite("world/lobby_stairs_down.png", Vector2(0, -10)), -38.0, 28.0)
+	down_st.visible = true
+	_basement_down_st = down_st
+	var bdl := Art.light(Color(1.0, 0.72, 0.32), 0.9, 0.72)
+	bdl.position = Vector2(680, 654)
+	world.add_child(bdl)
+
+	var up_st := _add_stair_station("basement_up", "Lên Đại Sảnh", "Quay về sảnh chính", Vector2(680, 972), _sprite("world/basement_stairs_up.png", Vector2(0, -14)), -44.0, 30.0)
+	up_st.visible = false
+	_basement_up_st = up_st
+	var bul := Art.light(Color(1.0, 0.78, 0.38), 1.0, 0.75)
+	bul.position = Vector2(680, 964)
+	world.add_child(bul)
+
+	# 3 trạm tương tác trong Tầng Hầm Chiến Tích
+	_basement_stations.clear()
+	var ach_st := _add_station("basement_achieve", "", "Bia Thành Tựu", "Mốc chiến tích & Nhận thưởng", Vector2(430, 1170), _sprite("world/basement_trophy_stele.png", Vector2(0, -16)), -50.0)
+	ach_st.radius = 32.0
+	ach_st.visible = false
+	_basement_stations.append(ach_st)
+	var achl := Art.light(Color(1.0, 0.84, 0.35), 1.0, 0.75)
+	achl.position = Vector2(430, 1156)
+	world.add_child(achl)
+
+	var bp_st := _add_station("basement_blueprint", "", "Bàn Bản Vẽ", "Bản vẽ Cơ bản & Nâng cao", Vector2(680, 1275), _sprite("world/basement_blueprint_desk.png", Vector2(0, -12)), -42.0)
+	bp_st.radius = 32.0
+	bp_st.visible = false
+	_basement_stations.append(bp_st)
+	var bpl := Art.light(Color(0.45, 0.88, 1.0), 1.0, 0.75)
+	bpl.position = Vector2(680, 1264)
+	world.add_child(bpl)
+
+	var gal_st := _add_station("basement_gallery", "", "Bảo Tàng Binh Khí", "Bộ sưu tập 200 vũ khí", Vector2(930, 1170), _sprite("world/basement_armory_shelf.png", Vector2(0, -14)), -46.0)
+	gal_st.radius = 32.0
+	gal_st.visible = false
+	_basement_stations.append(gal_st)
+	var gall := Art.light(Color(1.0, 0.72, 0.38), 1.0, 0.75)
+	gall.position = Vector2(930, 1156)
+	world.add_child(gall)
+
 
 func _refresh_heroes() -> void:
 	for id in _hero_npcs:
@@ -668,21 +779,22 @@ func _process(delta: float) -> void:
 		camera.position = player.global_position
 	var best = null
 	var best_d := 9999.0
-	for s in stations:
-		s.near = false
-		if not s.visible:
-			continue
-		var d: float = s.global_position.distance_to(player.global_position)
-		if d < s.radius and d < best_d:
-			best = s
-			best_d = d
+	for arr in [stations, stair_stations]:
+		for s in arr:
+			s.near = false
+			if not s.visible:
+				continue
+			var d: float = s.global_position.distance_to(player.global_position)
+			if d < s.radius and d < best_d:
+				best = s
+				best_d = d
 	if best != null:
 		best.near = true
 	player.interact_target = best
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause") and not ui.is_open():
+	if event.is_action_pressed("pause") and not ui.is_open() and not _transitioning:
 		_back_to_menu()
 
 
@@ -721,6 +833,111 @@ func _on_station(s) -> void:
 			ui.open_pet(str(s.data))
 		"pond":
 			ui.open_pond()
+		"basement_down":
+			enter_basement()
+		"basement_up":
+			exit_basement()
+		"basement_achieve":
+			ui.open_achievements()
+		"basement_blueprint":
+			ui.open_blueprints()
+		"basement_gallery":
+			ui.open_weapon_gallery()
+
+
+func _add_stair_station(kind: String, title: String, hint: String, pos: Vector2, sprite: Node2D, label_y: float, rad: float) -> Node2D:
+	var s := Station.new()
+	s.kind = kind
+	s.title = title
+	s.hint = hint
+	s.position = pos
+	s.label_offset_y = label_y
+	s.radius = rad
+	if sprite != null:
+		s.add_child(sprite)
+	s.used.connect(_on_station)
+	world.add_child(s)
+	stair_stations.append(s)
+	return s
+
+
+func _apply_basement_state(entering: bool, dest: Vector2) -> void:
+	in_basement = entering
+	if player != null and is_instance_valid(player):
+		player.global_position = dest
+		player.velocity = Vector2.ZERO
+		player.interact_target = null
+	if camera != null and is_instance_valid(camera):
+		if entering:
+			camera.limit_left = int(BASEMENT_RECT.position.x)
+			camera.limit_top = int(BASEMENT_RECT.position.y)
+			camera.limit_right = int(BASEMENT_RECT.end.x)
+			camera.limit_bottom = int(BASEMENT_RECT.end.y)
+		else:
+			camera.limit_left = 0
+			camera.limit_top = 0
+			camera.limit_right = int(SIZE.x)
+			camera.limit_bottom = int(SIZE.y)
+		camera.position = dest
+		camera.reset_smoothing()
+	if _canvas_mod != null and is_instance_valid(_canvas_mod):
+		_canvas_mod.color = Color(0.86, 0.82, 0.78) if entering else Color(0.96, 0.93, 0.88)
+	if _basement_down_st != null and is_instance_valid(_basement_down_st):
+		_basement_down_st.visible = not entering
+	if _basement_up_st != null and is_instance_valid(_basement_up_st):
+		_basement_up_st.visible = entering
+	for bs in _basement_stations:
+		if bs != null and is_instance_valid(bs):
+			bs.visible = entering
+
+
+func _transition_basement(entering: bool, dest: Vector2, banner: String, instant: bool) -> void:
+	if instant or DisplayServer.get_name() == "headless" or not is_inside_tree():
+		_apply_basement_state(entering, dest)
+		if is_inside_tree():
+			Sfx.play("portal")
+			if world != null:
+				Fx.float_text(world, dest + Vector2(0, -28), banner, Color(1.0, 0.88, 0.42), 16)
+		return
+	_transitioning = true
+	if ui != null and ui.is_open():
+		ui.close()
+	set_player_active(false)
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	add_child(layer)
+	var fade := ColorRect.new()
+	fade.color = Color(0.03, 0.02, 0.05, 0.0)
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(fade)
+	var tw_out := create_tween()
+	tw_out.tween_property(fade, "color:a", 1.0, 0.18)
+	await tw_out.finished
+	_apply_basement_state(entering, dest)
+	Sfx.play("portal")
+	if world != null:
+		Fx.particles(world, dest, Color(1.0, 0.84, 0.36), 18, 70.0, 0.55, -20.0, 1.8)
+		Fx.float_text(world, dest + Vector2(0, -28), banner, Color(1.0, 0.88, 0.42), 16)
+	var tw_in := create_tween()
+	tw_in.tween_property(fade, "color:a", 0.0, 0.20)
+	await tw_in.finished
+	if is_instance_valid(layer):
+		layer.queue_free()
+	set_player_active(true)
+	_transitioning = false
+
+
+func enter_basement(instant: bool = false) -> void:
+	if in_basement or _transitioning:
+		return
+	await _transition_basement(true, BASEMENT_SPAWN, "Tầng Hầm Chiến Tích", instant)
+
+
+func exit_basement(instant: bool = false) -> void:
+	if not in_basement or _transitioning:
+		return
+	await _transition_basement(false, SURFACE_RETURN_POS, "Đại Sảnh Anh Hùng", instant)
 
 
 ## Gọi từ bảng tướng khi bấm "Chọn tướng này"

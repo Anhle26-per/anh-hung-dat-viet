@@ -51,11 +51,11 @@ func _run() -> void:
 	var abs_icon: String = ProjectSettings.globalize_path(icon_res)
 	_check(FileAccess.file_exists(icon_res), "không tìm thấy tệp " + icon_res)
 	var img: Image = Image.load_from_file(abs_icon)
-	_check(img != null and img.get_width() == 16 and img.get_height() == 16,
-		"ảnh biểu tượng không đúng 16x16")
+	_check(img != null and img.get_width() == 32 and img.get_height() == 32,
+		"ảnh biểu tượng không đúng 32x32")
 	var tex: Texture2D = Art.tex("ui/buff_ho_tam_kinh.png")
-	_check(tex != null and tex.get_width() == 16 and tex.get_height() == 16,
-		"Art.tex('ui/buff_ho_tam_kinh.png') lỗi hoặc không đúng 16x16")
+	_check(tex != null and tex.get_width() == 32 and tex.get_height() == 32,
+		"Art.tex('ui/buff_ho_tam_kinh.png') lỗi hoặc không đúng 32x32")
 
 	print("== 3. Kiểm tra cơ chế chặn đòn tràn vào máu và hồi chiêu 8 giây")
 	Global.run_buffs = {}

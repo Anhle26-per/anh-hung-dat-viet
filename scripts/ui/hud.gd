@@ -118,7 +118,7 @@ func draw_hud(ci: Control) -> void:
 	var by0 := 74.0
 	for id in Global.run_buffs:
 		var icon := Art.tex("ui/buff_%s.png" % id)
-		ci.draw_texture(icon, Vector2(bx0, by0))
+		ci.draw_texture_rect(icon, Rect2(bx0, by0, 16, 16), false)
 		var n: int = Global.run_buffs[id]
 		if n > 1:
 			Art.draw_text(ci, Vector2(bx0 + 12, by0 + 17), str(n), 12, Color(1, 0.95, 0.7))

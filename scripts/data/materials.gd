@@ -39,7 +39,17 @@ static func can_forge_weapon(wid: String) -> bool:
 	var w: Dictionary = WeaponData.DATA[wid]
 	if bool(w.get("basic", false)):
 		return false
-	return int(w.get("tier", 1)) >= 2
+	var tier: int = int(w.get("tier", 1))
+	return tier >= 2 and RECIPES.has(tier)
+
+
+static func requires_blueprint(wid: String) -> bool:
+	return bool(WeaponData.DATA.get(wid, {}).get("blueprint", false))
+
+
+static func blueprint_grade(wid: String) -> String:
+	var tier: int = int(WeaponData.DATA.get(wid, {}).get("tier", 1))
+	return "Nâng cao" if tier >= 4 else "Cơ bản"
 
 
 static func recipe_for(wid: String) -> Dictionary:
@@ -47,8 +57,6 @@ static func recipe_for(wid: String) -> Dictionary:
 		return {}
 	var w: Dictionary = WeaponData.DATA[wid]
 	var tier: int = int(w.get("tier", 1))
-	if not RECIPES.has(tier):
-		return {}
 	var base: Dictionary = RECIPES[tier]
 	var mats: Dictionary = (base.mats as Dictionary).duplicate()
 	if tier == 3:
