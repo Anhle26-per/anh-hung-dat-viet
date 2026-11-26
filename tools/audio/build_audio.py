@@ -922,19 +922,42 @@ def _gen_weapon_archetypes() -> dict[str, list[float]]:
 
 # ------------------------------------------------------------------ Nhạc nền ngũ cung Việt
 
+def _build_notes() -> dict[str, float]:
+    """Bảng cao độ đầy đủ (chromatic + ngũ cung Bắc/Nam + quãng căng) quãng tám 2..6."""
+    semis = {
+        "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3,
+        "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8,
+        "A": 9, "A#": 10, "Bb": 10, "B": 11,
+    }
+    notes: dict[str, float] = {}
+    for octv in range(2, 7):
+        for name, st in semis.items():
+            midi = 12 * (octv + 1) + st
+            notes[f"{name}{octv}"] = 440.0 * (2.0 ** ((midi - 69) / 12.0))
+    return notes
+
+
+NOTES: dict[str, float] = _build_notes()
+
+
 def add_flute_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.32) -> None:
     """Tiếng sáo trúc: sóng sin + hài nhẹ + vibrato hơi thở, ghi vòng tròn để lặp liền mạch."""
     total = len(buf)
-    i0 = int(round(start_s * SAMPLE_RATE))
-    n = int(round(dur_s * SAMPLE_RATE))
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
     phase = 0.0
     attack = min(0.045, dur_s * 0.25)
     release = min(0.075, dur_s * 0.3)
+    pi2 = 2.0 * math.pi
+    inv_sr = 1.0 / sr
     for j in range(n):
-        t = j / SAMPLE_RATE
-        vib = 1.0 + (0.011 if t > 0.06 else 0.0) * math.sin(2.0 * math.pi * 5.5 * t)
-        phase += (freq * vib) / SAMPLE_RATE
-        ang = 2.0 * math.pi * phase
+        t = j * inv_sr
+        vib = 1.0 + (0.011 if t > 0.06 else 0.0) * math.sin(pi2 * 5.5 * t)
+        phase += freq * vib * inv_sr
+        ang = pi2 * phase
         w = 0.82 * math.sin(ang) + 0.14 * math.sin(2.0 * ang) + 0.04 * math.sin(3.0 * ang)
         buf[(i0 + j) % total] += w * env_asr(t, dur_s, attack, release) * vol
 
@@ -942,76 +965,269 @@ def add_flute_loop(buf: list[float], start_s: float, dur_s: float, freq: float, 
 def add_pluck_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.2) -> None:
     """Tiếng đàn gảy nhẹ (tam giác + sin suy giảm), ghi vòng tròn."""
     total = len(buf)
-    i0 = int(round(start_s * SAMPLE_RATE))
-    n = int(round(dur_s * SAMPLE_RATE))
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
     phase = 0.0
+    pi2 = 2.0 * math.pi
+    inc = freq / sr
+    inv_sr = 1.0 / sr
     for j in range(n):
-        t = j / SAMPLE_RATE
-        phase += freq / SAMPLE_RATE
-        w = 0.65 * math.sin(2.0 * math.pi * phase) + 0.35 * triangle(phase)
+        t = j * inv_sr
+        phase += inc
+        w = 0.65 * math.sin(pi2 * phase) + 0.35 * triangle(phase)
         buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.005, 2.2) * vol
 
 
-def add_drum_loop(buf: list[float], start_s: float, rng: random.Random, kind: str = "kick", vol: float = 0.35) -> None:
-    """Tiếng trống (nhiễu có bao âm + màng trống trầm), ghi vòng tròn."""
+def add_dan_tranh_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.22) -> None:
+    """Tiếng đàn tranh: gảy dây kim loại sáng + hài âm lấp lánh + ngân nhẹ, ghi vòng tròn."""
     total = len(buf)
-    i0 = int(round(start_s * SAMPLE_RATE))
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
+    ph1 = 0.0
+    ph2 = 0.0
+    inc1 = freq / sr
+    inc2 = (freq * 1.003) / sr
+    pi2 = 2.0 * math.pi
+    inv_sr = 1.0 / sr
+    for j in range(n):
+        t = j * inv_sr
+        ph1 += inc1
+        ph2 += inc2
+        a1 = pi2 * ph1
+        bright = math.exp(-t * 9.0)
+        w = (
+            0.52 * math.sin(a1)
+            + 0.24 * math.sin(2.0 * a1) * (0.45 + 0.55 * bright)
+            + 0.14 * math.sin(3.0 * a1) * bright
+            + 0.10 * math.sin(pi2 * ph2 * 2.0)
+        )
+        buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.003, 1.9) * vol
+
+
+def add_lead_sq_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.24, duty: float = 0.25) -> None:
+    """Lead 8-bit xung 25% duty sắc nét cho giai điệu chiến trận, ghi vòng tròn."""
+    total = len(buf)
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
+    phase = 0.0
+    attack = min(0.012, dur_s * 0.12)
+    release = min(0.045, dur_s * 0.25)
+    pi2 = 2.0 * math.pi
+    inv_sr = 1.0 / sr
+    for j in range(n):
+        t = j * inv_sr
+        vib = 1.0 + (0.006 if t > 0.08 else 0.0) * math.sin(pi2 * 6.0 * t)
+        phase += freq * vib * inv_sr
+        w = 0.82 * square(phase, duty) + 0.18 * triangle(phase)
+        buf[(i0 + j) % total] += w * env_asr(t, dur_s, attack, release) * vol
+
+
+def add_brass_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.26) -> None:
+    """Tiếng kèn đồng hào hùng (saw + square ấm có lọc thông thấp nhẹ), ghi vòng tròn."""
+    total = len(buf)
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
+    ph1 = 0.0
+    ph2 = 0.0
+    lp = 0.0
+    inc1 = freq / sr
+    inc2 = (freq * 1.004) / sr
+    attack = min(0.032, dur_s * 0.2)
+    release = min(0.06, dur_s * 0.25)
+    inv_sr = 1.0 / sr
+    for j in range(n):
+        t = j * inv_sr
+        ph1 += inc1
+        ph2 += inc2
+        saw = 2.0 * (ph1 % 1.0) - 1.0
+        sq = square(ph2, 0.42)
+        raw = 0.6 * saw + 0.4 * sq
+        lp = lp * 0.42 + raw * 0.58
+        buf[(i0 + j) % total] += lp * env_asr(t, dur_s, attack, release) * vol
+
+
+def add_pad_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.16) -> None:
+    """Nền hợp âm / drone ấm áp (sin + quãng 5 + quãng 8 ngân chậm), ghi vòng tròn."""
+    total = len(buf)
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
+    ph1 = 0.0
+    ph2 = 0.0
+    inc1 = freq / sr
+    inc2 = (freq * 1.0025) / sr
+    attack = min(0.18, dur_s * 0.3)
+    release = min(0.24, dur_s * 0.35)
+    pi2 = 2.0 * math.pi
+    inv_sr = 1.0 / sr
+    for j in range(n):
+        t = j * inv_sr
+        ph1 += inc1
+        ph2 += inc2
+        a1 = pi2 * ph1
+        a2 = pi2 * ph2
+        w = 0.55 * math.sin(a1) + 0.22 * math.sin(2.0 * a1) + 0.15 * math.sin(1.5 * a2) + 0.08 * triangle(ph2)
+        buf[(i0 + j) % total] += w * env_asr(t, dur_s, attack, release) * vol
+
+
+def add_bass_loop(buf: list[float], start_s: float, dur_s: float, freq: float, vol: float = 0.28) -> None:
+    """Tiếng bass dày (tam giác + sub-sine quãng tám dưới), ghi vòng tròn."""
+    total = len(buf)
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    n = int(round(dur_s * sr))
+    if n <= 0:
+        return
+    ph = 0.0
+    ph_sub = 0.0
+    inc = freq / sr
+    inc_sub = (freq * 0.5) / sr
+    pi2 = 2.0 * math.pi
+    inv_sr = 1.0 / sr
+    for j in range(n):
+        t = j * inv_sr
+        ph += inc
+        ph_sub += inc_sub
+        w = 0.58 * triangle(ph) + 0.42 * math.sin(pi2 * ph_sub)
+        buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.005, 1.35) * vol
+
+
+def add_drum_loop(buf: list[float], start_s: float, rng: random.Random, kind: str = "kick", vol: float = 0.35) -> None:
+    """Bộ gõ dân gian + chiến trận (kick, wood, snare, hat, gong), ghi vòng tròn."""
+    total = len(buf)
+    sr = SAMPLE_RATE
+    i0 = int(round(start_s * sr))
+    pi2 = 2.0 * math.pi
+    inv_sr = 1.0 / sr
     if kind == "kick":
         dur_s = 0.22
-        n = int(dur_s * SAMPLE_RATE)
+        n = int(dur_s * sr)
         ph = 0.0
         lp = 0.0
         for j in range(n):
-            t = j / SAMPLE_RATE
-            f = 135.0 * (0.28 ** (t / dur_s)) + 42.0
-            ph += f / SAMPLE_RATE
+            t = j * inv_sr
+            f = 138.0 * (0.26 ** (t / dur_s)) + 42.0
+            ph += f * inv_sr
             lp = lp * 0.72 + rng.uniform(-1.0, 1.0) * 0.28
-            w = 0.75 * math.sin(2.0 * math.pi * ph) + 0.35 * lp
+            w = 0.78 * math.sin(pi2 * ph) + 0.32 * lp
             buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.003, 2.2) * vol
-    else:
-        dur_s = 0.11
-        n = int(dur_s * SAMPLE_RATE)
-        lp = 0.0
+    elif kind == "snare":
+        dur_s = 0.14
+        n = int(dur_s * sr)
+        ph = 0.0
+        prev = 0.0
         for j in range(n):
-            t = j / SAMPLE_RATE
-            lp = lp * 0.45 + rng.uniform(-1.0, 1.0) * 0.55
-            w = lp + 0.25 * math.sin(2.0 * math.pi * 240.0 * t)
-            buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.002, 2.8) * vol
+            t = j * inv_sr
+            f = 215.0 * (0.55 ** (t / dur_s)) + 95.0
+            ph += f * inv_sr
+            nz = rng.uniform(-1.0, 1.0)
+            hp = nz - 0.55 * prev
+            prev = nz
+            w = 0.38 * math.sin(pi2 * ph) + 0.62 * hp
+            buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.002, 2.5) * vol
+    elif kind == "hat":
+        dur_s = 0.055
+        n = int(dur_s * sr)
+        prev = 0.0
+        for j in range(n):
+            t = j * inv_sr
+            nz = rng.uniform(-1.0, 1.0)
+            hp = nz - 0.82 * prev
+            prev = nz
+            buf[(i0 + j) % total] += hp * env_ad(t, dur_s, 0.001, 3.2) * vol * 0.65
+    elif kind == "gong":
+        dur_s = 1.35
+        n = int(dur_s * sr)
+        ph = 0.0
+        base_f = 132.0
+        partials = ((1.0, 0.45), (1.48, 0.28), (2.13, 0.18), (2.86, 0.10))
+        for j in range(n):
+            t = j * inv_sr
+            f = 115.0 * (0.35 ** (t / 0.35)) + 52.0
+            ph += f * inv_sr
+            bell = 0.0
+            for ratio, amp in partials:
+                bell += amp * math.sin(pi2 * base_f * ratio * t) * math.exp(-t * (1.8 + ratio * 0.9))
+            w = 0.35 * math.sin(pi2 * ph) * math.exp(-t * 3.8) + 0.65 * bell
+            buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.006, 1.2) * vol
+    else:
+        # "wood": mõ / phách tre gõ giòn
+        dur_s = 0.095
+        n = int(dur_s * sr)
+        ph = 0.0
+        for j in range(n):
+            t = j * inv_sr
+            f = 690.0 * (0.68 ** (t / dur_s)) + 190.0
+            ph += f * inv_sr
+            click = rng.uniform(-1.0, 1.0) * max(0.0, 1.0 - t / 0.015)
+            w = 0.78 * math.sin(pi2 * ph) + 0.22 * click
+            buf[(i0 + j) % total] += w * env_ad(t, dur_s, 0.0015, 2.9) * vol
 
 
-def render_music_track(
+def _add_layer_note(buf: list[float], inst: str, start_s: float, dur_s: float, note: str, vol: float) -> None:
+    freq = NOTES[note]
+    if inst == "flute":
+        add_flute_loop(buf, start_s, dur_s, freq, vol)
+    elif inst == "dan_tranh":
+        add_dan_tranh_loop(buf, start_s, dur_s, freq, vol)
+    elif inst == "sq25":
+        add_lead_sq_loop(buf, start_s, dur_s, freq, vol, 0.25)
+    elif inst == "brass":
+        add_brass_loop(buf, start_s, dur_s, freq, vol)
+    elif inst == "pad":
+        add_pad_loop(buf, start_s, dur_s, freq, vol)
+    elif inst == "bass":
+        add_bass_loop(buf, start_s, dur_s, freq, vol)
+    else:
+        add_pluck_loop(buf, start_s, dur_s, freq, vol)
+
+
+def render_arranged_track(
     bpm: float,
     bars: int,
-    melody_bars: list[list[tuple[float, float, str]]],
-    bass_bars: list[list[tuple[float, float, str]]],
-    drum_pattern: list[tuple[float, str, float]],
+    layers: list[tuple[str, float, list[list[tuple[float, float, str]]]]],
+    drum_bars: list[list[tuple[float, str, float]]],
     seed: int,
-    flute_vol: float,
-    pluck_vol: float,
     drum_vol: float,
+    beats_per_bar: float = 4.0,
+    peak: float = 0.74,
 ) -> list[float]:
     beat_s = 60.0 / bpm
-    total_beats = bars * 4
+    total_beats = bars * beats_per_bar
     total_samples = int(round(total_beats * beat_s * SAMPLE_RATE))
     buf = [0.0] * total_samples
     rng = random.Random(seed)
 
     for b in range(bars):
-        bar_beat = b * 4.0
-        for beat_off, dur_beats, note in melody_bars[b % len(melody_bars)]:
-            add_flute_loop(buf, (bar_beat + beat_off) * beat_s, dur_beats * beat_s, PENTA[note], flute_vol)
-        for beat_off, dur_beats, note in bass_bars[b % len(bass_bars)]:
-            add_pluck_loop(buf, (bar_beat + beat_off) * beat_s, dur_beats * beat_s, PENTA[note], pluck_vol)
-        for beat_off, dkind, dmul in drum_pattern:
-            add_drum_loop(buf, (bar_beat + beat_off) * beat_s, rng, dkind, drum_vol * dmul)
+        bar_beat = b * beats_per_bar
+        for inst, vol, pat_bars in layers:
+            for beat_off, dur_beats, note in pat_bars[b % len(pat_bars)]:
+                _add_layer_note(buf, inst, (bar_beat + beat_off) * beat_s, dur_beats * beat_s, note, vol)
+        if drum_bars:
+            for beat_off, dkind, dmul in drum_bars[b % len(drum_bars)]:
+                add_drum_loop(buf, (bar_beat + beat_off) * beat_s, rng, dkind, drum_vol * dmul)
 
-    return normalize(buf, 0.72)
+    return normalize(buf, peak)
 
 
 def gen_music() -> dict[str, list[float]]:
     out: dict[str, list[float]] = {}
 
-    # 1. Sảnh (lobby.wav): 85 BPM, 16 ô nhịp = 64 phách (~45.18s) - êm ả, dân gian
+    # 1. lobby.wav (~45.18s, 85 BPM, 16 bars) - Doanh Trại Yên Bình
     lobby_mel = [
         [(0.0, 1.5, "E5"), (1.5, 0.5, "G5"), (2.0, 1.5, "A5"), (3.5, 0.5, "G5")],
         [(0.0, 1.5, "E5"), (1.5, 0.5, "D5"), (2.0, 2.0, "C5")],
@@ -1022,16 +1238,55 @@ def gen_music() -> dict[str, list[float]]:
         [(0.0, 1.0, "E5"), (1.0, 1.0, "G5"), (2.0, 1.0, "D5"), (3.0, 1.0, "E5")],
         [(0.0, 3.0, "C5"), (3.0, 1.0, "G4")],
     ]
-    lobby_bass = [
-        [(0.0, 1.5, "C3"), (2.0, 1.5, "G3")],
-        [(0.0, 1.5, "C4"), (2.0, 1.5, "G3")],
-        [(0.0, 1.5, "D3"), (2.0, 1.5, "A3")],
-        [(0.0, 1.5, "A3"), (2.0, 1.5, "E3")],
+    lobby_dan = [
+        [(0.0, 0.9, "C5"), (0.5, 0.9, "E5"), (1.0, 0.9, "G5"), (2.0, 0.9, "G4"), (2.5, 0.9, "C5"), (3.0, 0.9, "E5")],
+        [(0.0, 0.9, "A4"), (0.5, 0.9, "C5"), (1.0, 0.9, "E5"), (2.0, 0.9, "G4"), (2.5, 0.9, "D5"), (3.0, 0.9, "G5")],
     ]
-    lobby_drums = [(0.0, "kick", 0.7), (2.0, "wood", 0.55), (3.0, "kick", 0.45)]
-    out["lobby"] = render_music_track(85.0, 16, lobby_mel, lobby_bass, lobby_drums, 202601, 0.32, 0.18, 0.16)
+    lobby_pad = [[(0.0, 3.9, "C3")], [(0.0, 3.9, "G3")], [(0.0, 3.9, "D3")], [(0.0, 3.9, "A3")]]
+    lobby_bass = [
+        [(0.0, 1.6, "C3"), (2.0, 1.6, "G3")],
+        [(0.0, 1.6, "A2"), (2.0, 1.6, "E3")],
+        [(0.0, 1.6, "D3"), (2.0, 1.6, "A3")],
+        [(0.0, 1.6, "G2"), (2.0, 1.6, "D3")],
+    ]
+    lobby_drums = [[(0.0, "kick", 0.65), (2.0, "wood", 0.55), (3.0, "kick", 0.45), (3.5, "hat", 0.35)]]
+    out["lobby"] = render_arranged_track(
+        85.0, 16,
+        [("flute", 0.30, lobby_mel), ("dan_tranh", 0.16, lobby_dan), ("pad", 0.12, lobby_pad), ("bass", 0.22, lobby_bass)],
+        lobby_drums, 202601, 0.16, peak=0.70,
+    )
 
-    # 2. Trận đánh (battle.wav): 115 BPM, 20 ô nhịp = 80 phách (~41.74s) - hào hùng, dứt khoát
+    # 2. basement.wav (~38.40s, 75 BPM, 12 bars) - Tầng Hầm Chiến Tích
+    base_pad = [
+        [(0.0, 3.9, "A2"), (0.0, 3.9, "E3")],
+        [(0.0, 3.9, "F2"), (0.0, 3.9, "C3")],
+        [(0.0, 3.9, "D3"), (0.0, 3.9, "A3")],
+        [(0.0, 3.9, "E2"), (0.0, 3.9, "B2")],
+    ]
+    base_dan = [
+        [(0.0, 1.2, "A4"), (1.0, 1.2, "C5"), (2.0, 1.2, "E5"), (3.0, 1.0, "B4")],
+        [(0.0, 1.2, "F4"), (1.0, 1.2, "A4"), (2.0, 1.2, "C5"), (3.0, 1.0, "E5")],
+        [(0.0, 1.2, "D4"), (1.0, 1.2, "F4"), (2.0, 1.2, "A4"), (3.0, 1.0, "G4")],
+        [(0.0, 1.2, "E4"), (1.0, 1.2, "G#4"), (2.0, 1.2, "B4"), (3.0, 1.0, "E5")],
+    ]
+    base_flute = [
+        [(0.5, 2.2, "E5"), (3.0, 1.0, "D5")],
+        [(0.0, 2.5, "C5")],
+        [(0.5, 1.8, "A4"), (2.5, 1.5, "B4")],
+        [(0.0, 3.2, "E4")],
+    ]
+    base_bass = [[(0.0, 3.5, "A2")], [(0.0, 3.5, "F2")], [(0.0, 3.5, "D2")], [(0.0, 3.5, "E2")]]
+    base_drums = [
+        [(0.0, "gong", 0.55), (2.0, "wood", 0.45), (3.5, "hat", 0.35)],
+        [(0.0, "kick", 0.5), (2.0, "wood", 0.5), (3.0, "hat", 0.3)],
+    ]
+    out["basement"] = render_arranged_track(
+        75.0, 12,
+        [("flute", 0.25, base_flute), ("dan_tranh", 0.22, base_dan), ("pad", 0.17, base_pad), ("bass", 0.22, base_bass)],
+        base_drums, 202602, 0.16, peak=0.70,
+    )
+
+    # 3. battle.wav (~41.74s, 115 BPM, 20 bars) - Hành Quân Khởi Nghĩa (Bắc pentatonic C-D-E-G-A)
     battle_mel = [
         [(0.0, 0.75, "C5"), (0.75, 0.75, "D5"), (1.5, 0.5, "E5"), (2.0, 1.0, "G5"), (3.0, 1.0, "A5")],
         [(0.0, 1.0, "G5"), (1.0, 0.5, "E5"), (1.5, 0.5, "D5"), (2.0, 1.5, "C5"), (3.5, 0.5, "D5")],
@@ -1044,17 +1299,188 @@ def gen_music() -> dict[str, list[float]]:
         [(0.0, 1.0, "C5"), (1.0, 0.5, "D5"), (1.5, 0.5, "E5"), (2.0, 1.0, "G5"), (3.0, 1.0, "E5")],
         [(0.0, 1.0, "D5"), (1.0, 1.0, "G4"), (2.0, 2.0, "C5")],
     ]
+    battle_brass = [
+        [(0.0, 0.6, "C4"), (2.0, 0.8, "G4")],
+        [(0.0, 0.6, "E4"), (2.0, 0.8, "C4")],
+        [(0.0, 0.6, "A3"), (2.0, 0.8, "E4")],
+        [(0.0, 0.6, "G3"), (2.0, 0.8, "D4")],
+    ]
     battle_bass = [
-        [(0.0, 0.8, "C3"), (1.0, 0.8, "G3"), (2.0, 0.8, "C3"), (3.0, 0.8, "G3")],
-        [(0.0, 0.8, "A3"), (1.0, 0.8, "E3"), (2.0, 0.8, "D3"), (3.0, 0.8, "G3")],
+        [(0.0, 0.85, "C3"), (1.0, 0.85, "G3"), (2.0, 0.85, "C3"), (3.0, 0.85, "G3")],
+        [(0.0, 0.85, "A2"), (1.0, 0.85, "E3"), (2.0, 0.85, "D3"), (3.0, 0.85, "G3")],
     ]
-    battle_drums = [
-        (0.0, "kick", 1.0), (1.0, "wood", 0.75), (1.5, "kick", 0.55),
-        (2.0, "kick", 0.9), (3.0, "wood", 0.8), (3.5, "wood", 0.55),
-    ]
-    out["battle"] = render_music_track(115.0, 20, battle_mel, battle_bass, battle_drums, 202602, 0.34, 0.22, 0.24)
+    battle_drums = [[
+        (0.0, "kick", 1.0), (0.5, "hat", 0.5), (1.0, "snare", 0.78), (1.5, "kick", 0.58),
+        (2.0, "kick", 0.92), (2.5, "hat", 0.5), (3.0, "snare", 0.82), (3.5, "wood", 0.6),
+    ]]
+    out["battle"] = render_arranged_track(
+        115.0, 20,
+        [("flute", 0.28, battle_mel), ("sq25", 0.18, battle_mel), ("brass", 0.16, battle_brass), ("bass", 0.25, battle_bass)],
+        battle_drums, 202603, 0.24,
+    )
 
-    # 3. Trùm (boss.wav): 135 BPM, 24 ô nhịp = 96 phách (~42.67s) - trống trận dồn dập, kịch tính
+    # 4. battle_forest.wav (~37.24s, 116 BPM, 18 bars) - Đại Ngàn Mai Phục (D minor / Nam pentatonic)
+    forest_flute = [
+        [(0.0, 0.75, "D5"), (0.75, 0.75, "F5"), (1.5, 0.5, "G5"), (2.0, 1.0, "A5"), (3.0, 1.0, "F5")],
+        [(0.0, 0.75, "E5"), (0.75, 0.75, "D5"), (1.5, 0.5, "C5"), (2.0, 2.0, "D5")],
+        [(0.0, 0.5, "A5"), (0.5, 0.5, "Bb5"), (1.0, 1.0, "A5"), (2.0, 0.75, "G5"), (2.75, 0.75, "F5"), (3.5, 0.5, "E5")],
+        [(0.0, 1.5, "F5"), (1.5, 0.5, "E5"), (2.0, 2.0, "D5")],
+        [(0.0, 0.5, "D5"), (0.5, 0.5, "A4"), (1.0, 1.0, "F5"), (2.0, 1.0, "G5"), (3.0, 1.0, "A5")],
+        [(0.0, 1.0, "C6"), (1.0, 0.5, "Bb5"), (1.5, 0.5, "A5"), (2.0, 2.0, "G5")],
+    ]
+    forest_dan = [
+        [(0.0, 0.5, "D4"), (0.5, 0.5, "A4"), (1.0, 0.5, "F5"), (1.5, 0.5, "A4"), (2.0, 0.5, "D4"), (2.5, 0.5, "A4"), (3.0, 0.5, "F5"), (3.5, 0.5, "A4")],
+        [(0.0, 0.5, "Bb3"), (0.5, 0.5, "F4"), (1.0, 0.5, "D5"), (1.5, 0.5, "F4"), (2.0, 0.5, "C4"), (2.5, 0.5, "G4"), (3.0, 0.5, "E5"), (3.5, 0.5, "G4")],
+    ]
+    forest_bass = [
+        [(0.0, 0.85, "D3"), (1.5, 0.45, "A2"), (2.0, 0.85, "D3"), (3.0, 0.85, "C3")],
+        [(0.0, 0.85, "Bb2"), (1.5, 0.45, "F3"), (2.0, 0.85, "C3"), (3.0, 0.85, "A2")],
+    ]
+    forest_drums = [[
+        (0.0, "kick", 0.95), (0.5, "wood", 0.65), (1.0, "wood", 0.85), (1.5, "hat", 0.6),
+        (2.0, "kick", 0.9), (2.5, "wood", 0.55), (3.0, "snare", 0.72), (3.5, "wood", 0.75),
+    ]]
+    out["battle_forest"] = render_arranged_track(
+        116.0, 18,
+        [("flute", 0.30, forest_flute), ("dan_tranh", 0.21, forest_dan), ("pad", 0.11, [[(0.0, 3.8, "D3")], [(0.0, 3.8, "Bb2")]]), ("bass", 0.25, forest_bass)],
+        forest_drums, 202604, 0.24,
+    )
+
+    # 5. battle_river.wav (~38.57s, 112 BPM, 18 bars) - Sóng Gió Bạch Đằng (G Dorian / flowing wave arps)
+    river_mel = [
+        [(0.0, 1.0, "G5"), (1.0, 0.5, "A5"), (1.5, 0.5, "Bb5"), (2.0, 1.0, "D6"), (3.0, 1.0, "C6")],
+        [(0.0, 0.75, "Bb5"), (0.75, 0.75, "A5"), (1.5, 0.5, "G5"), (2.0, 2.0, "F5")],
+        [(0.0, 1.0, "Eb5"), (1.0, 1.0, "F5"), (2.0, 1.0, "G5"), (3.0, 1.0, "Bb5")],
+        [(0.0, 1.5, "A5"), (1.5, 0.5, "G5"), (2.0, 2.0, "D5")],
+        [(0.0, 0.75, "G5"), (0.75, 0.75, "Bb5"), (1.5, 0.5, "C6"), (2.0, 1.0, "D6"), (3.0, 1.0, "Bb5")],
+        [(0.0, 1.0, "C6"), (1.0, 0.5, "Bb5"), (1.5, 0.5, "A5"), (2.0, 2.0, "G5")],
+    ]
+    river_dan = [
+        [(0.0, 0.55, "G4"), (0.5, 0.55, "D5"), (1.0, 0.55, "Bb5"), (1.5, 0.55, "D5"), (2.0, 0.55, "G4"), (2.5, 0.55, "D5"), (3.0, 0.55, "A5"), (3.5, 0.55, "D5")],
+        [(0.0, 0.55, "Eb4"), (0.5, 0.55, "Bb4"), (1.0, 0.55, "G5"), (1.5, 0.55, "Bb4"), (2.0, 0.55, "F4"), (2.5, 0.55, "C5"), (3.0, 0.55, "A5"), (3.5, 0.55, "C5")],
+    ]
+    river_brass = [
+        [(0.0, 0.9, "G3"), (2.0, 0.9, "D4")],
+        [(0.0, 0.9, "Eb3"), (2.0, 0.9, "F3")],
+    ]
+    river_bass = [
+        [(0.0, 0.9, "G2"), (1.0, 0.9, "D3"), (2.0, 0.9, "G2"), (3.0, 0.9, "D3")],
+        [(0.0, 0.9, "Eb2"), (1.0, 0.9, "Bb2"), (2.0, 0.9, "F2"), (3.0, 0.9, "C3")],
+    ]
+    river_drums = [
+        [(0.0, "kick", 0.95), (1.0, "snare", 0.72), (1.5, "kick", 0.65), (2.0, "kick", 0.9), (2.5, "hat", 0.55), (3.0, "snare", 0.78), (3.5, "wood", 0.6)],
+        [(0.0, "gong", 0.7), (0.0, "kick", 0.95), (1.0, "snare", 0.75), (2.0, "kick", 0.9), (3.0, "snare", 0.8), (3.5, "hat", 0.55)],
+    ]
+    out["battle_river"] = render_arranged_track(
+        112.0, 18,
+        [("flute", 0.26, river_mel), ("dan_tranh", 0.20, river_dan), ("brass", 0.18, river_brass), ("bass", 0.25, river_bass)],
+        river_drums, 202605, 0.24,
+    )
+
+    # 6. battle_citadel.wav (~37.38s, 122 BPM, 19 bars) - Khí Phách Thăng Long (E minor heroic royal march)
+    cit_lead = [
+        [(0.0, 0.75, "E5"), (0.75, 0.25, "G5"), (1.0, 1.0, "B5"), (2.0, 0.5, "A5"), (2.5, 0.5, "G5"), (3.0, 1.0, "F#5")],
+        [(0.0, 0.75, "G5"), (0.75, 0.75, "F#5"), (1.5, 0.5, "E5"), (2.0, 1.5, "B4"), (3.5, 0.5, "D5")],
+        [(0.0, 0.75, "E5"), (0.75, 0.75, "G5"), (1.5, 0.5, "B5"), (2.0, 1.0, "D6"), (3.0, 1.0, "B5")],
+        [(0.0, 1.0, "A5"), (1.0, 0.5, "G5"), (1.5, 0.5, "F#5"), (2.0, 2.0, "E5")],
+    ]
+    cit_brass = [
+        [(0.0, 0.7, "E3"), (0.0, 0.7, "B3"), (2.0, 0.7, "E4")],
+        [(0.0, 0.7, "C3"), (0.0, 0.7, "G3"), (2.0, 0.7, "D4")],
+        [(0.0, 0.7, "A3"), (0.0, 0.7, "E4"), (2.0, 0.7, "B3")],
+        [(0.0, 0.7, "B3"), (0.0, 0.7, "F#4"), (2.0, 0.7, "E4")],
+    ]
+    cit_bass = [
+        [(0.0, 0.45, "E3"), (0.5, 0.45, "E3"), (1.0, 0.45, "B2"), (1.5, 0.45, "E3"), (2.0, 0.45, "E3"), (2.5, 0.45, "G3"), (3.0, 0.45, "F#3"), (3.5, 0.45, "D3")],
+        [(0.0, 0.45, "C3"), (0.5, 0.45, "C3"), (1.0, 0.45, "G2"), (1.5, 0.45, "C3"), (2.0, 0.45, "D3"), (2.5, 0.45, "A2"), (3.0, 0.45, "B2"), (3.5, 0.45, "B2")],
+    ]
+    cit_drums = [[
+        (0.0, "kick", 1.0), (0.5, "hat", 0.55), (1.0, "snare", 0.85), (1.5, "kick", 0.65),
+        (2.0, "kick", 0.95), (2.5, "hat", 0.55), (3.0, "snare", 0.9), (3.5, "snare", 0.55),
+    ]]
+    out["battle_citadel"] = render_arranged_track(
+        122.0, 19,
+        [("sq25", 0.20, cit_lead), ("flute", 0.22, cit_lead), ("brass", 0.20, cit_brass), ("bass", 0.26, cit_bass)],
+        cit_drums, 202606, 0.26,
+    )
+
+    # 7. battle_modern.wav (~36.19s, 126 BPM, 19 bars) - Tiến Quân Điện Biên (G major / F# militant anthem)
+    mod_lead = [
+        [(0.0, 0.75, "D5"), (0.75, 0.25, "D5"), (1.0, 1.0, "G5"), (2.0, 0.75, "G5"), (2.75, 0.25, "A5"), (3.0, 1.0, "B5")],
+        [(0.0, 0.75, "D6"), (0.75, 0.25, "C6"), (1.0, 1.0, "B5"), (2.0, 1.0, "A5"), (3.0, 1.0, "G5")],
+        [(0.0, 0.75, "E5"), (0.75, 0.25, "G5"), (1.0, 1.0, "A5"), (2.0, 0.75, "B5"), (2.75, 0.25, "A5"), (3.0, 1.0, "G5")],
+        [(0.0, 1.0, "E5"), (1.0, 1.0, "F#5"), (2.0, 2.0, "G5")],
+    ]
+    mod_brass = [
+        [(0.0, 0.45, "G3"), (0.5, 0.45, "G3"), (1.0, 0.85, "D4"), (2.0, 0.85, "B3"), (3.0, 0.85, "G4")],
+        [(0.0, 0.85, "C4"), (1.0, 0.85, "A3"), (2.0, 0.85, "D4"), (3.0, 0.85, "G3")],
+    ]
+    mod_bass = [
+        [(0.0, 0.45, "G2"), (0.5, 0.45, "G2"), (1.0, 0.45, "D3"), (1.5, 0.45, "G2"), (2.0, 0.45, "G2"), (2.5, 0.45, "B2"), (3.0, 0.45, "D3"), (3.5, 0.45, "G2")],
+        [(0.0, 0.45, "C3"), (0.5, 0.45, "C3"), (1.0, 0.45, "A2"), (1.5, 0.45, "D3"), (2.0, 0.45, "G2"), (2.5, 0.45, "D3"), (3.0, 0.45, "G2"), (3.5, 0.45, "D2")],
+    ]
+    mod_drums = [[
+        (0.0, "kick", 1.0), (0.5, "hat", 0.55), (1.0, "snare", 0.9), (1.5, "snare", 0.45),
+        (2.0, "kick", 1.0), (2.5, "kick", 0.65), (3.0, "snare", 0.92), (3.5, "hat", 0.6),
+    ]]
+    out["battle_modern"] = render_arranged_track(
+        126.0, 19,
+        [("brass", 0.24, mod_brass), ("sq25", 0.22, mod_lead), ("bass", 0.26, mod_bass)],
+        mod_drums, 202607, 0.26,
+    )
+
+    # 8. battle_sprint.wav (~33.75s, 128 BPM, 18 bars) - Thần Tốc Xung Phong (bright rapid A minor / C major rush)
+    spr_lead = [
+        [(0.0, 0.5, "A5"), (0.5, 0.5, "C6"), (1.0, 0.5, "D6"), (1.5, 0.5, "E6"), (2.0, 0.75, "C6"), (2.75, 0.25, "D6"), (3.0, 1.0, "E6")],
+        [(0.0, 0.5, "G5"), (0.5, 0.5, "A5"), (1.0, 0.5, "C6"), (1.5, 0.5, "A5"), (2.0, 1.0, "G5"), (3.0, 1.0, "E5")],
+        [(0.0, 0.5, "F5"), (0.5, 0.5, "G5"), (1.0, 0.5, "A5"), (1.5, 0.5, "C6"), (2.0, 0.75, "B5"), (2.75, 0.25, "A5"), (3.0, 1.0, "G5")],
+        [(0.0, 0.5, "E5"), (0.5, 0.5, "G5"), (1.0, 0.5, "A5"), (1.5, 0.5, "C6"), (2.0, 2.0, "A5")],
+    ]
+    spr_dan = [
+        [(0.0, 0.35, "A4"), (0.5, 0.35, "E5"), (1.0, 0.35, "A5"), (1.5, 0.35, "E5"), (2.0, 0.35, "C5"), (2.5, 0.35, "G5"), (3.0, 0.35, "C6"), (3.5, 0.35, "G5")],
+        [(0.0, 0.35, "F4"), (0.5, 0.35, "C5"), (1.0, 0.35, "F5"), (1.5, 0.35, "C5"), (2.0, 0.35, "G4"), (2.5, 0.35, "D5"), (3.0, 0.35, "E5"), (3.5, 0.35, "B4")],
+    ]
+    spr_bass = [
+        [(0.0, 0.4, "A2"), (0.5, 0.4, "A3"), (1.0, 0.4, "A2"), (1.5, 0.4, "A3"), (2.0, 0.4, "C3"), (2.5, 0.4, "C4"), (3.0, 0.4, "G2"), (3.5, 0.4, "G3")],
+        [(0.0, 0.4, "F2"), (0.5, 0.4, "F3"), (1.0, 0.4, "F2"), (1.5, 0.4, "F3"), (2.0, 0.4, "G2"), (2.5, 0.4, "G3"), (3.0, 0.4, "E2"), (3.5, 0.4, "E3")],
+    ]
+    spr_drums = [[
+        (0.0, "kick", 1.0), (0.5, "hat", 0.65), (1.0, "snare", 0.85), (1.5, "hat", 0.65),
+        (2.0, "kick", 1.0), (2.5, "kick", 0.72), (3.0, "snare", 0.9), (3.5, "wood", 0.7),
+    ]]
+    out["battle_sprint"] = render_arranged_track(
+        128.0, 18,
+        [("sq25", 0.22, spr_lead), ("dan_tranh", 0.19, spr_dan), ("bass", 0.25, spr_bass)],
+        spr_drums, 202608, 0.26,
+    )
+
+    # 9. battle_mythic.wav (~38.64s, 118 BPM, 19 bars) - Lĩnh Nam Huyền Ảo (E Phrygian dominant / mystical pentatonic)
+    myt_flute = [
+        [(0.0, 1.0, "E5"), (1.0, 0.5, "F5"), (1.5, 0.5, "G#5"), (2.0, 1.0, "A5"), (3.0, 1.0, "B5")],
+        [(0.0, 0.75, "C6"), (0.75, 0.75, "B5"), (1.5, 0.5, "A5"), (2.0, 1.5, "G#5"), (3.5, 0.5, "F5")],
+        [(0.0, 1.0, "E5"), (1.0, 0.5, "G#5"), (1.5, 0.5, "B5"), (2.0, 1.0, "E6"), (3.0, 1.0, "D6")],
+        [(0.0, 1.0, "C6"), (1.0, 0.5, "B5"), (1.5, 0.5, "A5"), (2.0, 2.0, "E5")],
+    ]
+    myt_dan = [
+        [(0.0, 0.55, "E4"), (0.5, 0.55, "B4"), (1.0, 0.55, "G#5"), (1.5, 0.55, "B4"), (2.0, 0.55, "E4"), (2.5, 0.55, "C5"), (3.0, 0.55, "A5"), (3.5, 0.55, "C5")],
+        [(0.0, 0.55, "F4"), (0.5, 0.55, "C5"), (1.0, 0.55, "A5"), (1.5, 0.55, "C5"), (2.0, 0.55, "D4"), (2.5, 0.55, "A4"), (3.0, 0.55, "F5"), (3.5, 0.55, "A4")],
+    ]
+    myt_pad = [[(0.0, 3.8, "E2"), (0.0, 3.8, "B2")], [(0.0, 3.8, "F2"), (0.0, 3.8, "C3")]]
+    myt_bass = [
+        [(0.0, 0.85, "E2"), (1.0, 0.85, "B2"), (2.0, 0.85, "E2"), (3.0, 0.85, "F2")],
+        [(0.0, 0.85, "F2"), (1.0, 0.85, "C3"), (2.0, 0.85, "D2"), (3.0, 0.85, "E2")],
+    ]
+    myt_drums = [
+        [(0.0, "gong", 0.65), (0.0, "kick", 0.95), (1.0, "wood", 0.75), (1.5, "hat", 0.5), (2.0, "kick", 0.9), (2.5, "wood", 0.6), (3.0, "snare", 0.78), (3.5, "hat", 0.55)],
+        [(0.0, "kick", 0.95), (1.0, "wood", 0.75), (1.5, "kick", 0.6), (2.0, "kick", 0.9), (2.5, "hat", 0.55), (3.0, "snare", 0.8), (3.5, "wood", 0.65)],
+    ]
+    out["battle_mythic"] = render_arranged_track(
+        118.0, 19,
+        [("flute", 0.28, myt_flute), ("dan_tranh", 0.21, myt_dan), ("pad", 0.14, myt_pad), ("bass", 0.24, myt_bass)],
+        myt_drums, 202609, 0.24,
+    )
+
+    # 10. boss.wav (~41.74s, 138 BPM, 24 bars) - Quyết Chiến Đại Tướng
     boss_mel = [
         [(0.0, 0.5, "A4"), (0.5, 0.5, "C5"), (1.0, 0.5, "E5"), (1.5, 0.5, "A5"), (2.0, 1.0, "G5"), (3.0, 1.0, "E5")],
         [(0.0, 0.75, "D5"), (0.75, 0.75, "E5"), (1.5, 0.5, "G5"), (2.0, 1.5, "A5"), (3.5, 0.5, "G5")],
@@ -1065,17 +1491,140 @@ def gen_music() -> dict[str, list[float]]:
         [(0.0, 0.5, "A4"), (0.5, 0.5, "C5"), (1.0, 0.5, "D5"), (1.5, 0.5, "E5"), (2.0, 1.0, "G5"), (3.0, 1.0, "E5")],
         [(0.0, 1.5, "A4"), (1.5, 0.5, "C5"), (2.0, 1.0, "E5"), (3.0, 1.0, "A4")],
     ]
+    boss_brass = [
+        [(0.0, 0.65, "A3"), (2.0, 0.65, "E4")],
+        [(0.0, 0.65, "F3"), (2.0, 0.65, "G3")],
+        [(0.0, 0.65, "D3"), (2.0, 0.65, "E4")],
+        [(0.0, 0.65, "E3"), (2.0, 0.65, "A3")],
+    ]
     boss_bass = [
-        [(0.0, 0.45, "A3"), (0.5, 0.45, "A3"), (1.0, 0.45, "E3"), (1.5, 0.45, "A3"),
-         (2.0, 0.45, "A3"), (2.5, 0.45, "G3"), (3.0, 0.45, "E3"), (3.5, 0.45, "G3")],
-        [(0.0, 0.45, "D3"), (0.5, 0.45, "D3"), (1.0, 0.45, "A3"), (1.5, 0.45, "D3"),
-         (2.0, 0.45, "E3"), (2.5, 0.45, "G3"), (3.0, 0.45, "A3"), (3.5, 0.45, "E3")],
+        [(0.0, 0.42, "A2"), (0.5, 0.42, "A2"), (1.0, 0.42, "E3"), (1.5, 0.42, "A2"),
+         (2.0, 0.42, "A2"), (2.5, 0.42, "G2"), (3.0, 0.42, "E2"), (3.5, 0.42, "G2")],
+        [(0.0, 0.42, "D3"), (0.5, 0.42, "D3"), (1.0, 0.42, "A2"), (1.5, 0.42, "D3"),
+         (2.0, 0.42, "E3"), (2.5, 0.42, "G2"), (3.0, 0.42, "A2"), (3.5, 0.42, "E2")],
     ]
     boss_drums = [
-        (0.0, "kick", 1.0), (0.5, "kick", 0.65), (1.0, "wood", 0.9), (1.5, "kick", 0.7),
-        (2.0, "kick", 1.0), (2.5, "wood", 0.65), (3.0, "wood", 0.95), (3.5, "kick", 0.75),
+        [(0.0, "gong", 0.65), (0.0, "kick", 1.0), (0.5, "kick", 0.68), (1.0, "snare", 0.9), (1.5, "kick", 0.72),
+         (2.0, "kick", 1.0), (2.5, "wood", 0.65), (3.0, "snare", 0.95), (3.5, "kick", 0.78)],
+        [(0.0, "kick", 1.0), (0.5, "hat", 0.6), (1.0, "snare", 0.9), (1.5, "kick", 0.72),
+         (2.0, "kick", 1.0), (2.5, "hat", 0.6), (3.0, "snare", 0.95), (3.5, "wood", 0.7)],
     ]
-    out["boss"] = render_music_track(135.0, 24, boss_mel, boss_bass, boss_drums, 202603, 0.35, 0.24, 0.28)
+    out["boss"] = render_arranged_track(
+        138.0, 24,
+        [("sq25", 0.22, boss_mel), ("flute", 0.22, boss_mel), ("brass", 0.20, boss_brass), ("bass", 0.27, boss_bass)],
+        boss_drums, 202610, 0.27,
+    )
+
+    # 11. boss_frenzy.wav (~37.89s, 152 BPM, 24 bars) - Bạo Nộ Huyết Chiến (chromatic/Phrygian shred 152 BPM)
+    fr_lead = [
+        [(0.0, 0.25, "E5"), (0.25, 0.25, "F5"), (0.5, 0.25, "G#5"), (0.75, 0.25, "A5"), (1.0, 0.5, "B5"), (1.5, 0.5, "C6"), (2.0, 0.5, "B5"), (2.5, 0.5, "A5"), (3.0, 0.5, "G#5"), (3.5, 0.5, "F5")],
+        [(0.0, 0.5, "E5"), (0.5, 0.5, "B5"), (1.0, 0.5, "D6"), (1.5, 0.5, "C6"), (2.0, 0.5, "B5"), (2.5, 0.5, "A5"), (3.0, 1.0, "G#5")],
+        [(0.0, 0.25, "A5"), (0.25, 0.25, "B5"), (0.5, 0.25, "C6"), (0.75, 0.25, "D6"), (1.0, 0.5, "E6"), (1.5, 0.5, "D6"), (2.0, 0.5, "C6"), (2.5, 0.5, "B5"), (3.0, 0.5, "A5"), (3.5, 0.5, "F5")],
+        [(0.0, 0.75, "E5"), (0.75, 0.75, "F5"), (1.5, 0.5, "G#5"), (2.0, 1.0, "B5"), (3.0, 1.0, "E5")],
+    ]
+    fr_brass = [
+        [(0.0, 0.45, "E3"), (1.0, 0.45, "F3"), (2.0, 0.45, "E3"), (3.0, 0.45, "G#3")],
+        [(0.0, 0.45, "A3"), (1.0, 0.45, "D3"), (2.0, 0.45, "E3"), (3.0, 0.45, "B2")],
+    ]
+    fr_bass = [
+        [(0.0, 0.4, "E2"), (0.5, 0.4, "E2"), (1.0, 0.4, "F2"), (1.5, 0.4, "E2"), (2.0, 0.4, "E2"), (2.5, 0.4, "B2"), (3.0, 0.4, "G#2"), (3.5, 0.4, "F2")],
+        [(0.0, 0.4, "A2"), (0.5, 0.4, "A2"), (1.0, 0.4, "G2"), (1.5, 0.4, "F2"), (2.0, 0.4, "E2"), (2.5, 0.4, "E2"), (3.0, 0.4, "B2"), (3.5, 0.4, "E2")],
+    ]
+    fr_drums = [[
+        (0.0, "kick", 1.0), (0.5, "kick", 0.82), (1.0, "snare", 0.95), (1.5, "kick", 0.8),
+        (2.0, "kick", 1.0), (2.5, "kick", 0.82), (3.0, "snare", 1.0), (3.5, "snare", 0.65),
+    ]]
+    out["boss_frenzy"] = render_arranged_track(
+        152.0, 24,
+        [("sq25", 0.24, fr_lead), ("brass", 0.22, fr_brass), ("bass", 0.28, fr_bass)],
+        fr_drums, 202611, 0.28,
+    )
+
+    # 12. boss_legend.wav (~38.87s, 142 BPM, 23 bars) - Tam Yêu Hiện Hình (C# minor / eerie folk beast)
+    leg_mel = [
+        [(0.0, 0.5, "C#5"), (0.5, 0.5, "E5"), (1.0, 0.5, "G#5"), (1.5, 0.5, "A5"), (2.0, 1.0, "G#5"), (3.0, 1.0, "F#5")],
+        [(0.0, 0.75, "E5"), (0.75, 0.75, "D#5"), (1.5, 0.5, "C#5"), (2.0, 1.5, "G#4"), (3.5, 0.5, "B4")],
+        [(0.0, 0.5, "C#5"), (0.5, 0.5, "G#5"), (1.0, 0.5, "A5"), (1.5, 0.5, "B5"), (2.0, 1.0, "C#6"), (3.0, 1.0, "B5")],
+        [(0.0, 1.0, "A5"), (1.0, 0.5, "G#5"), (1.5, 0.5, "F#5"), (2.0, 2.0, "G#5")],
+    ]
+    leg_dan = [
+        [(0.0, 0.45, "C#5"), (0.5, 0.45, "G#5"), (1.0, 0.45, "E5"), (1.5, 0.45, "G#5"), (2.0, 0.45, "A4"), (2.5, 0.45, "E5"), (3.0, 0.45, "B4"), (3.5, 0.45, "F#5")],
+    ]
+    leg_bass = [
+        [(0.0, 0.45, "C#3"), (0.5, 0.45, "C#3"), (1.0, 0.45, "G#2"), (1.5, 0.45, "C#3"), (2.0, 0.45, "A2"), (2.5, 0.45, "A2"), (3.0, 0.45, "B2"), (3.5, 0.45, "G#2")],
+    ]
+    leg_drums = [
+        [(0.0, "gong", 0.72), (0.0, "kick", 0.95), (1.0, "wood", 0.8), (1.5, "kick", 0.7), (2.0, "kick", 0.95), (2.5, "hat", 0.6), (3.0, "snare", 0.85), (3.5, "wood", 0.75)],
+        [(0.0, "kick", 0.95), (0.5, "hat", 0.55), (1.0, "snare", 0.85), (1.5, "kick", 0.72), (2.0, "kick", 0.95), (2.5, "wood", 0.65), (3.0, "snare", 0.88), (3.5, "hat", 0.6)],
+    ]
+    out["boss_legend"] = render_arranged_track(
+        142.0, 23,
+        [("flute", 0.25, leg_mel), ("sq25", 0.19, leg_mel), ("dan_tranh", 0.18, leg_dan), ("bass", 0.27, leg_bass)],
+        leg_drums, 202612, 0.26,
+    )
+
+    # 13. boss_mythic.wav (~37.30s, 148 BPM, 23 bars) - Thần Thoại Đại Chiến (grand apocalyptic D minor / harmonic)
+    mytb_lead = [
+        [(0.0, 0.5, "D5"), (0.5, 0.5, "A5"), (1.0, 0.5, "Bb5"), (1.5, 0.5, "C#6"), (2.0, 1.0, "D6"), (3.0, 1.0, "A5")],
+        [(0.0, 0.75, "Bb5"), (0.75, 0.75, "A5"), (1.5, 0.5, "G5"), (2.0, 1.0, "F5"), (3.0, 1.0, "E5")],
+        [(0.0, 0.5, "D5"), (0.5, 0.5, "F5"), (1.0, 0.5, "A5"), (1.5, 0.5, "D6"), (2.0, 1.0, "C6"), (3.0, 1.0, "Bb5")],
+        [(0.0, 1.0, "A5"), (1.0, 0.5, "G5"), (1.5, 0.5, "E5"), (2.0, 2.0, "A4")],
+    ]
+    mytb_brass = [
+        [(0.0, 0.85, "D3"), (0.0, 0.85, "A3"), (2.0, 0.85, "Bb3")],
+        [(0.0, 0.85, "G3"), (0.0, 0.85, "D4"), (2.0, 0.85, "A3")],
+    ]
+    mytb_pad = [[(0.0, 3.8, "D2"), (0.0, 3.8, "A2")], [(0.0, 3.8, "Bb2"), (0.0, 3.8, "A2")]]
+    mytb_bass = [
+        [(0.0, 0.42, "D2"), (0.5, 0.42, "D3"), (1.0, 0.42, "D2"), (1.5, 0.42, "A2"), (2.0, 0.42, "Bb2"), (2.5, 0.42, "Bb2"), (3.0, 0.42, "A2"), (3.5, 0.42, "A2")],
+        [(0.0, 0.42, "G2"), (0.5, 0.42, "G2"), (1.0, 0.42, "F2"), (1.5, 0.42, "E2"), (2.0, 0.42, "A2"), (2.5, 0.42, "A2"), (3.0, 0.42, "C#3"), (3.5, 0.42, "A2")],
+    ]
+    mytb_drums = [
+        [(0.0, "gong", 0.8), (0.0, "kick", 1.0), (0.5, "kick", 0.72), (1.0, "snare", 0.92), (1.5, "kick", 0.75),
+         (2.0, "kick", 1.0), (2.5, "hat", 0.65), (3.0, "snare", 0.95), (3.5, "wood", 0.7)],
+        [(0.0, "kick", 1.0), (0.5, "kick", 0.72), (1.0, "snare", 0.92), (1.5, "hat", 0.65),
+         (2.0, "kick", 1.0), (2.5, "kick", 0.75), (3.0, "snare", 0.98), (3.5, "snare", 0.6)],
+    ]
+    out["boss_mythic"] = render_arranged_track(
+        148.0, 23,
+        [("sq25", 0.22, mytb_lead), ("brass", 0.22, mytb_brass), ("pad", 0.14, mytb_pad), ("bass", 0.27, mytb_bass)],
+        mytb_drums, 202613, 0.28,
+    )
+
+    # 14. victory.wav (~35.56s, 108 BPM, 16 bars) - Khải Hoàn Ca (triumphant radiant C major pentatonic)
+    vic_mel = [
+        [(0.0, 1.0, "C5"), (1.0, 0.5, "D5"), (1.5, 0.5, "E5"), (2.0, 1.0, "G5"), (3.0, 1.0, "C6")],
+        [(0.0, 1.5, "A5"), (1.5, 0.5, "G5"), (2.0, 2.0, "E5")],
+        [(0.0, 1.0, "G5"), (1.0, 0.5, "A5"), (1.5, 0.5, "C6"), (2.0, 1.0, "D6"), (3.0, 1.0, "C6")],
+        [(0.0, 1.5, "A5"), (1.5, 0.5, "G5"), (2.0, 2.0, "G5")],
+        [(0.0, 1.0, "E5"), (1.0, 0.5, "G5"), (1.5, 0.5, "A5"), (2.0, 1.0, "C6"), (3.0, 1.0, "E6")],
+        [(0.0, 1.0, "D6"), (1.0, 1.0, "C6"), (2.0, 2.0, "A5")],
+        [(0.0, 1.0, "G5"), (1.0, 1.0, "E5"), (2.0, 1.0, "D5"), (3.0, 1.0, "E5")],
+        [(0.0, 3.0, "C5"), (3.0, 1.0, "G5")],
+    ]
+    vic_brass = [
+        [(0.0, 1.2, "C4"), (2.0, 1.2, "G4")],
+        [(0.0, 1.2, "F4"), (2.0, 1.2, "E4")],
+        [(0.0, 1.2, "A3"), (2.0, 1.2, "D4")],
+        [(0.0, 1.2, "G3"), (2.0, 1.2, "C4")],
+    ]
+    vic_dan = [
+        [(0.0, 0.65, "C5"), (0.5, 0.65, "E5"), (1.0, 0.65, "G5"), (1.5, 0.65, "C6"), (2.0, 0.65, "G5"), (2.5, 0.65, "E5"), (3.0, 0.65, "C5"), (3.5, 0.65, "G4")],
+        [(0.0, 0.65, "F4"), (0.5, 0.65, "A4"), (1.0, 0.65, "C5"), (1.5, 0.65, "F5"), (2.0, 0.65, "G4"), (2.5, 0.65, "B4"), (3.0, 0.65, "D5"), (3.5, 0.65, "G5")],
+    ]
+    vic_bass = [
+        [(0.0, 0.9, "C3"), (1.0, 0.9, "G3"), (2.0, 0.9, "C3"), (3.0, 0.9, "E3")],
+        [(0.0, 0.9, "F2"), (1.0, 0.9, "C3"), (2.0, 0.9, "G2"), (3.0, 0.9, "D3")],
+    ]
+    vic_drums = [
+        [(0.0, "gong", 0.75), (0.0, "kick", 0.9), (1.0, "snare", 0.65), (2.0, "kick", 0.85), (3.0, "snare", 0.7), (3.5, "wood", 0.55)],
+        [(0.0, "kick", 0.9), (1.0, "snare", 0.65), (2.0, "kick", 0.85), (2.5, "hat", 0.5), (3.0, "snare", 0.72), (3.5, "wood", 0.55)],
+    ]
+    out["victory"] = render_arranged_track(
+        108.0, 16,
+        [("flute", 0.26, vic_mel), ("brass", 0.22, vic_brass), ("dan_tranh", 0.18, vic_dan), ("bass", 0.24, vic_bass)],
+        vic_drums, 202614, 0.22,
+    )
 
     return out
 

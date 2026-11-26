@@ -129,6 +129,22 @@ func _pull_all_players_inside() -> void:
 				pl.set("_remote_pos", clamped)
 
 
+func _play_combat_room_music() -> void:
+	var seq: int = 1
+	var gm: Node = get_tree().get_first_node_in_group("game") if is_inside_tree() else null
+	if gm != null and gm.has_method("next_combat_room_music_seq"):
+		seq = int(gm.next_combat_room_music_seq())
+	if Sfx.has_method("play_stage_music"):
+		Sfx.play_stage_music(level, seq)
+
+
+func _play_boss_room_music(rkind: String) -> void:
+	if Sfx.has_method("play_boss_music"):
+		Sfx.play_boss_music(level, rkind, false)
+	else:
+		Sfx.play_music("boss")
+
+
 func _enter() -> void:
 	match kind:
 		"combat":
@@ -137,6 +153,7 @@ func _enter() -> void:
 			if Net.is_online() and Net.is_host():
 				_pull_all_players_inside()
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
+			_play_combat_room_music()
 			_waves_left = waves_for_level(level)
 			_spawn_wave()
 		"boss":
@@ -146,7 +163,7 @@ func _enter() -> void:
 				_pull_all_players_inside()
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			Sfx.play("boss_appear")
-			Sfx.play_music("boss")
+			_play_boss_room_music("boss")
 			var bpos: Vector2 = rect.get_center() + Vector2(0, -20)
 			spawn_enemy("boss", bpos)
 			var bid := EnemyData.boss_id(level)
@@ -168,7 +185,7 @@ func _enter() -> void:
 				_pull_all_players_inside()
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			Sfx.play("boss_appear")
-			Sfx.play_music("boss")
+			_play_boss_room_music("legend")
 			var lpos: Vector2 = rect.get_center() + Vector2(0, -20)
 			spawn_enemy("legend:" + legend_id, lpos)
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
@@ -212,9 +229,11 @@ func net_apply_lock(rkind: String, leg_id: String) -> void:
 		var l2: Node2D = lp as Node2D
 		if not safe_rect.has_point(l2.global_position):
 			l2.global_position = l2.global_position.clamp(safe_rect.position, safe_rect.end)
-	if rkind == "boss":
+	if rkind == "combat":
+		_play_combat_room_music()
+	elif rkind == "boss":
 		Sfx.play("boss_appear")
-		Sfx.play_music("boss")
+		_play_boss_room_music("boss")
 		var bid: String = EnemyData.boss_id(level)
 		var b: Dictionary = EnemyData.MYTHIC_BOSSES[bid] if EnemyData.MYTHIC_BOSSES.has(bid) else EnemyData.BOSSES[bid]
 		var is_mythic_b: bool = EnemyData.MYTHIC_BOSSES.has(bid) or EnemyData.is_mythic_level(level)
@@ -226,7 +245,7 @@ func net_apply_lock(rkind: String, leg_id: String) -> void:
 		if leg_id != "":
 			legend_id = leg_id
 		Sfx.play("boss_appear")
-		Sfx.play_music("boss")
+		_play_boss_room_music("legend")
 		if EnemyData.LEGENDS.has(legend_id):
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
 			var lsheet: String = "enemies/boss_%s.png" % legend_id
@@ -253,14 +272,14 @@ func net_apply_clear() -> void:
 		p.restore_armor(2 * p.buff("hut_nang_luong"))
 	if kind == "boss":
 		Sfx.play("level_clear")
-		Sfx.play_music("battle")
+		Sfx.play_music("victory")
 		var is_m: bool = EnemyData.is_mythic_level(level)
 		var plabel: String = "Sảnh Khải Hoàn (3-6)" if level == 15 else ("Sảnh Huyền Thoại (6-6)" if level == 31 else "")
 		_spawn_portal(c + Vector2(0, -30), plabel, is_m or level == 31)
 		get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 	elif kind == "legend":
 		Sfx.play("level_clear")
-		Sfx.play_music("battle")
+		Sfx.play_music("victory")
 		_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
 		for i in 5:
 			_drop_local("coin", 2, c)
@@ -491,7 +510,7 @@ func _clear() -> void:
 		p.restore_armor(2 * p.buff("hut_nang_luong"))
 	if kind == "boss":
 		Sfx.play("level_clear")
-		Sfx.play_music("battle")
+		Sfx.play_music("victory")
 		if level == 15:
 			_spawn_portal(c + Vector2(0, -30), "Sảnh Khải Hoàn (3-6)")
 			_spawn_weapon(c + Vector2(0, 24), 2)
@@ -506,7 +525,7 @@ func _clear() -> void:
 			get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 	elif kind == "legend":
 		Sfx.play("level_clear")
-		Sfx.play_music("battle")
+		Sfx.play_music("victory")
 		_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
 		_spawn_weapon(c + Vector2(0, 24), 1)
 		for i in 5:

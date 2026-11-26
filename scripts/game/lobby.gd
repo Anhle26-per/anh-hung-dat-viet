@@ -891,9 +891,17 @@ func _apply_basement_state(entering: bool, dest: Vector2) -> void:
 			bs.visible = entering
 
 
+func _play_zone_music(entering: bool) -> void:
+	if entering:
+		Sfx.play_music("basement")
+	else:
+		Sfx.play_music("lobby")
+
+
 func _transition_basement(entering: bool, dest: Vector2, banner: String, instant: bool) -> void:
 	if instant or DisplayServer.get_name() == "headless" or not is_inside_tree():
 		_apply_basement_state(entering, dest)
+		_play_zone_music(entering)
 		if is_inside_tree():
 			Sfx.play("portal")
 			if world != null:
@@ -915,6 +923,7 @@ func _transition_basement(entering: bool, dest: Vector2, banner: String, instant
 	tw_out.tween_property(fade, "color:a", 1.0, 0.18)
 	await tw_out.finished
 	_apply_basement_state(entering, dest)
+	_play_zone_music(entering)
 	Sfx.play("portal")
 	if world != null:
 		Fx.particles(world, dest, Color(1.0, 0.84, 0.36), 18, 70.0, 0.55, -20.0, 1.8)

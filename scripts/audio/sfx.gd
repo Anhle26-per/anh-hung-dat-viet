@@ -3,6 +3,9 @@ extends Node
 ## Tạo 2 bus "Music" và "SFX" bằng mã, giới hạn tối đa 8 tiếng SFX phát cùng lúc.
 
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
+
+signal music_changed(track_id: String, title: String)
 
 const MAX_VOICES: int = 8
 const MIN_INTERVAL_MS: int = 50
@@ -197,15 +200,46 @@ const TIER_PITCHES: Dictionary = {
 
 const MUSIC_FILES: Dictionary = {
 	"lobby": "res://assets/audio/music/lobby.wav",
+	"basement": "res://assets/audio/music/basement.wav",
 	"battle": "res://assets/audio/music/battle.wav",
+	"battle_forest": "res://assets/audio/music/battle_forest.wav",
+	"battle_river": "res://assets/audio/music/battle_river.wav",
+	"battle_citadel": "res://assets/audio/music/battle_citadel.wav",
+	"battle_modern": "res://assets/audio/music/battle_modern.wav",
+	"battle_sprint": "res://assets/audio/music/battle_sprint.wav",
+	"battle_mythic": "res://assets/audio/music/battle_mythic.wav",
 	"boss": "res://assets/audio/music/boss.wav",
+	"boss_frenzy": "res://assets/audio/music/boss_frenzy.wav",
+	"boss_legend": "res://assets/audio/music/boss_legend.wav",
+	"boss_mythic": "res://assets/audio/music/boss_mythic.wav",
+	"victory": "res://assets/audio/music/victory.wav",
+}
+
+const MUSIC_TITLES: Dictionary = {
+	"lobby": "Doanh Trại Yên Bình",
+	"basement": "Tầng Hầm Chiến Tích",
+	"battle": "Hành Quân Khởi Nghĩa",
+	"battle_forest": "Đại Ngàn Mai Phục",
+	"battle_river": "Sóng Gió Bạch Đằng",
+	"battle_citadel": "Khí Phách Thăng Long",
+	"battle_modern": "Tiến Quân Điện Biên",
+	"battle_sprint": "Thần Tốc Xung Phong",
+	"battle_mythic": "Lĩnh Nam Huyền Ảo",
+	"boss": "Quyết Chiến Đại Tướng",
+	"boss_frenzy": "Bạo Nộ Huyết Chiến",
+	"boss_legend": "Tam Yêu Hiện Hình",
+	"boss_mythic": "Thần Thoại Đại Chiến",
+	"victory": "Khải Hoàn Ca",
 }
 
 var _sfx_streams: Dictionary = {}
 var _music_streams: Dictionary = {}
 var _pool: Array[AudioStreamPlayer] = []
 var _cursor: int = 0
-var _music_player: AudioStreamPlayer = null
+var _music_a: AudioStreamPlayer = null
+var _music_b: AudioStreamPlayer = null
+var _active_music_slot: int = 0
+var _music_tween: Tween = null
 var _current_music: String = ""
 var _music_volume: float = 0.65
 var _sfx_volume: float = 0.85
@@ -218,10 +252,15 @@ func _ready() -> void:
 	_ensure_bus(BUS_MUSIC)
 	_ensure_bus(BUS_SFX)
 
-	_music_player = AudioStreamPlayer.new()
-	_music_player.bus = BUS_MUSIC
-	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
-	add_child(_music_player)
+	_music_a = AudioStreamPlayer.new()
+	_music_a.bus = BUS_MUSIC
+	_music_a.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_music_a)
+
+	_music_b = AudioStreamPlayer.new()
+	_music_b.bus = BUS_MUSIC
+	_music_b.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_music_b)
 
 	for id in SFX_FILES:
 		var path: String = str(SFX_FILES[id])
@@ -414,24 +453,144 @@ func _play_internal(id: String, base_pitch: float, volume_db: float, pitch_jitte
 	_play_counts[id] = int(_play_counts.get(id, 0)) + 1
 
 
-func play_music(id: String) -> void:
+func _active_music_player() -> AudioStreamPlayer:
+	return _music_a if _active_music_slot == 0 else _music_b
+
+
+func _inactive_music_player() -> AudioStreamPlayer:
+	return _music_b if _active_music_slot == 0 else _music_a
+
+
+func active_music_slot() -> int:
+	return _active_music_slot
+
+
+func music_title(id: String) -> String:
+	if id == "":
+		return ""
+	return str(MUSIC_TITLES.get(id, id))
+
+
+func is_boss_music(id: String) -> bool:
+	return id in ["boss", "boss_frenzy", "boss_legend", "boss_mythic"]
+
+
+func stage_playlist(level: int) -> Array[String]:
+	var ch: Dictionary = EnemyData.chapter(level)
+	var theme: int = int(ch.get("theme", 0))
+	if EnemyData.is_mythic_level(level) or bool(ch.get("mythic", false)):
+		if theme == 0:
+			return ["battle_mythic", "battle_forest", "battle_sprint"]
+		if theme == 1:
+			return ["battle_mythic", "battle_river", "battle_citadel"]
+		return ["battle_mythic", "battle_citadel", "battle_sprint"]
+	if bool(ch.get("modern", false)):
+		if theme == 1:
+			return ["battle_river", "battle_modern", "battle_sprint"]
+		if theme == 5:
+			return ["battle_forest", "battle_modern", "battle_sprint"]
+		return ["battle_modern", "battle_sprint", "battle_citadel"]
+	match theme:
+		0:
+			return ["battle_forest", "battle", "battle_sprint"]
+		1:
+			return ["battle_river", "battle", "battle_citadel"]
+		2:
+			return ["battle_citadel", "battle_sprint", "battle"]
+		3:
+			return ["battle_sprint", "battle_citadel", "battle"]
+		_:
+			return ["battle", "battle_sprint", "battle_citadel"]
+
+
+func stage_music_id(level: int, room_seq: int = 0) -> String:
+	if level == 16 or level >= 32:
+		return "victory"
+	var playlist: Array[String] = stage_playlist(level)
+	if playlist.is_empty():
+		return "battle"
+	return playlist[(maxi(level - 1, 0) + maxi(room_seq, 0)) % playlist.size()]
+
+
+func boss_music_id(level: int, kind: String = "boss", enraged: bool = false) -> String:
+	if enraged:
+		return "boss_frenzy"
+	if kind == "legend":
+		return "boss_legend"
+	if EnemyData.is_mythic_level(level):
+		return "boss_mythic"
+	return "boss"
+
+
+func play_stage_music(level: int, room_seq: int = 0, fade_s: float = 0.75) -> String:
+	var mid: String = stage_music_id(level, room_seq)
+	play_music(mid, fade_s)
+	return mid
+
+
+func play_boss_music(level: int, kind: String = "boss", enraged: bool = false, fade_s: float = 0.32) -> String:
+	var mid: String = boss_music_id(level, kind, enraged)
+	play_music(mid, fade_s)
+	return mid
+
+
+func play_music(id: String, fade_s: float = 0.65) -> void:
 	if id == "":
 		stop_music()
 		return
-	if id == _current_music and _music_player.playing:
+	var cur_player: AudioStreamPlayer = _active_music_player()
+	if id == _current_music and cur_player != null and is_instance_valid(cur_player) and cur_player.playing:
 		return
 	var stream_val: Variant = _music_streams.get(id, null)
 	if stream_val == null:
 		return
 	_current_music = id
-	_music_player.stream = stream_val as AudioStream
-	_music_player.play()
+	if _music_tween != null and is_instance_valid(_music_tween):
+		_music_tween.kill()
+		_music_tween = null
+
+	var outgoing: AudioStreamPlayer = _active_music_player()
+	var incoming: AudioStreamPlayer = _inactive_music_player()
+	var is_crossfade: bool = outgoing != null and is_instance_valid(outgoing) and outgoing.playing and fade_s > 0.0 and incoming != null and is_instance_valid(incoming)
+	if is_crossfade:
+		incoming.stop()
+		incoming.stream = stream_val as AudioStream
+		incoming.volume_db = -28.0
+		incoming.play()
+		_active_music_slot = 1 - _active_music_slot
+		_music_tween = create_tween()
+		_music_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		_music_tween.set_parallel(true)
+		_music_tween.tween_property(incoming, "volume_db", 0.0, fade_s)
+		_music_tween.tween_property(outgoing, "volume_db", -34.0, fade_s)
+		_music_tween.chain().tween_callback(func():
+			if is_instance_valid(outgoing) and outgoing != _active_music_player():
+				outgoing.stop()
+				outgoing.volume_db = 0.0
+		)
+	else:
+		if incoming != null and is_instance_valid(incoming):
+			incoming.stop()
+			incoming.volume_db = 0.0
+		if outgoing != null and is_instance_valid(outgoing):
+			outgoing.stop()
+			outgoing.stream = stream_val as AudioStream
+			outgoing.volume_db = 0.0
+			outgoing.play()
+	music_changed.emit(id, music_title(id))
 
 
 func stop_music() -> void:
 	_current_music = ""
-	if _music_player != null:
-		_music_player.stop()
+	if _music_tween != null and is_instance_valid(_music_tween):
+		_music_tween.kill()
+		_music_tween = null
+	if _music_a != null and is_instance_valid(_music_a):
+		_music_a.stop()
+		_music_a.volume_db = 0.0
+	if _music_b != null and is_instance_valid(_music_b):
+		_music_b.stop()
+		_music_b.volume_db = 0.0
 
 
 func stop_all_sfx() -> void:
@@ -444,8 +603,10 @@ func stop_all_sfx() -> void:
 func cleanup() -> void:
 	stop_music()
 	stop_all_sfx()
-	if _music_player != null and is_instance_valid(_music_player):
-		_music_player.stream = null
+	if _music_a != null and is_instance_valid(_music_a):
+		_music_a.stream = null
+	if _music_b != null and is_instance_valid(_music_b):
+		_music_b.stream = null
 	for p in _pool:
 		if is_instance_valid(p):
 			p.stream = null

@@ -1294,6 +1294,8 @@ func _finish_morph() -> void:
 	Fx.shake(get_tree(), 8.0)
 	get_tree().call_group("hud", "show_banner", "%s hiện nguyên hình: %s!" % [data.name, data.get("form2", "")])
 	data["name"] = "%s (%s)" % [data.name, data.get("form2", "")]
+	if is_boss() and Sfx.has_method("play_boss_music"):
+		Sfx.play_boss_music(level, "boss", true)
 	_enrage(false)
 	if Net.is_online() and Net.is_host() and net_id > 0:
 		Net.send_enemy_event("morph", {"id": net_id, "phase": "finish"}, false)
@@ -1326,6 +1328,8 @@ func _tidal_wall() -> void:
 ## Nổi giận khi còn nửa máu: viền đỏ, gầm lên, mở thêm bộ chiêu thứ hai
 func _enrage(banner := true) -> void:
 	enraged = true
+	if is_boss() and Sfx.has_method("play_boss_music"):
+		Sfx.play_boss_music(level, "boss", true)
 	_rage_t = 1.5
 	_mat.set_shader_parameter("flash_color", Color(1.0, 0.25, 0.2))
 	_flash = 1.0

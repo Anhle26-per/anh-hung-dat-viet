@@ -41,6 +41,7 @@ var _start_bonus := false
 var _buff_done_peers: Dictionary = {}
 var _portal_triggered: bool = false
 var _team_wiped: bool = false
+var _combat_room_music_seq: int = 0
 
 
 func _ready() -> void:
@@ -211,7 +212,13 @@ func _process(delta: float) -> void:
 		camera.offset = Vector2.ZERO
 
 
+func next_combat_room_music_seq() -> int:
+	_combat_room_music_seq += 1
+	return _combat_room_music_seq
+
+
 func _build_level() -> void:
+	_combat_room_music_seq = 0
 	_portal_triggered = false
 	_buff_done_peers.clear()
 	if hud != null and hud.has_method("clear_boss_intro"):
@@ -228,7 +235,12 @@ func _build_level() -> void:
 			c.queue_free()
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
-	Sfx.play_music("battle")
+	if Global.level == 16 or Global.level >= 32:
+		Sfx.play_music("victory")
+	elif Sfx.has_method("play_stage_music"):
+		Sfx.play_stage_music(Global.level, 0)
+	else:
+		Sfx.play_music("battle")
 	dungeon = Dungeon.new()
 	world.add_child(dungeon)
 	world.move_child(dungeon, 0)

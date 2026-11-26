@@ -27,6 +27,9 @@ var _boss_intro_mythic := false
 var _boss_intro_desc := ""
 var _boss_intro_sheet := ""
 var _boss_intro_fsize := Vector2i(48, 48)
+var _bgm_toast_id: String = ""
+var _bgm_toast_title: String = ""
+var _bgm_toast_t: float = 0.0
 var _icons := {}
 
 
@@ -43,6 +46,8 @@ class HudView extends Control:
 func _ready() -> void:
 	layer = 10
 	add_to_group("hud")
+	if Sfx != null and Sfx.has_signal("music_changed") and not Sfx.music_changed.is_connected(show_music_toast):
+		Sfx.music_changed.connect(show_music_toast)
 	for k in ["heart", "shield", "energy", "skull"]:
 		_icons[k] = Art.tex("ui/icon_%s.png" % k)
 	_icons["coin"] = Art.tex("items/coin.png")
@@ -51,6 +56,19 @@ func _ready() -> void:
 	view.set_anchors_preset(Control.PRESET_FULL_RECT)
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(view)
+
+
+func _exit_tree() -> void:
+	if Sfx != null and Sfx.has_signal("music_changed") and Sfx.music_changed.is_connected(show_music_toast):
+		Sfx.music_changed.disconnect(show_music_toast)
+
+
+func show_music_toast(track_id: String, title: String) -> void:
+	if track_id == "" or title == "":
+		return
+	_bgm_toast_id = track_id
+	_bgm_toast_title = title
+	_bgm_toast_t = 3.0
 
 
 func show_banner(text: String) -> void:
@@ -98,6 +116,7 @@ func _process(delta: float) -> void:
 	_chapter_t -= delta
 	_cutin_t -= delta
 	_boss_intro_t -= delta
+	_bgm_toast_t = maxf(_bgm_toast_t - delta, 0.0)
 
 
 func draw_hud(ci: Control) -> void:
@@ -267,6 +286,10 @@ func draw_hud(ci: Control) -> void:
 	# --- Băng chân dung khi tung chiêu
 	if _cutin_t > 0.0 and _cutin_hero != "":
 		_draw_cutin(ci, w, h)
+
+	# --- Thông báo đổi nhạc nền (góc dưới phải, phía trên bảng vũ khí)
+	if _bgm_toast_t > 0.0 and _bgm_toast_title != "":
+		_draw_music_toast(ci, w, h)
 
 	# --- Giới thiệu chương / Trùm xuất hiện
 	if _boss_intro_t > 0.0:
@@ -566,3 +589,59 @@ func _draw_boss_intro(ci: Control, w: float, h: float) -> void:
 		var desc_col := Color(0.84, 0.94, 1.0, a) if _boss_intro_mythic else Color(0.96, 0.92, 0.76, a)
 		for li in mini(lines.size(), 2):
 			Art.draw_text(ci, Vector2(tx, card_y + 68.0 + float(li) * 11.0), lines[li], 11, desc_col, centered_txt)
+
+
+func _music_toast_palette(track_id: String) -> Dictionary:
+	match track_id:
+		"boss_frenzy":
+			return {
+				"bg": Color(0.20, 0.03, 0.05),
+				"border": Color(1.0, 0.28, 0.32),
+				"text": Color(1.0, 0.86, 0.86),
+			}
+		"boss", "boss_legend", "boss_mythic":
+			return {
+				"bg": Color(0.16, 0.06, 0.03),
+				"border": Color(1.0, 0.62, 0.20),
+				"text": Color(1.0, 0.90, 0.72),
+			}
+		"victory":
+			return {
+				"bg": Color(0.14, 0.10, 0.03),
+				"border": Color(1.0, 0.86, 0.30),
+				"text": Color(1.0, 0.96, 0.78),
+			}
+		_:
+			return {
+				"bg": Color(0.05, 0.09, 0.12),
+				"border": Color(0.48, 0.88, 0.95),
+				"text": Color(0.90, 0.97, 0.98),
+			}
+
+
+func _draw_music_toast(ci: Control, w: float, h: float) -> void:
+	var elapsed: float = 3.0 - _bgm_toast_t
+	var fade_in: float = clampf(elapsed / 0.25, 0.0, 1.0)
+	var fade_out: float = clampf(_bgm_toast_t / 0.45, 0.0, 1.0)
+	var alpha: float = minf(fade_in, fade_out)
+	if alpha <= 0.01:
+		return
+	var pal: Dictionary = _music_toast_palette(_bgm_toast_id)
+	var bg_col: Color = pal.bg as Color
+	var edge_col: Color = pal.border as Color
+	var txt_col: Color = pal.text as Color
+	var label: String = "♪ " + _bgm_toast_title
+	var txt_w: float = Art.text_width(label, 13)
+	var pill_w: float = clampf(txt_w + 18.0, 108.0, w * 0.46)
+	var pill_h: float = 19.0
+	var sc: float = float(Global.settings.get("touch_scale", 1.0))
+	var bottom_clear_y: float = (h - 152.0 * sc) if Global.touch_mode else (h - 80.0)
+	var slide_x: float = (1.0 - fade_in) * 16.0
+	var px: float = w - pill_w - 6.0 + slide_x
+	var py: float = maxf(140.0, bottom_clear_y - pill_h)
+	var rect := Rect2(px, py, pill_w, pill_h)
+	ci.draw_rect(rect, Color(bg_col.r, bg_col.g, bg_col.b, 0.86 * alpha))
+	ci.draw_rect(Rect2(px, py, 3.0, pill_h), Color(edge_col.r, edge_col.g, edge_col.b, 0.95 * alpha))
+	ci.draw_rect(rect, Color(edge_col.r, edge_col.g, edge_col.b, 0.88 * alpha), false, 1.0)
+	ci.draw_rect(rect.grow(-2.0), Color(edge_col.r, edge_col.g, edge_col.b, 0.22 * alpha), false, 1.0)
+	Art.draw_text(ci, Vector2(px + 9.0, py + 13.5), label, 13, Color(txt_col.r, txt_col.g, txt_col.b, alpha), false)
