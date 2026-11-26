@@ -75,6 +75,18 @@ var net_id: int = 0
 var is_replica: bool = false
 var _net_pos: Vector2 = Vector2.ZERO
 var _net_anim: String = "walk"
+var _hurtbox: Area2D
+var _hurtbox_cs: CollisionShape2D
+var _hurtbox_shape: RectangleShape2D
+var _hb_size: Vector2 = Vector2(16.0, 20.0)
+var _hb_offset: Vector2 = Vector2(0.0, -6.0)
+var _strafe_dir: float = 1.0
+var _strafe_t: float = 0.0
+var _steer_sign: float = 0.0
+var _steer_t: float = 0.0
+var _flank_sign: float = 1.0
+var _boss_t: float = 0.0
+var _boss_fx_t: float = 0.0
 
 
 func setup(k: String, lvl: int, target) -> void:
@@ -90,6 +102,9 @@ func setup(k: String, lvl: int, target) -> void:
 	player = target
 	_shoot_t = randf_range(0.8, 1.8)
 	_summon_t = randf_range(4.0, 6.0)
+	_strafe_dir = -1.0 if randf() < 0.5 else 1.0
+	_strafe_t = randf_range(1.4, 2.6)
+	_flank_sign = -1.0 if randf() < 0.5 else 1.0
 	if is_boss():
 		_spawn_t = 1.2
 
@@ -128,16 +143,30 @@ func _ready() -> void:
 	add_to_group("enemies")
 	if is_boss():
 		add_to_group("boss")
-	collision_layer = 4
+	# Thân CharacterBody2D chỉ dùng để né tường/vật cản ở chân; hitbox nhận đòn phủ toàn thân bằng Area2D
+	collision_layer = 0
 	collision_mask = 1
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	var shape := CircleShape2D.new()
-	shape.radius = radius * 0.8
+	shape.radius = radius * 0.72
 	_shape = shape
 	var cs := CollisionShape2D.new()
 	cs.shape = shape
 	add_child(cs)
 	z_index = 1
+
+	_hurtbox = Area2D.new()
+	_hurtbox.collision_layer = 4
+	_hurtbox.collision_mask = 0
+	_hurtbox.monitorable = true
+	_hurtbox.monitoring = false
+	_hurtbox.set_meta("enemy", self)
+	_hurtbox.add_to_group("enemy_hurtboxes")
+	_hurtbox_shape = RectangleShape2D.new()
+	_hurtbox_cs = CollisionShape2D.new()
+	_hurtbox_cs.shape = _hurtbox_shape
+	_hurtbox.add_child(_hurtbox_cs)
+	add_child(_hurtbox)
 
 	var sh := Sprite2D.new()
 	_shadow = sh
@@ -175,11 +204,64 @@ func _ready() -> void:
 	Fx.anim(get_parent(), position, "fx/poof.png", 28, 28, 16.0, radius / 8.0, 0.0, Color(1, 0.6, 0.6) if not is_boss() else Color(1, 0.4, 0.4))
 	status = StatusFx.new()
 	status.unit = self
-	status.head = float(size.y) * (1.25 if elite else 1.0) - radius + 4.0
 	status.tick_damage = 2 + int(level / 4)
 	add_child(status)
+	_sync_hurtbox(size)
 	if _net_pos == Vector2.ZERO:
 		_net_pos = global_position
+
+
+func _sync_hurtbox(cur_size: Vector2i) -> void:
+	var sc: float = 1.25 if (elite and not is_boss()) else 1.0
+	_hb_size = Vector2(
+		maxf(float(cur_size.x) * sc * 0.74, radius * 1.9),
+		maxf(float(cur_size.y) * sc * 0.80, radius * 2.1)
+	)
+	var base_y: float = spr.position.y if spr != null else 0.0
+	_hb_offset = Vector2(0.0, base_y + float(cur_size.y) * sc * 0.04)
+	if _hurtbox_shape != null:
+		_hurtbox_shape.size = _hb_size
+	if _hurtbox_cs != null:
+		_hurtbox_cs.position = _hb_offset
+	if status != null:
+		status.head = maxf(12.0, -(_hb_offset.y - _hb_size.y * 0.5) + 4.0)
+
+
+func hurtbox_rect() -> Rect2:
+	return Rect2(global_position + _hb_offset - _hb_size * 0.5, _hb_size)
+
+
+func hurtbox_center() -> Vector2:
+	return global_position + _hb_offset
+
+
+func closest_point_on_hurtbox(pt: Vector2) -> Vector2:
+	var r: Rect2 = hurtbox_rect()
+	return Vector2(clampf(pt.x, r.position.x, r.end.x), clampf(pt.y, r.position.y, r.end.y))
+
+
+func distance_to_hurtbox(pt: Vector2) -> float:
+	return pt.distance_to(closest_point_on_hurtbox(pt))
+
+
+func _touches_player(ppos: Vector2) -> bool:
+	var c := global_position + Vector2(0.0, -_hb_size.y * 0.12)
+	var rx: float = maxf(radius, _hb_size.x * 0.44) + 5.0
+	var ry: float = maxf(radius * 0.85, _hb_size.y * 0.30) + 5.0
+	var dx: float = (ppos.x - c.x) / rx
+	var dy: float = (ppos.y - c.y) / ry
+	return dx * dx + dy * dy <= 1.0
+
+
+func _boss_color() -> Color:
+	var bid: String = str(data.get("id", ""))
+	if bid in ["cuu_vi_ho", "ho_tinh_vuong"]:
+		return Color(0.84, 0.34, 1.0) if transformed else Color(1.0, 0.38, 0.72)
+	if bid in ["xuong_cuong", "moc_tinh_vuong"]:
+		return Color(1.0, 0.38, 0.22) if transformed else Color(0.32, 0.92, 0.45)
+	if bid in ["hac_hai_ngu", "ngu_tinh_vuong"]:
+		return Color(0.45, 0.48, 1.0) if transformed else Color(0.28, 0.80, 1.0)
+	return Color(0.88, 0.26, 0.96) if transformed else Color(1.0, 0.44, 0.24)
 
 
 func current_anim_name() -> String:
@@ -206,13 +288,23 @@ func apply_net_state(pos: Vector2, new_hp: int, new_max_hp: int, anim: String, f
 func _physics_process(delta: float) -> void:
 	if dead:
 		return
+	_boss_t += delta
 	if _hp_bar_t > 0.0:
 		_hp_bar_t = maxf(_hp_bar_t - delta, 0.0)
+		queue_redraw()
+	if is_boss() or _charge_state == "windup" or _submerged:
 		queue_redraw()
 	_flash = maxf(_flash - delta * 8.0, 0.0)
 	var base_glow := 0.18 + 0.1 * sin(Time.get_ticks_msec() / 150.0) if elite else 0.0
 	_mat.set_shader_parameter("flash", maxf(_flash, base_glow))
 	_attack_anim_t -= delta
+	if is_boss() and (enraged or transformed) and not _submerged and _spawn_t <= 0.0 and _morph_t <= 0.0:
+		_boss_fx_t -= delta
+		if _boss_fx_t <= 0.0:
+			_boss_fx_t = 0.18
+			var hb: Rect2 = hurtbox_rect()
+			var rpos := Vector2(randf_range(hb.position.x, hb.end.x), randf_range(hb.position.y + hb.size.y * 0.25, hb.end.y))
+			Fx.particles(get_parent(), rpos, _boss_color(), 2, 34.0, 0.45, -36.0, 1.8)
 	player = Global.nearest_player(global_position)
 	if is_replica:
 		global_position = global_position.lerp(_net_pos, clampf(delta * 16.0, 0.0, 1.0))
@@ -237,7 +329,7 @@ func _physics_process(delta: float) -> void:
 		if not _submerged and _contact_t <= 0.0:
 			var lp: Node = Global.local_player()
 			if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")):
-				if global_position.distance_to((lp as Node2D).global_position) < radius + 7.0:
+				if _touches_player((lp as Node2D).global_position):
 					lp.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
 					_contact_t = 0.8
 		return
@@ -257,7 +349,7 @@ func _physics_process(delta: float) -> void:
 				_finish_morph()
 			velocity = Vector2.ZERO
 			move_and_slide()
-			_update_anim()
+			_update_anim(delta)
 			return
 		if hp < max_hp / 2 and not transformed and data.has("sheet2"):
 			_stun_t = 0.0
@@ -269,7 +361,7 @@ func _physics_process(delta: float) -> void:
 		_stun_t -= delta
 		spr.modulate = Color(0.75, 0.75, 1.0)
 		if int(_stun_t * 6.0) % 3 == 0 and randf() < 0.2:
-			Fx.particles(get_parent(), global_position + Vector2(0, -radius * 2.0), Color(1, 0.95, 0.4), 1, 30.0, 0.4, 0.0, 1.0)
+			Fx.particles(get_parent(), Vector2(global_position.x, hurtbox_rect().position.y - 4.0), Color(1, 0.95, 0.4), 1, 30.0, 0.4, 0.0, 1.0)
 	elif player != null and is_instance_valid(player) and not player.dead:
 		spr.modulate = Color.WHITE
 		var to: Vector2 = player.global_position - global_position
@@ -278,7 +370,7 @@ func _physics_process(delta: float) -> void:
 		_face = 1.0 if to.x >= 0.0 else -1.0
 		match data.ai:
 			"chase":
-				desired = (dir + _wander_vec(delta) * 0.35).normalized() * speed
+				desired = _chase_dir(delta, dir, dist, 0.30, 0.24)
 			"shoot":
 				desired = _keep_distance(delta, dir, dist, 160.0, 85.0)
 				_shoot_t -= delta
@@ -296,7 +388,7 @@ func _physics_process(delta: float) -> void:
 						_fire(dir.angle(), 185.0, epj, edmg)
 					_attack_anim_t = 0.3
 			"tank":
-				desired = (dir + _wander_vec(delta) * 0.2).normalized() * speed
+				desired = _chase_dir(delta, dir, dist, 0.18, 0.18)
 			"caster":
 				desired = _keep_distance(delta, dir, dist, 150.0, 95.0)
 				_shoot_t -= delta
@@ -312,7 +404,7 @@ func _physics_process(delta: float) -> void:
 					Fx.particles(get_parent(), p, Color(0.8, 0.4, 1.0), 16, 90.0, 0.5)
 					room.spawn_enemy(folk.pick_random(), p)
 			"ring":
-				desired = (dir + _wander_vec(delta) * 0.5).normalized() * speed
+				desired = _chase_dir(delta, dir, dist, 0.42, 0.25)
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
 					_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15)
@@ -339,7 +431,7 @@ func _physics_process(delta: float) -> void:
 					_shoot_t = data.get("shoot_cd", 2.5) * randf_range(0.8, 1.15)
 					_mortar(player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10)), 0.9)
 			"tank_elite":
-				desired = (dir + _wander_vec(delta) * 0.2).normalized() * speed
+				desired = _chase_dir(delta, dir, dist, 0.16, 0.16)
 				_shoot_t -= delta
 				if _shoot_t <= 0.0:
 					_shoot_t = data.get("shoot_cd", 2.0) * randf_range(0.8, 1.15)
@@ -363,25 +455,31 @@ func _physics_process(delta: float) -> void:
 			"boss":
 				desired = _boss(delta, dir, dist)
 		_contact_t -= delta
-		if Net.is_online():
-			var lp: Node = Global.local_player()
-			if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")) and global_position.distance_to((lp as Node2D).global_position) < radius + 7.0 and _contact_t <= 0.0:
-				lp.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
+		if not _submerged:
+			if Net.is_online():
+				var lp: Node = Global.local_player()
+				if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")) and _touches_player((lp as Node2D).global_position) and _contact_t <= 0.0:
+					lp.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
+					_contact_t = 0.8
+					_attack_anim_t = 0.3
+			elif _touches_player(player.global_position) and _contact_t <= 0.0:
+				player.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
 				_contact_t = 0.8
 				_attack_anim_t = 0.3
-		elif dist < radius + 7.0 and _contact_t <= 0.0:
-			player.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
-			_contact_t = 0.8
-			_attack_anim_t = 0.3
 
 	_update_burst(delta)
 	_knock = _knock.move_toward(Vector2.ZERO, 900.0 * delta)
-	velocity = desired + _knock
+	var is_dashing: bool = (_charge_state == "dash" or _special == "ong_dong")
+	if _stun_t <= 0.0 and not is_dashing and not _submerged:
+		desired += _separation_vec()
+		desired = _avoid_obstacles(desired, delta)
+	var accel: float = 1200.0 if is_dashing else (360.0 if (is_boss() or data.ai in ["tank", "tank_elite"]) else 540.0)
+	velocity = velocity.move_toward(desired + _knock, accel * delta)
 	move_and_slide()
-	_update_anim()
+	_update_anim(delta)
 
 
-func _update_anim() -> void:
+func _update_anim(delta: float = 0.016) -> void:
 	spr.flip_h = _face < 0.0
 	if _special in ["ong_dong", "ham_chi_huy", "boc_chay", "cuu_vi", "rung_gia", "song_than"] and _special_t > 0.0 and spr.sprite_frames.has_animation("special"):
 		spr.play("special")
@@ -392,14 +490,90 @@ func _update_anim() -> void:
 	else:
 		spr.play("walk")
 		spr.speed_scale = clampf(velocity.length() / maxf(speed, 1.0), 0.3, 2.0)
+	var target_tilt: float = 0.0
+	if _stun_t <= 0.0 and _morph_t <= 0.0 and not _submerged and velocity.length() > 8.0:
+		target_tilt = clampf(velocity.x / maxf(speed, 45.0) * 0.065, -0.08, 0.08)
+	spr.rotation = lerpf(spr.rotation, target_tilt, clampf(delta * 10.0, 0.0, 1.0))
+
+
+func _chase_dir(delta: float, dir: Vector2, dist: float, wander_w: float, flank_w: float) -> Vector2:
+	var v: Vector2 = dir + _wander_vec(delta) * wander_w
+	if dist > 60.0:
+		v += dir.rotated(PI * 0.5 * _flank_sign) * flank_w
+	return v.normalized() * speed
 
 
 func _keep_distance(delta: float, dir: Vector2, dist: float, far: float, near: float) -> Vector2:
+	_strafe_t -= delta
+	if _strafe_t <= 0.0 or get_slide_collision_count() > 0:
+		_strafe_dir = -_strafe_dir
+		_strafe_t = randf_range(1.6, 2.8)
 	if dist > far:
-		return dir * speed
+		return (dir + dir.rotated(PI * 0.5 * _strafe_dir) * 0.25).normalized() * speed
 	elif dist < near:
-		return -dir * speed
-	return _wander_vec(delta) * speed * 0.6
+		return (-dir + dir.rotated(PI * 0.5 * _strafe_dir) * 0.35).normalized() * speed
+	return dir.rotated(PI * 0.5 * _strafe_dir) * speed * 0.72
+
+
+func _boss_strafe(delta: float, dir: Vector2, dist: float, spd_mult: float = 0.55) -> Vector2:
+	_strafe_t -= delta
+	if _strafe_t <= 0.0 or get_slide_collision_count() > 0:
+		_strafe_dir = -_strafe_dir
+		_strafe_t = randf_range(1.8, 3.0)
+	var tangent: Vector2 = dir.rotated(PI * 0.5 * _strafe_dir) * 0.75
+	var radial: Vector2 = dir * 0.5 if dist > 135.0 else (-dir * 0.45 if dist < 68.0 else Vector2.ZERO)
+	return (tangent + radial).normalized() * speed * spd_mult
+
+
+func _separation_vec() -> Vector2:
+	if not is_inside_tree():
+		return Vector2.ZERO
+	var push := Vector2.ZERO
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e == self or not is_instance_valid(e) or bool(e.get("dead")):
+			continue
+		var diff: Vector2 = global_position - (e as Node2D).global_position
+		var d_sq: float = diff.length_squared()
+		var min_d: float = radius + float(e.get("radius")) + 6.0
+		if d_sq > 0.01 and d_sq < min_d * min_d:
+			var d: float = sqrt(d_sq)
+			push += (diff / d) * (1.0 - d / min_d)
+	var lim: float = speed * 0.55
+	var res: Vector2 = push * speed * 0.5
+	if res.length() > lim:
+		res = res.normalized() * lim
+	return res
+
+
+func _avoid_obstacles(desired: Vector2, delta: float) -> Vector2:
+	_steer_t = maxf(0.0, _steer_t - delta)
+	if desired.length_squared() < 64.0 or not is_inside_tree():
+		return desired
+	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	if space == null:
+		return desired
+	var spd: float = desired.length()
+	var dir: Vector2 = desired / spd
+	var q := PhysicsRayQueryParameters2D.create(global_position, global_position + dir * 24.0, 1)
+	var hit: Dictionary = space.intersect_ray(q)
+	if hit.is_empty() and get_slide_collision_count() == 0:
+		return desired
+	if _steer_t <= 0.0 or absf(_steer_sign) < 0.5:
+		var left_dir: Vector2 = dir.rotated(-0.96)
+		var right_dir: Vector2 = dir.rotated(0.96)
+		var hl: Dictionary = space.intersect_ray(PhysicsRayQueryParameters2D.create(global_position, global_position + left_dir * 28.0, 1))
+		var hr: Dictionary = space.intersect_ray(PhysicsRayQueryParameters2D.create(global_position, global_position + right_dir * 28.0, 1))
+		if hl.is_empty() and not hr.is_empty():
+			_steer_sign = -1.0
+		elif hr.is_empty() and not hl.is_empty():
+			_steer_sign = 1.0
+		else:
+			var dl: float = global_position.distance_to(hl["position"]) if not hl.is_empty() else 28.0
+			var dr: float = global_position.distance_to(hr["position"]) if not hr.is_empty() else 28.0
+			_steer_sign = -1.0 if dl >= dr else 1.0
+		_steer_t = 0.55
+	var steered: Vector2 = dir.rotated(_steer_sign * 0.96)
+	return (dir * 0.2 + steered * 0.8).normalized() * spd
 
 
 func _wander_vec(delta: float) -> Vector2:
@@ -427,6 +601,8 @@ func _charge_ai(delta: float, dir: Vector2, dist: float, mult: float) -> Vector2
 				_charge_t = 1.2
 			if int(_charge_t * 30.0) % 2 == 0:
 				Fx.anim(get_parent(), global_position + Vector2(0, radius), "fx/dust.png", 10, 10, 14.0, 1.2)
+			if int(_boss_t * 30.0) % 3 == 0:
+				Fx.afterimage(get_parent(), spr, global_position, Color(_boss_color(), 0.55), 0.28)
 			return _charge_dir * speed * mult
 		"rest":
 			_charge_t -= delta
@@ -595,6 +771,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				# lăn lông lốc khắp phòng, nảy vào tường
 				if get_slide_collision_count() > 0:
 					_charge_dir = _charge_dir.bounce(get_slide_collision(0).get_normal())
+				if int(_boss_t * 30.0) % 3 == 0:
+					Fx.afterimage(get_parent(), spr, global_position, Color(_boss_color(), 0.55), 0.28)
 				return _charge_dir * speed * 3.0
 			"bo_chay":
 				return -dir * speed * 2.4
@@ -680,42 +858,47 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.8 * cd_mult
 				_volleys += 1
+				Fx.burst(get_parent(), global_position, _boss_color(), 34.0, 0.35)
 				for i in 5:
 					var bdir := Vector2.from_angle(dir.angle() + deg_to_rad(lerpf(-40, 40, i / 4.0)))
 					_cannon(bdir, 1)
-			return Vector2.ZERO
+			return _boss_strafe(delta, dir, dist, 0.35)
 		"burst":
 			if _shoot_t <= 0.0 and _volleys < 3 and _burst_left == 0:
 				_shoot_t = 0.7 * cd_mult
 				_volleys += 1
 				_start_burst(7, 10.0)
-			return dir * speed * 0.3
+			return _boss_strafe(delta, dir, dist, 0.5)
 		"mortar":
 			if _shoot_t <= 0.0 and _volleys < 5:
 				_shoot_t = 0.35 * cd_mult
 				_volleys += 1
 				_mortar(player.global_position + Vector2(randf_range(-30, 30), randf_range(-30, 30)), 1.0)
-			return Vector2.ZERO
+			return -dir * speed * 0.45 if dist < 85.0 else _boss_strafe(delta, dir, dist, 0.35)
 		"sweep":   # quét nửa vòng đạn về phía người chơi
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.6 * cd_mult
 				_volleys += 1
 				_attack_anim_t = 0.3
+				Fx.burst(get_parent(), global_position, _boss_color(), 30.0, 0.3)
 				for i in 9:
 					_fire(dir.angle() + deg_to_rad(lerpf(-55, 55, i / 8.0)), 130.0)
-			return dir * speed * 0.4
+			return _boss_strafe(delta, dir, dist, 0.55)
 		"charge":
 			return _charge_ai(delta, dir, 0.0, 5.5)
 		"ring":
 			if _shoot_t <= 0.0:
 				_shoot_t = 0.8 * cd_mult
 				_attack_anim_t = 0.3
+				Fx.burst(get_parent(), global_position, _boss_color(), 38.0, 0.35)
 				_fire_ring(16 if rage else 12, randf() * TAU, 105.0)
-			return dir * speed * 0.5
+			return _boss_strafe(delta, dir, dist, 0.6)
 		"summon":
 			if _shoot_t <= 0.0 and _volleys == 0 and room != null:
 				_volleys = 1
 				_attack_anim_t = 0.5
+				Fx.burst(get_parent(), global_position, _boss_color(), 46.0, 0.45)
+				Fx.particles(get_parent(), global_position, _boss_color(), 14, 70.0, 0.5, -40.0, 2.0)
 				for i in (3 if rage else 2) + int(power() / 4.0):
 					var p := global_position + Vector2.from_angle(randf() * TAU) * 40.0
 					room.spawn_enemy(data.summon, p)
@@ -736,7 +919,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				_attack_anim_t = 0.25
 				for i in 5:
 					_fire(dir.angle() + deg_to_rad(lerpf(-16, 16, i / 4.0)), 190.0, "arrow")
-			return dir * speed * 0.3
+			return _boss_strafe(delta, dir, dist, 0.5)
 		"cannon":  # đạn pháo nổ
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.7 * cd_mult
@@ -753,7 +936,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 						"spd": 150.0, "dmg": 2, "life": 3.0, "proj": "cannonball",
 						"exp": 0.0, "ox": global_position.x, "oy": global_position.y, "muzzle": false,
 					}, false)
-			return -dir * speed * 0.3 if dist < 90.0 else Vector2.ZERO
+			return -dir * speed * 0.45 if dist < 90.0 else _boss_strafe(delta, dir, dist, 0.35)
 		"tails":   # Hồ Tinh: quạt lửa hồ ly theo số đuôi
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.65 * cd_mult
@@ -761,13 +944,15 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				_attack_anim_t = 0.35
 				var nt := 9 if transformed else 5
 				_spiral += 0.4
+				Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 34.0, 0.35)
 				for i in nt:
 					_fire(_spiral + TAU * i / nt, 105.0, "fireball")
-			return dir * speed * 0.3
+			return _boss_strafe(delta, dir, dist, 0.55)
 		"clone":   # Hồ Tinh: phân thân thành bầy cáo ảo
 			if _shoot_t <= 0.0 and _volleys == 0 and room != null:
 				_volleys = 1
 				_attack_anim_t = 0.5
+				Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 44.0, 0.45)
 				for i in (3 if transformed else 2) + int(power() / 4.0):
 					var cp := global_position + Vector2.from_angle(TAU * i / 3.0 + randf()) * 36.0
 					Fx.anim(get_parent(), cp, "fx/poof.png", 28, 28, 16.0, 1.0, 0.0, Color(0.85, 0.6, 1.0))
@@ -779,6 +964,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				_shoot_t = 1.0 * cd_mult
 				_volleys += 1
 				_attack_anim_t = 0.4
+				Fx.burst(get_parent(), global_position, _boss_color(), 36.0, 0.4)
+				Fx.particles(get_parent(), global_position, _boss_color(), 12, 60.0, 0.45, -20.0, 2.0)
 				var lines := 2 if transformed else 1
 				for ln in lines:
 					var ld := dir.rotated((ln - (lines - 1) / 2.0) * 0.5)
@@ -791,7 +978,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 						get_parent().add_child(m)
 						if Net.is_online() and Net.is_host():
 							Net.send_enemy_event("mortar", {"x": m.position.x, "y": m.position.y, "delay": m.delay, "root": true, "radius": 12.0}, false)
-			return Vector2.ZERO
+			return -dir * speed * 0.35 if dist < 80.0 else Vector2.ZERO
 		"dive":    # Ngư Tinh: lặn xuống, trồi lên dưới chân người chơi tung vòng nước
 			match _charge_state:
 				"":
@@ -825,6 +1012,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				_shoot_t = 1.6 * cd_mult
 				_volleys += 1
 				_attack_anim_t = 0.4
+				Fx.burst(get_parent(), global_position, _boss_color(), 42.0, 0.45)
 				_tidal_wall()
 			return Vector2.ZERO
 		"fan":     # quạt gió: quạt đạn rộng và chậm
@@ -832,9 +1020,10 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				_shoot_t = 0.9 * cd_mult
 				_volleys += 1
 				_attack_anim_t = 0.4
+				Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 34.0, 0.35)
 				for i in 14:
 					_fire(dir.angle() + deg_to_rad(lerpf(-75, 75, i / 13.0)), 85.0)
-			return Vector2.ZERO
+			return _boss_strafe(delta, dir, dist, 0.45)
 	return Vector2.ZERO
 
 
@@ -903,16 +1092,18 @@ func _finish_morph() -> void:
 	var anims := {"walk": [[0, 1, 2, 3], 8.0, true], "attack": [[4], 1.0, false], "rage": [[5], 1.0, false], "special": [[6], 1.0, false]}
 	spr.sprite_frames = Art.frames(data.sheet2, size2.x, size2.y, anims)
 	radius = float(data.get("radius2", radius))
-	_shape.radius = radius * 0.8
+	_shape.radius = radius * 0.72
 	spr.position = Vector2(0, radius - size2.y / 2.0)
 	_shadow.position = Vector2(0, radius * 0.9)
 	_shadow.scale = Vector2(radius / 7.0, radius / 7.0)
-	status.head = float(size2.y) - radius - 6.0
+	_sync_hurtbox(size2)
 	data["patterns"] = data.get("patterns2", data.patterns)
 	_phase = -1
 	_phase_t = 0.0
 	_volleys = 0
-	Fx.burst(get_parent(), global_position, Color(0.75, 0.35, 1.0), 90.0, 0.6)
+	var bcol: Color = _boss_color()
+	Fx.burst(get_parent(), global_position, bcol, 96.0, 0.65)
+	Fx.burst(get_parent(), global_position, Color.WHITE, 52.0, 0.45)
 	Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 18.0, 2.0, 0.0, Color(0.8, 0.5, 1.0))
 	Fx.particles(get_parent(), global_position, Color(0.6, 0.25, 0.8), 40, 160.0, 0.8, -20.0, 3.0)
 	Fx.shake(get_tree(), 8.0)
@@ -1149,7 +1340,8 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	else:
 		Sfx.play("enemy_hurt")
 	_knock += knock * (0.08 if is_boss() else (0.4 if data.ai == "tank" else 1.0))
-	Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 6.0), ("%d!" % dmg) if crit else str(dmg), Color(1, 1, 1) if dmg < 10 else Color(1, 0.85, 0.3), 14 if dmg < 10 else 18)
+	var top_pos := Vector2(global_position.x, hurtbox_rect().position.y - 4.0)
+	Fx.float_text(get_parent(), top_pos, ("%d!" % dmg) if crit else str(dmg), Color(1, 1, 1) if dmg < 10 else Color(1, 0.85, 0.3), 14 if dmg < 10 else 18)
 	if hp <= 0:
 		die()
 
@@ -1168,7 +1360,8 @@ func dot_damage(amount: int, kind: String) -> void:
 	if not is_boss():
 		_hp_bar_t = 3.0
 		queue_redraw()
-	Fx.float_text(get_parent(), global_position + Vector2(randf_range(-6, 6), -radius - 6.0), str(dmg), Color(1, 0.6, 0.25) if kind == "burn" else Color(0.6, 1.0, 0.35), 11)
+	var top_dot := Vector2(global_position.x + randf_range(-6, 6), hurtbox_rect().position.y - 4.0)
+	Fx.float_text(get_parent(), top_dot, str(dmg), Color(1, 0.6, 0.25) if kind == "burn" else Color(0.6, 1.0, 0.35), 11)
 	if hp <= 0:
 		die()
 
@@ -1215,6 +1408,7 @@ func _finish_die(drop: bool, spawn_shared_loot: bool) -> void:
 		get_tree().call_group("hud", "show_banner", "Bắt sống Đờ Cát tại hầm chỉ huy!")
 	if is_boss():
 		Fx.hitstop(get_tree(), 0.075)
+		Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 88.0, 0.7)
 		var wr: WeakRef = weakref(get_parent())
 		for i in 5:
 			var p := global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
@@ -1295,11 +1489,23 @@ func _spawn_pickup(k: String, amount: int) -> void:
 
 
 func _draw() -> void:
-	if dead or is_boss() or _hp_bar_t <= 0.0 or hp >= max_hp or max_hp <= 0:
+	if dead:
+		return
+	if is_boss():
+		_draw_boss_fx()
+	elif _charge_state == "windup":
+		if str(data.get("ai", "")) == "slam":
+			var sr: float = 54.0 * clampf(1.0 - _charge_t / 0.55, 0.2, 1.0)
+			draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.65))
+			draw_arc(Vector2.ZERO, sr, 0.0, TAU, 28, Color(1.0, 0.35, 0.25, 0.8), 1.6)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			_draw_charge_lane(110.0)
+	if is_boss() or _hp_bar_t <= 0.0 or hp >= max_hp or max_hp <= 0:
 		return
 	var bw: float = 24.0 if elite else 18.0
 	var bh: float = 3.0
-	var pos := Vector2(-bw / 2.0, -radius - 12.0)
+	var pos := Vector2(-bw / 2.0, (_hb_offset.y - _hb_size.y * 0.5) - 6.0)
 	var a: float = clampf(_hp_bar_t / 0.4, 0.0, 1.0)
 	var ratio: float = clampf(float(hp) / float(max_hp), 0.0, 1.0)
 	draw_rect(Rect2(pos - Vector2(1.0, 1.0), Vector2(bw + 2.0, bh + 2.0)), Color(0.06, 0.02, 0.04, 0.92 * a))
@@ -1308,3 +1514,62 @@ func _draw() -> void:
 	if fw > 0.0:
 		draw_rect(Rect2(pos, Vector2(fw, bh)), Color(0.86, 0.18, 0.22, a))
 		draw_rect(Rect2(pos, Vector2(fw, 1.0)), Color(1.0, 0.48, 0.46, a))
+
+
+func _draw_charge_lane(lane_len: float) -> void:
+	if _charge_dir.length_squared() < 0.01:
+		return
+	var ang: float = _charge_dir.angle()
+	var half_w: float = maxf(8.0, radius * 0.8)
+	var pulse: float = 0.5 + 0.5 * sin(_boss_t * 18.0)
+	draw_set_transform(Vector2(0.0, 2.0), ang, Vector2.ONE)
+	draw_rect(Rect2(0.0, -half_w, lane_len, half_w * 2.0), Color(1.0, 0.2, 0.18, 0.18 + 0.10 * pulse))
+	draw_line(Vector2(0.0, -half_w), Vector2(lane_len, -half_w), Color(1.0, 0.35, 0.28, 0.78), 1.4)
+	draw_line(Vector2(0.0, half_w), Vector2(lane_len, half_w), Color(1.0, 0.35, 0.28, 0.78), 1.4)
+	for ci in 3:
+		var cx: float = lane_len * (0.28 + 0.28 * float(ci))
+		draw_polyline(PackedVector2Array([
+			Vector2(cx - 5.0, -half_w * 0.6),
+			Vector2(cx + 4.0, 0.0),
+			Vector2(cx - 5.0, half_w * 0.6),
+		]), Color(1.0, 0.75, 0.45, 0.75 * pulse), 1.4)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _draw_boss_fx() -> void:
+	var bcol: Color = _boss_color()
+	var fast: float = 2.6 if (enraged or transformed) else 1.4
+	var pulse: float = 0.5 + 0.5 * sin(_boss_t * 4.5)
+	if _submerged:
+		for wi in 3:
+			var wr: float = fmod(_boss_t * 28.0 + float(wi) * 14.0, 42.0)
+			draw_set_transform(Vector2(0.0, 4.0), 0.0, Vector2(1.0, 0.55))
+			draw_arc(Vector2.ZERO, wr, 0.0, TAU, 28, Color(0.42, 0.85, 1.0, 0.55 * (1.0 - wr / 42.0)), 1.6)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		if _charge_state == "under" and _charge_t < 0.45:
+			var warn_r: float = 48.0 * clampf(1.0 - _charge_t / 0.45, 0.2, 1.0)
+			draw_arc(Vector2(0.0, 4.0), warn_r, 0.0, TAU, 32, Color(1.0, 0.32, 0.28, 0.85), 2.0)
+		return
+	var sig_r: float = maxf(radius * 1.45, _hb_size.x * 0.45)
+	draw_set_transform(Vector2(0.0, 6.0), 0.0, Vector2(1.0, 0.55))
+	draw_circle(Vector2.ZERO, sig_r * 0.88, Color(bcol.r, bcol.g, bcol.b, 0.10 + (0.06 if (enraged or transformed) else 0.0) * pulse))
+	draw_arc(Vector2.ZERO, sig_r, 0.0, TAU, 36, Color(bcol.r, bcol.g, bcol.b, 0.42 + 0.24 * pulse), 1.6)
+	draw_arc(Vector2.ZERO, sig_r * 0.68, 0.0, TAU, 28, Color(bcol.r, bcol.g, bcol.b, 0.28 + 0.16 * pulse), 1.1)
+	for ri in 6:
+		var ra: float = _boss_t * fast + TAU * float(ri) / 6.0
+		var p1: Vector2 = Vector2.from_angle(ra) * (sig_r * 0.72)
+		var p2: Vector2 = Vector2.from_angle(ra) * (sig_r * 1.04)
+		draw_line(p1, p2, Color(bcol.r, bcol.g, bcol.b, 0.72), 1.6)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if _charge_state == "windup":
+		_draw_charge_lane(160.0)
+	if _morph_t > 0.0:
+		var m_r: float = lerpf(64.0, 18.0, clampf(1.0 - _morph_t / 1.4, 0.0, 1.0))
+		draw_rect(Rect2(-10.0, -110.0, 20.0, 118.0), Color(0.75, 0.35, 1.0, 0.18 + 0.12 * pulse))
+		draw_arc(_hb_offset, m_r, 0.0, TAU, 32, Color(0.88, 0.55, 1.0, 0.85), 2.2)
+		draw_arc(_hb_offset, m_r * 0.65, 0.0, TAU, 28, Color(1.0, 0.85, 0.4, 0.85), 1.5)
+	if _special in ["ong_dong", "ham_chi_huy", "tran_khien", "rung_gia"] and _special_t > 0.0:
+		var sh_r: float = maxf(_hb_size.x, _hb_size.y) * 0.58
+		var sh_col := Color(0.45, 0.98, 0.55, 0.75) if _special == "rung_gia" else Color(1.0, 0.82, 0.35, 0.82)
+		draw_arc(_hb_offset, sh_r, _boss_t * 3.0, _boss_t * 3.0 + PI * 1.6, 28, sh_col, 2.2)
+		draw_arc(_hb_offset, sh_r - 3.5, -_boss_t * 2.2, -_boss_t * 2.2 + PI * 1.3, 24, Color(1.0, 1.0, 1.0, 0.45), 1.2)

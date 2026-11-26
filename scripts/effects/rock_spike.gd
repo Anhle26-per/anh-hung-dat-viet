@@ -15,8 +15,10 @@ func _ready() -> void:
 		Fx.particles(get_parent(), global_position + Vector2(0, 4), Color(0.45, 0.32, 0.2), 6, 60.0, 0.4, 120.0, 2.0, 70.0)
 		return
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if global_position.distance_to(e.global_position) < 15.0 + e.radius:
-			e.take_damage(damage, Vector2(0, -1) * 60.0 + (e.global_position - global_position).normalized() * 80.0)
+		var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (global_position.distance_to(e.global_position) - e.radius)
+		if dist_e < 15.0:
+			var e_ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+			e.take_damage(damage, Vector2(0, -1) * 60.0 + (e_ctr - global_position).normalized() * 80.0)
 	Fx.particles(get_parent(), global_position + Vector2(0, 4), Color(0.75, 0.68, 0.55), 6, 60.0, 0.4, 120.0, 2.0, 70.0)
 
 

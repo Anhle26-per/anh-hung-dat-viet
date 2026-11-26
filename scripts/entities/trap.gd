@@ -126,8 +126,8 @@ func _apply_damage() -> void:
 				continue
 			if e.has_method("is_spawning") and e.is_spawning():
 				continue
-			var e2: Node2D = e as Node2D
-			if e2 != null and e2.global_position.distance_to(global_position) <= rad + float(e.get("radius")) * 0.5:
+			var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (e.global_position.distance_to(global_position) - float(e.get("radius")) * 0.5)
+			if dist_e <= rad:
 				hit_any = true
 				match kind:
 					"fire_vent":

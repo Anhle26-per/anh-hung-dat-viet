@@ -26,9 +26,11 @@ func _process(delta: float) -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if _hit.has(e):
 			continue
-		if global_position.distance_to(e.global_position) <= _r + e.radius:
+		var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (global_position.distance_to(e.global_position) - e.radius)
+		if dist_e <= _r:
 			_hit.append(e)
-			e.take_damage(damage, (e.global_position - global_position).normalized() * knock)
+			var e_ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+			e.take_damage(damage, (e_ctr - global_position).normalized() * knock)
 			if stun > 0.0 and e.has_method("apply_stun"):
 				e.apply_stun(stun)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):

@@ -120,6 +120,7 @@ static func afterimage(parent: Node, spr: AnimatedSprite2D, pos: Vector2, color:
 	var g := Sprite2D.new()
 	g.texture = spr.sprite_frames.get_frame_texture(spr.animation, spr.frame)
 	g.flip_h = spr.flip_h
+	g.scale = spr.scale
 	g.position = pos + spr.position
 	g.offset = spr.offset
 	g.modulate = color

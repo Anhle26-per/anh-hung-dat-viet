@@ -84,6 +84,7 @@ func _ready() -> void:
 	else:
 		add_to_group("player_bullets")
 	body_entered.connect(_on_body_entered)
+	area_entered.connect(_on_area_entered)
 	var tex := Art.tex(info.tex)
 	var n: int = info.get("n", 1)
 	if n > 1:
@@ -118,7 +119,8 @@ func _physics_process(delta: float) -> void:
 	if homing > 0.0 and from_player:
 		var target = _nearest_enemy()
 		if target != null:
-			var want: float = (target.global_position - global_position).angle()
+			var tpos: Vector2 = target.hurtbox_center() if target.has_method("hurtbox_center") else target.global_position
+			var want: float = (tpos - global_position).angle()
 			var a := dir.angle()
 			a += clampf(angle_difference(a, want), -homing * delta, homing * delta)
 			dir = Vector2.from_angle(a)
@@ -198,53 +200,27 @@ func _nearest_enemy():
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if _hit.has(e) or e.is_spawning():
 			continue
-		var d := global_position.distance_to(e.global_position)
+		var d: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else global_position.distance_to(e.global_position)
 		if d < best_d:
 			best_d = d
 			best = e
 	return best
 
 
+func _on_area_entered(area: Area2D) -> void:
+	if _done or not from_player:
+		return
+	if area.has_meta("enemy"):
+		var enemy_node: Variant = area.get_meta("enemy")
+		if enemy_node is Node and is_instance_valid(enemy_node):
+			_hit_enemy(enemy_node as Node)
+
+
 func _on_body_entered(body: Node) -> void:
 	if _done:
 		return
 	if from_player and body.is_in_group("enemies"):
-		if _hit.has(body):
-			return
-		_hit.append(body)
-		if visual_only:
-			Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, color.lerp(Color(1, 0.9, 0.6), 0.5), true)
-			if pierce > 0:
-				pierce -= 1
-				return
-			_finish()
-			return
-		Sfx.play("hit_bullet")
-		var hit_dmg: int = damage
-		var has_fire_shield: bool = owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("buff") and owner_node.buff("khien_lua") > 0
-		if has_fire_shield and (force_burn or proj == "fireball" or explode_radius > 0.0):
-			hit_dmg = int(round(float(hit_dmg) * 1.5))
-		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("burn_bonus_mult"):
-			hit_dmg *= int(owner_node.burn_bonus_mult(body))
-		body.take_damage(hit_dmg, dir * knock)
-		if stun_duration > 0.0 and is_instance_valid(body) and not body.dead and body.has_method("apply_stun"):
-			body.apply_stun(stun_duration)
-		if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_hit_enemy") and is_instance_valid(body):
-			owner_node.on_hit_enemy(body)
-		var st: String = PROJ.get(proj, {}).get("status", "")
-		if st != "" and is_instance_valid(body) and body.has_method("apply_status"):
-			body.apply_status(st, burn_duration if st == "burn" else 2.2)
-		if force_burn and st != "burn" and is_instance_valid(body) and body.has_method("apply_status"):
-			body.apply_status("burn", burn_duration)
-		var lhc: Variant = body.get("last_hit_crit") if is_instance_valid(body) else null
-		var was_crit: bool = typeof(lhc) == TYPE_BOOL and (lhc as bool)
-		Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1.0, 0.92, 0.35) if was_crit else color.lerp(Color(1, 0.9, 0.6), 0.5), true)
-		if crit_pierce and was_crit:
-			return
-		if pierce > 0:
-			pierce -= 1
-			return
-		_finish()
+		_hit_enemy(body)
 	elif not from_player and body.is_in_group("player"):
 		if not bool(body.get("is_local")) or bool(body.get("downed")):
 			return
@@ -257,6 +233,47 @@ func _on_body_entered(body: Node) -> void:
 		if boomerang and _returning:
 			return
 		_hit_solid(body, global_position, -dir)
+
+
+func _hit_enemy(body: Node) -> void:
+	if _done or body == null or not is_instance_valid(body) or _hit.has(body):
+		return
+	if bool(body.get("dead")) or (body.has_method("is_spawning") and body.is_spawning()):
+		return
+	_hit.append(body)
+	if visual_only:
+		Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, color.lerp(Color(1, 0.9, 0.6), 0.5), true)
+		if pierce > 0:
+			pierce -= 1
+			return
+		_finish()
+		return
+	Sfx.play("hit_bullet")
+	var hit_dmg: int = damage
+	var has_fire_shield: bool = owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("buff") and owner_node.buff("khien_lua") > 0
+	if has_fire_shield and (force_burn or proj == "fireball" or explode_radius > 0.0):
+		hit_dmg = int(round(float(hit_dmg) * 1.5))
+	if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("burn_bonus_mult"):
+		hit_dmg *= int(owner_node.burn_bonus_mult(body))
+	body.take_damage(hit_dmg, dir * knock)
+	if stun_duration > 0.0 and is_instance_valid(body) and not body.dead and body.has_method("apply_stun"):
+		body.apply_stun(stun_duration)
+	if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("on_hit_enemy") and is_instance_valid(body):
+		owner_node.on_hit_enemy(body)
+	var st: String = PROJ.get(proj, {}).get("status", "")
+	if st != "" and is_instance_valid(body) and body.has_method("apply_status"):
+		body.apply_status(st, burn_duration if st == "burn" else 2.2)
+	if force_burn and st != "burn" and is_instance_valid(body) and body.has_method("apply_status"):
+		body.apply_status("burn", burn_duration)
+	var lhc: Variant = body.get("last_hit_crit") if is_instance_valid(body) else null
+	var was_crit: bool = typeof(lhc) == TYPE_BOOL and (lhc as bool)
+	Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1.0, 0.92, 0.35) if was_crit else color.lerp(Color(1, 0.9, 0.6), 0.5), true)
+	if crit_pierce and was_crit:
+		return
+	if pierce > 0:
+		pierce -= 1
+		return
+	_finish()
 
 
 func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
@@ -332,8 +349,10 @@ func _finish() -> void:
 				if owner_node != null and is_instance_valid(owner_node) and owner_node.has_method("buff") and owner_node.buff("khien_lua") > 0:
 					exp_dmg = int(round(float(exp_dmg) * 1.5))
 				for e in get_tree().get_nodes_in_group("enemies"):
-					if global_position.distance_to(e.global_position) < explode_radius + e.radius:
-						e.take_damage(exp_dmg, (e.global_position - global_position).normalized() * 220.0)
+					var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (global_position.distance_to(e.global_position) - e.radius)
+					if dist_e < explode_radius:
+						var e_ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+						e.take_damage(exp_dmg, (e_ctr - global_position).normalized() * 220.0)
 			else:
 				var p: Node = Global.local_player()
 				if p != null and not bool(p.get("downed")) and global_position.distance_to((p as Node2D).global_position) < explode_radius + 6.0:

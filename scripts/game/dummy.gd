@@ -15,16 +15,34 @@ func _ready() -> void:
 	add_to_group("enemies")
 	collision_layer = 4
 	collision_mask = 0
-	var shape := CircleShape2D.new()
-	shape.radius = 7.0
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(16.0, 24.0)
 	var cs := CollisionShape2D.new()
 	cs.shape = shape
+	cs.position = Vector2(0.0, -6.0)
 	add_child(cs)
 	_spr = AnimatedSprite2D.new()
 	_spr.sprite_frames = Art.frames("world/dummy.png", 20, 28, {"idle": [[0], 1.0, false], "hit": [[1], 1.0, false]})
 	_spr.position = Vector2(0, -6)
 	add_child(_spr)
 	z_index = 1
+
+
+func hurtbox_rect() -> Rect2:
+	return Rect2(global_position + Vector2(-8.0, -18.0), Vector2(16.0, 24.0))
+
+
+func hurtbox_center() -> Vector2:
+	return global_position + Vector2(0.0, -6.0)
+
+
+func closest_point_on_hurtbox(pt: Vector2) -> Vector2:
+	var r: Rect2 = hurtbox_rect()
+	return Vector2(clampf(pt.x, r.position.x, r.end.x), clampf(pt.y, r.position.y, r.end.y))
+
+
+func distance_to_hurtbox(pt: Vector2) -> float:
+	return pt.distance_to(closest_point_on_hurtbox(pt))
 
 
 func is_spawning() -> bool:

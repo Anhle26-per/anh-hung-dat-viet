@@ -123,10 +123,11 @@ func _physics_process(delta: float) -> void:
 		var target = _find_enemy(owner_pos)
 		if target != null:
 			did_action = true
-			var to_e: Vector2 = target.global_position - global_position
+			var tpos: Vector2 = target.hurtbox_center() if target.has_method("hurtbox_center") else target.global_position
+			var to_e: Vector2 = tpos - global_position
 			_spr.flip_h = to_e.x < 0.0
-			var hit_r: float = 16.0 + float(target.get("radius"))
-			if to_e.length() < hit_r:
+			var dist_hb: float = target.distance_to_hurtbox(global_position) if target.has_method("distance_to_hurtbox") else (to_e.length() - float(target.get("radius")))
+			if dist_hb < 16.0:
 				if _atk_cd <= 0.0:
 					_attack_enemy(target, to_e.normalized())
 			else:
@@ -202,9 +203,10 @@ func _find_enemy(owner_pos: Vector2):
 		if e.has_method("is_spawning") and e.is_spawning():
 			continue
 		var e2d: Node2D = e as Node2D
-		if e2d == null or e2d.global_position.distance_to(owner_pos) > 190.0:
+		var owner_dist: float = e.distance_to_hurtbox(owner_pos) if e.has_method("distance_to_hurtbox") else (e2d.global_position.distance_to(owner_pos) if e2d != null else 999.0)
+		if e2d == null or owner_dist > 190.0:
 			continue
-		var d: float = global_position.distance_to(e2d.global_position)
+		var d: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else global_position.distance_to(e2d.global_position)
 		if d < best_d:
 			best_d = d
 			best = e

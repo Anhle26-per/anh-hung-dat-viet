@@ -218,9 +218,10 @@ func _explode(par: Node) -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(e) or bool(e.get("dead")):
 			continue
-		var e2: Node2D = e as Node2D
-		if e2 != null and e2.global_position.distance_to(global_position) <= 58.0:
-			var push_dir: Vector2 = (e2.global_position - global_position).normalized()
+		var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else global_position.distance_to((e as Node2D).global_position)
+		if dist_e <= 58.0:
+			var e_ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else (e as Node2D).global_position
+			var push_dir: Vector2 = (e_ctr - global_position).normalized()
 			e.take_damage(18, push_dir * 160.0)
 			if is_instance_valid(e) and e.has_method("apply_status"):
 				e.apply_status("burn", 3.0)

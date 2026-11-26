@@ -584,7 +584,8 @@ func _update_aim(move: Vector2) -> void:
 	if Global.auto_aim():
 		var target = nearest_enemy()
 		if target != null:
-			aim_dir = (target.global_position - global_position).normalized()
+			var tpos: Vector2 = target.hurtbox_center() if target.has_method("hurtbox_center") else target.global_position
+			aim_dir = (tpos - global_position).normalized()
 		elif move.length() > 0.1:
 			aim_dir = move.normalized()
 	else:
@@ -599,7 +600,7 @@ func nearest_enemy():
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e.dead or e.is_spawning():
 			continue
-		var d := global_position.distance_to(e.global_position)
+		var d: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else global_position.distance_to(e.global_position)
 		if d < best_d:
 			best_d = d
 			best = e
@@ -797,10 +798,13 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 	var style: String = w.get("style", "swing")
 	var first_hit = null
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if _in_arc(e.global_position - offset, reach + e.radius, arc, e.radius):
+		var has_hb: bool = e.has_method("closest_point_on_hurtbox")
+		var hit_pt: Vector2 = e.closest_point_on_hurtbox(global_position + offset) if has_hb else e.global_position
+		var pad: float = 4.0 if has_hb else float(e.radius)
+		if _in_arc(hit_pt - offset, reach + pad, arc, pad):
 			var hit_dmg: int = dmg * burn_bonus_mult(e)
 			for i in hits:
-				e.take_damage(hit_dmg, (e.global_position - global_position).normalized() * knock)
+				e.take_damage(hit_dmg, (hit_pt - global_position).normalized() * knock)
 			if hit_stun > 0.0 and is_instance_valid(e) and not e.dead and e.has_method("apply_stun"):
 				e.apply_stun(hit_stun)
 			if bool(w.get("mod_fire", false)) and is_instance_valid(e) and e.has_method("apply_status"):
@@ -808,7 +812,7 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			on_hit_enemy(e)
 			if first_hit == null:
 				first_hit = e
-			Fx.anim(get_parent(), e.global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1, 0.95, 0.7), true)
+			Fx.anim(get_parent(), hit_pt, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1, 0.95, 0.7), true)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if _in_arc(b.global_position - offset, reach + 4.0, arc, 4.0):
 			if buff("kiem_phan_dan") > 0:
@@ -983,9 +987,12 @@ func _beam(w: Dictionary) -> void:
 	var width: float = w.get("width", 3.0)
 	var seg := end - start
 	for e in get_tree().get_nodes_in_group("enemies"):
-		var rel: Vector2 = e.global_position - start
+		var ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+		var rel: Vector2 = ctr - start
 		var t := clampf(rel.dot(seg) / maxf(seg.length_squared(), 1.0), 0.0, 1.0)
-		if (start + seg * t).distance_to(e.global_position) <= width + e.radius:
+		var seg_pt: Vector2 = start + seg * t
+		var dist_e: float = e.distance_to_hurtbox(seg_pt) if e.has_method("distance_to_hurtbox") else (seg_pt.distance_to(e.global_position) - e.radius)
+		if dist_e <= width:
 			e.take_damage(w.damage, aim_dir * 80.0)
 			if bool(w.get("mod_fire", false)) and is_instance_valid(e) and e.has_method("apply_status"):
 				e.apply_status("burn", 2.2)
@@ -1343,7 +1350,8 @@ func _dash_damage() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if _dash_hit.has(e):
 			continue
-		if global_position.distance_to(e.global_position) < RADIUS + e.radius + 14.0:
+		var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (global_position.distance_to(e.global_position) - e.radius - 2.0)
+		if dist_e < RADIUS + 12.0:
 			_dash_hit.append(e)
 			e.take_damage(dash_dmg, _dash_dir * 340.0)
 			if _dash_syn == 2 and _dash_armor_gained < 3:
@@ -1351,7 +1359,8 @@ func _dash_damage() -> void:
 				if armor < max_armor:
 					armor = mini(armor + 1, max_armor)
 					stats_changed.emit()
-			Fx.anim(get_parent(), e.global_position, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1, 0.9, 0.6), true)
+			var epos: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+			Fx.anim(get_parent(), epos, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1, 0.9, 0.6), true)
 			Fx.shake(get_tree(), 2.0)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if global_position.distance_to(b.global_position) < 20.0:
@@ -1363,12 +1372,14 @@ func _horse_damage() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if _dash_hit.has(e):
 			continue
-		if global_position.distance_to(e.global_position) < RADIUS + e.radius + 14.0:
+		var dist_e: float = e.distance_to_hurtbox(global_position) if e.has_method("distance_to_hurtbox") else (global_position.distance_to(e.global_position) - e.radius - 2.0)
+		if dist_e < RADIUS + 12.0:
 			_dash_hit.append(e)
 			e.take_damage(ram_dmg, _dash_dir * 300.0)
 			if is_instance_valid(e) and not e.dead and e.has_method("apply_status"):
 				e.apply_status("burn", 2.5)
-			Fx.anim(get_parent(), e.global_position, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1.0, 0.6, 0.2), true)
+			var epos: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+			Fx.anim(get_parent(), epos, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1.0, 0.6, 0.2), true)
 			Fx.shake(get_tree(), 2.0)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
 		if global_position.distance_to(b.global_position) < 20.0:

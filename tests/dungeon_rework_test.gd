@@ -242,5 +242,76 @@ func _run() -> void:
 	await _frames(1)
 	brl.take_hit(10, brl.position, Vector2.RIGHT)
 	_check(not is_instance_valid(dummy_e) or dummy_e.dead or int(dummy_e.hp) == 0, "thùng thuốc nổ phải hạ địch hp thấp")
+
+	print("== 6. Kiểm tra hitbox toàn thân, né vật cản/tách đàn và hiệu ứng Boss")
+	var Bullet = load("res://scripts/entities/bullet.gd")
+	var mob_hb = load("res://scripts/entities/enemy.gd").new()
+	mob_hb.setup("bo_binh", 1, game.player)
+	mob_hb._spawn_t = 0.0
+	mob_hb.position = Vector2(260, 260)
+	game.world.add_child(mob_hb)
+	await _frames(1)
+	var m_rect: Rect2 = mob_hb.hurtbox_rect()
+	_check(m_rect.size.x >= 16.0 and m_rect.size.y >= 18.0, "hitbox lính phải phủ thân (%s)" % str(m_rect))
+	var m_hp0: int = int(mob_hb.hp)
+	var upper_b = Bullet.new()
+	upper_b.setup(true, Vector2(m_rect.position.x - 10.0, m_rect.position.y + 3.0), Vector2.RIGHT, 320.0, 3, 0.6, "arrow")
+	upper_b.owner_node = game.player
+	game.world.add_child(upper_b)
+	for _k in 8:
+		await get_tree().physics_frame
+	_check(not is_instance_valid(mob_hb) or mob_hb.dead or int(mob_hb.hp) < m_hp0, "đạn bắn phần đầu/trên thân lính phải trúng hitbox")
+	if is_instance_valid(mob_hb):
+		mob_hb.queue_free()
+
+	var boss_hb = load("res://scripts/entities/enemy.gd").new()
+	boss_hb.setup("boss", 21, game.player)
+	boss_hb._spawn_t = 0.0
+	boss_hb.position = Vector2(360, 260)
+	game.world.add_child(boss_hb)
+	await _frames(1)
+	var b_rect1: Rect2 = boss_hb.hurtbox_rect()
+	_check(b_rect1.size.x >= 45.0 and b_rect1.size.y >= 42.0, "hitbox Boss phải phủ toàn thân (%s)" % str(b_rect1))
+	var b_hp0: int = int(boss_hb.hp)
+	var boss_top_b = Bullet.new()
+	boss_top_b.setup(true, Vector2(b_rect1.position.x - 10.0, b_rect1.position.y + 5.0), Vector2.RIGHT, 340.0, 5, 0.6, "arrow")
+	boss_top_b.owner_node = game.player
+	game.world.add_child(boss_top_b)
+	for _k in 8:
+		await get_tree().physics_frame
+	_check(int(boss_hb.hp) < b_hp0, "đạn bắn phần trên thân Boss phải trúng")
+	# Cận chiến vào mép trên/bên hitbox Boss
+	var b_hp1: int = int(boss_hb.hp)
+	game.player.global_position = Vector2(b_rect1.position.x - 16.0, b_rect1.position.y + 6.0)
+	game.player.aim_dir = Vector2.RIGHT
+	game.player._melee({"reach": 36.0, "arc": 120.0, "damage": 6, "knock": 0.0, "style": "swing"})
+	_check(int(boss_hb.hp) < b_hp1, "đánh cận chiến chạm rìa trên hitbox Boss phải trúng")
+	boss_hb._finish_morph()
+	_check(boss_hb.hurtbox_rect().size.x >= 45.0, "hitbox Boss sau biến hình không hợp lệ")
+	boss_hb._charge_state = "windup"
+	boss_hb._charge_dir = Vector2.RIGHT
+	boss_hb._special = "tran_khien"
+	boss_hb._special_t = 2.0
+	_check(boss_hb._boss_color().a > 0.0, "_boss_color lỗi")
+	boss_hb.queue_free()
+
+	# Tách đàn & né vật cản không sinh NaN
+	var sep_a = load("res://scripts/entities/enemy.gd").new()
+	var sep_b = load("res://scripts/entities/enemy.gd").new()
+	sep_a.setup("bo_binh", 1, game.player)
+	sep_b.setup("bo_binh", 1, game.player)
+	sep_a._spawn_t = 0.0
+	sep_b._spawn_t = 0.0
+	sep_a.position = Vector2(450, 260)
+	sep_b.position = Vector2(451, 260)
+	game.world.add_child(sep_a)
+	game.world.add_child(sep_b)
+	await _frames(1)
+	var sv: Vector2 = sep_a._separation_vec()
+	var av: Vector2 = sep_a._avoid_obstacles(Vector2(60, 0), 0.016)
+	_check(sv.length() > 1.0 and not is_nan(av.x) and not is_nan(av.y), "tách đàn/né vật cản không hoạt động (%s, %s)" % [str(sv), str(av)])
+	sep_a.queue_free()
+	sep_b.queue_free()
+
 	game.queue_free()
 	await _frames(2)
