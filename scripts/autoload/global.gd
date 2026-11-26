@@ -1475,21 +1475,24 @@ func _add_keys(action: String, keys: Array) -> void:
 	for k in keys:
 		var ev := InputEventKey.new()
 		ev.physical_keycode = k
-		InputMap.action_add_event(action, ev)
+		if not InputMap.action_has_event(action, ev):
+			InputMap.action_add_event(action, ev)
 
 
 func _add_mouse(action: String, button: MouseButton) -> void:
 	_ensure(action)
 	var ev := InputEventMouseButton.new()
 	ev.button_index = button
-	InputMap.action_add_event(action, ev)
+	if not InputMap.action_has_event(action, ev):
+		InputMap.action_add_event(action, ev)
 
 
 func _add_pad(action: String, button: JoyButton) -> void:
 	_ensure(action)
 	var ev := InputEventJoypadButton.new()
 	ev.button_index = button
-	InputMap.action_add_event(action, ev)
+	if not InputMap.action_has_event(action, ev):
+		InputMap.action_add_event(action, ev)
 
 
 func _add_axis(action: String, axis: JoyAxis, value: float) -> void:
@@ -1497,4 +1500,5 @@ func _add_axis(action: String, axis: JoyAxis, value: float) -> void:
 	var ev := InputEventJoypadMotion.new()
 	ev.axis = axis
 	ev.axis_value = value
-	InputMap.action_add_event(action, ev)
+	if not InputMap.action_has_event(action, ev):
+		InputMap.action_add_event(action, ev)

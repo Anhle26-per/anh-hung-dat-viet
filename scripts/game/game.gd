@@ -13,6 +13,7 @@ const BuffSelect = preload("res://scripts/ui/buff_select.gd")
 const NetSync = preload("res://scripts/net/net_sync.gd")
 const Pickup = preload("res://scripts/entities/pickup.gd")
 const Pet = preload("res://scripts/entities/pet.gd")
+const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 
 const SPAWN_OFFSETS: Array[Vector2] = [
 	Vector2(-18.0, 0.0),
@@ -45,6 +46,8 @@ var _combat_room_music_seq: int = 0
 
 
 func _ready() -> void:
+	if HotpatchSync.ensure_clean_patch_boot(get_tree()):
+		return
 	add_to_group("game")
 	get_tree().paused = false
 	world = Node2D.new()

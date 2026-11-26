@@ -18,6 +18,7 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
+const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 
 const SIZE := Vector2(1360, 760)
 const SPAWN_POS := Vector2(680, 524)
@@ -74,6 +75,8 @@ var _mat_shop_pos := Vector2(1204, 452)
 
 
 func _ready() -> void:
+	if HotpatchSync.ensure_clean_patch_boot(get_tree()):
+		return
 	add_to_group("lobby")
 	get_tree().paused = false
 	Sfx.play_music("lobby")

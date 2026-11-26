@@ -9,6 +9,7 @@ signal download_finished(ok: bool, message: String)
 
 const VersionData = preload("res://scripts/data/version.gd")
 const Art = preload("res://scripts/art/art.gd")
+const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 
 var patch_path: String = "user://patch.pck"
 var patch_tmp_path: String = "user://patch.pck.tmp"
@@ -64,6 +65,11 @@ func _read_meta() -> Dictionary:
 
 
 func try_mount_saved_patch() -> bool:
+	if HotpatchSync.is_booted_from_main_pack(patch_path):
+		patch_loaded = true
+		current_version = base_version
+		current_build = base_build
+		return true
 	if not FileAccess.file_exists(patch_path) or not FileAccess.file_exists(patch_meta_path):
 		return false
 	var meta: Dictionary = _read_meta()
@@ -342,7 +348,11 @@ func restart_to_apply() -> void:
 		return
 	if OS.has_feature("mobile"):
 		try_mount_saved_patch()
+		HotpatchSync.ensure_autoloads_synced(get_tree())
 		get_tree().reload_current_scene()
 		return
-	OS.set_restart_on_exit(true)
+	if FileAccess.file_exists(patch_path):
+		OS.set_restart_on_exit(true, PackedStringArray(["--main-pack", ProjectSettings.globalize_path(patch_path)]))
+	else:
+		OS.set_restart_on_exit(true)
 	get_tree().quit()

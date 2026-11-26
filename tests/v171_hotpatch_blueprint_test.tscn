@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/v171_hotpatch_blueprint_test.gd" id="1"]
+
+[node name="V171HotpatchBlueprintTest" type="Node"]
+script = ExtResource("1")

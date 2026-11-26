@@ -8,6 +8,7 @@ const EnemyData = preload("res://scripts/data/enemies.gd")
 const SettingsMenu = preload("res://scripts/ui/settings_menu.gd")
 const ChallengeMenu = preload("res://scripts/ui/challenge_menu.gd")
 const UpdatePopup = preload("res://scripts/ui/update_popup.gd")
+const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 
 var _settings: CanvasLayer = null
 var _challenge: CanvasLayer = null
@@ -60,6 +61,8 @@ class Backdrop extends Control:
 
 
 func _ready() -> void:
+	if HotpatchSync.ensure_clean_patch_boot(get_tree()):
+		return
 	theme = UI.make_theme()
 	get_tree().paused = false
 	Sfx.play_music("lobby")

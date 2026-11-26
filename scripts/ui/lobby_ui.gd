@@ -11,6 +11,7 @@ const BuffData = preload("res://scripts/data/buffs.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const AchievementData = preload("res://scripts/data/achievements.gd")
+const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -1814,6 +1815,7 @@ func open_mat_merchant(tab: String = "buy", last_msg: String = "") -> void:
 # ------------------------------------------------------------------ Tầng Hầm: Thành Tựu, Bản Vẽ, Bảo Tàng
 
 func open_achievements(cat: String = "all", last_msg: String = "") -> void:
+	HotpatchSync.ensure_autoloads_synced(get_tree())
 	var box := _begin("Bia Thành Tựu Chiến Tích")
 	box.add_theme_constant_override("separation", 4)
 
@@ -1940,6 +1942,7 @@ func open_achievements(cat: String = "all", last_msg: String = "") -> void:
 
 
 func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
+	HotpatchSync.ensure_autoloads_synced(get_tree())
 	var box := _begin("Bàn Bản Vẽ Binh Khí")
 	box.add_theme_constant_override("separation", 4)
 
