@@ -26,9 +26,12 @@ var stands: Array = []
 var reroll_count: int = 0
 var _merchant: AnimatedSprite2D
 var _vendor_npc: Node2D
+var _lanterns: Array[AnimatedSprite2D] = []
+var _lantern_lights: Array[PointLight2D] = []
 var _line := ""
 var _line_t := 0.0
 var _t := 0.0
+var _spark_t := 0.6
 var _mat_half_w: float = 82.0
 
 
@@ -65,7 +68,7 @@ func _ready() -> void:
 	add_child(sh)
 
 	_merchant = AnimatedSprite2D.new()
-	_merchant.sprite_frames = Art.strip("world/merchant.png", 32, 32, 4.5, true)
+	_merchant.sprite_frames = Art.strip("world/merchant.png", 32, 32, 5.2, true)
 	_merchant.position = Vector2(0, -42)
 	_merchant.scale = Vector2(1.28, 1.28)
 	_merchant.play("play")
@@ -80,14 +83,16 @@ func _ready() -> void:
 	# Hai đèn lồng đỏ treo ở hai cột mái hiên
 	for sx in [-_mat_half_w + 10.0, _mat_half_w - 10.0]:
 		var lan := AnimatedSprite2D.new()
-		lan.sprite_frames = Art.strip("world/shop_lantern.png", 10, 18, 2.8, true)
+		lan.sprite_frames = Art.strip("world/shop_lantern.png", 10, 18, 4.0, true)
 		lan.position = Vector2(sx, -50)
 		lan.z_index = 2
 		lan.play("play")
 		add_child(lan)
+		_lanterns.append(lan)
 		var lglow := Art.light(Color(1.0, 0.62, 0.25), 0.95, 0.65)
 		lglow.position = Vector2(sx, -48)
 		add_child(lglow)
+		_lantern_lights.append(lglow)
 
 	for i in count:
 		var s := Stand.new()
@@ -203,6 +208,22 @@ func _on_bought(ok: bool) -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_line_t -= delta
+	if _merchant != null and is_instance_valid(_merchant):
+		var br := sin(_t * 3.6) * 0.04
+		_merchant.position.y = -42.0 + sin(_t * 3.6) * 0.9
+		_merchant.scale = Vector2(1.28 * (1.0 - br * 0.5), 1.28 * (1.0 + br))
+	for i in _lanterns.size():
+		var lan := _lanterns[i]
+		if is_instance_valid(lan):
+			lan.rotation = sin(_t * 2.4 + float(i) * 1.4) * 0.09
+	for i in _lantern_lights.size():
+		var lg := _lantern_lights[i]
+		if is_instance_valid(lg):
+			lg.energy = 0.6 + 0.14 * sin(_t * 6.0 + float(i) * 1.7)
+	_spark_t -= delta
+	if _spark_t <= 0.0 and get_parent() != null:
+		_spark_t = 0.95
+		Fx.particles(get_parent(), global_position + Vector2(randf_range(-20, 20), -42), Color(1.0, 0.9, 0.45), 3, 22.0, 0.55, -16.0, 1.5, 45.0, Vector2.UP, Color(1.0, 0.65, 0.25))
 	var p: Node = Global.nearest_player(global_position)
 	if p != null and _line_t < -6.0 and global_position.distance_to(p.global_position) < 75.0:
 		_say(LINES.pick_random())
@@ -250,9 +271,11 @@ func _draw() -> void:
 	# Bong bóng lời thoại gọn đẹp khi bà hàng nói
 	if _line_t > 0.0:
 		var a: float = clampf(_line_t, 0.0, 1.0)
+		var bob_y: float = sin(_t * 5.0) * 1.5
 		var btxt: String = "\"%s\"" % _line
 		var bw: float = Art.text_width(btxt, 11) + 14.0
-		var br := Rect2(-bw * 0.5, -106, bw, 14)
+		var br := Rect2(-bw * 0.5, -106.0 + bob_y, bw, 14)
 		draw_rect(br, Color(0.08, 0.04, 0.07, 0.9 * a))
 		draw_rect(br, Color(0.92, 0.74, 0.32, 0.9 * a), false, 1.0)
-		Art.draw_text(self, Vector2(0, -96), btxt, 11, Color(1, 0.96, 0.86, a))
+		draw_circle(Vector2(bw * 0.5 + 4.0, -99.0 + bob_y), 2.2, Color(1.0, 0.88, 0.4, 0.85 * a))
+		Art.draw_text(self, Vector2(0, -96.0 + bob_y), btxt, 11, Color(1, 0.96, 0.86, a))

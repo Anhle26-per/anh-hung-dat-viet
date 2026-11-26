@@ -108,6 +108,13 @@ def chibi_face(expr="normal", flap="h", side="hh", brow=None, lashes=False,
         e4 = "iwi"
         l_ext = "s"
         r_ext = "s"
+    elif expr == "blink":
+        e1 = "sss"
+        e2 = "sss"
+        e3 = "eee"
+        e4 = "sss"
+        l_ext = "s"
+        r_ext = "s"
     else:
         e1 = e2 = e3 = e4 = "sss"
         l_ext = r_ext = "s"
@@ -251,6 +258,13 @@ def arms_rows(pose="idle", sleeve="1", cuff="3", hand="s", shoulder=None):
             [R(9, sleeve), R(21, sleeve)],
             [R(9, hand), R(21, hand)],
             None, None,
+        ]
+    if pose == "idle_b":
+        return [
+            [R(9, sh), R(21, sh)],
+            [R(9, sleeve), R(21, sleeve)],
+            [R(9, hand), R(21, hand)],
+            None, None, None,
         ]
     if pose == "walk_a":
         return [
@@ -930,24 +944,68 @@ def compose_fallen(spec):
     return polish(out)
 
 
+def _draw_idle_glint(img, spec, stage):
+    _, c_main_h, c_hi_h = spec["attack_fx"]
+    cm = hexc(c_main_h, 175)
+    ch = hexc(c_hi_h, 230)
+    if stage == 1:
+        _put(img, 22, 19, ch)
+        _put(img, 23, 19, cm)
+        _put(img, 22, 18, cm)
+    elif stage == 3:
+        _put(img, 10, 6, ch)
+        _put(img, 11, 6, cm)
+        _put(img, 23, 21, ch)
+
+
+def _draw_walk_dust(img, idx):
+    dust_a = (225, 215, 195, 165)
+    dust_b = (205, 192, 172, 110)
+    pts = [(7, 29), (8, 29), (6, 28)] if idx % 2 == 0 else [(8, 29), (9, 28)]
+    for x, y in pts:
+        _put(img, x, y, dust_a if x > 7 else dust_b)
+
+
+def _draw_hurt_fx(img):
+    sp = (255, 240, 180, 235)
+    sp2 = (255, 110, 90, 195)
+    for x, y in ((24, 11), (25, 12), (24, 13)):
+        _put(img, x, y, sp)
+    for x, y in ((25, 10), (26, 12), (6, 15)):
+        _put(img, x, y, sp2)
+
+
 def build_hero_frames(spec):
     frames = []
-    # 0..3: idle (4 khung — thở nhẹ + phất áo choàng/tóc)
-    frames.append(compose_frame(spec, LEGS_IDLE, breathe=0, back_dx=0))
-    frames.append(compose_frame(spec, LEGS_IDLE, breathe=0, back_dx=-1))
-    frames.append(compose_frame(spec, LEGS_IDLE, breathe=1, back_dx=0))
-    frames.append(compose_frame(spec, LEGS_IDLE, breathe=1, back_dx=-1))
+    # 0..3: idle (4 khung — thở nhẹ, chớp mắt, phất áo choàng/tóc, lấp lánh vũ khí/trang sức)
+    f0 = compose_frame(spec, LEGS_IDLE, breathe=0, back_dx=0, expr="normal", arm_pose="idle")
+    frames.append(f0)
 
-    # 4..7: walk (4 khung — chạy chibi nảy người)
-    walk_arms = ["walk_a", "idle", "walk_b", "idle"]
-    walk_back = [-1, 0, -1, 0]
+    f1 = compose_frame(spec, LEGS_IDLE, breathe=0, back_dx=-1, expr="normal", arm_pose="idle_b")
+    _draw_idle_glint(f1, spec, 1)
+    frames.append(f1)
+
+    f2 = compose_frame(spec, LEGS_IDLE, breathe=1, back_dx=-1, torso_dy=1, expr="normal", arm_pose="idle")
+    frames.append(f2)
+
+    f3 = compose_frame(spec, LEGS_IDLE, breathe=0, back_dx=0, expr="blink", arm_pose="idle_b")
+    _draw_idle_glint(f3, spec, 3)
+    frames.append(f3)
+
+    # 4..7: walk (4 khung — chạy chibi nảy người + tung bụi bước chân + áo choàng bay)
+    walk_arms = ["walk_a", "idle_b", "walk_b", "idle"]
+    walk_back = [-1, -2, -1, -2]
     for i in range(4):
-        frames.append(compose_frame(spec, LEGS_WALK[i], bob=BOB[i],
-                                    arm_pose=walk_arms[i], back_dx=walk_back[i]))
+        fw = compose_frame(spec, LEGS_WALK[i], bob=BOB[i], head_dx=(1 if i in (0, 2) else 0),
+                           arm_pose=walk_arms[i], back_dx=walk_back[i])
+        _draw_walk_dust(fw, i)
+        frames.append(fw)
 
-    # 8: hurt (1 khung — giật lùi, mắt > <)
-    frames.append(compose_frame(spec, LEGS_IDLE, dx=-1, expr="hurt",
-                                arm_pose="hurt", back_dx=-1))
+    # 8: hurt (1 khung — giật lùi, mắt > < + tia va chạm)
+    f8 = compose_frame(spec, LEGS_IDLE, dx=-1, expr="hurt",
+                       arm_pose="hurt", back_dx=-1)
+    _draw_hurt_fx(f8)
+    frames.append(f8)
 
     # 9..10: attack (2 khung — lao tới vung đòn + tia sáng đặc trưng từng tướng)
     f9 = compose_frame(spec, LEGS_ATTACK_1, dx=1, expr="fierce",

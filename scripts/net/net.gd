@@ -17,6 +17,7 @@ const DiscoveryScript = preload("res://scripts/net/discovery.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
 
 signal lobby_updated()
+signal entered_lan_lobby()
 signal match_started(seed_val: int, level: int)
 signal host_left(reason: String)
 signal player_disconnected_midrun(peer_id: int, pname: String)
@@ -34,6 +35,7 @@ var players: Dictionary = {}             # peer_id: int -> {id, name, hero, read
 var disconnected_slots: Dictionary = {}  # player_name: String -> {hero, color, slot_idx, expires_ms}
 var host_profile: Dictionary = {}        # {unlocked, upgrades, hero_levels, weapon_ranks, difficulty}
 var match_seed: int = 0
+var in_lobby: bool = false
 var in_match: bool = false
 var room_name: String = ""
 var ping_ms: int = 0
@@ -131,6 +133,7 @@ func create_room(rname: String, pname: String, port: int = DEFAULT_PORT) -> int:
 	room_name = clean_rname if clean_rname != "" else "Phòng của %s" % _local_player_name
 	host_profile = _build_host_profile()
 	match_seed = 0
+	in_lobby = false
 	in_match = false
 	ping_ms = 0
 	disconnect_notice = ""
@@ -138,11 +141,14 @@ func create_room(rname: String, pname: String, port: int = DEFAULT_PORT) -> int:
 	players.clear()
 
 	var hero_id: String = _default_hero_from_profile()
+	var pet_id: String = Global.selected_pet if Global.PETS.has(Global.selected_pet) else ""
 	Global.selected_hero = hero_id
 	players[1] = {
 		"id": 1,
 		"name": _local_player_name,
 		"hero": hero_id,
+		"pet": pet_id,
+		"hero_confirmed": false,
 		"ready": true,
 		"color": PLAYER_COLORS[0],
 		"downed": false,
@@ -169,6 +175,7 @@ func join_room(ip: String, pname: String, port: int = DEFAULT_PORT) -> int:
 	room_name = ""
 	host_profile = {}
 	match_seed = 0
+	in_lobby = false
 	in_match = false
 	ping_ms = 0
 	disconnect_notice = ""
@@ -188,6 +195,7 @@ func leave_room() -> void:
 	disconnected_slots.clear()
 	host_profile.clear()
 	match_seed = 0
+	in_lobby = false
 	in_match = false
 	room_name = ""
 	ping_ms = 0
@@ -221,6 +229,42 @@ func request_set_ready(ready: bool) -> void:
 		_rpc_set_ready.rpc_id(1, ready)
 
 
+func request_set_pet(pet_id: String) -> void:
+	if not is_online():
+		return
+	if pet_id != "" and not Global.PETS.has(pet_id):
+		return
+	if is_host():
+		_apply_set_pet(1, pet_id)
+	else:
+		_rpc_set_pet.rpc_id(1, pet_id)
+
+
+func all_peers_confirmed() -> bool:
+	if players.is_empty():
+		return false
+	for pid in players:
+		if not bool(players[pid].get("hero_confirmed", false)):
+			return false
+	return true
+
+
+func host_enter_lobby() -> void:
+	if not is_online() or not is_host():
+		return
+	in_lobby = true
+	in_match = false
+	host_profile = _build_host_profile()
+	for pid in players:
+		var info: Dictionary = players[pid]
+		info["hero_confirmed"] = false
+		if int(pid) != 1:
+			info["ready"] = false
+		players[pid] = info
+	_update_discovery()
+	_rpc_enter_lan_lobby.rpc(room_name, host_profile, players, in_lobby)
+
+
 func host_start_match() -> void:
 	if not is_online() or not is_host():
 		return
@@ -230,6 +274,7 @@ func host_start_match() -> void:
 	match_seed = randi() & 0x7FFFFFFF
 	if match_seed == 0:
 		match_seed = 1
+	in_lobby = false
 	in_match = true
 	Global.start_run()
 	seed(match_seed)
@@ -319,6 +364,8 @@ func _rpc_register_player(pname: String) -> void:
 				"id": sender,
 				"name": clean_name,
 				"hero": hero_id,
+				"pet": str(slot.get("pet", "")),
+				"hero_confirmed": true,
 				"ready": true,
 				"color": col,
 				"downed": false,
@@ -326,7 +373,7 @@ func _rpc_register_player(pname: String) -> void:
 			}
 			players[sender] = info
 			_update_discovery()
-			_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match)
+			_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
 			_rpc_start_match.rpc_id(sender, match_seed, Global.level, Global.boss_order, host_profile, players)
 			_rpc_player_reconnected.rpc(sender, info)
 			return
@@ -347,25 +394,43 @@ func _rpc_register_player(pname: String) -> void:
 		"id": sender,
 		"name": unique_name,
 		"hero": hero_id,
+		"pet": "",
+		"hero_confirmed": false,
 		"ready": false,
 		"color": col,
 		"downed": false,
 		"slot_idx": slot_idx,
 	}
 	_update_discovery()
-	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match)
+	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
+	if in_lobby and not in_match:
+		_rpc_enter_lan_lobby.rpc_id(sender, room_name, host_profile, players, in_lobby)
 
 
 @rpc("authority", "call_local", "reliable")
-func _rpc_sync_lobby(rname: String, profile: Dictionary, p_map: Dictionary, running: bool) -> void:
+func _rpc_sync_lobby(rname: String, profile: Dictionary, p_map: Dictionary, running: bool, lobby_flag: bool = false) -> void:
 	room_name = rname
 	host_profile = profile.duplicate(true)
 	players = _normalize_players_dict(p_map)
 	in_match = running
+	in_lobby = lobby_flag
 	var my_id: int = local_peer_id()
 	if players.has(my_id):
 		Global.selected_hero = str(players[my_id].get("hero", Global.selected_hero))
 	lobby_updated.emit()
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_enter_lan_lobby(rname: String, profile: Dictionary, p_map: Dictionary, lobby_flag: bool) -> void:
+	room_name = rname
+	host_profile = profile.duplicate(true)
+	players = _normalize_players_dict(p_map)
+	in_lobby = lobby_flag
+	in_match = false
+	var my_id: int = local_peer_id()
+	if players.has(my_id):
+		Global.selected_hero = str(players[my_id].get("hero", Global.selected_hero))
+	entered_lan_lobby.emit()
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -384,9 +449,18 @@ func _rpc_set_ready(ready: bool) -> void:
 	_apply_set_ready(sender, ready)
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_set_pet(pet_id: String) -> void:
+	if not is_host():
+		return
+	var sender: int = multiplayer.get_remote_sender_id()
+	_apply_set_pet(sender, pet_id)
+
+
 @rpc("authority", "call_local", "reliable")
 func _rpc_start_match(seed_val: int, level_val: int, b_order: Array, profile: Dictionary, p_map: Dictionary) -> void:
 	match_seed = seed_val
+	in_lobby = false
 	in_match = true
 	host_profile = profile.duplicate(true)
 	players = _normalize_players_dict(p_map)
@@ -535,13 +609,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if in_match:
 		disconnected_slots[pname] = {
 			"hero": str(info.get("hero", _default_hero_from_profile())),
+			"pet": str(info.get("pet", "")),
 			"color": info.get("color", PLAYER_COLORS[0]),
 			"slot_idx": int(info.get("slot_idx", 1)),
 			"expires_ms": Time.get_ticks_msec() + RECONNECT_GRACE_MS,
 		}
 		_rpc_player_disconnected_midrun.rpc(peer_id, pname)
 	_update_discovery()
-	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match)
+	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
 
 
 func _on_connected_to_server() -> void:
@@ -574,10 +649,11 @@ func _apply_set_hero(pid: int, hid: String) -> void:
 		return
 	var info: Dictionary = players[pid]
 	info["hero"] = hid
+	info["hero_confirmed"] = true
 	players[pid] = info
 	if pid == local_peer_id():
 		Global.selected_hero = hid
-	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match)
+	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
 
 
 func _apply_set_ready(pid: int, ready: bool) -> void:
@@ -586,7 +662,20 @@ func _apply_set_ready(pid: int, ready: bool) -> void:
 	var info: Dictionary = players[pid]
 	info["ready"] = ready
 	players[pid] = info
-	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match)
+	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
+
+
+func _apply_set_pet(pid: int, pet_id: String) -> void:
+	if not players.has(pid):
+		return
+	if pet_id != "" and not Global.PETS.has(pet_id):
+		return
+	var info: Dictionary = players[pid]
+	info["pet"] = pet_id
+	players[pid] = info
+	if pid == local_peer_id():
+		Global.selected_pet = pet_id
+	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
 
 
 func _build_host_profile() -> Dictionary:
@@ -618,13 +707,7 @@ func _default_hero_from_profile() -> String:
 
 
 func _pick_open_hero() -> String:
-	var unl: Array = host_profile.get("unlocked", [])
-	var taken: Array = []
-	for pid in players:
-		taken.append(str(players[pid].get("hero", "")))
-	for hid in HeroData.ORDER:
-		if unl.has(hid) and not taken.has(hid):
-			return hid
+	# Cho phép nhiều người chơi LAN chọn trùng cùng một tướng (miễn có trong kho Chủ phòng).
 	return _default_hero_from_profile()
 
 

@@ -1,6 +1,6 @@
 """Đồ họa v2.0.0: 3 thú cưỡi, 6 bàn tế/sự kiện [!], 11 biểu tượng Kỹ năng 2 & 5 Tượng Thần."""
 import math
-from px import hexc, outline, save, canvas, DARK_LINE, Image
+from px import hexc, outline, save, sheet, canvas, DARK_LINE, Image
 
 
 C = {k: hexc(v) for k, v in {
@@ -174,139 +174,182 @@ def draw_xe_tang_mount():
     return outline(img, DARK_LINE)
 
 
-# ==================================================================== 6 Event Altars (32x32)
+# ==================================================================== 6 Event Altars (4 khung động 32x32 -> 128x32)
 def draw_reforge_furnace():
-    img, _ = canvas(32, 32)
-    # Bệ đá & thân lò rèn cổ gạch đỏ
-    _rect(img, 5, 25, 26, 29, C["stone_d"])
-    _rect(img, 6, 24, 25, 26, C["stone_l"])
-    _rect(img, 7, 10, 24, 24, C["red_d"])
-    _rect(img, 8, 11, 23, 23, C["red"])
-    for y in (14, 18, 22):
-        _line(img, 8, y, 23, y, C["red_d"])
-    # Miệng lò lửa rực
-    _rect(img, 11, 15, 20, 23, C["ink_d"])
-    _disc(img, 15.5, 20, 3.6, C["fire"])
-    _disc(img, 15.5, 20, 2.2, C["fire_l"])
-    _disc(img, 15.5, 21, 1.3, C["fire_hi"])
-    # Mái vòm đồng vàng & ống khói
-    _rect(img, 13, 4, 18, 9, C["stone"])
-    _rect(img, 6, 8, 25, 11, C["gold"])
-    _rect(img, 7, 8, 24, 9, C["gold_hi"])
-    # Búa rèn vàng trên đỉnh
-    _line(img, 22, 6, 26, 10, C["wood_l"], 2)
-    _rect(img, 20, 4, 24, 7, C["steel_hi"])
-    _spark(img, 16, 4, C["fire_l"], C["white"], 1)
-    return outline(img, DARK_LINE)
+    frames = []
+    for f in range(4):
+        img, _ = canvas(32, 32)
+        bob = -1 if f in (1, 2) else 0
+        # Bệ đá & thân lò rèn cổ gạch đỏ
+        _rect(img, 5, 25, 26, 29, C["stone_d"])
+        _rect(img, 6, 24, 25, 26, C["stone_l"])
+        _rect(img, 7, 10, 24, 24, C["red_d"])
+        _rect(img, 8, 11, 23, 23, C["red"])
+        for y in (14, 18, 22):
+            _line(img, 8, y, 23, y, C["red_d"])
+        # Miệng lò lửa rực nhảy theo khung
+        _rect(img, 11, 15, 20, 23, C["ink_d"])
+        r_out = [3.6, 4.1, 3.8, 3.3][f]
+        _disc(img, 15.5, 20 + (0 if f % 2 == 0 else -0.6), r_out, C["fire"])
+        _disc(img, 15.5, 20 + bob * 0.4, 2.4 if f in (1, 2) else 2.0, C["fire_l"])
+        _disc(img, 15.5, 21 + bob * 0.4, 1.4, C["fire_hi"])
+        # Mái vòm đồng vàng & ống khói
+        _rect(img, 13, 4, 18, 9, C["stone"])
+        _rect(img, 6, 8, 25, 11, C["gold"])
+        _rect(img, 7, 8, 24, 9, C["gold_hi"])
+        # Búa rèn vàng nện nhịp trên đỉnh & tia lửa bay lên
+        _line(img, 22, 6 + bob, 26, 10 + bob, C["wood_l"], 2)
+        _rect(img, 20, 4 + bob, 24, 7 + bob, C["steel_hi"])
+        _spark(img, 15 + (f % 2), 3 - (f // 2), C["fire_l"], C["white"], 1)
+        _pp(img, 11 + f * 3, 13 - (f % 3), C["fire_hi"])
+        frames.append(outline(img, DARK_LINE))
+    return sheet(frames)
 
 
 def draw_decomposer():
-    img, _ = canvas(32, 32)
-    # Bệ đá cổ ma thuật tím-ngọc phân tách binh khí
-    _rect(img, 6, 23, 25, 28, C["stone_d"])
-    _rect(img, 7, 21, 24, 24, C["stone_l"])
-    _rect(img, 9, 16, 22, 21, C["purp_d"])
-    _rect(img, 11, 16, 20, 18, C["purp"])
-    # Lõi năng lượng xoay ở giữa
-    _ring(img, 16, 12, 4.5, 6.2, C["purp_l"])
-    _disc(img, 16, 12, 3.2, C["jade_l"])
-    _disc(img, 16, 12, 1.6, C["white"])
-    # Mảnh kiếm bị tách rời bay lên hai bên
-    _line(img, 7, 13, 11, 8, C["steel_hi"], 2)
-    _line(img, 24, 13, 20, 8, C["gold_l"], 2)
-    _spark(img, 8, 6, C["jade_hi"], C["white"], 1)
-    _spark(img, 24, 6, C["purp_hi"], C["white"], 1)
-    return outline(img, DARK_LINE)
+    frames = []
+    for f in range(4):
+        img, _ = canvas(32, 32)
+        bob = [0, -1, -2, -1][f]
+        # Bệ đá cổ ma thuật tím-ngọc phân tách binh khí
+        _rect(img, 6, 23, 25, 28, C["stone_d"])
+        _rect(img, 7, 21, 24, 24, C["stone_l"])
+        _rect(img, 9, 16, 22, 21, C["purp_d"])
+        _rect(img, 11, 16, 20, 18, C["purp"])
+        # Lõi năng lượng xoay ở giữa
+        _ring(img, 16, 12 + bob, 4.5, 6.2, C["purp_l"] if f % 2 == 0 else C["jade_l"])
+        _disc(img, 16, 12 + bob, 3.2 + (0.3 if f in (1, 2) else 0.0), C["jade_l"])
+        _disc(img, 16, 12 + bob, 1.6, C["white"])
+        # Mảnh kiếm bị tách rời dao động hai bên
+        _line(img, 7, 13 - bob, 11, 8 - bob, C["steel_hi"], 2)
+        _line(img, 24, 13 + bob, 20, 8 + bob, C["gold_l"], 2)
+        _spark(img, 8 + (f % 2), 6 - (f % 2), C["jade_hi"], C["white"], 1)
+        _spark(img, 24 - (f % 2), 6 + (f % 2), C["purp_hi"], C["white"], 1)
+        frames.append(outline(img, DARK_LINE))
+    return sheet(frames)
 
 
 def draw_statue_shrine():
-    img, _ = canvas(32, 32)
-    # Bệ đá & cột đỏ miếu thần Việt
-    _rect(img, 5, 25, 26, 29, C["stone"])
-    _rect(img, 7, 13, 9, 25, C["red"])
-    _rect(img, 22, 13, 24, 25, C["red"])
-    # Tượng ngọc-vàng ở giữa miếu
-    _disc(img, 16, 16, 3.2, C["jade_l"])
-    _rect(img, 13, 18, 19, 24, C["gold_l"])
-    _rect(img, 14, 19, 18, 23, C["jade"])
-    # Mái đình cong 2 tầng đỏ-vàng
-    for dx in range(-12, 13):
-        lift = max(0, abs(dx) - 8) // 2
-        _pp(img, 16 + dx, 12 - lift, C["gold_hi"])
-        _pp(img, 16 + dx, 11 - lift, C["red_l"])
-        if abs(dx) <= 9:
-            _pp(img, 16 + dx, 10 - lift, C["red"])
-            _pp(img, 16 + dx, 9, C["gold"])
-    _rect(img, 10, 7, 21, 9, C["red_l"])
-    _disc(img, 16, 5, 2.0, C["gold_hi"])
-    return outline(img, DARK_LINE)
+    frames = []
+    for f in range(4):
+        img, _ = canvas(32, 32)
+        # Bệ đá & cột đỏ miếu thần Việt
+        _rect(img, 5, 25, 26, 29, C["stone"])
+        _rect(img, 7, 13, 9, 25, C["red"])
+        _rect(img, 22, 13, 24, 25, C["red"])
+        # Hào quang ngọc-vàng tỏa sáng phía sau tượng
+        _ring(img, 16, 17, 4.0 + (f % 2) * 0.5, 5.2 + (f % 2) * 0.5, C["gold_l"] if f % 2 == 0 else C["jade_l"])
+        # Tượng ngọc-vàng ở giữa miếu
+        _disc(img, 16, 16, 3.2, C["jade_l"])
+        _rect(img, 13, 18, 19, 24, C["gold_l"])
+        _rect(img, 14, 19, 18, 23, C["jade"])
+        # Mái đình cong 2 tầng đỏ-vàng
+        for dx in range(-12, 13):
+            lift = max(0, abs(dx) - 8) // 2
+            _pp(img, 16 + dx, 12 - lift, C["gold_hi"])
+            _pp(img, 16 + dx, 11 - lift, C["red_l"])
+            if abs(dx) <= 9:
+                _pp(img, 16 + dx, 10 - lift, C["red"])
+                _pp(img, 16 + dx, 9, C["gold"])
+        _rect(img, 10, 7, 21, 9, C["red_l"])
+        _disc(img, 16, 5, 2.0, C["gold_hi"])
+        # Đốm hương & hạt linh khí bay lên
+        _pp(img, 8, 12 - (f % 2), C["fire_hi"])
+        _pp(img, 23, 12 - ((f + 1) % 2), C["fire_hi"])
+        _spark(img, 6 + f * 6, 4 + (f % 2), C["gold_hi"], C["white"], 0)
+        frames.append(outline(img, DARK_LINE))
+    return sheet(frames)
 
 
 def draw_mentor_npc():
-    img, _ = canvas(32, 32)
-    # Bóng & áo dài quân sư lam-vàng
-    _rect(img, 10, 17, 21, 28, C["blue_d"])
-    _rect(img, 11, 17, 20, 27, C["blue"])
-    _rect(img, 14, 18, 17, 27, C["gold_l"])
-    # Đầu & râu bạc hiền triết
-    _disc(img, 16, 12, 4.5, C["skin"])
-    _pp(img, 14, 11, C["ink_d"])
-    _pp(img, 18, 11, C["ink_d"])
-    _line(img, 14, 15, 16, 19, C["white"], 2)
-    _line(img, 18, 15, 16, 19, C["steel_hi"], 1)
-    # Mũ cánh chuồn quân sư
-    _rect(img, 11, 6, 20, 9, C["ink"])
-    _rect(img, 13, 4, 18, 7, C["gold_l"])
-    _line(img, 6, 8, 11, 8, C["gold"])
-    _line(img, 20, 8, 25, 8, C["gold"])
-    # Cuộn thư trúc trên tay
-    _rect(img, 21, 17, 25, 22, C["cream"])
-    _rect(img, 21, 17, 25, 18, C["gold"])
-    _rect(img, 21, 21, 25, 22, C["gold"])
-    return outline(img, DARK_LINE)
+    frames = []
+    for f in range(4):
+        img, _ = canvas(32, 32)
+        bob = -1 if f in (1, 2) else 0
+        sw = 1 if f in (1, 3) else 0
+        # Bóng & áo dài quân sư lam-vàng thở nhẹ
+        _rect(img, 10, 17 + bob, 21, 28, C["blue_d"])
+        _rect(img, 11, 17 + bob, 20, 27, C["blue"])
+        _rect(img, 14, 18 + bob, 17, 27, C["gold_l"])
+        # Đầu & râu bạc hiền triết (chớp mắt ở khung 2)
+        _disc(img, 16, 12 + bob, 4.5, C["skin"])
+        if f == 2:
+            _line(img, 13, 11 + bob, 14, 11 + bob, C["ink_d"])
+            _line(img, 17, 11 + bob, 18, 11 + bob, C["ink_d"])
+        else:
+            _pp(img, 14, 11 + bob, C["ink_d"])
+            _pp(img, 18, 11 + bob, C["ink_d"])
+        _line(img, 14, 15 + bob, 16 + sw, 19 + bob, C["white"], 2)
+        _line(img, 18, 15 + bob, 16 + sw, 19 + bob, C["steel_hi"], 1)
+        # Mũ cánh chuồn quân sư
+        _rect(img, 11, 6 + bob, 20, 9 + bob, C["ink"])
+        _rect(img, 13, 4 + bob, 18, 7 + bob, C["gold_l"])
+        _line(img, 6, 8 + bob - (1 if f == 1 else 0), 11, 8 + bob, C["gold"])
+        _line(img, 20, 8 + bob, 25, 8 + bob - (1 if f == 3 else 0), C["gold"])
+        # Cuộn thư trúc phát sáng nâng nhẹ trên tay
+        sy = 17 + bob + (-1 if f in (1, 2) else 0)
+        _rect(img, 21, sy, 25, sy + 5, C["cream"])
+        _rect(img, 21, sy, 25, sy + 1, C["gold"])
+        _rect(img, 21, sy + 4, 25, sy + 5, C["gold"])
+        _spark(img, 23, sy - 3, C["purp_hi"] if f % 2 == 0 else C["gold_hi"], C["white"], 0)
+        frames.append(outline(img, DARK_LINE))
+    return sheet(frames)
 
 
 def draw_rescue_camp():
-    img, _ = canvas(32, 32)
-    # Lều quân y xanh lá - kem với cờ thập đỏ vàng
-    for dy in range(16):
-        hw = 2 + int(dy * 0.72)
-        for dx in range(-hw, hw + 1):
-            y = 11 + dy
-            col = C["leaf_hi"] if dx < -hw + 3 else (C["leaf"] if abs(dx) > 4 else C["cream"])
-            _pp(img, 16 + dx, y, col)
-    # Cửa lều tối & rương thuốc
-    _rect(img, 13, 19, 18, 26, C["ink"])
-    _rect(img, 13, 14, 18, 15, C["red_l"])
-    # Biểu tượng chữ thập đỏ hồi máu
-    _rect(img, 15, 12, 16, 17, C["red"])
-    _rect(img, 13, 14, 18, 15, C["red"])
-    # Cờ quân y trên đỉnh
-    _line(img, 16, 4, 16, 11, C["wood_l"])
-    _rect(img, 16, 4, 22, 8, C["red_l"])
-    _pp(img, 19, 6, C["white"])
-    _spark(img, 7, 14, C["leaf_hi"], C["white"], 1)
-    return outline(img, DARK_LINE)
+    frames = []
+    for f in range(4):
+        img, _ = canvas(32, 32)
+        # Lều quân y xanh lá - kem với cờ thập đỏ vàng
+        for dy in range(16):
+            hw = 2 + int(dy * 0.72)
+            for dx in range(-hw, hw + 1):
+                y = 11 + dy
+                col = C["leaf_hi"] if dx < -hw + 3 else (C["leaf"] if abs(dx) > 4 else C["cream"])
+                _pp(img, 16 + dx, y, col)
+        # Cửa lều tối & ánh đèn ấm bên trong
+        _rect(img, 13, 19, 18, 26, C["ink"])
+        _disc(img, 16, 23, 1.5 if f % 2 == 0 else 1.2, C["fire_l"])
+        _rect(img, 13, 14, 18, 15, C["red_l"])
+        # Biểu tượng chữ thập đỏ hồi máu
+        _rect(img, 15, 12, 16, 17, C["red"])
+        _rect(img, 13, 14, 18, 15, C["red"])
+        # Cờ quân y trên đỉnh bay phất phới
+        _line(img, 16, 4, 16, 11, C["wood_l"])
+        fw_dy = [0, -1, 0, 1][f]
+        _rect(img, 16, 4, 22, 8, C["red_l"])
+        _pp(img, 23, 5 + fw_dy, C["red_l"])
+        _pp(img, 19, 6, C["white"])
+        # Hạt hồi phục xanh lá bay lên
+        _spark(img, 7, 15 - f * 2, C["leaf_hi"], C["white"], 1 if f % 2 == 0 else 0)
+        _spark(img, 25, 17 - ((f + 2) % 4) * 2, C["jade_hi"], C["white"], 0)
+        frames.append(outline(img, DARK_LINE))
+    return sheet(frames)
 
 
 def draw_challenge_arena():
-    img, _ = canvas(32, 32)
-    # Đài thách đấu đá đen viền đỏ rực lửa
-    _rect(img, 5, 23, 26, 28, C["ink_d"])
-    _rect(img, 6, 21, 25, 24, C["stone"])
-    _rect(img, 7, 20, 24, 21, C["red"])
-    # Hai thanh kích chéo sau đài
-    _line(img, 7, 20, 24, 6, C["steel_hi"], 2)
-    _line(img, 24, 20, 7, 6, C["steel_l"], 2)
-    _pp(img, 24, 6, C["white"])
-    _pp(img, 7, 6, C["white"])
-    # Vạc lửa thách đấu ở tâm
-    _disc(img, 16, 16, 4.2, C["gold_d"])
-    _disc(img, 16, 14, 3.6, C["fire"])
-    _disc(img, 16, 13, 2.2, C["fire_l"])
-    _pp(img, 16, 11, C["white"])
-    _spark(img, 16, 7, C["red_l"], C["fire_hi"], 1)
-    return outline(img, DARK_LINE)
+    frames = []
+    for f in range(4):
+        img, _ = canvas(32, 32)
+        # Đài thách đấu đá đen viền đỏ rực lửa
+        _rect(img, 5, 23, 26, 28, C["ink_d"])
+        _rect(img, 6, 21, 25, 24, C["stone"])
+        _rect(img, 7, 20, 24, 21, C["red"])
+        # Hai thanh kích chéo sau đài lóe sáng dọc lưỡi
+        _line(img, 7, 20, 24, 6, C["steel_hi"], 2)
+        _line(img, 24, 20, 7, 6, C["steel_l"], 2)
+        _pp(img, 24, 6, C["white"])
+        _pp(img, 7, 6, C["white"])
+        _pp(img, 10 + f * 4, 17 - f * 3, C["white"])
+        # Vạc lửa thách đấu cháy bùng ở tâm
+        _disc(img, 16, 16, 4.2, C["gold_d"])
+        fl_h = [0, -1, -2, -1][f]
+        _disc(img, 16, 14 + fl_h * 0.4, 3.6 + (0.4 if f == 2 else 0.0), C["fire"])
+        _disc(img, 16, 13 + fl_h * 0.6, 2.2, C["fire_l"])
+        _pp(img, 16, 11 + fl_h, C["white"])
+        _spark(img, 16 + (1 if f == 1 else (-1 if f == 3 else 0)), 7 + fl_h, C["red_l"], C["fire_hi"], 1)
+        frames.append(outline(img, DARK_LINE))
+    return sheet(frames)
 
 
 # ==================================================================== 11 Skill 2 Icons (22x22)

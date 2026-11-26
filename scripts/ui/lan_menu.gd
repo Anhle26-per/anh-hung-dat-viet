@@ -114,6 +114,7 @@ func _ready() -> void:
 	_build_room_ui(_room_box)
 
 	Net.lobby_updated.connect(_on_lobby_updated)
+	Net.entered_lan_lobby.connect(_on_entered_lan_lobby)
 	Net.match_started.connect(_on_match_started)
 	Net.host_left.connect(_on_host_left)
 	Net.connection_failed.connect(_on_connection_failed)
@@ -122,12 +123,18 @@ func _ready() -> void:
 		_show_notice(Net.disconnect_notice, Color(1.0, 0.55, 0.45))
 		Net.disconnect_notice = ""
 
+	if Net.is_online() and Net.in_lobby and not Net.in_match:
+		_on_entered_lan_lobby.call_deferred()
+		return
+
 	_refresh_view()
 
 
 func _exit_tree() -> void:
 	if Net.lobby_updated.is_connected(_on_lobby_updated):
 		Net.lobby_updated.disconnect(_on_lobby_updated)
+	if Net.entered_lan_lobby.is_connected(_on_entered_lan_lobby):
+		Net.entered_lan_lobby.disconnect(_on_entered_lan_lobby)
 	if Net.match_started.is_connected(_on_match_started):
 		Net.match_started.disconnect(_on_match_started)
 	if Net.host_left.is_connected(_on_host_left):
@@ -285,7 +292,7 @@ func _build_room_ui(parent: VBoxContainer) -> void:
 	_ready_btn = UI.button("Sẵn sàng", _on_toggle_ready, 17, 150.0)
 	_ready_btn.custom_minimum_size = Vector2(150, 28)
 	actions.add_child(_ready_btn)
-	_start_btn = UI.button("Bắt đầu trận", _on_start_match, 17, 170.0)
+	_start_btn = UI.button("Vào Doanh Trại", _on_enter_lobby, 17, 170.0)
 	_start_btn.custom_minimum_size = Vector2(170, 28)
 	actions.add_child(_start_btn)
 	var leave_btn := UI.button("Rời phòng", _on_leave_room, 17, 140.0)
@@ -380,13 +387,8 @@ func _refresh_view() -> void:
 	_ready_btn.visible = not Net.is_host()
 
 	_start_btn.visible = Net.is_host()
-	var all_ready: bool = true
-	for pid in Net.players:
-		if not bool(Net.players[pid].get("ready", false)):
-			all_ready = false
-			break
-	_start_btn.disabled = not all_ready
-	_start_btn.text = "Bắt đầu trận" if all_ready else "Chờ sẵn sàng..."
+	_start_btn.disabled = false
+	_start_btn.text = "Vào Doanh Trại"
 
 
 func _refresh_players_list() -> void:
@@ -466,7 +468,7 @@ func _on_create_room() -> void:
 	if err != OK:
 		_show_notice("Không thể tạo phòng trên cổng %d (mã lỗi %d)." % [Net.DEFAULT_PORT, err], Color(1.0, 0.5, 0.45))
 		return
-	_refresh_view()
+	Net.host_enter_lobby()
 
 
 func _on_join_ip() -> void:
@@ -527,6 +529,10 @@ func _on_toggle_ready() -> void:
 	Net.request_set_ready(not cur)
 
 
+func _on_enter_lobby() -> void:
+	Net.host_enter_lobby()
+
+
 func _on_start_match() -> void:
 	Net.host_start_match()
 
@@ -543,9 +549,17 @@ func _on_back() -> void:
 
 
 func _on_lobby_updated() -> void:
+	if Net.is_online() and Net.in_lobby and not Net.in_match:
+		_on_entered_lan_lobby()
+		return
 	if Net.is_online() and not Net.players.is_empty():
 		_show_notice("")
 	_refresh_view()
+
+
+func _on_entered_lan_lobby() -> void:
+	if is_inside_tree():
+		get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 
 
 func _on_match_started(_seed_val: int, _level: int) -> void:

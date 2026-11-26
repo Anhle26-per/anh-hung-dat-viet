@@ -1,4 +1,4 @@
-"""Hình "hiện nguyên hình" của 10 trùm lịch sử: sắc nét, tương phản mạnh, sừng & hào quang chi tiết."""
+"""Hình "hiện nguyên hình" của 10 trùm lịch sử (36 khung): sắc nét, tương phản mạnh, sừng & hào quang chi tiết."""
 import colorsys
 import os
 from PIL import Image, ImageDraw, ImageFilter
@@ -62,9 +62,9 @@ def demonize_frame(fr, cfg):
                 l = colorsys.rgb_to_hls(c[0] / 255, c[1] / 255, c[2] / 255)[1]
                 px[x, y] = shade(skin, (l - 0.68) * 1.55)
                 skin_pts.append((x, y))
-            elif skin is None and c[3] > 200:
+            elif skin is None and c[3] > 60:
                 lum = (c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11) / 255
-                px[x, y] = (int(34 + 62 * lum), int(78 + 125 * lum), int(64 + 80 * lum), 255)
+                px[x, y] = (int(34 + 62 * lum), int(78 + 125 * lum), int(64 + 80 * lum), c[3])
     sk = set(skin_pts)
     for y in range(h):
         for x in range(w):
@@ -169,17 +169,114 @@ def add_horns(img, box, cfg):
     return img
 
 
+def _flame_tongue(d, x, y, hgt, w_half, outer_c, core_c, tilt=0):
+    d.polygon([(x - w_half, y), (x + tilt, max(1, y - hgt)), (x + w_half, y)], fill=outer_c)
+    d.polygon([(x - max(1, w_half // 2), y), (x + tilt // 2, max(2, y - max(2, hgt // 2))), (x + max(1, w_half // 2), y)], fill=core_c)
+
+
 def _ghost_flames(img, f):
     d = ImageDraw.Draw(img)
     w, h = img.size
     px = img.load()
-    for k, fx in enumerate(range(20, w - 20, 16)):
+    g_out = hexc("38e468")
+    g_mid = hexc("7cff9c")
+    g_core = hexc("e6ffd8")
+    tilt = -5 if f in (28, 29) else (-2 if 4 <= f < 12 else 0)
+    extra = 6 if f >= 33 else (4 if 12 <= f < 24 else 0)
+    step = 12 if f >= 33 else 16
+    for k, fx in enumerate(range(18, w - 18, step)):
         top = next((y for y in range(h) if px[fx, y][3] > 200), None)
         if top is None:
             continue
-        hgt = 8 + ((k + f) % 3) * 3
-        d.polygon([(fx - 4, top + 2), (fx + ((f + k) % 2) * 2 - 1, top - hgt), (fx + 4, top + 2)], fill=hexc("38e468"))
-        d.polygon([(fx - 2, top + 2), (fx, top - hgt + 4), (fx + 2, top + 2)], fill=hexc("d8ffc0"))
+        hgt = 8 + ((k + f) % 3) * 3 + extra
+        _flame_tongue(d, fx, top + 2, hgt, 4 if f < 33 else 5, g_out, g_core, tilt + ((f + k) % 2) * 2 - 1)
+    if 12 <= f < 16:  # windup: ngọn lửa xanh bùng quanh đại bác
+        k = f - 12
+        for px_c in (34, 58, 82, 106):
+            d.ellipse([px_c - 3 - k, 74 - k, px_c + 3 + k, 80 + k], fill=g_mid if k < 2 else g_core)
+    elif 16 <= f < 20:  # melee_sweep: vệt chém ma hỏa ở mũi tàu
+        d.arc([w - 38, 28, w - 4, h - 14], -75, 65, fill=g_core if f in (17, 18) else g_out, width=3)
+    elif 20 <= f < 24:  # ranged_shot: loạt đại bác ma hỏa xanh
+        for px_c in (36, 60, 84, 108):
+            if f in (21, 22):
+                r = 7 if f == 22 else 5
+                d.ellipse([px_c - r, 78, px_c + r, 78 + r * 2], fill=g_out)
+                d.ellipse([px_c - r // 2, 80, px_c + r // 2, 80 + r], fill=g_core)
+            elif f == 23:
+                d.ellipse([px_c - 4, 72, px_c + 4, 80], fill=hexc("98f8b8", 185))
+    elif 24 <= f < 28:  # cast_summon: vòng ấn ma trơi quanh mặt nước
+        d.arc([12, h - 22, w - 12, h - 4], 0, 360, fill=g_mid if f % 2 == 0 else g_core, width=2)
+    elif f in (28, 29):  # dash: vệt lửa ma lao ngang
+        for sy in (34, 52, 70):
+            off = (f % 2) * 5
+            d.line([(4 + off, sy), (28 + off, sy)], fill=g_core, width=2)
+            d.line([(10 + off, sy + 2), (34 + off, sy + 2)], fill=g_out, width=1)
+    elif f == 32:  # leap slam splash
+        d.arc([8, h - 24, w - 8, h - 3], 185, 355, fill=g_core, width=3)
+    elif f >= 33:  # rage & boc_chay: biển lửa xanh bùng nổ
+        for k_s in range(6):
+            sx = 20 + k_s * 20 + (f % 2) * 4
+            _flame_tongue(d, sx, h - 18, 18 + (k_s + f) % 3 * 5, 5, g_out, g_core, ((f + k_s) % 3) - 1)
+
+
+def _action_demon_fx(img, f, cfg, boss_id):
+    if boss_id == "tau_hy_vong":
+        return img
+    d = ImageDraw.Draw(img)
+    w, h = img.size
+    au = hexc(cfg["aura"])
+    au_hot = mix(au, (255, 250, 220, 255), 0.55)
+    eye = hexc(cfg["eye"])
+
+    if f < 4:  # idle: đốm tà khí lơ lửng nhịp nhàng
+        for k in range(3):
+            sx = 18 + ((k * 31 + f * 9) % (w - 36))
+            sy = 22 + ((k * 19 + f * 5) % (h - 44))
+            d.ellipse([sx - 1, sy - 1, sx + 1, sy + 1], fill=au_hot if k == 0 else au)
+    elif 4 <= f < 12:  # walk: tà hỏa nhẹ dưới gót chân
+        t = f - 4
+        for fx in (26 + (t % 3) * 4, w - 28 - (t % 3) * 4):
+            _flame_tongue(d, fx, h - 8, 7 + (t % 2) * 3, 2, au, au_hot, -2)
+    elif 12 <= f < 16:  # windup: tà hỏa bùng lên theo 4 nhịp lấy đà
+        k = f - 12
+        for fx in (20, w // 2, w - 20):
+            _flame_tongue(d, fx, h - 10, 8 + k * 3, 3, au, au_hot)
+        if f >= 14:
+            d.ellipse([w // 2 - 2, 24, w // 2 + 2, 28], fill=eye)
+    elif 16 <= f < 20:  # melee_sweep: vệt quỷ hỏa dọc đường chém
+        if f in (16, 17, 18):
+            d.arc([w - 44, 16, w - 4, h - 12], -75, 55, fill=au_hot if f == 17 else au, width=3)
+            d.point([w - 10, 32 + (f - 16) * 12], fill=eye)
+    elif 20 <= f < 24:  # ranged_shot: tụ hỏa cầu & phóng tia tà khí phía trước
+        if f in (21, 22):
+            rx = w - 12 if f == 21 else w - 7
+            d.ellipse([rx - 5, h // 2 - 5, rx + 5, h // 2 + 5], fill=au)
+            d.ellipse([rx - 2, h // 2 - 2, rx + 2, h // 2 + 2], fill=au_hot)
+        elif f == 23:
+            d.ellipse([w - 18, h // 2 - 8, w - 10, h // 2], fill=au[:3] + (180,))
+    elif 24 <= f < 28:  # cast_summon: vòng ấn ma quỷ rực sáng
+        d.arc([12, h - 22, w - 12, h - 4], 0, 360, fill=au_hot if f % 2 == 0 else au, width=2)
+        for sx in (16, w - 16):
+            _flame_tongue(d, sx, h - 14 - (f - 24) * 3, 10, 3, au, au_hot)
+    elif f in (28, 29):  # dash: vệt lửa quỷ kéo dài về sau
+        for sy in (28, 52, 76):
+            off = (f % 2) * 5
+            d.line([(4 + off, sy), (24 + off, sy)], fill=au_hot, width=2)
+            d.line([(8 + off, sy + 2), (28 + off, sy + 2)], fill=au, width=1)
+    elif 30 <= f < 33:  # leap
+        if f == 31:
+            for fx in (32, w // 2, w - 32):
+                _flame_tongue(d, fx, h - 12, 14, 3, au, au_hot)
+        elif f == 32:
+            d.arc([8, h - 24, w - 8, h - 4], 185, 355, fill=au_hot, width=3)
+    elif f == 33:  # rage: cuồng nộ bùng nổ tà hỏa
+        for fx in (18, 36, w - 36, w - 18):
+            _flame_tongue(d, fx, h - 10, 20, 4, au, au_hot)
+    else:  # 34..35 special: ngọn lửa quỷ đặc trưng bao quanh
+        k = f - 34
+        for fx in (16, 32, w - 32, w - 16):
+            _flame_tongue(d, fx, h - 10, 15 + ((fx + k) % 2) * 5, 4, au, au_hot, -1 if k == 0 else 1)
+    return img
 
 
 def aura(img, color, f_idx=0, width=2):
@@ -224,6 +321,7 @@ def demon_sheet(boss_id, fw, fh, n):
         if boss_id == "tau_hy_vong":
             _ghost_flames(pad, i)
         pad = polish(pad, texture=False)
+        _action_demon_fx(pad, i, cfg, boss_id)
         pad = aura(pad, hexc(cfg["aura"]), i)
         frames.append(pad)
     W, H = frames[0].size
@@ -238,9 +336,9 @@ def build():
     sizes = {}
     for b in DEMON:
         if b == "tau_hy_vong":
-            sizes[b] = demon_sheet(b, 64, 44, 24)
+            sizes[b] = demon_sheet(b, 64, 44, 36)
         else:
-            sizes[b] = demon_sheet(b, 48, 48, 24)
+            sizes[b] = demon_sheet(b, 48, 48, 36)
     return sizes
 
 

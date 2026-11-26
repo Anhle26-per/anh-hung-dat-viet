@@ -2,11 +2,11 @@
 
 # ⚔️ ANH HÙNG ĐẤT VIỆT ⚔️
 
-### Phiên bản `v2.0.0` — *Linh Hồn Chiến Trận*
+### Phiên bản `v2.1.0` — *Vạn Binh Khởi Trận*
 
 *Game hành động Roguelike bắn quái góc nhìn từ trên xuống (Top-Down Bullet-Hell) lấy cảm hứng từ Soul Knight — Tái hiện hào khí 2.000 năm lịch sử & truyền thuyết Việt Nam bằng đồ họa Pixel Art.*
 
-[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.0.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
+[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.1.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
 [![Godot](https://img.shields.io/badge/Godot-4.7.2-478cbf?style=for-the-badge&logo=godot-engine&logoColor=white)](https://godotengine.org/)
 [![Binh khí](https://img.shields.io/badge/Kho_Binh_Khí-217_Món-f59f00?style=for-the-badge)](#%EF%B8%8F-217-binh-khí-hợp-nhất--13-thần-binh-đỏ)
 [![Danh tướng](https://img.shields.io/badge/Danh_Tướng-11_Tướng_•_22_Chiêu-7950f2?style=for-the-badge)](#-11-danh-tướng--nội-tại-chiêu-1--chiêu-2)
@@ -44,14 +44,12 @@ Tất cả bản dựng chính thức được phát hành tại trang [**GitHub
 
 ---
 
-## 🔥 Điểm Nhấn Phiên Bản `v2.0.0 — Linh Hồn Chiến Trận`
+## 🔥 Điểm Nhấn Phiên Bản `v2.1.0 — Vạn Binh Khởi Trận`
 
-- **11 Danh Tướng Lịch Sử & Truyền Thuyết**: Từ Hai Bà Trưng (năm 40) tới Chiến sĩ Điện Biên (1954) cùng tướng ẩn **Thánh Gióng** — mỗi vị có **1 Nội tại riêng**, **2 Kỹ năng chủ động tùy chọn**, **5 cấp Tu luyện**, **5 bậc Rèn binh khí khởi đầu** và cơ chế **Đồng điệu (★ / ★★) + 6 Ấn hệ**.
-- **217 Binh Khí & Hợp Nhất Giữa Trận**: 6 cấp phẩm chất từ Thường đến **Thần binh Đỏ (`#ff384c`)**; **13 Thần Binh Trùm** độc quyền; **18 công thức Hợp nhất (`R`)** (gồm **6 Thần Binh Hợp Nhất Bậc 5**); **207 Bản vẽ chế tạo** dưới Tầng Hầm; cơ chế **Tụ lực cung/pháo**, **Tiến hóa vũ khí (`★Tiến Hóa`)** và **Phân tách nguyên liệu**.
-- **Vi Điều Khiển Chiến Đấu Mượt Mà**: **Lướt né (`Space`) có khung bất tử (i-frame)**, **Combo cận chiến 3 đoạn** chém tan đạn địch, **tự động chém khí công tầm gần** khi bắn giặc áp sát (`< 26px`), và **39 Phúc lành (3 bậc)** (có **Tam binh hợp bích** mở ô vũ khí thứ 3).
-- **6 Phòng Sự Kiện `[!]`, 3 Thú Cưỡi & 5 Tượng Thần Việt**: Trải nghiệm Lò Rèn Cổ, Bệ Phân Tách, Miếu Thần Việt, Quân Sư Truyền Nghệ, Trại Quân Y, Đài Thách Đấu; cưỡi **Voi Chiến, Ngựa Sắt, Xe Tăng Chiến**; cùng **4 cơ chế Địa hình Chiến trường** (Thủy triều & Cọc Bạch Đằng, Bụi rậm Yên Thế & Đá lở, Lò lửa Tết châm cháy đạn, Chiến hào & Pháo sáng Điện Biên).
-- **Đa Chế Độ Chơi & LAN Co-op**: Chinh phục **10 Chương lịch sử** + **Tam Yêu** (13 Đại Trùm có giai đoạn 2 hiện nguyên hình), **Ác Mộng (Badass)**, **Boss Rush (12 Trùm → Sảnh Khải Hoàn)**, **Thử thách Hôm Nay**, **8 Biến số Chiến trường**, Mã hạt giống + Bảng xếp hạng và **Chơi chung qua mạng LAN**.
-- **Đồ Họa & Âm Thanh Thuần Việt**: Hơn **1.100 tệp Pixel Art** dựng bằng mã Python (quái **16 khung**, trùm **24 khung** chuyển động mượt) kết hợp **nhạc nền dân gian điện tử (Folk-Synth BGM)** biến đổi theo nhịp chiến đấu và pha nổi giận của trùm.
+- **13 Đại Trùm 36 Khung Hành Động & Hoạt Ảnh Sinh Động Toàn Bộ**: Nâng cấp toàn bộ 26 bộ sprite Trùm (10 Trùm Lịch Sử + 3 Tam Yêu, cả Pha 1 & Pha 2 Hiện Nguyên Hình) lên **36 khung hành động riêng biệt** (`idle`, `walk`, `windup`, `melee_sweep`, `ranged_shot`, `cast_summon`, `dash`, `leap`, `rage`, `special`), kèm hiệu ứng chém, lướt, bụi chân và hoạt ảnh thở/làm việc cho **5 NPC Doanh Trại**, Thợ Rèn, Thương Nhân, Hình Nhân, Binh Sĩ và Bàn Tế.
+- **Vạn Binh Khởi Trận (Horde Waves)**: Tăng mật độ quái nhỏ lên **8–22 giặc mỗi đợt** (`MAX_ENEMIES = 28`), đội hình phối hợp Cận chiến – Xạ thủ – Hỗ trợ/Khiên, **vòng báo hiệu xuất hiện `0.55s`** và cơ chế gọi sớm đợt kế tiếp khi còn `<= 2` giặc.
+- **Sảnh Chọn Tướng Trực Tiếp, LAN Lobby Chung & Linh Thú Đồng Hành**: Nhấp chuột chọn & xác nhận tướng ngay trên bục Đại Sảnh; **chơi LAN Co-op cùng dạo Doanh Trại**, **cho phép chọn trùng tướng**, đồng bộ hành động/linh thú; và **1 Linh Thú đồng hành theo sau từ Sảnh xuống Tầng Hầm vào trận** (tự ẩn thú nghỉ khi đang dẫn theo).
+- **Nền Tảng `v2.0.0` (11 Tướng • 217 Binh Khí • 6 Phòng `[!]` • 3 Thú Cưỡi)**: Giữ trọn **11 Nội tại + 22 Chiêu chủ động**, **13 Thần Binh Đỏ (`#ff384c`)**, **18 công thức Hợp nhất (`R`)**, **39 Phúc lành**, **Lướt né i-frame (`Space`)**, **Ác Mộng (Badass)**, **Boss Rush 13 tầng**, **8 Biến số**, **4 Địa hình Chiến trường** và **Nhạc nền Folk-Synth BGM**.
 
 ---
 

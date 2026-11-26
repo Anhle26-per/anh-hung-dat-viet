@@ -29,6 +29,13 @@ var _panel: Control = null
 var _coin_label: Label
 var _room_label: Label
 var _prep_label: Label
+var _hint_label: Label = null
+var _select_banner: PanelContainer = null
+var _lan_panel: PanelContainer = null
+var _lan_room_lbl: Label = null
+var _lan_ip_lbl: Label = null
+var _lan_peers_box: VBoxContainer = null
+var _lan_start_btn: Button = null
 var _minimap: Control = null
 
 
@@ -344,19 +351,147 @@ func _ready() -> void:
 	_coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top.add_child(_coin_label)
 
-	var hint := UI.label("WASD: đi quanh 4 phòng  -  Lăn chuột / Q: đổi vũ khí  -  E: tương tác  -  Cổng Bắc để xuất trận", 12, Color(0.95, 0.9, 0.8))
-	hint.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	hint.position.y = -18
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(hint)
+	_hint_label = UI.label("Nhấp chuột vào vị tướng để xem & Xác nhận  -  Trái/Phải + Enter: Chọn nhanh  -  ESC: Quay lại", 12, Color(0.95, 0.9, 0.8))
+	_hint_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_hint_label.position.y = -18
+	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(_hint_label)
+
+	# Biểu ngữ hướng dẫn chọn tướng khi mới vào Đại Sảnh
+	_select_banner = PanelContainer.new()
+	var sb_st := StyleBoxFlat.new()
+	sb_st.bg_color = Color(0.08, 0.04, 0.07, 0.86)
+	sb_st.border_color = Color(1.0, 0.84, 0.34, 0.92)
+	sb_st.set_border_width_all(2)
+	sb_st.set_corner_radius_all(4)
+	sb_st.content_margin_left = 14
+	sb_st.content_margin_right = 14
+	sb_st.content_margin_top = 4
+	sb_st.content_margin_bottom = 4
+	_select_banner.add_theme_stylebox_override("panel", sb_st)
+	_select_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_select_banner.offset_left = 140.0
+	_select_banner.offset_right = -240.0
+	_select_banner.offset_top = 38.0
+	_select_banner.offset_bottom = 66.0
+	_select_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb_lbl := UI.label("Nhấp chuột vào vị tướng trong Đại Sảnh để chọn & Xác nhận!", 14, Color(1.0, 0.92, 0.42))
+	sb_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_select_banner.add_child(sb_lbl)
+	top.add_child(_select_banner)
+
+	# Bảng trạng thái phòng LAN (góc trên bên trái, gọn gàng không che Đại Sảnh)
+	_lan_panel = PanelContainer.new()
+	var lp_st := StyleBoxFlat.new()
+	lp_st.bg_color = Color(0.07, 0.04, 0.07, 0.84)
+	lp_st.border_color = Color(0.45, 0.82, 1.0, 0.85)
+	lp_st.set_border_width_all(1)
+	lp_st.set_corner_radius_all(4)
+	lp_st.content_margin_left = 8
+	lp_st.content_margin_right = 8
+	lp_st.content_margin_top = 5
+	lp_st.content_margin_bottom = 6
+	_lan_panel.add_theme_stylebox_override("panel", lp_st)
+	_lan_panel.position = Vector2(8, 44)
+	_lan_panel.custom_minimum_size = Vector2(186, 0)
+	_lan_panel.visible = false
+	top.add_child(_lan_panel)
+
+	var lv := VBoxContainer.new()
+	lv.add_theme_constant_override("separation", 3)
+	_lan_panel.add_child(lv)
+	_lan_room_lbl = UI.label("Phòng LAN", 13, Color(1.0, 0.88, 0.42))
+	_lan_room_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	lv.add_child(_lan_room_lbl)
+	_lan_ip_lbl = UI.label("", 11, Color(0.55, 0.92, 1.0))
+	_lan_ip_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	lv.add_child(_lan_ip_lbl)
+	_lan_peers_box = VBoxContainer.new()
+	_lan_peers_box.add_theme_constant_override("separation", 2)
+	lv.add_child(_lan_peers_box)
+	var lan_btns := HBoxContainer.new()
+	lan_btns.add_theme_constant_override("separation", 5)
+	lv.add_child(lan_btns)
+	_lan_start_btn = UI.button("Xuất trận", func():
+		if lobby != null and lobby.has_method("_start_run"):
+			lobby._start_run(), 12, 92.0)
+	_lan_start_btn.custom_minimum_size = Vector2(92, 22)
+	lan_btns.add_child(_lan_start_btn)
+	var lan_leave_btn := UI.button("Rời LAN", func():
+		if lobby != null and lobby.has_method("_back_to_menu"):
+			lobby._back_to_menu(), 12, 76.0)
+	lan_leave_btn.custom_minimum_size = Vector2(76, 22)
+	lan_btns.add_child(lan_leave_btn)
+
+	if Net != null and not Net.lobby_updated.is_connected(_refresh_lan_panel):
+		Net.lobby_updated.connect(_refresh_lan_panel)
+	_refresh_lan_panel()
+
+
+func _exit_tree() -> void:
+	if Net != null and Net.lobby_updated.is_connected(_refresh_lan_panel):
+		Net.lobby_updated.disconnect(_refresh_lan_panel)
+
+
+func _refresh_lan_panel() -> void:
+	if _lan_panel == null or not is_instance_valid(_lan_panel):
+		return
+	var online: bool = Net != null and Net.is_online()
+	_lan_panel.visible = online
+	if not online:
+		return
+	var rname: String = Net.room_name if Net.room_name != "" else "Phòng LAN"
+	_lan_room_lbl.text = "%s (%d/%d)" % [rname, Net.players.size(), Net.MAX_PLAYERS]
+	if Net.is_host():
+		var ips: PackedStringArray = Net.local_lan_ips()
+		var ip_txt: String = ips[0] if not ips.is_empty() else "127.0.0.1"
+		_lan_ip_lbl.text = "IP: %s:%d" % [ip_txt, Net.DEFAULT_PORT]
+	else:
+		_lan_ip_lbl.text = "Ping: %dms" % Net.ping_ms
+	for c in _lan_peers_box.get_children():
+		c.queue_free()
+	var list: Array = Net.players.values()
+	list.sort_custom(func(a: Variant, b: Variant) -> bool:
+		return int((a as Dictionary).get("slot_idx", 0)) < int((b as Dictionary).get("slot_idx", 0)))
+	for item in list:
+		var info: Dictionary = item
+		var pid: int = int(info.get("id", 0))
+		var pname: String = str(info.get("name", "Anh Hùng"))
+		var hid: String = str(info.get("hero", "ngo_quyen"))
+		var hname: String = str(HeroData.DATA[hid].name) if HeroData.DATA.has(hid) else hid
+		var pet_id: String = str(info.get("pet", ""))
+		var confirmed: bool = bool(info.get("hero_confirmed", false))
+		var col: Color = info.get("color", Color(1.0, 0.88, 0.35))
+		var host_tag: String = " [Chủ]" if pid == 1 else ""
+		var pet_tag: String = (" • " + str(Global.PETS[pet_id].name)) if (pet_id != "" and Global.PETS.has(pet_id)) else ""
+		var st_icon: String = "✓" if confirmed else "…"
+		var line := "%s ● %s%s\n   %s%s" % [st_icon, pname, host_tag, hname if confirmed else "Đang chọn...", pet_tag]
+		var lb := UI.label(line, 11, col if confirmed else Color(0.8, 0.78, 0.72))
+		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_lan_peers_box.add_child(lb)
+	var all_ok: bool = Net.all_peers_confirmed()
+	_lan_start_btn.visible = Net.is_host()
+	_lan_start_btn.disabled = not all_ok
+	_lan_start_btn.text = "Xuất trận" if all_ok else "Chờ xác nhận"
 
 
 func _process(_delta: float) -> void:
 	_coin_label.text = "Xu: %d" % Global.coins
+	var confirmed: bool = lobby == null or bool(lobby.get("hero_confirmed"))
+	if _select_banner != null:
+		_select_banner.visible = (not confirmed) and (not is_open())
+	if _hint_label != null:
+		if not confirmed:
+			_hint_label.text = "Nhấp chuột vào vị tướng trong Đại Sảnh để chọn & Xác nhận  -  Mũi tên + Enter: Chọn nhanh  -  ESC: Quay lại"
+		else:
+			_hint_label.text = "WASD: đi quanh 4 phòng  -  Lăn chuột / Q: đổi vũ khí  -  E: tương tác  -  Cổng Bắc để xuất trận"
 	if lobby != null and lobby.player != null and is_instance_valid(lobby.player):
-		var rm: Dictionary = lobby.room_at(lobby.player.global_position)
-		var rname: String = str(rm.get("name", "Doanh Trại Anh Hùng"))
-		_room_label.text = "DOANH TRẠI — %s" % rname.to_upper()
+		if not confirmed:
+			_room_label.text = "DOANH TRẠI — CHỌN TƯỚNG XUẤT TRẬN"
+		else:
+			var rm: Dictionary = lobby.room_at(lobby.player.global_position)
+			var rname: String = str(rm.get("name", "Doanh Trại Anh Hùng"))
+			_room_label.text = "DOANH TRẠI — %s" % rname.to_upper()
 		if _minimap != null:
 			_minimap.lobby = lobby
 			_minimap.queue_redraw()
@@ -469,7 +604,7 @@ func _add_cost_row(parent: Control, coins_need: int, mats: Dictionary) -> void:
 
 func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void:
 	var h: Dictionary = HeroData.DATA[id]
-	var unlocked: bool = Global.unlocked.has(id)
+	var unlocked: bool = lobby._is_hero_unlocked(id) if (lobby != null and lobby.has_method("_is_hero_unlocked")) else Global.unlocked.has(id)
 	if not unlocked and tab == "train":
 		tab = "info"
 	var box := _begin(h.name)
@@ -616,11 +751,18 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 		sh_btns.add_theme_constant_override("separation", 10)
 		box.add_child(sh_btns)
 		if unlocked:
-			sh_btns.add_child(UI.button("Sang Tu luyện", open_hero.bind(id, "train", sel_rank), 14, 150.0))
+			sh_btns.add_child(UI.button("Xác nhận tướng", func():
+				lobby.confirm_hero(id)
+				close(), 14, 150.0))
+			sh_btns.add_child(UI.button("Sang Tu luyện", open_hero.bind(id, "train", sel_rank), 14, 140.0))
+		elif Net != null and Net.is_online() and not Net.is_host():
+			var b_lk := UI.button("Chủ phòng chưa mở", func(): pass, 14, 165.0)
+			b_lk.disabled = true
+			sh_btns.add_child(b_lk)
 		else:
 			sh_btns.add_child(UI.button("Mở khóa: %d xu" % h.cost, func():
 				if Global.try_unlock(id):
-					lobby.select_hero(id)
+					lobby.confirm_hero(id)
 					close(), 14, 160.0))
 		sh_btns.add_child(UI.button("Đóng", close, 14, 110.0))
 		return
@@ -794,13 +936,17 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 	btns.add_theme_constant_override("separation", 10)
 	box.add_child(btns)
 	if unlocked:
-		btns.add_child(UI.button("Chọn tướng này", func():
-			lobby.select_hero(id)
+		btns.add_child(UI.button("Xác nhận tướng", func():
+			lobby.confirm_hero(id)
 			close(), 18, 180.0))
+	elif Net != null and Net.is_online() and not Net.is_host():
+		var b_lk2 := UI.button("Chủ phòng chưa mở", func(): pass, 16, 190.0)
+		b_lk2.disabled = true
+		btns.add_child(b_lk2)
 	else:
 		btns.add_child(UI.button("Mở khóa: %d xu" % h.cost, func():
 			if Global.try_unlock(id):
-				lobby.select_hero(id)
+				lobby.confirm_hero(id)
 				close()
 			else:
 				msg.text = "Chưa đủ xu. Hãy xuất trận để kiếm thêm!", 18, 180.0))
@@ -1618,6 +1764,8 @@ func open_pet(pet_id: String, last_msg: String = "") -> void:
 	var b_follow := UI.button("Để ở lại sảnh" if is_active else "Đồng hành ra trận", func():
 		var next_id: String = "" if Global.selected_pet == pet_id else pet_id
 		Global.select_pet(next_id)
+		if Net != null and Net.is_online():
+			Net.request_set_pet(next_id)
 		if lobby != null and lobby.has_method("refresh_pet_stations"):
 			lobby.refresh_pet_stations()
 		Sfx.play("pickup_weapon")

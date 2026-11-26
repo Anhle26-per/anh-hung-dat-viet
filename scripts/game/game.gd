@@ -41,6 +41,7 @@ var pause_menu
 var darkness: CanvasModulate
 var buff_ui
 var pet: Node = null
+var pets_by_peer: Dictionary = {}
 var net_sync: Node = null
 var players_by_peer: Dictionary = {}
 var _game_over: CanvasLayer = null
@@ -86,15 +87,18 @@ func _ready() -> void:
 			var p: Node = _spawn_net_player(pid, info)
 			if pid == local_pid:
 				player = p
+			_spawn_net_pet(pid, p, info)
 		if player == null:
 			var fallback_info: Dictionary = {
 				"id": local_pid,
 				"name": str(Global.settings.get("player_name", "Anh Hùng")),
 				"hero": Global.selected_hero,
+				"pet": Global.selected_pet,
 				"color": Net.PLAYER_COLORS[0],
 				"slot_idx": 0,
 			}
 			player = _spawn_net_player(local_pid, fallback_info)
+			_spawn_net_pet(local_pid, player, fallback_info)
 		_connect_net_signals()
 	else:
 		player = Player.new()
@@ -207,6 +211,29 @@ func _spawn_pet() -> void:
 	pet = p
 
 
+func _spawn_net_pet(pid: int, owner_p: Node, info: Dictionary) -> void:
+	if owner_p == null or not is_instance_valid(owner_p):
+		return
+	if pets_by_peer.has(pid):
+		var old_pet: Variant = pets_by_peer[pid]
+		pets_by_peer.erase(pid)
+		if old_pet != null and is_instance_valid(old_pet):
+			(old_pet as Node).queue_free()
+	var pet_id: String = str(info.get("pet", ""))
+	if pet_id == "" and pid == Net.local_peer_id():
+		pet_id = Global.selected_pet
+	if pet_id == "" or not Global.PETS.has(pet_id):
+		if pid == Net.local_peer_id():
+			pet = null
+		return
+	var p := Pet.new()
+	p.setup(pet_id, owner_p)
+	world.add_child(p)
+	pets_by_peer[pid] = p
+	if pid == Net.local_peer_id():
+		pet = p
+
+
 func _start_buff() -> void:
 	_start_bonus = true
 	if not Net.is_online() and Global.challenge_code != "":
@@ -250,8 +277,9 @@ func _build_level() -> void:
 		if is_instance_valid(pk):
 			pk.set("_net_claimed_by_other", true)
 	var keep_players: Array = players_by_peer.values()
+	var keep_pets: Array = pets_by_peer.values()
 	for c in world.get_children():
-		if c != player and c != pet and not keep_players.has(c):
+		if c != player and c != pet and not keep_players.has(c) and not keep_pets.has(c):
 			c.queue_free()
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
@@ -294,6 +322,9 @@ func _build_level() -> void:
 					else:
 						pl.set("downed", false)
 						pl.hp = maxi(2, int(pl.get("hp")))
+				var pp: Variant = pets_by_peer.get(pid, null)
+				if pp != null and is_instance_valid(pp):
+					(pp as Node2D).global_position = pos + Vector2(-18.0, 12.0)
 			idx += 1
 	else:
 		player.global_position = start_pos
@@ -417,6 +448,9 @@ func _check_all_buffs_done() -> void:
 func _advance() -> void:
 	if pet != null and is_instance_valid(pet) and pet.has_method("on_next_level"):
 		pet.on_next_level()
+	for p_pet in pets_by_peer.values():
+		if p_pet != null and is_instance_valid(p_pet) and p_pet != pet and p_pet.has_method("on_next_level"):
+			p_pet.on_next_level()
 	Global.level += 1
 	Global.best_level = maxi(Global.best_level, Global.level)
 	Global.on_next_stage_mutators(player)
@@ -424,6 +458,11 @@ func _advance() -> void:
 
 
 func _advance_to(lvl: int) -> void:
+	if pet != null and is_instance_valid(pet) and pet.has_method("on_next_level"):
+		pet.on_next_level()
+	for p_pet in pets_by_peer.values():
+		if p_pet != null and is_instance_valid(p_pet) and p_pet != pet and p_pet.has_method("on_next_level"):
+			p_pet.on_next_level()
 	Global.level = lvl
 	Global.best_level = maxi(Global.best_level, Global.level)
 	Global.on_next_stage_mutators(player)
@@ -643,6 +682,11 @@ func _on_net_player_disconnected(peer_id: int, pname: String) -> void:
 		players_by_peer.erase(peer_id)
 		if rp != null and is_instance_valid(rp) and rp != player:
 			(rp as Node).queue_free()
+	if pets_by_peer.has(peer_id):
+		var rpet: Variant = pets_by_peer[peer_id]
+		pets_by_peer.erase(peer_id)
+		if rpet != null and is_instance_valid(rpet) and rpet != pet:
+			(rpet as Node).queue_free()
 	hud.show_banner("%s đã mất kết nối (60s để vào lại)" % pname)
 	if Net.is_host():
 		_buff_done_peers.erase(peer_id)
@@ -665,6 +709,11 @@ func _on_net_player_reconnected(peer_id: int, info: Dictionary) -> void:
 		spawn_pos = (host_p as Node2D).global_position + Vector2(20.0, 0.0)
 	(rp as Node2D).global_position = spawn_pos
 	rp.set("_remote_pos", spawn_pos)
+	_spawn_net_pet(peer_id, rp, info)
+	if pets_by_peer.has(peer_id):
+		var rpet2: Variant = pets_by_peer[peer_id]
+		if rpet2 != null and is_instance_valid(rpet2):
+			(rpet2 as Node2D).global_position = spawn_pos + Vector2(-18.0, 12.0)
 	hud.show_banner("%s đã kết nối lại!" % str(info.get("name", "Đồng đội")))
 
 

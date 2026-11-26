@@ -1,8 +1,8 @@
-"""Tam Yêu & Trùm Thần Thoại thiết kế chi tiết sắc nét (24 khung mượt mà):
+"""Tam Yêu & Trùm Thần Thoại thiết kế chi tiết sắc nét (36 khung mượt mà):
 Hồ Tinh Cửu Vĩ, Mộc Tinh, Ngư Tinh Vương.
-Mỗi trùm có 2 hình (Pha 1 thường + Pha 2 hiện nguyên hình), mỗi tờ 24 khung:
-0-7 đi tuần/chạy 8 nhịp, 8-10 gồng lấy đà, 11-14 đòn đánh liên hoàn,
-15-16 lướt tốc, 17-19 dậm nhảy, 20-21 cuồng nộ, 22-23 tung tuyệt chiêu.
+Mỗi trùm có 2 hình (Pha 1 thường + Pha 2 hiện nguyên hình), mỗi tờ 36 khung:
+0-3 idle, 4-11 walk, 12-15 windup, 16-19 melee_sweep, 20-23 ranged_shot,
+24-27 cast_summon, 28-29 dash, 30-32 leap, 33 rage, 34-35 special.
 """
 import math
 import random
@@ -41,7 +41,7 @@ def _ell(d, cx, cy, rx, ry, col):
     d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=col)
 
 
-# ------------------------------------------------------------------ Hồ Tinh Cửu Vĩ (84x60 x 24)
+# ------------------------------------------------------------------ Hồ Tinh Cửu Vĩ (84x60 x 36)
 def fox_frame(f, phase):
     W, H = 84, 60
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -52,57 +52,90 @@ def fox_frame(f, phase):
     tip = C("ffae38") if phase == 1 else C("64e4ff")
     tip_s = C("fff298") if phase == 1 else C("e4ffff")
 
-    t = (f / 8.0) * math.tau
-    is_atk = f in (11, 12, 13, 15, 16, 18)
-    is_wind = f in (8, 9, 10, 17)
-    is_rage = f in (20, 21)
-    is_spec = f in (22, 23)
-    if f < 8:
+    is_idle = f < 4
+    is_walk = 4 <= f < 12
+    is_wind = 12 <= f < 16
+    is_atk = 16 <= f < 20
+    is_rng = 20 <= f < 24
+    is_cast = 24 <= f < 28
+    is_dash = f in (28, 29)
+    is_leap = 30 <= f < 33
+    is_rage = f == 33
+    is_spec = f >= 34
+
+    t = (((f - 4) if is_walk else f) / 8.0) * math.tau
+    if is_idle:
+        sway = [0, 2, 0, -2][f]
+        bob = [0, -1, -1, 0][f]
+        hind_dx, hind_dy, front_dx, front_dy = -1, 0, 1, 0
+        lunge = 0
+    elif is_walk:
         sway = round(math.sin(t) * 3)
         bob = round(-1.5 + math.cos(t * 2) * 1.5)
         hind_dx, hind_dy = round(-math.sin(t) * 5), round(-abs(math.cos(t)) * 3)
         front_dx, front_dy = round(math.sin(t) * 5), round(-abs(math.sin(t)) * 3)
         lunge = 0
-    elif f in (8, 9, 10):
-        k = f - 7  # 1,2,3
-        sway, bob, lunge = -k * 2, k, -k
-        hind_dx, hind_dy, front_dx, front_dy = -4 - k, -1, 2, -2
-    elif f in (11, 12, 13, 14):
-        prog = [3, 6, 4, 1][f - 11]
-        sway, bob, lunge = prog, -1 if f in (11, 12) else 1, prog
-        hind_dx, hind_dy, front_dx, front_dy = -prog, -2, prog + 1, -3 if f <= 12 else 0
-    elif f in (15, 16):
-        sway, bob, lunge = 7, 2, 6
+    elif is_wind:
+        k = f - 11  # 1,2,3,4
+        sway, bob, lunge = -k * 2, min(2, k), -k
+        hind_dx, hind_dy, front_dx, front_dy = -3 - k, -1, 2, -2
+    elif is_atk:
+        k = f - 16
+        prog = [3, 6, 4, 1][k]
+        sway, bob, lunge = prog, -1 if k <= 1 else 1, prog
+        hind_dx, hind_dy, front_dx, front_dy = -prog, -2, prog + 1, -3 if k <= 1 else 0
+    elif is_rng:
+        k = f - 20
+        sway, bob, lunge = [-2, 3, 2, -1][k], [0, -1, 1, 0][k], [1, 3, 0, -1][k]
+        hind_dx, hind_dy, front_dx, front_dy = -2, 0, 3 if k <= 1 else 1, -1 if k == 1 else 0
+    elif is_cast:
+        k = f - 24
+        sway = [2, -2, 3, -3][k]
+        bob = [-1, -2, -2, -1][k]
+        lunge = -1
+        hind_dx, hind_dy, front_dx, front_dy = -2, 0, 1, -2 if k in (1, 2) else 0
+    elif is_dash:
+        sway, bob, lunge = 7, 2 if f == 28 else 1, 6
         hind_dx, hind_dy, front_dx, front_dy = -8, -3, 8, -4
-    elif f in (17, 18, 19):
-        if f == 17:
+    elif is_leap:
+        if f == 30:
             sway, bob, lunge = -2, 3, -1
             hind_dx, hind_dy, front_dx, front_dy = -4, 0, 3, 0
-        elif f == 18:
+        elif f == 31:
             sway, bob, lunge = 5, -6, 4
             hind_dx, hind_dy, front_dx, front_dy = -7, -5, 7, -5
         else:
             sway, bob, lunge = 2, 2, 2
             hind_dx, hind_dy, front_dx, front_dy = -2, 0, 4, 1
+    elif is_rage:
+        sway, bob, lunge = 0, -2, 0
+        hind_dx, hind_dy, front_dx, front_dy = -3, 0, 3, -1
     else:
-        sway = 2 if f in (20, 22) else -2
-        bob = -2 if f in (20, 23) else 0
+        sway = 3 if f == 34 else -3
+        bob = -2 if f == 34 else -1
         lunge = 0
         hind_dx, hind_dy, front_dx, front_dy = -2, 0, 2, 0
+
+    if is_cast:
+        rc = tip if f % 2 == 0 else gold_s
+        d.arc([10, 44, 62, 56], 0, 360, fill=rc, width=1)
 
     # Đuôi xòe phân tầng rực rỡ (3 đuôi pha 1, 9 đuôi pha 2)
     n = 3 if phase == 1 else 9
     base = (26 + lunge // 2, 34 + bob)
     for i in range(n):
-        a = math.radians(205) + (i - (n - 1) / 2) * (0.31 if n == 9 else 0.45) + math.radians(sway * 2.2)
-        L = 26 if n == 3 else 25 + (i % 2) * 3
+        spread = (0.38 if is_spec else 0.31) if n == 9 else (0.55 if is_spec else 0.45)
+        base_ang = 175 if is_rng else (205 if not is_spec else 215)
+        a = math.radians(base_ang) + (i - (n - 1) / 2) * spread + math.radians(sway * 2.2)
+        L = (26 if n == 3 else 25 + (i % 2) * 3) + (3 if is_spec else 0)
         pts = []
         for k in range(9):
             tt = k / 8
             r = L * tt
-            wob = math.sin(tt * 3.2 + i + f * 0.78) * (3.2 if not is_atk else 1.8)
-            x = base[0] + math.cos(a) * r + math.cos(a + 1.57) * wob - (4 * tt if is_atk else 0)
-            y = base[1] + math.sin(a) * r * 0.85 + math.sin(a + 1.57) * wob - tt * tt * (6 if is_atk else 10)
+            wob = math.sin(tt * 3.2 + i + f * 0.78) * (3.2 if not (is_atk or is_dash) else 1.8)
+            fwd = 12 * tt if is_rng else (-4 * tt if (is_atk or is_dash) else 0)
+            x = base[0] + math.cos(a) * r + math.cos(a + 1.57) * wob + fwd
+            y = base[1] + math.sin(a) * r * 0.85 + math.sin(a + 1.57) * wob - tt * tt * (6 if (is_atk or is_dash) else 10)
             pts.append((x, y))
         for k, (x, y) in enumerate(pts):
             rr = 2.6 + 3.6 * math.sin(k / 8 * 3.0)
@@ -122,15 +155,15 @@ def fox_frame(f, phase):
         d.rectangle([px - 1, py - 2, px + 3, py], fill=fur)
         d.rectangle([px - 1, py, px + 3, py + 2], fill=C("3a2834"))
 
-    _ell(d, 36 + lunge // 2, 38 + bob, 16 if is_atk else 15, 9 if is_atk else 10, fur)
+    _ell(d, 36 + lunge // 2, 38 + bob, 16 if (is_atk or is_dash) else 15, 9 if (is_atk or is_dash) else 10, fur)
     _ell(d, 36 + lunge // 2, 42 + bob, 13, 6, fur_d)
     d.line([(26 + lunge // 2, 31 + bob), (44 + lunge // 2, 30 + bob)], fill=fur_l)
     _ell(d, 50 + lunge // 2, 30 + bob, 8, 9, fur)
-    hx, hy = 56 + lunge, 22 + bob + (2 if is_atk else 0)
+    hx, hy = 56 + lunge, 22 + bob + (2 if (is_atk or is_dash) else (-2 if is_rage else 0))
     _ell(d, hx, hy, 9, 7, fur)
     d.polygon([(hx + 5, hy - 1), (hx + 15, hy + 2), (hx + 5, hy + 5)], fill=fur)
     _ell(d, hx + 14, hy + 2, 1.5, 1.5, C("2a1d2e"))
-    ear_tilt = -4 if is_atk else (-2 if is_wind else 0)
+    ear_tilt = -4 if (is_atk or is_dash) else (-2 if is_wind else 0)
     for ex in (-5, 3):
         d.polygon([(hx + ex - 3, hy - 4), (hx + ex + ear_tilt, hy - 13), (hx + ex + 4, hy - 4)], fill=fur)
         d.polygon([(hx + ex - 1, hy - 5), (hx + ex + ear_tilt, hy - 10), (hx + ex + 2, hy - 5)], fill=red)
@@ -139,31 +172,45 @@ def fox_frame(f, phase):
     d.line([(hx - 4, hy + 2), (hx - 1, hy + 4)], fill=red)
     if phase == 2:
         d.arc([hx - 2, hy - 6, hx + 3, hy - 2], 200, 360, fill=gold_s)
-    eye = C("ffe448") if phase == 1 else C("ff2c68")
+    if is_wind and f in (14, 15):
+        eye = C("ffffff") if f == 15 else C("fff278")
+    elif is_rage:
+        eye = C("ff2838")
+    else:
+        eye = C("ffe448") if phase == 1 else C("ff2c68")
     d.rectangle([hx + 3, hy - 1, hx + 5, hy], fill=eye)
     d.point([hx + 5, hy - 1], fill=C("24162c"))
-    if is_atk or is_spec or is_rage:
+    if is_atk or is_dash or is_spec or is_rage or (is_wind and f == 15):
         d.polygon([(hx + 6, hy + 4), (hx + 15, hy + 3), (hx + 8, hy + 7)], fill=C("8e2632"))
         d.point([hx + 8, hy + 4], fill=fur_l)
     d.arc([42 + lunge // 2, 26 + bob, 56 + lunge // 2, 40 + bob], 20, 160, fill=gold, width=2)
     d.line([(43 + lunge // 2, 35 + bob), (37 + lunge // 2, 39 + bob + (sway // 2))], fill=red, width=2)
-    _ell(d, 49 + lunge // 2, 38 + bob, 2, 2, C("e04038") if phase == 1 else C("64e4ff"))
-    if f in (15, 16):
+    gem_c = tip_s if (is_idle and f in (1, 2)) else (C("e04038") if phase == 1 else C("64e4ff"))
+    _ell(d, 49 + lunge // 2, 38 + bob, 2, 2, gem_c)
+    if is_atk and f in (16, 17, 18):
+        d.arc([44, 14, 72, 44], -70, 50, fill=tip_s, width=2)
+    elif is_rng and f in (21, 22):
+        for oy in (-6, 2):
+            _ell(d, 64 + (f - 21) * 5, 22 + oy, 3, 2, tip)
+            _ell(d, 64 + (f - 21) * 5, 22 + oy, 1.5, 1.5, tip_s)
+    elif is_dash:
         for k in range(3):
             y_s = 20 + k * 10 + (f % 2) * 3
             d.line([(-4, y_s), (14, y_s)], fill=tip_s)
-    if f == 19:
+    elif f == 32:
         d.arc([16, 48, 68, 58], 0, 180, fill=gold_s)
-    if phase == 2 or is_spec or is_rage:
-        for k in range(6):
-            a = k / 6 * math.tau + f * 0.65
-            _ell(d, 36 + math.cos(a) * 26, 30 + math.sin(a) * 12, 2.2, 2.2, C("84e8ff") if not is_rage else tip)
+    if phase == 2 or is_spec or is_rage or is_cast:
+        n_orb = 8 if is_spec else 6
+        for k in range(n_orb):
+            a = k / n_orb * math.tau + f * 0.65
+            oc = tip_s if is_spec and k % 2 == 0 else (C("84e8ff") if not is_rage else tip)
+            _ell(d, 36 + math.cos(a) * 26, 30 + math.sin(a) * 14, 2.4, 2.4, oc)
     if is_rage:
         d.line([(hx + 3, hy - 3), (hx + 6, hy - 2)], fill=C("2a1d2e"))
     return polish(img, texture=False)
 
 
-# ------------------------------------------------------------------ Mộc Tinh (72x72 x 24)
+# ------------------------------------------------------------------ Mộc Tinh (72x72 x 36)
 def tree_frame(f, phase):
     W, H = 72, 72
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -172,30 +219,59 @@ def tree_frame(f, phase):
     leaf_deep, leaf_d, leaf, leaf_l, leaf_s = hue_ramp("3e823a" if phase == 1 else "c24428")
     eye = C("a8ff74") if phase == 1 else C("ff5028")
     rune = C("7cf8a0") if phase == 1 else C("ffae38")
-    t = (f / 8.0) * math.tau
+    is_idle = f < 4
+    is_walk = 4 <= f < 12
+    is_wind = 12 <= f < 16
+    is_atk = 16 <= f < 20
+    is_rng = 20 <= f < 24
+    is_cast = 24 <= f < 28
+    is_dash = f in (28, 29)
+    is_leap = 30 <= f < 33
+    is_rage = f == 33
+    is_spec = f >= 34
+
+    t = (((f - 4) if is_walk else f) / 8.0) * math.tau
     rng = random.Random(33 + phase * 7)
 
-    if f < 8:
+    if is_idle:
+        sway = [0, 1, 0, -1][f]
+        bob = [0, -1, -1, 0][f]
+        dx_shift = 0
+    elif is_walk:
         sway = round(math.sin(t) * 2)
         bob = round(-1 + math.cos(t * 2))
         dx_shift = 0
-    elif f in (8, 9, 10):
-        sway, bob, dx_shift = 0, -(f - 7), 0
-    elif f in (11, 12, 13, 14):
-        sway, bob, dx_shift = 0, [0, 3, 2, 0][f - 11], [1, 2, 1, 0][f - 11]
-    elif f in (15, 16):
-        sway, bob, dx_shift = 2, 1, 4
-    elif f in (17, 18, 19):
-        sway, bob, dx_shift = 0, [3, -6, 3][f - 17], 0
+    elif is_wind:
+        k = f - 12
+        sway, bob, dx_shift = 0, [0, 1, 2, 1][k], -1
+    elif is_atk:
+        k = f - 16
+        sway, bob, dx_shift = [0, 1, 1, 0][k], [0, 3, 2, 0][k], [1, 3, 2, 0][k]
+    elif is_rng:
+        k = f - 20
+        sway, bob, dx_shift = [-1, 1, 0, -1][k], [0, -1, 1, 0][k], [1, 2, -1, 0][k]
+    elif is_cast:
+        k = f - 24
+        sway, bob, dx_shift = [-1, 1, -1, 1][k], [-1, -2, -2, -1][k], 0
+    elif is_dash:
+        sway, bob, dx_shift = 2, 1 if f == 28 else 0, 5
+    elif is_leap:
+        k = f - 30
+        sway, bob, dx_shift = 0, [3, -7, 3][k], 0
+    elif is_rage:
+        sway, bob, dx_shift = 0, -2, 0
     else:
-        sway = 1 if f % 2 == 0 else -1
-        bob = -2 if f in (20, 22) else 0
+        sway = 1 if f == 34 else -1
+        bob = -2 if f == 34 else 0
         dx_shift = 0
+
+    if is_cast:
+        d.arc([12, 58, 60, 70], 0, 360, fill=rune, width=2)
 
     for i, x in enumerate((24, 34, 44, 52)):
         phase_leg = t + i * (math.pi / 2)
-        up = max(0, round(math.sin(phase_leg) * 5)) if f < 8 else (6 if f == 18 else (2 if f in (8, 9, 10) else 0))
-        sx = round(math.cos(phase_leg) * 3) if f < 8 else (-3 if i < 2 else 3)
+        up = max(0, round(math.sin(phase_leg) * 5)) if is_walk else (6 if f == 31 else (2 if is_wind else 0))
+        sx = round(math.cos(phase_leg) * 3) if is_walk else (-3 if i < 2 else 3)
         d.line([(x + sway // 2 + dx_shift, 54 + bob), (x - 6 + i * 3 + sx + dx_shift, 66 - up)], fill=bark_d, width=5)
         d.line([(x - 6 + i * 3 + sx + dx_shift, 66 - up), (x - 10 + i * 4 + sx + dx_shift, 68 - up)], fill=bark_deep, width=3)
 
@@ -203,19 +279,25 @@ def tree_frame(f, phase):
     for x in (28, 34, 41, 47):
         d.line([(x + sway + dx_shift, 30 + bob), (x + (1 if x > 38 else -1) + sway // 2 + dx_shift, 56 + bob)], fill=bark_d)
     d.line([(27 + sway + dx_shift, 28 + bob), (25 + sway // 2 + dx_shift, 56 + bob)], fill=bark_l)
-    d.polygon([(36 + sway // 2 + dx_shift, 50 + bob), (39 + sway // 2 + dx_shift, 53 + bob), (36 + sway // 2 + dx_shift, 56 + bob), (33 + sway // 2 + dx_shift, 53 + bob)], fill=rune)
+    rune_c = C("ffffff") if (is_idle and f == 2) else rune
+    d.polygon([(36 + sway // 2 + dx_shift, 50 + bob), (39 + sway // 2 + dx_shift, 53 + bob), (36 + sway // 2 + dx_shift, 56 + bob), (33 + sway // 2 + dx_shift, 53 + bob)], fill=rune_c)
 
     for sgn, ax in ((-1, 26), (1, 48)):
-        if f in (8, 9, 10, 17, 22, 23):
-            k = 10 if f in (8, 17) else 15
+        if is_wind or f == 30 or is_cast or is_spec:
+            k = 15 if f in (14, 15, 25, 26, 34, 35) else 10
             adx, ady = sgn * 16, -k
-        elif f in (11, 12, 13, 14, 19):
-            ady = [-4, 10, 8, 2, 12][min(4, f - 11 if f <= 14 else 4)]
-            adx = sgn * (19 if f in (12, 13, 19) else 17)
-        elif f in (15, 16):
-            adx, ady = sgn * 18 - 4, -2
-        elif f in (20, 21):
-            adx, ady = sgn * 20, -6 if f == 20 else -3
+        elif is_atk or f == 32:
+            ady = [-4, 10, 8, 2][f - 16] if is_atk else 12
+            adx = sgn * (19 if f in (17, 18, 32) else 17)
+        elif is_rng:
+            adx = sgn * (20 if sgn > 0 else 14)
+            ady = [-2, -4, 1, 0][f - 20]
+        elif is_dash:
+            adx, ady = sgn * 18 - 5, -2
+        elif is_rage or f == 31:
+            adx, ady = sgn * 20, -10
+        elif is_idle:
+            adx, ady = sgn * 16, [-1, -2, -1, 0][f]
         else:
             ang = t + (0 if sgn < 0 else math.pi)
             ady = round(math.sin(ang) * 4)
@@ -227,6 +309,8 @@ def tree_frame(f, phase):
         d.line([(ex, ey), (ex + sgn * 6, ey + 3)], fill=bark_d, width=2)
         d.line([(ex - sgn * 4, ey - 1), (ex - sgn * 2, ey - 7)], fill=bark, width=2)
         _ell(d, ex + sgn * 5, ey - 6, 4, 3, leaf_l)
+        if is_rng and sgn > 0 and f in (21, 22):
+            _ell(d, min(69, ex + 4 + (f - 21) * 3), ey - 2, 3, 2, rune)
 
     for cx, cy, r in ((36, 16, 16), (22, 20, 11), (50, 20, 11), (30, 8, 9), (44, 8, 9)):
         _ell(d, cx + sway + dx_shift, cy + bob, r, r * 0.8, leaf_d)
@@ -239,37 +323,48 @@ def tree_frame(f, phase):
         ly = rng.randint(3, 24) + bob
         if 0 <= lx < W and 0 <= ly < H:
             d.point([lx, ly], fill=leaf_s if rng.random() < 0.4 else leaf_deep)
-    if phase == 2 or f in (20, 21):
+    if phase == 2 or is_rage:
         for k in range(5):
             x = 18 + k * 9 + sway + dx_shift
             d.polygon([(x - 2, 26 + bob), (x, 17 + bob - (k + f) % 3 * 2), (x + 2, 26 + bob)], fill=C("ffbe40"))
 
+    eye_c = C("ffffff") if (is_wind and f == 15) else (C("ff3030") if is_rage else eye)
     d.ellipse([28 + sway + dx_shift, 32 + bob, 34 + sway + dx_shift, 38 + bob], fill=C("1a0e10"))
     d.ellipse([40 + sway + dx_shift, 32 + bob, 46 + sway + dx_shift, 38 + bob], fill=C("1a0e10"))
-    d.rectangle([30 + sway + dx_shift, 34 + bob, 32 + sway + dx_shift, 36 + bob], fill=eye)
-    d.rectangle([42 + sway + dx_shift, 34 + bob, 44 + sway + dx_shift, 36 + bob], fill=eye)
+    d.rectangle([30 + sway + dx_shift, 34 + bob, 32 + sway + dx_shift, 36 + bob], fill=eye_c)
+    d.rectangle([42 + sway + dx_shift, 34 + bob, 44 + sway + dx_shift, 36 + bob], fill=eye_c)
     d.point([31 + sway + dx_shift, 34 + bob], fill=C("ffffff"))
     d.point([43 + sway + dx_shift, 34 + bob], fill=C("ffffff"))
-    if f in (20, 21) or phase == 2:
+    if is_rage or phase == 2:
         d.line([(28 + sway + dx_shift, 30 + bob), (34 + sway + dx_shift, 32 + bob)], fill=bark_deep, width=2)
         d.line([(46 + sway + dx_shift, 30 + bob), (40 + sway + dx_shift, 32 + bob)], fill=bark_deep, width=2)
-    mouth_h = 6 if f in (9, 10, 12, 18, 22, 23) else 3
+    mouth_h = 6 if (f in (14, 15, 17, 31, 33, 34, 35)) else 3
     d.ellipse([31 + sway + dx_shift, 42 + bob, 43 + sway + dx_shift, 42 + bob + mouth_h + 2], fill=C("1a0e10"))
     for x in (33, 36, 39):
         d.point([x + sway + dx_shift, 43 + bob], fill=C("f0e4cc"))
     _ell(d, 24 + sway // 2 + dx_shift, 50 + bob, 3, 2, leaf_l)
     _ell(d, 51 + sway // 2 + dx_shift, 46 + bob, 2, 2, C("ea4848"))
     d.point([51 + sway // 2 + dx_shift, 45 + bob], fill=C("ffffff"))
-    if f in (12, 19):
-        d.line([(10, 68), (62, 68)], fill=rune, width=2)
-    elif f in (22, 23):
-        for k in range(4):
-            a = k * 1.57 + f * 0.7
+    if is_atk and f in (16, 17, 18):
+        d.arc([48, 22, 70, 56], -70, 55, fill=rune, width=2)
+    elif f in (28, 29):
+        for sy in (28, 40, 52):
+            d.line([(2 + (f % 2) * 3, sy), (12 + (f % 2) * 3, sy)], fill=leaf_s)
+    elif f == 32:
+        d.line([(8, 68), (64, 68)], fill=rune, width=2)
+    elif is_spec:
+        k = f - 34
+        for rx_r in (10, 18, 54, 62):
+            rh = 18 + (k if rx_r < 36 else 1 - k) * 5
+            d.polygon([(rx_r - 3, 68), (rx_r, 68 - rh), (rx_r + 3, 68)], fill=bark_d)
+            d.line([(rx_r, 67), (rx_r, 68 - rh + 2)], fill=rune)
+        for k_o in range(4):
+            a = k_o * 1.57 + f * 0.7
             _ell(d, 36 + math.cos(a) * 28, 36 + math.sin(a) * 18, 2.5, 2.5, rune)
     return polish(img)
 
 
-# ------------------------------------------------------------------ Ngư Tinh Vương (84x60 x 24)
+# ------------------------------------------------------------------ Ngư Tinh Vương (84x60 x 36)
 def fish_frame(f, phase):
     W, H = 84, 60
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -278,30 +373,58 @@ def fish_frame(f, phase):
     belly_d, _, belly, belly_l, _ = hue_ramp("ece0b2")
     _, fin_d, fin, fin_l, _ = hue_ramp("e45246" if phase == 1 else "f8346e")
     eye = C("fff49c") if phase == 1 else C("ff3842")
-    t = (f / 8.0) * math.tau
-    if f < 8:
+    is_idle = f < 4
+    is_walk = 4 <= f < 12
+    is_wind = 12 <= f < 16
+    is_atk = 16 <= f < 20
+    is_rng = 20 <= f < 24
+    is_cast = 24 <= f < 28
+    is_dash = f in (28, 29)
+    is_leap = 30 <= f < 33
+    is_rage = f == 33
+    is_spec = f >= 34
+
+    t = (((f - 4) if is_walk else f) / 8.0) * math.tau
+    if is_idle:
+        bob = [0, -1, -2, -1][f]
+        tail = [0, 3, 0, -3][f]
+        lunge_x = 0
+    elif is_walk:
         bob = round(-1.5 + math.cos(t) * 1.5)
         tail = round(math.sin(t) * 7)
         lunge_x = 0
-    elif f in (8, 9, 10):
-        bob, tail, lunge_x = 0, -4 - (f - 8), -(f - 7)
-    elif f in (11, 12, 13, 14):
-        prog = [2, 5, 3, 1][f - 11]
-        bob, tail, lunge_x = -1 if f == 12 else 0, 4 if f <= 12 else 1, prog
-    elif f in (15, 16):
-        bob, tail, lunge_x = 0, 6 if f == 15 else -6, 6
-    elif f in (17, 18, 19):
-        bob = [2, -6, 2][f - 17]
-        tail = [-4, 0, 4][f - 17]
-        lunge_x = 2 if f == 18 else 0
+    elif is_wind:
+        k = f - 12
+        bob, tail, lunge_x = [0, 1, 1, 0][k], -3 - k, -(k + 1)
+    elif is_atk:
+        k = f - 16
+        prog = [2, 5, 3, 1][k]
+        bob, tail, lunge_x = -1 if k == 1 else 0, 5 if k <= 1 else 1, prog
+    elif is_rng:
+        k = f - 20
+        bob, tail, lunge_x = [0, -1, 1, 0][k], [-2, 3, -3, 1][k], [1, 3, -1, 0][k]
+    elif is_cast:
+        k = f - 24
+        bob, tail, lunge_x = [-1, -2, -2, -1][k], [4, -4, 4, -4][k], 0
+    elif is_dash:
+        bob, tail, lunge_x = 4, 6 if f == 28 else -6, 6
+    elif is_leap:
+        k = f - 30
+        bob = [3, -7, 3][k]
+        tail = [-4, 0, 4][k]
+        lunge_x = 2 if k == 1 else 0
+    elif is_rage:
+        bob, tail, lunge_x = -2, 0, 0
     else:
-        bob = -2 if f % 2 == 0 else 0
-        tail = 3 if f % 2 == 0 else -3
-        lunge_x = 0
+        bob = -2 if f == 34 else 0
+        tail = 4 if f == 34 else -4
+        lunge_x = 1
 
     d.ellipse([10, 50, 74, 58], fill=C("286cb0", 155))
     d.ellipse([16 + (f % 4) * 2, 52, 68 - (f % 4), 57], fill=C("4ea2e0", 165))
     d.arc([12, 49, 72, 57], (f * 25) % 180, (f * 25 + 110) % 360, fill=C("c8f0ff"), width=1)
+    if is_cast:
+        d.arc([10, 47, 74, 59], 0, 360, fill=C("7ef6ff") if f % 2 == 0 else C("fff088"), width=2)
     y0 = 26 + bob
     d.polygon([(14 + lunge_x, y0), (max(0, 1 + lunge_x // 2), y0 - 13 + tail), (6, y0 + tail // 3), (max(0, 1 + lunge_x // 2), y0 + 13 + tail)], fill=fin)
     d.line([(14 + lunge_x, y0), (3, y0 - 10 + tail)], fill=fin_d)
@@ -316,14 +439,14 @@ def fish_frame(f, phase):
             d.point([x, y - 1], fill=sc_s if row == 0 else sc_l)
     for i in range(6):
         x = 24 + lunge_x + i * 6
-        hgt = 10 + (i % 2) * 4 + (4 if phase == 2 else 0)
-        d.polygon([(x - 3, y0 - 13), (x - (2 if f in (11, 12, 15, 16) else 0), y0 - 13 - hgt), (x + 3, y0 - 13)], fill=fin)
-        d.line([(x, y0 - 13), (x - (1 if f in (11, 12) else 0), y0 - 11 - hgt)], fill=fin_l)
-    pw = round(math.sin(t) * 5) if f < 8 else (-6 if f in (8, 9, 10) else 4)
-    py = round(math.cos(t) * 2) if f < 8 else (-3 if f in (8, 9, 10) else 1)
+        hgt = 10 + (i % 2) * 4 + (4 if (phase == 2 or is_rage) else 0)
+        d.polygon([(x - 3, y0 - 13), (x - (2 if (is_atk or is_dash) else 0), y0 - 13 - hgt), (x + 3, y0 - 13)], fill=fin)
+        d.line([(x, y0 - 13), (x - (1 if is_atk else 0), y0 - 11 - hgt)], fill=fin_l)
+    pw = round(math.sin(t) * 5) if is_walk else (-6 if is_wind else 4)
+    py = round(math.cos(t) * 2) if is_walk else (-3 if is_wind else 1)
     d.polygon([(40 + lunge_x, y0 + 10), (33 + pw, y0 + 24 + py), (46 + pw, y0 + 22 + py)], fill=fin)
     d.polygon([(54 + lunge_x, y0 + 10), (50 - pw, y0 + 24 - py), (62 - pw, y0 + 20 - py)], fill=fin)
-    jaw = 7 if f in (10, 11, 12, 22, 23) else 2
+    jaw = 7 if (f in (14, 15, 16, 17, 21, 22, 33, 34, 35)) else 2
     hx = min(65, 60 + lunge_x)
     d.polygon([(hx, y0 - 10), (hx + 18, y0 - 2), (hx + 18, y0 + 1), (hx, y0 + 2)], fill=sc)
     d.polygon([(hx + 2, y0 + 2), (hx + 18, y0 + 1 + jaw), (hx + 2, y0 + 9)], fill=sc_d)
@@ -331,24 +454,40 @@ def fish_frame(f, phase):
     for x in range(hx + 5, hx + 17, 3):
         d.polygon([(x, y0), (x + 1, y0 + 2), (x + 2, y0)], fill=C("ffffff"))
     d.ellipse([hx + 4, y0 - 8, hx + 10, y0 - 3], fill=C("ffffff"))
-    d.rectangle([hx + 7, y0 - 7, hx + 9, y0 - 4], fill=eye)
+    eye_draw = C("ffffff") if (is_wind and f == 15) else (C("ff2838") if is_rage else eye)
+    d.rectangle([hx + 7, y0 - 7, hx + 9, y0 - 4], fill=eye_draw)
     d.point([hx + 8, y0 - 6], fill=C("1a0e10"))
     for k in range(2):
         pts = [(hx + 16, y0 + k * 2)] + [(min(83, hx + 18 + j * 2), y0 + k * 2 + int(math.sin(j + f * 0.6 + k) * 2) + j) for j in range(4)]
         d.line(pts, fill=C("f2be4c"))
-    if f in (20, 21) or phase == 2:
+    if is_rage or phase == 2:
         d.line([(hx + 3, y0 - 10), (hx + 10, y0 - 8)], fill=sc_d, width=2)
-    if f in (22, 23):
-        for k in range(5):
-            off = 2 if f == 23 else 0
-            d.ellipse([68 + k * 2, y0 - 14 - k * 3 - off, 71 + k * 2, y0 - 11 - k * 3 - off], fill=C("a8ecff"))
+    if is_atk and f in (16, 17, 18):
+        d.arc([58, y0 - 14, 82, y0 + 14], -75, 65, fill=C("a8f6ff"), width=2)
+    elif is_rng and f in (21, 22):
+        ox = 74 + (f - 21) * 4
+        _ell(d, ox, y0 + 1, 4, 3, C("48d4ff"))
+        _ell(d, ox, y0 + 1, 2, 2, C("e8ffff"))
+    elif is_dash:
+        for sy in (22, 32, 42):
+            d.line([(2 + (f % 2) * 3, sy), (12 + (f % 2) * 3, sy)], fill=C("c8f4ff"))
+    elif f == 32:
+        d.arc([8, 42, 32, 57], 180, 340, fill=C("d8f8ff"), width=2)
+        d.arc([52, 42, 76, 57], 200, 360, fill=C("d8f8ff"), width=2)
+    elif is_spec:
+        k = f - 34
+        d.arc([2, 8 - k * 3, 44, 52], 130, 290, fill=C("44b8f0"), width=3)
+        d.arc([5, 11 - k * 3, 42, 49], 140, 280, fill=C("d8f8ff"), width=2)
+        for k_b in range(5):
+            off = 2 if f == 35 else 0
+            d.ellipse([66 + k_b * 2, y0 - 14 - k_b * 3 - off, 69 + k_b * 2, y0 - 11 - k_b * 3 - off], fill=C("a8ecff"))
     return polish(img, texture=False)
 
 
 def build():
     for fn, rel in ((fox_frame, "ho_tinh_vuong"), (tree_frame, "moc_tinh_vuong"), (fish_frame, "ngu_tinh_vuong")):
         for phase in (1, 2):
-            frames = [fn(i, phase) for i in range(24)]
+            frames = [fn(i, phase) for i in range(36)]
             _sheet(frames, "enemies/boss_%s%s.png" % (rel, "" if phase == 1 else "_2"))
 
 

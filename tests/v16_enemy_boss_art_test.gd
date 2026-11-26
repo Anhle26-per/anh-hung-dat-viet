@@ -117,7 +117,7 @@ func _run() -> void:
 		var s14: String = _frame_signature(mimg, 14, fw, fh)
 		_check(s0 != s9 and s9 != s11 and s11 != s14, "khung hành động của %s bị trùng" % mpath)
 
-	print("== 3. Kiểm tra 10 trùm lịch sử + Pha 2 + 3 Tam Yêu (đủ 24 khung & bảng màu phong phú)")
+	print("== 3. Kiểm tra 10 trùm lịch sử + Pha 2 + 3 Tam Yêu (đủ 36 khung & bảng màu phong phú)")
 	for bid in EnemyData.BOSSES:
 		var is_ship: bool = (bid == "tau_hy_vong")
 		var bfw: int = 64 if is_ship else 48
@@ -129,14 +129,14 @@ func _run() -> void:
 		_check(t1 != null and t2 != null, "thiếu sheet trùm %s" % bid)
 		if t1 != null:
 			var i1: Image = t1.get_image()
-			_check(i1.get_width() == bfw * 24 and i1.get_height() == bfh, "%s sai kích thước %dx%d" % [p1, i1.get_width(), i1.get_height()])
-			_check(_unique_colors(i1, bfw, bfh, 24) >= 18, "trùm %s P1 quá ít sắc độ màu" % bid)
+			_check(i1.get_width() == bfw * 36 and i1.get_height() == bfh, "%s sai kích thước %dx%d" % [p1, i1.get_width(), i1.get_height()])
+			_check(_unique_colors(i1, bfw, bfh, 36) >= 18, "trùm %s P1 quá ít sắc độ màu" % bid)
 		if t2 != null:
 			var i2: Image = t2.get_image()
-			var ew2: int = (bfw * 2 + 16) * 24
+			var ew2: int = (bfw * 2 + 16) * 36
 			var eh2: int = bfh * 2 + 18
 			_check(i2.get_width() == ew2 and i2.get_height() == eh2, "%s sai kích thước %dx%d" % [p2, i2.get_width(), i2.get_height()])
-			_check(_unique_colors(i2, bfw * 2 + 16, eh2, 24) >= 20, "trùm %s P2 quá ít sắc độ màu" % bid)
+			_check(_unique_colors(i2, bfw * 2 + 16, eh2, 36) >= 20, "trùm %s P2 quá ít sắc độ màu" % bid)
 
 	for lid in EnemyData.LEGENDS:
 		var lg: Dictionary = EnemyData.LEGENDS[lid]
@@ -147,10 +147,10 @@ func _run() -> void:
 			_check(lt != null, "thiếu sheet Tam Yêu " + lp)
 			if lt != null:
 				var li: Image = lt.get_image()
-				_check(li.get_width() == lsz.x * 24 and li.get_height() == lsz.y, "%s sai kích thước %dx%d" % [lp, li.get_width(), li.get_height()])
-				_check(_unique_colors(li, lsz.x, lsz.y, 24) >= 18, "%s quá ít sắc độ màu" % lp)
+				_check(li.get_width() == lsz.x * 36 and li.get_height() == lsz.y, "%s sai kích thước %dx%d" % [lp, li.get_width(), li.get_height()])
+				_check(_unique_colors(li, lsz.x, lsz.y, 36) >= 18, "%s quá ít sắc độ màu" % lp)
 
-	print("== 4. Kiểm tra SpriteFrames 16/24 khung & chuyển hoạt ảnh trong Enemy")
+	print("== 4. Kiểm tra SpriteFrames 16/36 khung & chuyển hoạt ảnh trong Enemy")
 	var arena := Node2D.new()
 	add_child(arena)
 	var mob = EnemyScript.new()

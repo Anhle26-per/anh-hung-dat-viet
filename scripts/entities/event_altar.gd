@@ -34,7 +34,8 @@ var arena_cleared: bool = false
 
 var _arena_enemies: Array = []
 var _light: PointLight2D = null
-var _spr: Sprite2D = null
+var _spr: AnimatedSprite2D = null
+var _amb_pt: CPUParticles2D = null
 
 
 func _ready() -> void:
@@ -44,14 +45,40 @@ func _ready() -> void:
 	_init_kind_defaults()
 	var spr_path: String = "res://assets/sprites/world/%s.png" % kind
 	if ResourceLoader.exists(spr_path):
-		_spr = Sprite2D.new()
-		_spr.texture = Art.tex("world/%s.png" % kind)
-		_spr.position = Vector2(0, -10)
-		add_child(_spr)
+		var tex: Texture2D = Art.tex("world/%s.png" % kind)
+		if tex != null:
+			_spr = AnimatedSprite2D.new()
+			if tex.get_width() >= 64:
+				_spr.sprite_frames = Art.strip("world/%s.png" % kind, 32, 32, 5.5, true)
+			else:
+				_spr.sprite_frames = Art.frames("world/%s.png" % kind, 32, 32, {"play": [[0], 1.0, false]})
+			_spr.position = Vector2(0, -10)
+			_spr.play("play")
+			add_child(_spr)
 	var lcol: Color = _accent_color()
 	_light = Art.light(lcol, 1.35, 0.85)
 	_light.position = Vector2(0, -8)
 	add_child(_light)
+	_amb_pt = CPUParticles2D.new()
+	_amb_pt.position = Vector2(0, -10)
+	_amb_pt.amount = 8
+	_amb_pt.lifetime = 1.6
+	_amb_pt.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	_amb_pt.emission_sphere_radius = 10.0
+	_amb_pt.direction = Vector2.UP
+	_amb_pt.spread = 35.0
+	_amb_pt.gravity = Vector2(0, -14)
+	_amb_pt.initial_velocity_min = 4.0
+	_amb_pt.initial_velocity_max = 12.0
+	_amb_pt.scale_amount_min = 1.0
+	_amb_pt.scale_amount_max = 1.8
+	var g := Gradient.new()
+	g.set_color(0, Color(lcol, 0.85))
+	g.set_color(1, Color(lcol, 0.0))
+	_amb_pt.color_ramp = g
+	_amb_pt.material = Art.additive()
+	_amb_pt.z_index = 3
+	add_child(_amb_pt)
 
 
 func _init_kind_defaults() -> void:
@@ -205,6 +232,11 @@ func _mark_used() -> void:
 	near = false
 	if _light != null:
 		_light.energy = 0.25
+	if _amb_pt != null and is_instance_valid(_amb_pt):
+		_amb_pt.emitting = false
+	if _spr != null and is_instance_valid(_spr):
+		_spr.modulate = Color(0.75, 0.75, 0.78, 0.88)
+		_spr.speed_scale = 0.35
 
 
 func _interact_reforge(p: Node, par: Node) -> void:
@@ -415,6 +447,17 @@ func mark_arena_cleared() -> void:
 
 func _process(delta: float) -> void:
 	super(delta)
+	if _spr != null and is_instance_valid(_spr):
+		if not used:
+			var bob := sin(_t * 3.2) * 1.1
+			var br := sin(_t * 3.2) * 0.035
+			_spr.position.y = -10.0 + bob
+			_spr.scale = Vector2(1.0 - br * 0.5, 1.0 + br)
+		else:
+			_spr.position.y = -10.0
+			_spr.scale = Vector2.ONE
+	if _light != null and not used:
+		_light.energy = 0.8 + 0.18 * sin(_t * 4.5)
 	queue_redraw()
 
 
@@ -424,7 +467,12 @@ func _draw() -> void:
 	draw_circle(Vector2(0, 6), 16.0, Color(0.0, 0.0, 0.0, 0.32))
 	if not used:
 		draw_set_transform(Vector2(0, 6), 0.0, Vector2(1.0, 0.42))
-		draw_arc(Vector2.ZERO, 19.0 + pulse * 1.5, 0.0, TAU, 24, Color(acc, 0.35 + 0.25 * pulse), 1.5)
+		draw_arc(Vector2.ZERO, 19.0 + pulse * 1.5, 0.0, TAU, 24, Color(acc, 0.38 + 0.25 * pulse), 1.5)
+		draw_arc(Vector2.ZERO, 14.5, _t * 1.6, _t * 1.6 + PI * 0.75, 12, Color(acc, 0.65), 1.4)
+		draw_arc(Vector2.ZERO, 14.5, _t * 1.6 + PI, _t * 1.6 + PI * 1.75, 12, Color(acc, 0.65), 1.4)
+		for ri in 4:
+			var ang := _t * 1.6 + TAU * float(ri) / 4.0
+			draw_circle(Vector2(cos(ang), sin(ang)) * 18.0, 1.6, Color(1.0, 0.96, 0.85, 0.85))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	if _spr == null:

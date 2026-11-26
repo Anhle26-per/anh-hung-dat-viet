@@ -6,6 +6,7 @@ extends Node2D
 ##   - Đại Cổng Xuất Trận (bắc): Cổng thời gian bắt đầu hành trình
 
 const Player = preload("res://scripts/entities/player.gd")
+const Pet = preload("res://scripts/entities/pet.gd")
 const Portal = preload("res://scripts/entities/portal.gd")
 const Decor = preload("res://scripts/game/decor.gd")
 const Station = preload("res://scripts/game/station.gd")
@@ -30,6 +31,7 @@ static func _hotpatch_sync() -> Script:
 	return fresh
 
 const SIZE := Vector2(1360, 760)
+const HALL_CENTER := Vector2(680, 446)
 const SPAWN_POS := Vector2(680, 524)
 const BASEMENT_ORIGIN := Vector2(240, 900)
 const BASEMENT_RECT := Rect2(240, 900, 880, 560)
@@ -51,12 +53,14 @@ const HERO_SPOTS: Array[Vector2] = [
 
 var world: Node2D
 var player
+var lobby_pet: Node = null
 var camera: Camera2D
 var ui
 var touch
 var stations: Array = []
 var stair_stations: Array = []
 var in_basement: bool = false
+var hero_confirmed: bool = false
 var well_uses: int = 3
 var supply_claimed: bool = false
 var garden_watered: bool = false
@@ -64,15 +68,61 @@ var pet_gifts: Dictionary = {}
 var koi_fed: bool = false
 var merchant_deal: String = ""
 var merchant_bundle_bought: bool = false
+var remote_players: Dictionary = {}
+var remote_pets: Dictionary = {}
 var _hero_npcs := {}
+var _npc_nodes: Dictionary = {}
 var _animal_nodes: Dictionary = {}
 var _pet_stations: Array = []
 var _basement_stations: Array = []
 var _basement_down_st: Node2D = null
 var _basement_up_st: Node2D = null
+var _north_portal: Node2D = null
+var _hero_overlay: Node2D = null
+var _hovered_hero_id: String = ""
+var _cursor_hero_idx: int = 0
 var _canvas_mod: CanvasModulate = null
 var _transitioning: bool = false
 var _leaving := false
+
+
+class HeroRingOverlay extends Node2D:
+	var lobby = null
+	var t: float = 0.0
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		if lobby == null:
+			return
+		var hovered: String = str(lobby.get("_hovered_hero_id"))
+		var confirmed: bool = bool(lobby.get("hero_confirmed"))
+		for id in lobby._hero_npcs:
+			var st: Node2D = lobby._hero_npcs[id]
+			if st == null or not is_instance_valid(st) or not st.visible:
+				continue
+			var pos: Vector2 = st.position + Vector2(0, 8)
+			var is_hov: bool = (str(id) == hovered)
+			var unl: bool = lobby._is_hero_unlocked(str(id))
+			var base_a: float = (0.45 if unl else 0.22) if not confirmed else 0.18
+			var base_col := Color(1.0, 0.86, 0.38, base_a) if unl else Color(0.65, 0.65, 0.7, base_a)
+			draw_set_transform(pos, 0.0, Vector2(1.0, 0.42))
+			draw_arc(Vector2.ZERO, 13.0 + sin(t * 3.0) * 0.8, 0.0, TAU, 24, base_col, 1.4)
+			if is_hov:
+				var pulse: float = 0.72 + 0.28 * sin(t * 7.5)
+				var hcol := Color(0.45, 0.96, 1.0, pulse) if unl else Color(1.0, 0.72, 0.35, pulse)
+				draw_arc(Vector2.ZERO, 17.5 + sin(t * 6.0) * 1.2, 0.0, TAU, 28, hcol, 2.2)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			if is_hov:
+				var bob: float = sin(t * 6.5) * 2.0
+				var tip: Vector2 = st.position + Vector2(0, -24.0 + bob)
+				draw_colored_polygon(PackedVector2Array([
+					tip + Vector2(-4.0, -5.0),
+					tip + Vector2(4.0, -5.0),
+					tip,
+				]), Color(1.0, 0.92, 0.42, 0.95))
 var _forged_icon: Sprite2D
 var _garden_sprites: Array[Sprite2D] = []
 var _garden_sparkles: Array[CPUParticles2D] = []
@@ -106,14 +156,24 @@ func _ready() -> void:
 		Global.save_game()
 		secret_unlocked = true
 	_build_stations()
-	_spawn_player(SPAWN_POS)
+	_hero_overlay = HeroRingOverlay.new()
+	_hero_overlay.lobby = self
+	_hero_overlay.z_index = 0
+	world.add_child(_hero_overlay)
+
+	hero_confirmed = false
+	_cursor_hero_idx = maxi(0, HeroData.ORDER.find(Global.selected_hero))
+	_spawn_player(SPAWN_POS, true)
+	set_player_active(false)
+	_refresh_heroes()
+	refresh_pet_stations()
 	if secret_unlocked:
 		var gpos: Vector2 = _hero_npcs["thanh_giong"].global_position if _hero_npcs.has("thanh_giong") else SPAWN_POS
 		Fx.particles(world, gpos, Color(1.0, 0.82, 0.28), 24, 90.0, 0.7, -30.0, 2.0)
 		Fx.float_text(world, SPAWN_POS + Vector2(0, -32), "Mở khóa tướng ẩn: Thánh Gióng!", Color(1.0, 0.88, 0.35), 16)
 
 	camera = Camera2D.new()
-	camera.position = player.global_position if player != null else SPAWN_POS
+	camera.position = HALL_CENTER
 	camera.zoom = Vector2(1.0, 1.0)
 	camera.position_smoothing_enabled = true
 	camera.position_smoothing_speed = 8.0
@@ -131,6 +191,16 @@ func _ready() -> void:
 	ui = LobbyUI.new()
 	ui.lobby = self
 	add_child(ui)
+
+	if Net != null and Net.is_online():
+		_connect_net_signals()
+		if Global.selected_pet != "" and Global.PETS.has(Global.selected_pet):
+			Net.request_set_pet(Global.selected_pet)
+		_sync_remote_lobby_peers()
+
+
+func _exit_tree() -> void:
+	_disconnect_net_signals()
 
 
 func room_at(pos: Vector2) -> Dictionary:
@@ -435,6 +505,13 @@ func _decorate() -> void:
 	embers.z_index = 6
 	world.add_child(embers)
 
+	# 5 NPC sinh động ở các khu vực trong doanh trại
+	_npc_nodes["npc_tea_lady"] = _life("npc_tea_lady", Vector2(588, 604))
+	_npc_nodes["npc_strategist"] = _life("npc_strategist", Vector2(838, 622))
+	_npc_nodes["npc_blacksmith"] = _life("npc_blacksmith", Vector2(1068, 352))
+	_npc_nodes["npc_scholar"] = _life("npc_scholar", Vector2(168, 354))
+	_npc_nodes["npc_guard"] = _life("npc_guard", Vector2(640, 148))
+
 	# Không khí: bướm, lá và cánh hoa bay khắp 4 phòng
 	var amb := Ambience.new()
 	amb.area = Rect2(Vector2(40, 20), Vector2(1280, 680))
@@ -678,6 +755,7 @@ func _build_stations() -> void:
 	portal.label = "Cổng xuất trận"
 	portal.entered.connect(_start_run)
 	world.add_child(portal)
+	_north_portal = portal
 
 	# Tương tác Linh Thú & Hồ Cá Koi
 	var animal_defs: Array[Dictionary] = [
@@ -746,33 +824,65 @@ func _build_stations() -> void:
 	world.add_child(gall)
 
 
+func _is_hero_unlocked(id: String) -> bool:
+	if Net != null and Net.is_online() and Net.host_profile.has("unlocked"):
+		var h_unl: Variant = Net.host_profile.get("unlocked", [])
+		if h_unl is Array:
+			return (h_unl as Array).has(id)
+	return Global.unlocked.has(id)
+
+
 func _refresh_heroes() -> void:
 	for id in _hero_npcs:
 		var s = _hero_npcs[id]
-		var unlocked: bool = Global.unlocked.has(id)
-		s.visible = id != Global.selected_hero
+		var unlocked: bool = _is_hero_unlocked(str(id))
+		s.visible = true if (not hero_confirmed or (Net != null and Net.is_online())) else (id != Global.selected_hero)
 		var spr: AnimatedSprite2D = s.get_child(0)
 		spr.material = null if unlocked else Art.stone_material()
-		if unlocked:
-			spr.play("idle")
-		else:
-			spr.stop()
+		spr.play("idle")
 		s.title_color = Color(1, 0.9, 0.6) if unlocked else Color(0.8, 0.78, 0.75)
 		s.title = HeroData.DATA[id].name if unlocked else "%s - %d xu" % [HeroData.DATA[id].name, HeroData.DATA[id].cost]
 
 
-func _spawn_player(pos: Vector2) -> void:
+func _spawn_player(pos: Vector2, force_pos: bool = false) -> void:
 	if player != null:
-		pos = player.global_position
+		if not force_pos:
+			pos = player.global_position
 		player.queue_free()
 	player = Player.new()
+	if Net != null and Net.is_online():
+		var local_pid: int = Net.local_peer_id()
+		player.peer_id = local_pid
+		player.is_local = true
+		var pinfo: Dictionary = Net.players.get(local_pid, {})
+		player.display_name = str(pinfo.get("name", Global.settings.get("player_name", "Anh Hùng")))
+		var col_v: Variant = pinfo.get("color", Net.PLAYER_COLORS[0])
+		if col_v is Color:
+			player.name_color = col_v
 	player.setup(Global.selected_hero)
 	if Global.lobby_weapon_mod != "" and player.weapons.size() > 0 and str(player.weapons[0]) != "":
 		Global.set_weapon_mod(str(player.weapons[0]), Global.lobby_weapon_mod)
 	player.position = pos
+	player.visible = hero_confirmed
 	world.add_child(player)
 	if touch != null:
 		touch.player = player
+	if lobby_pet != null and is_instance_valid(lobby_pet):
+		lobby_pet.owner_player = player
+
+
+func _hero_at_world_pos(wpos: Vector2, max_dist: float = 28.0) -> String:
+	var best_id: String = ""
+	var best_d: float = max_dist
+	for id in _hero_npcs:
+		var s: Node2D = _hero_npcs[id]
+		if s == null or not is_instance_valid(s) or not s.visible:
+			continue
+		var d: float = wpos.distance_to(s.global_position)
+		if d <= best_d:
+			best_d = d
+			best_id = str(id)
+	return best_id
 
 
 func _process(delta: float) -> void:
@@ -786,16 +896,42 @@ func _process(delta: float) -> void:
 		var an: Node2D = ps.get("node", null) as Node2D
 		if st != null and is_instance_valid(st) and an != null and is_instance_valid(an):
 			st.position = an.position
+
+	# Hover chuột & hoạt ảnh nhún thở cho 11 vị tướng trên bục
+	if (ui == null or not ui.is_open()) and not in_basement and not _transitioning and world != null:
+		var mpos: Vector2 = world.get_global_mouse_position()
+		var hit: String = _hero_at_world_pos(mpos, 28.0)
+		if hit != "":
+			_hovered_hero_id = hit
+		elif not hero_confirmed and Global.using_pad and _cursor_hero_idx >= 0 and _cursor_hero_idx < HeroData.ORDER.size():
+			_hovered_hero_id = HeroData.ORDER[_cursor_hero_idx]
+		else:
+			_hovered_hero_id = ""
+	else:
+		_hovered_hero_id = ""
+
+	var h_idx: int = 0
+	for id in _hero_npcs:
+		var hs: Node2D = _hero_npcs[id]
+		if hs != null and is_instance_valid(hs) and hs.visible and hs.get_child_count() > 0:
+			var spr := hs.get_child(0) as AnimatedSprite2D
+			if spr != null:
+				var br: float = sin(_sway_t * 3.4 + float(h_idx) * 0.7) * 0.035
+				var hov_boost: float = 1.12 if str(id) == _hovered_hero_id else 1.0
+				spr.scale = Vector2((1.0 - br) * hov_boost, (1.0 + br) * hov_boost)
+		h_idx += 1
+
 	if player == null or not is_instance_valid(player):
 		return
 	if camera != null and is_instance_valid(camera):
-		camera.position = player.global_position
+		camera.position = player.global_position if hero_confirmed else HALL_CENTER
+
 	var best = null
 	var best_d := 9999.0
 	for arr in [stations, stair_stations]:
 		for s in arr:
-			s.near = false
-			if not s.visible:
+			s.near = (s.kind == "hero" and str(s.data) == _hovered_hero_id and not hero_confirmed)
+			if not hero_confirmed or not s.visible:
 				continue
 			var d: float = s.global_position.distance_to(player.global_position)
 			if d < s.radius and d < best_d:
@@ -803,12 +939,46 @@ func _process(delta: float) -> void:
 				best_d = d
 	if best != null:
 		best.near = true
-	player.interact_target = best
+	player.interact_target = best if hero_confirmed else null
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause") and not ui.is_open() and not _transitioning:
+	if event.is_action_pressed("pause") and (ui == null or not ui.is_open()) and not _transitioning:
 		_back_to_menu()
+		get_viewport().set_input_as_handled()
+		return
+	if _transitioning or (ui != null and ui.is_open()) or in_basement:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and world != null:
+		var hit_m: String = _hero_at_world_pos(world.get_global_mouse_position(), 28.0)
+		if hit_m != "":
+			_cursor_hero_idx = maxi(0, HeroData.ORDER.find(hit_m))
+			_hovered_hero_id = hit_m
+			ui.open_hero(hit_m)
+			get_viewport().set_input_as_handled()
+			return
+	elif event is InputEventScreenTouch and event.pressed:
+		var wpos_t: Vector2 = get_canvas_transform().affine_inverse() * event.position
+		var hit_t: String = _hero_at_world_pos(wpos_t, 28.0)
+		if hit_t != "":
+			_cursor_hero_idx = maxi(0, HeroData.ORDER.find(hit_t))
+			_hovered_hero_id = hit_t
+			ui.open_hero(hit_t)
+			get_viewport().set_input_as_handled()
+			return
+	if not hero_confirmed:
+		if event.is_action_pressed("move_left") or event.is_action_pressed("ui_left"):
+			_cursor_hero_idx = posmod(_cursor_hero_idx - 1, HeroData.ORDER.size())
+			_hovered_hero_id = HeroData.ORDER[_cursor_hero_idx]
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("move_right") or event.is_action_pressed("ui_right"):
+			_cursor_hero_idx = posmod(_cursor_hero_idx + 1, HeroData.ORDER.size())
+			_hovered_hero_id = HeroData.ORDER[_cursor_hero_idx]
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER)):
+			var pick_id: String = _hovered_hero_id if _hovered_hero_id != "" else HeroData.ORDER[_cursor_hero_idx]
+			ui.open_hero(pick_id)
+			get_viewport().set_input_as_handled()
 
 
 func _on_station(s) -> void:
@@ -880,6 +1050,9 @@ func _apply_basement_state(entering: bool, dest: Vector2) -> void:
 		player.global_position = dest
 		player.velocity = Vector2.ZERO
 		player.interact_target = null
+	if lobby_pet != null and is_instance_valid(lobby_pet):
+		(lobby_pet as Node2D).global_position = dest + Vector2(-20.0, 10.0)
+		lobby_pet.velocity = Vector2.ZERO
 	if camera != null and is_instance_valid(camera):
 		if entering:
 			camera.limit_left = int(BASEMENT_RECT.position.x)
@@ -953,21 +1126,49 @@ func _transition_basement(entering: bool, dest: Vector2, banner: String, instant
 func enter_basement(instant: bool = false) -> void:
 	if in_basement or _transitioning:
 		return
+	if not hero_confirmed:
+		confirm_hero(Global.selected_hero)
 	await _transition_basement(true, BASEMENT_SPAWN, "Tầng Hầm Chiến Tích", instant)
 
 
 func exit_basement(instant: bool = false) -> void:
 	if not in_basement or _transitioning:
 		return
+	if not hero_confirmed:
+		confirm_hero(Global.selected_hero)
 	await _transition_basement(false, SURFACE_RETURN_POS, "Đại Sảnh Anh Hùng", instant)
 
 
-## Gọi từ bảng tướng khi bấm "Chọn tướng này"
-func select_hero(id: String) -> void:
+## Xác nhận chọn tướng từ Đại Sảnh (Solo & LAN)
+func confirm_hero(id: String) -> void:
+	if not HeroData.DATA.has(id):
+		return
+	hero_confirmed = true
 	Global.selected_hero = id
-	Global.save_game()
-	_spawn_player(SPAWN_POS)
+	if Net == null or not Net.is_online() or Net.is_host():
+		Global.save_game()
+	var target_pos: Vector2 = _hero_npcs[id].global_position if _hero_npcs.has(id) else SPAWN_POS
+	_spawn_player(target_pos, true)
+	set_player_active(true)
+	if camera != null and is_instance_valid(camera):
+		camera.position = player.global_position
 	_refresh_heroes()
+	refresh_lobby_pet()
+	if Net != null and Net.is_online():
+		Net.request_set_hero(id)
+		Net.request_set_ready(true)
+		if Global.selected_pet != "" and Global.PETS.has(Global.selected_pet):
+			Net.request_set_pet(Global.selected_pet)
+	if world != null:
+		var hcol: Color = HeroData.DATA[id].get("color", Color(1.0, 0.88, 0.42))
+		Fx.burst(world, target_pos, hcol, 32.0, 0.45)
+		Fx.particles(world, target_pos, hcol, 18, 82.0, 0.55, -24.0, 2.0)
+		Fx.float_text(world, target_pos + Vector2(0, -28), "Xuất chiến: %s!" % str(HeroData.DATA[id].name), Color(1.0, 0.92, 0.45), 16)
+
+
+## Gọi từ bảng tướng hoặc bài kiểm thử cũ — chuyển thẳng về confirm_hero(id)
+func select_hero(id: String) -> void:
+	confirm_hero(id)
 
 
 func on_progressed(hero_id: String, msg: String) -> void:
@@ -1047,6 +1248,37 @@ func on_pet_interacted(pet_id: String, msg: String, col := Color(1.0, 0.6, 0.78)
 		on_station_fx(player.global_position, msg, col)
 
 
+func refresh_lobby_pet() -> void:
+	var active_pet: String = Global.selected_pet if (hero_confirmed and Global.selected_pet != "" and Global.PETS.has(Global.selected_pet)) else ""
+	for ps in _pet_stations:
+		var nd: Node2D = ps.get("node", null) as Node2D
+		var ps_pid: String = str(ps.get("pet_id", ""))
+		if nd == null or not is_instance_valid(nd):
+			continue
+		var hide_rest: bool = (active_pet != "" and ps_pid == active_pet)
+		if nd.has_method("set_resting_hidden"):
+			nd.set_resting_hidden(hide_rest)
+		else:
+			nd.visible = not hide_rest
+	if active_pet != "" and player != null and is_instance_valid(player) and world != null:
+		if lobby_pet != null and is_instance_valid(lobby_pet) and str(lobby_pet.get("pet_id")) == active_pet:
+			lobby_pet.owner_player = player
+			lobby_pet.in_lobby = true
+		else:
+			if lobby_pet != null and is_instance_valid(lobby_pet):
+				lobby_pet.queue_free()
+			var lp := Pet.new()
+			lp.in_lobby = true
+			lp.setup(active_pet, player)
+			lp.position = player.global_position + Vector2(-20.0, 10.0)
+			world.add_child(lp)
+			lobby_pet = lp
+	else:
+		if lobby_pet != null and is_instance_valid(lobby_pet):
+			lobby_pet.queue_free()
+			lobby_pet = null
+
+
 func refresh_pet_stations() -> void:
 	for ps in _pet_stations:
 		var st = ps.get("station", null)
@@ -1057,6 +1289,7 @@ func refresh_pet_stations() -> void:
 		var chosen: bool = (Global.selected_pet == pid)
 		st.title = ("%s ★ (Đang theo)" % str(pinfo.name)) if chosen else str(pinfo.name)
 		st.title_color = Color(1.0, 0.9, 0.35) if chosen else Color(0.88, 0.96, 0.92)
+	refresh_lobby_pet()
 
 
 func on_koi_fed() -> void:
@@ -1068,12 +1301,28 @@ func on_koi_fed() -> void:
 
 func set_player_active(on: bool) -> void:
 	if player != null and is_instance_valid(player):
-		player.set_physics_process(on)
+		var eff_on: bool = on and hero_confirmed
+		player.set_physics_process(eff_on)
+		player.visible = hero_confirmed
 		player.velocity = Vector2.ZERO
 
 
 func start_run_with_code(code: String) -> void:
 	if _leaving:
+		return
+	if Net != null and Net.is_online():
+		if not Net.is_host():
+			return
+		if not Net.all_peers_confirmed():
+			if _north_portal != null and is_instance_valid(_north_portal):
+				_north_portal.set("_used", false)
+				_north_portal.set("_counting", false)
+			if world != null:
+				Fx.float_text(world, Vector2(680, 92), "Chờ đồng đội chọn & xác nhận tướng!", Color(1.0, 0.55, 0.35), 14)
+			return
+		_leaving = true
+		Sfx.play("level_clear")
+		Net.host_start_match()
 		return
 	_leaving = true
 	Sfx.play("level_clear")
@@ -1088,5 +1337,142 @@ func _start_run() -> void:
 
 
 func _back_to_menu() -> void:
-	Global.save_game()
+	if Net != null and Net.is_online():
+		Net.leave_room()
+	else:
+		Global.save_game()
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+
+# ------------------------------------------------------------------ Đồng bộ LAN trong Doanh Trại
+
+func _connect_net_signals() -> void:
+	if Net == null:
+		return
+	if not Net.lobby_updated.is_connected(_on_net_lobby_updated):
+		Net.lobby_updated.connect(_on_net_lobby_updated)
+	if not Net.match_started.is_connected(_on_net_match_started):
+		Net.match_started.connect(_on_net_match_started)
+	if not Net.host_left.is_connected(_on_net_host_left):
+		Net.host_left.connect(_on_net_host_left)
+	if not Net.player_state_received.is_connected(_on_net_player_state):
+		Net.player_state_received.connect(_on_net_player_state)
+	if not Net.player_action_received.is_connected(_on_net_player_action):
+		Net.player_action_received.connect(_on_net_player_action)
+
+
+func _disconnect_net_signals() -> void:
+	if Net == null:
+		return
+	if Net.lobby_updated.is_connected(_on_net_lobby_updated):
+		Net.lobby_updated.disconnect(_on_net_lobby_updated)
+	if Net.match_started.is_connected(_on_net_match_started):
+		Net.match_started.disconnect(_on_net_match_started)
+	if Net.host_left.is_connected(_on_net_host_left):
+		Net.host_left.disconnect(_on_net_host_left)
+	if Net.player_state_received.is_connected(_on_net_player_state):
+		Net.player_state_received.disconnect(_on_net_player_state)
+	if Net.player_action_received.is_connected(_on_net_player_action):
+		Net.player_action_received.disconnect(_on_net_player_action)
+
+
+func _sync_remote_lobby_peers() -> void:
+	if Net == null or not Net.is_online() or world == null:
+		return
+	var local_pid: int = Net.local_peer_id()
+	var stale: Array = []
+	for pid in remote_players:
+		if not Net.players.has(pid):
+			stale.append(pid)
+	for pid in stale:
+		var old_p: Variant = remote_players[pid]
+		remote_players.erase(pid)
+		if old_p != null and is_instance_valid(old_p):
+			(old_p as Node).queue_free()
+		if remote_pets.has(pid):
+			var old_pet: Variant = remote_pets[pid]
+			remote_pets.erase(pid)
+			if old_pet != null and is_instance_valid(old_pet):
+				(old_pet as Node).queue_free()
+
+	for pid_v in Net.players:
+		var pid: int = int(pid_v)
+		if pid == local_pid:
+			continue
+		var info: Dictionary = Net.players[pid_v]
+		var hid: String = str(info.get("hero", "ngo_quyen"))
+		if not HeroData.DATA.has(hid):
+			hid = "ngo_quyen"
+		var confirmed: bool = bool(info.get("hero_confirmed", false))
+		var sidx: int = int(info.get("slot_idx", 0))
+		var rp: Node = remote_players.get(pid, null)
+		if rp == null or not is_instance_valid(rp) or str(rp.get("hero_id")) != hid:
+			var keep_pos: Vector2 = SPAWN_POS + Vector2(float(sidx - 1) * 24.0, 0.0)
+			if rp != null and is_instance_valid(rp):
+				keep_pos = (rp as Node2D).global_position
+				rp.queue_free()
+			var np := Player.new()
+			np.peer_id = pid
+			np.is_local = false
+			np.display_name = str(info.get("name", "Đồng đội"))
+			var col_v: Variant = info.get("color", Net.PLAYER_COLORS[sidx % Net.PLAYER_COLORS.size()])
+			if col_v is Color:
+				np.name_color = col_v
+			np.setup(hid)
+			np.position = keep_pos
+			np.set("_remote_pos", keep_pos)
+			np.visible = confirmed
+			world.add_child(np)
+			remote_players[pid] = np
+			rp = np
+		else:
+			rp.set("display_name", str(info.get("name", "Đồng đội")))
+			rp.visible = confirmed
+
+		var pet_id: String = str(info.get("pet", ""))
+		var rpet: Node = remote_pets.get(pid, null)
+		if confirmed and pet_id != "" and Global.PETS.has(pet_id):
+			if rpet == null or not is_instance_valid(rpet) or str(rpet.get("pet_id")) != pet_id:
+				if rpet != null and is_instance_valid(rpet):
+					rpet.queue_free()
+				var npet := Pet.new()
+				npet.in_lobby = true
+				npet.setup(pet_id, rp)
+				npet.position = (rp as Node2D).global_position + Vector2(-20.0, 10.0)
+				world.add_child(npet)
+				remote_pets[pid] = npet
+			else:
+				rpet.set("owner_player", rp)
+		elif rpet != null and is_instance_valid(rpet):
+			remote_pets.erase(pid)
+			rpet.queue_free()
+
+
+func _on_net_lobby_updated() -> void:
+	_sync_remote_lobby_peers()
+	_refresh_heroes()
+
+
+func _on_net_match_started(_seed_val: int, _level: int) -> void:
+	if is_inside_tree():
+		get_tree().change_scene_to_file("res://scenes/game.tscn")
+
+
+func _on_net_host_left(_reason: String) -> void:
+	Net.leave_room()
+	if is_inside_tree():
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+
+func _on_net_player_state(peer_id: int, state: Dictionary) -> void:
+	var rp: Variant = remote_players.get(peer_id, null)
+	if rp != null and is_instance_valid(rp):
+		rp.apply_remote_state(state)
+		var confirmed: bool = bool(Net.players.get(peer_id, {}).get("hero_confirmed", true))
+		(rp as Node2D).visible = confirmed
+
+
+func _on_net_player_action(peer_id: int, kind: String, data: Dictionary) -> void:
+	var rp: Variant = remote_players.get(peer_id, null)
+	if rp != null and is_instance_valid(rp):
+		rp.play_remote_action(kind, data)

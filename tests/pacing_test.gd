@@ -36,7 +36,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	var levels: Array = [1, 2, 5, 13, 30]
-	var expected_waves: Dictionary = {1: 1, 2: 2, 5: 2, 13: 3, 30: 3}
+	var expected_waves: Dictionary = {1: 2, 2: 2, 5: 3, 13: 4, 30: 4}
 	for lv_val in levels:
 		var lv: int = int(lv_val)
 		var exp_rooms: int = 5 + mini(lv, 3)

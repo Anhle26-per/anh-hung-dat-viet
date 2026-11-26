@@ -170,7 +170,9 @@ ALLY_LEGS = [
 
 
 def build_ally():
+    """Binh sĩ Đại Việt 8 khung 18x20 (0..3 đi tuần/xung phong, 4..5 đứng thở/chớp mắt, 6..7 đâm kích)."""
     frames = []
+    # 0..3: walk (4 khung)
     for i, legs in enumerate(ALLY_LEGS):
         img = Image.new("RGBA", (18, 20), (0, 0, 0, 0))
         bob = -1 if i % 2 == 1 else 0
@@ -178,6 +180,38 @@ def build_ally():
         if bob:
             img.alpha_composite(grid([legs[0]], ALLY_PAL, 18), (0, 14))
         img.alpha_composite(grid(ALLY_UP, ALLY_PAL, 18), (0, 1 + bob))
+        d = ImageDraw.Draw(img)
+        if i % 2 == 0:
+            d.point([16, 2 + bob], fill=hexc("ffffff"))
+            d.point([14, 3 + bob], fill=hexc("ff6858"))
+        else:
+            d.point([14, 4 + bob], fill=hexc("ff6858"))
+            d.point([15, 2 + bob], fill=hexc("fff0a0"))
+        frames.append(polish(img))
+    # 4..5: idle (thở nhẹ + chớp mắt + tua cờ bay)
+    for j in range(2):
+        img = Image.new("RGBA", (18, 20), (0, 0, 0, 0))
+        img.alpha_composite(grid(ALLY_LEGS[0], ALLY_PAL, 18), (0, 15))
+        img.alpha_composite(grid(ALLY_UP, ALLY_PAL, 18), (0, 1 + j))
+        d = ImageDraw.Draw(img)
+        if j == 1:
+            d.point([7, 8], fill=ALLY_PAL["s"])
+            d.point([9, 8], fill=ALLY_PAL["s"])
+            d.point([14, 4], fill=hexc("ff6858"))
+            d.point([16, 1], fill=hexc("fff0a0"))
+        frames.append(polish(img))
+    # 6..7: attack (đâm kích vung sáng)
+    for j in range(2):
+        img = Image.new("RGBA", (18, 20), (0, 0, 0, 0))
+        img.alpha_composite(grid(ALLY_LEGS[1 if j == 0 else 2], ALLY_PAL, 18), (0, 15))
+        img.alpha_composite(grid(ALLY_UP, ALLY_PAL, 18), (1, 1))
+        d = ImageDraw.Draw(img)
+        if j == 0:
+            d.line([(13, 10), (17, 10)], fill=hexc("ffd866"))
+            d.point([17, 10], fill=hexc("ffffff"))
+        else:
+            d.line([(12, 9), (17, 9)], fill=hexc("ffffff"))
+            d.line([(14, 11), (17, 11)], fill=hexc("ffae42"))
         frames.append(polish(img))
     save(sheet(frames), "fx/ally.png")
 

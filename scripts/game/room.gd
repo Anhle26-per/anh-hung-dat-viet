@@ -24,7 +24,8 @@ const MountPickup = preload("res://scripts/entities/mount_pickup.gd")
 const BattlefieldHazard = preload("res://scripts/entities/battlefield_hazard.gd")
 
 const T := 16
-const MAX_ENEMIES := 14
+const MAX_ENEMIES := 28
+const SPAWN_TELEGRAPH_DUR := 0.55
 
 var rect := Rect2()
 var kind := "combat"
@@ -38,6 +39,9 @@ var player_inside := false
 var _doors: Array = []
 var _enemies: Array = []
 var _waves_left := 0
+var _wave_idx := 0
+var _spawn_queue: Array = []
+var _next_wave_t: float = 0.0
 var _chest: AnimatedSprite2D = null
 var shop: Node2D = null
 var blacksmith: Node2D = null
@@ -111,7 +115,7 @@ func _ready() -> void:
 			_spawn_mount_pickup.call_deferred(rect.get_center() + Vector2(68, 14))
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if kind == "start":
 		queue_redraw()
 	var lp: Node = Global.local_player()
@@ -120,29 +124,73 @@ func _process(_delta: float) -> void:
 		if player_inside:
 			visited = true
 	if not Net.is_online():
-		if lp == null:
-			return
-		if state == "idle" and not lp.dead and rect.grow(-T * 1.5).has_point(lp.global_position):
+		if lp != null and state == "idle" and not lp.dead and rect.grow(-T * 1.5).has_point(lp.global_position):
 			_enter()
-		return
-	var inner_trigger: Rect2 = rect.grow(-T * 1.5)
-	for pl in Global.all_players():
-		if not is_instance_valid(pl):
-			continue
-		var ppos: Vector2 = (pl as Node2D).global_position
-		if rect.has_point(ppos):
-			visited = true
-		if Net.is_host() and state == "idle" and not bool(pl.get("dead")) and not bool(pl.get("downed")) and inner_trigger.has_point(ppos):
-			_enter()
-			break
+	else:
+		var inner_trigger: Rect2 = rect.grow(-T * 1.5)
+		for pl in Global.all_players():
+			if not is_instance_valid(pl):
+				continue
+			var ppos: Vector2 = (pl as Node2D).global_position
+			if rect.has_point(ppos):
+				visited = true
+			if Net.is_host() and state == "idle" and not bool(pl.get("dead")) and not bool(pl.get("downed")) and inner_trigger.has_point(ppos):
+				_enter()
+				break
+
+	if state == "fighting" and (not Net.is_online() or Net.is_host()):
+		if not _spawn_queue.is_empty():
+			var remaining: Array = []
+			for entry in _spawn_queue:
+				var w: float = float(entry.get("wait", 0.0))
+				if w > 0.0:
+					entry["wait"] = maxf(w - delta, 0.0)
+					remaining.append(entry)
+				else:
+					var t_left: float = float(entry.get("t", 0.0)) - delta
+					if t_left <= 0.0:
+						spawn_enemy(str(entry["kind"]), entry["pos"] as Vector2, bool(entry["elite"]))
+					else:
+						entry["t"] = t_left
+						remaining.append(entry)
+			_spawn_queue = remaining
+			queue_redraw()
+		elif kind == "combat":
+			var active_mobs: int = _active_non_boss_count()
+			if _waves_left > 0 and active_mobs <= 2:
+				if _next_wave_t <= 0.0:
+					_next_wave_t = 0.45
+				else:
+					_next_wave_t -= delta
+					if _next_wave_t <= 0.0:
+						_spawn_wave()
+			elif _waves_left <= 0 and _enemies.is_empty():
+				_clear.call_deferred()
 
 
 static func waves_for_level(lv: int) -> int:
-	if lv <= 1:
-		return 1
-	if lv <= 10:
+	if lv <= 2:
 		return 2
-	return 3
+	if lv <= 9:
+		return 3
+	return 4
+
+
+func _effective_max_enemies() -> int:
+	var cap: int = MAX_ENEMIES
+	if _is_badass() or _has_mutator("elite_swarm"):
+		cap += 6
+	if Net.is_online() and Net.player_count() > 1:
+		cap += 4 * (Net.player_count() - 1)
+	return cap
+
+
+func _active_non_boss_count() -> int:
+	var cnt: int = 0
+	for e in _enemies:
+		if is_instance_valid(e) and not bool(e.get("dead")) and not e.is_boss():
+			cnt += 1
+	return cnt
 
 
 func _pull_all_players_inside() -> void:
@@ -364,37 +412,105 @@ func register_replica_enemy(e: Node) -> void:
 	_enemies.append(e)
 
 
+func _build_wave_composition(n: int) -> Array[String]:
+	var pool := EnemyData.pool(level)
+	var melee: Array[String] = []
+	var ranged: Array[String] = []
+	var support: Array[String] = []
+	for k_v in pool:
+		var k: String = str(k_v)
+		if k in ["bo_binh", "ky_binh", "tieu_yeu", "dai_bang", "ma_troi", "chan_tinh"]:
+			if not melee.has(k):
+				melee.append(k)
+		elif k in ["cung_thu", "linh_sung", "xa_thu", "phao_binh", "ho_tinh"]:
+			if not ranged.has(k):
+				ranged.append(k)
+		elif k in ["khien_binh", "phap_su", "moc_tinh", "xe_tang", "ngu_tinh"]:
+			if not support.has(k):
+				support.append(k)
+	var ch: Dictionary = EnemyData.chapter(level)
+	if support.is_empty() and not bool(ch.get("modern", false)) and (level >= 2 or _wave_idx >= 2):
+		support.append("khien_binh")
+		support.append("phap_su")
+	var out: Array[String] = []
+	var sup_target: int = 0
+	if not support.is_empty() and n >= 6:
+		sup_target = 2 if n >= 11 else 1
+	for _i in sup_target:
+		out.append(support[randi() % support.size()])
+	var melee_target: int = maxi(2, int(round(float(n) * 0.45))) if not melee.is_empty() else 0
+	var ranged_target: int = maxi(2, int(round(float(n) * 0.35))) if not ranged.is_empty() else 0
+	for _i in melee_target:
+		if out.size() >= n:
+			break
+		out.append(melee[randi() % melee.size()])
+	for _i in ranged_target:
+		if out.size() >= n:
+			break
+		out.append(ranged[randi() % ranged.size()])
+	while out.size() < n:
+		out.append(str(pool[randi() % pool.size()]))
+	out.shuffle()
+	return out
+
+
 func _spawn_wave() -> void:
 	if state != "fighting":
 		return
 	if Net.is_online() and not Net.is_host():
 		return
 	_waves_left -= 1
-	var pool := EnemyData.pool(level)
+	_wave_idx += 1
+	_next_wave_t = 0.0
 	var n: int
 	var elite_chance: float
-	if EnemyData.is_mythic_level(level):
-		var mdepth: int = level - 17
-		n = mini(7 + int(mdepth / 4) + randi() % 3, 12)
-		elite_chance = clampf(0.36 + 0.012 * float(mdepth), 0.36, 0.52)
+	if level <= 3:
+		n = clampi(8 + (level - 1) + randi_range(0, 2), 8, 12)
+		elite_chance = 0.10 + 0.03 * float(level - 1)
+	elif level <= 10:
+		n = clampi(11 + int((level - 4) / 2) + randi_range(0, 2), 11, 16)
+		elite_chance = minf(0.16 + 0.025 * float(level - 4), 0.36)
 	else:
-		var depth: int = mini(maxi(level - 1, 0), 15)
-		n = mini(4 + int(depth / 3) + randi() % 3, 10)
-		elite_chance = minf(0.10 + 0.022 * float(depth), 0.42)
+		var depth11: int = level - 11
+		n = clampi(14 + int(depth11 / 3) + randi_range(0, 2), 14, 22)
+		elite_chance = clampf(0.34 + 0.012 * float(depth11), 0.34, 0.54)
 	if _is_badass():
-		n += 1
+		n += 2
 		elite_chance = clampf(elite_chance + 0.22, 0.0, 0.85)
 	if _has_mutator("elite_swarm"):
-		n += 2
+		n += 3
 		elite_chance = maxf(elite_chance, 0.80)
-	for i in n:
-		spawn_enemy(pool.pick_random(), _random_point(), randf() < elite_chance)
+	if Net.is_online() and Net.player_count() > 1:
+		n += 2 * (Net.player_count() - 1)
+	var avail: int = maxi(1, _effective_max_enemies() - _active_non_boss_count() - _spawn_queue.size())
+	n = mini(n, avail)
+	var comp: Array[String] = _build_wave_composition(n)
+	for i in comp.size():
+		var pt: Vector2 = _random_point()
+		for _retry in 4:
+			var too_close: bool = false
+			for q in _spawn_queue:
+				if pt.distance_to(q["pos"] as Vector2) < 18.0:
+					too_close = true
+					break
+			if not too_close:
+				break
+			pt = _random_point()
+		_spawn_queue.append({
+			"kind": comp[i],
+			"pos": pt,
+			"elite": randf() < elite_chance,
+			"wait": float(int(i / 5)) * 0.16,
+			"t": SPAWN_TELEGRAPH_DUR,
+			"dur": SPAWN_TELEGRAPH_DUR,
+		})
+	queue_redraw()
 
 
 func spawn_enemy(k: String, pos: Vector2, elite := false) -> void:
 	if Net.is_online() and not Net.is_host():
 		return
-	var eff_max: int = MAX_ENEMIES + (4 if (_is_badass() or _has_mutator("elite_swarm")) else 0)
+	var eff_max: int = _effective_max_enemies()
 	if _enemies.size() >= eff_max and k != "boss" and not k.begins_with("legend:"):
 		return
 	var inner := rect.grow(-T * 1.5)
@@ -413,6 +529,8 @@ func spawn_enemy(k: String, pos: Vector2, elite := false) -> void:
 			ns.register_enemy(e)
 	_enemies.append(e)
 	get_parent().add_child(e)
+	if is_inside_tree() and k != "boss" and not k.begins_with("legend:"):
+		Fx.burst(get_parent(), clamped_pos, Color(1.0, 0.82, 0.3) if elite else Color(0.95, 0.35, 0.3), 18.0, 0.24)
 	if Net.is_online() and Net.is_host() and e.net_id > 0:
 		Net.send_enemy_event("spawn", {
 			"id": e.net_id,
@@ -541,13 +659,15 @@ func _on_enemy_killed(e) -> void:
 				break
 		if not other_boss_alive:
 			_waves_left = 0
+			_spawn_queue.clear()
 			for other in _enemies.duplicate():
 				if is_instance_valid(other):
 					other.die(false)
 			_enemies.clear()
-	if _enemies.is_empty():
+	if _enemies.is_empty() and _spawn_queue.is_empty():
 		if _waves_left > 0:
-			get_tree().create_timer(0.7).timeout.connect(_spawn_wave)
+			if _next_wave_t <= 0.0:
+				_next_wave_t = 0.45
 		else:
 			_clear.call_deferred()
 
@@ -821,6 +941,22 @@ func _spawn_biome_hazards() -> void:
 
 
 func _draw() -> void:
+	if not _spawn_queue.is_empty():
+		for entry in _spawn_queue:
+			if float(entry.get("wait", 0.0)) > 0.0:
+				continue
+			var lpos: Vector2 = to_local(entry["pos"] as Vector2)
+			var dur: float = maxf(float(entry.get("dur", SPAWN_TELEGRAPH_DUR)), 0.01)
+			var p: float = clampf(1.0 - float(entry.get("t", 0.0)) / dur, 0.0, 1.0)
+			var is_el: bool = bool(entry.get("elite", false))
+			var col: Color = Color(1.0, 0.78, 0.25) if is_el else Color(0.96, 0.30, 0.26)
+			draw_set_transform(lpos, 0.0, Vector2(1.0, 0.62))
+			draw_circle(Vector2.ZERO, 13.0, Color(col.r, col.g, col.b, 0.14 + 0.16 * p))
+			draw_arc(Vector2.ZERO, 14.0, 0.0, TAU, 24, Color(col.r, col.g, col.b, 0.78), 1.6)
+			draw_arc(Vector2.ZERO, lerpf(18.0, 5.0, p), 0.0, TAU, 20, Color(1.0, 0.92, 0.65, 0.92), 1.4)
+			draw_line(Vector2(-5.0, 0.0), Vector2(5.0, 0.0), Color(col.r, col.g, col.b, 0.7), 1.2)
+			draw_line(Vector2(0.0, -5.0), Vector2(0.0, 5.0), Color(col.r, col.g, col.b, 0.7), 1.2)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if kind != "start":
 		return
 	var c := rect.get_center()

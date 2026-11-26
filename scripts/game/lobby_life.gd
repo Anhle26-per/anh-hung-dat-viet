@@ -1,9 +1,17 @@
 extends Node2D
 ## Các thứ làm doanh trại sống động: thảm đỏ, ao cá koi + chuồn chuồn, lính tuần tra,
-## gà trống, gà con, cún vàng, mèo tam thể, hạc trắng.
+## gà trống, gà con, cún vàng, mèo tam thể, hạc trắng, và 5 NPC doanh trại hoạt ảnh.
 
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
+
+const NPC_KINDS := [
+	"npc_blacksmith",
+	"npc_tea_lady",
+	"npc_strategist",
+	"npc_scholar",
+	"npc_guard",
+]
 
 var kind := "carpet"
 var size := Vector2(100, 30)      # thảm / ao: kích thước
@@ -11,6 +19,10 @@ var a := Vector2.ZERO             # lính tuần: điểm đầu
 var b := Vector2.ZERO             # lính tuần: điểm cuối
 var _t := 0.0
 var _spr: AnimatedSprite2D
+var _shadow: Sprite2D
+var _amb_pt: CPUParticles2D
+var _base_spr_y := 0.0
+var _resting_hidden: bool = false
 var _kois: Array = []
 var _dragonflies: Array = []
 var _dir := 1.0
@@ -20,6 +32,17 @@ var _home := Vector2.ZERO
 var _feed_t := 0.0
 var _feed_pos := Vector2(0, -24)
 var _happy_t := 0.0
+var _look_t := 0.0
+var _step_dust_t := 0.0
+var _npc_fx_t := 0.0
+
+
+func set_resting_hidden(hidden: bool) -> void:
+	_resting_hidden = hidden
+	visible = not hidden
+	if _amb_pt != null and is_instance_valid(_amb_pt):
+		_amb_pt.emitting = not hidden
+	set_process(not hidden)
 
 
 func trigger_koi_feed() -> void:
@@ -40,8 +63,41 @@ func trigger_happy(dur: float = 2.8) -> void:
 		Fx.particles(get_parent(), wp, Color(1.0, 0.9, 0.45), 8, 48.0, 0.55, -28.0, 1.5)
 
 
+func _add_shadow(pos: Vector2, sc := Vector2.ONE) -> void:
+	_shadow = Sprite2D.new()
+	_shadow.texture = Art.tex("fx/shadow.png")
+	_shadow.position = pos
+	_shadow.scale = sc
+	_shadow.z_index = -1
+	add_child(_shadow)
+
+
+func _add_npc_particles(pos: Vector2, col: Color, col_end: Color, amount: int, life: float, spd: float, grav_y: float) -> void:
+	var pt := CPUParticles2D.new()
+	pt.position = pos
+	pt.amount = amount
+	pt.lifetime = life
+	pt.direction = Vector2.UP
+	pt.spread = 32.0
+	pt.gravity = Vector2(0.0, grav_y)
+	pt.initial_velocity_min = spd * 0.5
+	pt.initial_velocity_max = spd
+	pt.scale_amount_min = 1.0
+	pt.scale_amount_max = 1.8
+	var g := Gradient.new()
+	g.set_color(0, col)
+	g.set_color(1, col_end)
+	pt.color_ramp = g
+	pt.material = Art.additive()
+	pt.z_index = 3
+	pt.emitting = not _resting_hidden
+	add_child(pt)
+	_amb_pt = pt
+
+
 func _ready() -> void:
 	_t = randf() * 10.0
+	_look_t = randf_range(2.0, 5.0)
 	match kind:
 		"carpet":
 			z_index = 0
@@ -51,15 +107,15 @@ func _ready() -> void:
 		"patrol":
 			z_index = 1
 			_spr = AnimatedSprite2D.new()
-			_spr.sprite_frames = Art.strip("fx/ally.png", 18, 20, 8.0, true)
-			_spr.play("play")
-			_spr.position = Vector2(0, -6)
+			_spr.sprite_frames = Art.frames("fx/ally.png", 18, 20, {
+				"walk": [[0, 1, 2, 3], 9.0, true],
+				"idle": [[4, 4, 5, 4], 4.0, true],
+			})
+			_spr.play("walk")
+			_base_spr_y = -6.0
+			_spr.position = Vector2(0, _base_spr_y)
 			add_child(_spr)
-			var sh := Sprite2D.new()
-			sh.texture = Art.tex("fx/shadow.png")
-			sh.position = Vector2(0, 4)
-			sh.z_index = -1
-			add_child(sh)
+			_add_shadow(Vector2(0, 4))
 			position = a
 		"chicken", "chick":
 			z_index = 1
@@ -67,60 +123,125 @@ func _ready() -> void:
 			_target = position
 			_spr = AnimatedSprite2D.new()
 			_spr.sprite_frames = Art.frames("world/animal_chick.png", 16, 15, {
-				"walk": [[0, 1], 6.0, true],
-				"hop": [[2, 0], 5.0, true],
-				"peck": [[3, 0], 4.0, true],
+				"walk": [[0, 1], 6.5, true],
+				"hop": [[2, 0], 5.5, true],
+				"peck": [[3, 0], 4.5, true],
 			})
-			_spr.position = Vector2(0, -5)
+			_base_spr_y = -5.0
+			_spr.position = Vector2(0, _base_spr_y)
 			_spr.play("walk")
 			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(0.75, 0.75))
 		"rooster":
 			z_index = 1
 			_home = position
 			_target = position
 			_spr = AnimatedSprite2D.new()
 			_spr.sprite_frames = Art.frames("world/animal_rooster.png", 24, 24, {
-				"walk": [[0, 1], 6.0, true],
-				"strut": [[2, 0], 3.0, true],
-				"peck": [[3, 0], 4.0, true],
+				"walk": [[0, 1], 6.5, true],
+				"strut": [[2, 0], 3.5, true],
+				"peck": [[3, 0], 4.5, true],
 			})
-			_spr.position = Vector2(0, -9)
+			_base_spr_y = -9.0
+			_spr.position = Vector2(0, _base_spr_y)
 			_spr.play("strut")
 			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(0.95, 0.85))
 		"dog":
 			z_index = 1
 			_home = position
 			_target = position
 			_spr = AnimatedSprite2D.new()
 			_spr.sprite_frames = Art.frames("world/animal_dog.png", 26, 22, {
-				"walk": [[0, 1], 7.0, true],
-				"sit": [[2, 3], 4.0, true],
+				"walk": [[0, 1], 7.5, true],
+				"sit": [[2, 3], 4.5, true],
 			})
-			_spr.position = Vector2(0, -8)
+			_base_spr_y = -8.0
+			_spr.position = Vector2(0, _base_spr_y)
 			_spr.play("sit")
 			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.9))
 		"cat":
 			z_index = 1
 			_home = position
 			_spr = AnimatedSprite2D.new()
 			_spr.sprite_frames = Art.frames("world/animal_cat.png", 24, 20, {
-				"idle": [[0, 0, 1, 0, 2], 3.0, true],
+				"idle": [[0, 0, 1, 0, 2], 3.5, true],
 				"nap": [[3], 1.0, false],
 			})
-			_spr.position = Vector2(0, -7)
+			_base_spr_y = -7.0
+			_spr.position = Vector2(0, _base_spr_y)
 			_spr.play("idle" if randf() < 0.6 else "nap")
 			_wait = randf_range(3.0, 6.0)
 			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(0.9, 0.85))
 		"crane":
 			z_index = 1
 			_home = position
 			_spr = AnimatedSprite2D.new()
 			_spr.sprite_frames = Art.frames("world/animal_crane.png", 26, 34, {
-				"idle": [[0, 0, 1, 0, 2, 0, 3], 2.5, true],
+				"idle": [[0, 0, 1, 0, 2, 0, 3], 2.8, true],
 			})
-			_spr.position = Vector2(0, -14)
+			_base_spr_y = -14.0
+			_spr.position = Vector2(0, _base_spr_y)
 			_spr.play("idle")
 			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(0.95, 0.85))
+		"npc_blacksmith":
+			z_index = 1
+			_spr = AnimatedSprite2D.new()
+			_spr.sprite_frames = Art.strip("world/npc_blacksmith.png", 28, 30, 5.5, true)
+			_base_spr_y = -12.0
+			_spr.position = Vector2(0, _base_spr_y)
+			_spr.play("play")
+			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(1.15, 0.9))
+			_add_npc_particles(Vector2(8, -10), Color(1.0, 0.86, 0.35, 0.95), Color(1.0, 0.35, 0.1, 0.0), 8, 0.9, 18.0, -24.0)
+			var gl := Art.light(Color(1.0, 0.58, 0.24), 0.75, 0.55)
+			gl.position = Vector2(6, -10)
+			add_child(gl)
+		"npc_tea_lady":
+			z_index = 1
+			_spr = AnimatedSprite2D.new()
+			_spr.sprite_frames = Art.strip("world/npc_tea_lady.png", 24, 30, 4.2, true)
+			_base_spr_y = -12.0
+			_spr.position = Vector2(0, _base_spr_y)
+			_spr.play("play")
+			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.85))
+			_add_npc_particles(Vector2(6, -15), Color(0.95, 0.98, 1.0, 0.6), Color(0.95, 0.98, 1.0, 0.0), 6, 1.4, 8.0, -10.0)
+		"npc_strategist":
+			z_index = 1
+			_spr = AnimatedSprite2D.new()
+			_spr.sprite_frames = Art.strip("world/npc_strategist.png", 24, 30, 4.5, true)
+			_base_spr_y = -12.0
+			_spr.position = Vector2(0, _base_spr_y)
+			_spr.play("play")
+			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.85))
+			_add_npc_particles(Vector2(0, -16), Color(0.55, 0.9, 1.0, 0.75), Color(0.95, 0.85, 0.45, 0.0), 6, 1.5, 10.0, -12.0)
+		"npc_scholar":
+			z_index = 1
+			_spr = AnimatedSprite2D.new()
+			_spr.sprite_frames = Art.strip("world/npc_scholar.png", 24, 30, 3.8, true)
+			_base_spr_y = -12.0
+			_spr.position = Vector2(0, _base_spr_y)
+			_spr.play("play")
+			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.85))
+			_add_npc_particles(Vector2(5, -14), Color(1.0, 0.9, 0.45, 0.8), Color(1.0, 0.85, 0.3, 0.0), 6, 1.6, 8.0, -10.0)
+		"npc_guard":
+			z_index = 1
+			_spr = AnimatedSprite2D.new()
+			_spr.sprite_frames = Art.strip("world/npc_guard.png", 24, 30, 4.0, true)
+			_base_spr_y = -12.0
+			_spr.position = Vector2(0, _base_spr_y)
+			_spr.play("play")
+			add_child(_spr)
+			_add_shadow(Vector2(0, 2), Vector2(1.05, 0.88))
+			_add_npc_particles(Vector2(5, -22), Color(1.0, 0.92, 0.55, 0.65), Color(1.0, 0.55, 0.25, 0.0), 4, 1.2, 8.0, -8.0)
+	if _resting_hidden:
+		set_resting_hidden(true)
 
 
 func _build_pond() -> void:
@@ -185,9 +306,19 @@ func _wander_animal(delta: float, walk_speed: float, range_xy: Vector2, idle_ani
 		position += to.normalized() * walk_speed * delta
 		_spr.flip_h = to.x < 0.0
 		_spr.play("walk")
-		_spr.position.y = (-5.0 if kind in ["chicken", "chick"] else -8.0) - absf(sin(_t * 14.0)) * 1.5
+		_spr.position.y = _base_spr_y - absf(sin(_t * 14.0)) * 1.6
+		_step_dust_t -= delta
+		if _step_dust_t <= 0.0 and get_parent() != null:
+			_step_dust_t = 0.36
+			Fx.particles(get_parent(), global_position + Vector2(0, 2), Color(0.86, 0.8, 0.68, 0.55), 2, 16.0, 0.25, -4.0, 1.2)
 	else:
-		_spr.position.y = -5.0 if kind in ["chicken", "chick"] else (-9.0 if kind == "rooster" else -8.0)
+		var breath_bob := sin(_t * 3.2) * 0.6
+		_spr.position.y = _base_spr_y + breath_bob
+		_look_t -= delta
+		if _look_t <= 0.0:
+			_look_t = randf_range(2.2, 4.8)
+			if randf() < 0.5:
+				_spr.flip_h = not _spr.flip_h
 		if _wait <= 0.0:
 			if randf() < 0.55:
 				_spr.play(str(idle_anims[randi() % idle_anims.size()]))
@@ -198,6 +329,8 @@ func _wander_animal(delta: float, walk_speed: float, range_xy: Vector2, idle_ani
 
 
 func _process(delta: float) -> void:
+	if _resting_hidden:
+		return
 	_t += delta
 	match kind:
 		"pond":
@@ -228,41 +361,86 @@ func _process(delta: float) -> void:
 				df.position = dp
 			queue_redraw()
 		"patrol":
+			if _spr == null:
+				return
 			var target := b if _dir > 0.0 else a
 			var to := target - position
 			if _wait > 0.0:
 				_wait -= delta
-				_spr.speed_scale = 0.0
+				_spr.play("idle")
+				_spr.position.y = _base_spr_y + sin(_t * 3.5) * 0.5
 			elif to.length() < 2.0:
 				_dir = -_dir
-				_wait = 1.5
+				_wait = 1.6
 			else:
 				position += to.normalized() * 30.0 * delta
 				_spr.flip_h = to.x < 0.0
-				_spr.speed_scale = 1.0
+				_spr.play("walk")
+				_spr.position.y = _base_spr_y - absf(sin(_t * 12.0)) * 1.0
+				_step_dust_t -= delta
+				if _step_dust_t <= 0.0 and get_parent() != null:
+					_step_dust_t = 0.42
+					Fx.particles(get_parent(), global_position + Vector2(0, 3), Color(0.84, 0.78, 0.66, 0.5), 2, 14.0, 0.24, -4.0, 1.2)
 		"chicken", "chick":
+			if _spr == null:
+				return
 			_wander_animal(delta, 24.0, Vector2(36, 22), ["peck", "hop"])
 		"rooster":
+			if _spr == null:
+				return
 			_wander_animal(delta, 28.0, Vector2(46, 24), ["strut", "peck"])
 		"dog":
+			if _spr == null:
+				return
 			_wander_animal(delta, 36.0, Vector2(52, 26), ["sit"])
 		"cat":
+			if _spr == null:
+				return
 			_wait -= delta
+			_spr.position.y = _base_spr_y + sin(_t * 2.8) * 0.5
 			if _wait <= 0.0:
 				_spr.play("nap" if randf() < 0.45 else "idle")
 				_wait = randf_range(3.5, 7.0)
+				if _spr.animation == "idle" and randf() < 0.5:
+					_spr.flip_h = not _spr.flip_h
+		"crane":
+			if _spr == null:
+				return
+			_spr.position.y = _base_spr_y + sin(_t * 2.2) * 0.7
+			_look_t -= delta
+			if _look_t <= 0.0:
+				_look_t = randf_range(3.0, 6.0)
+				_spr.flip_h = not _spr.flip_h
+		"npc_blacksmith", "npc_tea_lady", "npc_strategist", "npc_scholar", "npc_guard":
+			if _spr == null:
+				return
+			var breath := sin(_t * 3.4) * 0.03
+			_spr.position.y = _base_spr_y + sin(_t * 3.4) * 0.7
+			_spr.scale = Vector2(1.0 - breath * 0.5, 1.0 + breath)
+			if kind == "npc_blacksmith":
+				_npc_fx_t -= delta
+				if _npc_fx_t <= 0.0 and get_parent() != null and _spr.frame == 2:
+					_npc_fx_t = 0.65
+					Fx.particles(get_parent(), global_position + Vector2(8, -10), Color(1.0, 0.85, 0.3), 5, 42.0, 0.32, 65.0, 1.4, 100.0, Vector2.UP, Color(1.0, 0.35, 0.1))
+			elif kind == "npc_guard":
+				_look_t -= delta
+				if _look_t <= 0.0:
+					_look_t = randf_range(3.5, 6.5)
+					_spr.flip_h = not _spr.flip_h
 	if _happy_t > 0.0:
 		_happy_t = maxf(0.0, _happy_t - delta)
 		if _spr != null:
 			var jump: float = absf(sin(_t * 14.0)) * 5.0
-			var base_y: float = -5.0 if kind in ["chicken", "chick"] else (-9.0 if kind == "rooster" else (-14.0 if kind == "crane" else (-7.0 if kind == "cat" else -8.0)))
-			_spr.position.y = base_y - jump
+			_spr.position.y = _base_spr_y - jump
 			var sq: float = 0.08 * sin(_t * 16.0)
 			_spr.scale = Vector2(1.0 + sq, 1.0 - sq * 0.8)
 		queue_redraw()
-	elif _spr != null and _spr.scale != Vector2.ONE:
-		_spr.scale = Vector2.ONE
-		queue_redraw()
+	elif _spr != null and not (kind in NPC_KINDS):
+		var idle_sq := sin(_t * 3.2) * 0.028
+		_spr.scale = Vector2(1.0 - idle_sq * 0.6, 1.0 + idle_sq)
+	if _shadow != null and is_instance_valid(_shadow):
+		var sh_p := 1.0 + sin(_t * 3.2) * 0.05
+		_shadow.scale = Vector2(sh_p, sh_p * 0.9)
 
 
 func _draw_heart(pos: Vector2, sz: float, col: Color) -> void:

@@ -125,6 +125,9 @@ var _spirit_blade: Node2D = null
 var sprinting: bool = false
 var _sprint_drain_acc: float = 0.0
 var _sprint_fx_t: float = 0.0
+var _lively_t: float = 0.0
+var _step_dust_t: float = 0.0
+var _idle_sparkle_t: float = 0.75
 
 # v2.0.0 Shared Contracts & Combat state
 var dash_cd_left: float = 0.0
@@ -647,11 +650,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	_lively_t += delta
 	_flash = maxf(_flash - delta * 6.0, 0.0)
 	_mat.set_shader_parameter("flash", _flash)
 	_recoil = move_toward(_recoil, 0.0, delta * 40.0)
 	if dead or downed:
 		sprinting = false
+		if body != null:
+			body.scale = Vector2.ONE
 		if body.animation != "down":
 			body.play("down")
 		if weapon_pivot != null:
@@ -666,22 +672,47 @@ func _process(delta: float) -> void:
 	elephant.flip_h = face_left
 	if iron_horse != null:
 		iron_horse.flip_h = face_left
+	var moving := false
 	if not is_local:
+		moving = global_position.distance_to(_remote_pos) > 2.5 or _remote_anim == "walk"
 		if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
 			if _remote_anim != "" and body.animation != _remote_anim:
 				body.play(_remote_anim)
 	else:
-		var moving := velocity.length() > 5.0
+		moving = velocity.length() > 5.0
 		if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
 			body.play("walk" if moving else "idle")
 			body.speed_scale = 1.45 if (sprinting and moving) else 1.0
 
-	# vũ khí xoay theo hướng ngắm
+	# Co giãn & nhịp thở / bước chạy sinh động cho nhân vật & vũ khí
+	var breath: float = sin(_lively_t * 3.6)
+	var step_wave: float = absf(sin(_lively_t * (16.0 if sprinting else 12.0)))
+	var body_bob_y: float = 0.0
+	var b_sx: float = 1.0
+	var b_sy: float = 1.0
+	if _anim_lock_t > 0.0:
+		var punch: float = clampf(_anim_lock_t * 3.5, 0.0, 1.0)
+		b_sx = 1.0 + 0.10 * punch
+		b_sy = 1.0 - 0.09 * punch
+	elif moving and _dash_time <= 0.0 and _horse_time <= 0.0:
+		body_bob_y = -step_wave * (2.6 if sprinting else 1.6)
+		var amp: float = 0.065 if sprinting else 0.042
+		b_sx = 1.0 + (0.5 - step_wave) * amp
+		b_sy = 1.0 - (0.5 - step_wave) * amp
+	else:
+		b_sx = 1.0 - breath * 0.028
+		b_sy = 1.0 + breath * 0.032
+		body_bob_y = breath * 0.4
+	body.scale = Vector2(b_sx, b_sy)
+
+	# vũ khí xoay theo hướng ngắm + nhịp vung nhẹ khi đứng/chạy
 	var w := current_weapon()
 	var id: String = weapons[slot]
 	weapon_pivot.visible = _dash_time <= 0.0 and _horse_time <= 0.0 and id != ""
-	weapon_pivot.position = Vector2(-2.0 if face_left else 2.0, 1.0)
-	weapon_pivot.rotation = aim_dir.angle() + swing * (-1.0 if face_left else 1.0)
+	var wp_bob_y: float = (-step_wave * 1.1) if moving else (breath * 0.7)
+	var wp_sway: float = (sin(_lively_t * 11.0) * 0.06) if moving else (cos(_lively_t * 3.2) * 0.025)
+	weapon_pivot.position = Vector2(-2.0 if face_left else 2.0, 1.0 + wp_bob_y)
+	weapon_pivot.rotation = aim_dir.angle() + (swing + wp_sway) * (-1.0 if face_left else 1.0)
 	weapon_pivot.z_index = 1
 	if weapon_sprite.texture != null:
 		var g := WeaponData.grip(id)
@@ -696,9 +727,11 @@ func _process(delta: float) -> void:
 	else:
 		modulate.a = 1.0
 
-	# hiệu ứng kỹ năng đang chạy
+	# hiệu ứng kỹ năng, bụi bước chân & lấp lánh đứng yên
 	_fx_t -= delta
 	_sprint_fx_t -= delta
+	_step_dust_t -= delta
+	_idle_sparkle_t -= delta
 	if _dash_time > 0.0:
 		elephant.visible = true
 		elephant.play("play")
@@ -707,7 +740,7 @@ func _process(delta: float) -> void:
 		if mount_sprite != null:
 			mount_sprite.visible = false
 		body.position = Vector2(-1, -17)
-		if _fx_t <= 0.0:
+		if _fx_t <= 0.0 and visible and get_parent() != null:
 			_fx_t = 0.04
 			Fx.anim(get_parent(), global_position + Vector2(-_dash_dir.x * 12.0, 10 + randf_range(-3, 3)), "fx/dust.png", 10, 10, 12.0, 1.5)
 			Fx.afterimage(get_parent(), elephant, global_position, Color(1, 0.6, 0.4, 0.5), 0.25)
@@ -719,7 +752,7 @@ func _process(delta: float) -> void:
 		if mount_sprite != null:
 			mount_sprite.visible = false
 		body.position = Vector2(-1, -17)
-		if _fx_t <= 0.0:
+		if _fx_t <= 0.0 and visible and get_parent() != null:
 			_fx_t = 0.04
 			Fx.particles(get_parent(), global_position + Vector2(-_dash_dir.x * 10.0, 6), Color(1.0, 0.65, 0.2), 4, 65.0, 0.3, -40.0, 1.8, 50.0, -_dash_dir, Color(0.85, 0.2, 0.1))
 			if iron_horse != null:
@@ -732,20 +765,28 @@ func _process(delta: float) -> void:
 			if mount_sprite != null:
 				mount_sprite.visible = true
 				mount_sprite.flip_h = face_left
-				if velocity.length() > 5.0:
+				if moving:
 					mount_sprite.play("play")
 				else:
 					mount_sprite.stop()
-			body.position = Vector2(0, -14)
+			body.position = Vector2(0, -14 + body_bob_y * 0.5)
 		else:
 			if mount_sprite != null:
 				mount_sprite.visible = false
-			body.position = Vector2(0, -6)
-		if sprinting and velocity.length() > 10.0 and _sprint_fx_t <= 0.0 and get_parent() != null:
-			_sprint_fx_t = 0.09
-			Fx.anim(get_parent(), global_position + Vector2(randf_range(-4.0, 4.0), 6.0), "fx/dust.png", 10, 10, 14.0, 0.95, 0.0, Color(0.75, 0.92, 1.0, 0.85))
-			Fx.particles(get_parent(), global_position + Vector2(0.0, 4.0), Color(0.42, 0.86, 1.0), 2, 42.0, 0.22, -20.0, 1.4, 40.0, -velocity.normalized())
-			Fx.afterimage(get_parent(), body, global_position, Color(0.38, 0.84, 1.0, 0.35), 0.16)
+			body.position = Vector2(0, -6 + body_bob_y)
+		if visible and get_parent() != null:
+			if sprinting and moving and _sprint_fx_t <= 0.0:
+				_sprint_fx_t = 0.09
+				Fx.anim(get_parent(), global_position + Vector2(randf_range(-4.0, 4.0), 6.0), "fx/dust.png", 10, 10, 14.0, 0.95, 0.0, Color(0.75, 0.92, 1.0, 0.85))
+				Fx.particles(get_parent(), global_position + Vector2(0.0, 4.0), Color(0.42, 0.86, 1.0), 2, 42.0, 0.22, -20.0, 1.4, 40.0, -velocity.normalized())
+				Fx.afterimage(get_parent(), body, global_position, Color(0.38, 0.84, 1.0, 0.35), 0.16)
+			elif moving and not sprinting and _step_dust_t <= 0.0:
+				_step_dust_t = 0.24
+				Fx.anim(get_parent(), global_position + Vector2(randf_range(-3.0, 3.0), 7.0), "fx/dust.png", 10, 10, 14.0, 0.72, 0.0, Color(0.92, 0.88, 0.8, 0.55))
+			elif not moving and _idle_sparkle_t <= 0.0:
+				_idle_sparkle_t = randf_range(0.95, 1.65)
+				var hcol: Color = hero.get("color", Color(1.0, 0.88, 0.45))
+				Fx.particles(get_parent(), global_position + Vector2(randf_range(-6.0, 6.0), -8.0), hcol, 2, 22.0, 0.45, -18.0, 1.3)
 	twin.visible = twin_timer > 0.0
 	if twin.visible:
 		twin.flip_h = body.flip_h

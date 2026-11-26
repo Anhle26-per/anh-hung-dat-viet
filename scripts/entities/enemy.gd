@@ -103,6 +103,10 @@ var _windup_glint_done: bool = false
 var _hazard_slow_t: float = 0.0
 var _hazard_slow_mult: float = 1.0
 var _aggro_reveal_t: float = 0.0
+var _action_anim: String = ""
+var _action_anim_t: float = 0.0
+var _prev_net_anim: String = ""
+var _spiral_fx_t: float = 0.0
 
 
 func setup(k: String, lvl: int, target) -> void:
@@ -241,6 +245,8 @@ func _reset_motion_fx() -> void:
 	_leap_z = 0.0
 	_dash_hit_wall = false
 	_windup_glint_done = false
+	_action_anim = ""
+	_action_anim_t = 0.0
 	_anim_scale = _base_scale
 	if spr != null:
 		spr.scale = _base_scale
@@ -350,6 +356,7 @@ func _physics_process(delta: float) -> void:
 			Fx.particles(get_parent(), rpos, _boss_color(), 2, 34.0, 0.45, -36.0, 1.8)
 	player = Global.nearest_player(global_position)
 	if is_replica:
+		var prev_pos: Vector2 = global_position
 		global_position = global_position.lerp(_net_pos, clampf(delta * 16.0, 0.0, 1.0))
 		spr.flip_h = _face < 0.0
 		if _spawn_t > 0.0:
@@ -360,14 +367,24 @@ func _physics_process(delta: float) -> void:
 			_morph_t -= delta
 			_flash = 0.5 + 0.5 * sin(_morph_t * 30.0)
 			spr.position.x = sin(_morph_t * 60.0) * 1.5
+			var rage_anim := _resolve_anim("rage")
+			if spr.sprite_frames.has_animation(rage_anim) and spr.animation != rage_anim:
+				spr.play(rage_anim)
 			if int(_morph_t * 20.0) % 2 == 0:
 				Fx.particles(get_parent(), global_position + Vector2(randf_range(-16, 16), randf_range(-24, 4)), Color(0.55, 0.2, 0.7), 3, 50.0, 0.6, -50.0, 2.5)
 			if _morph_t <= 0.0 and not transformed and data.has("sheet2"):
 				_finish_morph()
 			return
 		spr.modulate.a = 0.25 if _submerged else 1.0
-		if _net_anim != "" and spr.sprite_frames.has_animation(_net_anim) and spr.animation != _net_anim:
-			spr.play(_net_anim)
+		if _net_anim != "":
+			var net_resolved := _resolve_anim(_net_anim)
+			if spr.sprite_frames.has_animation(net_resolved):
+				if spr.animation != net_resolved or (_net_anim != _prev_net_anim and not spr.sprite_frames.get_animation_loop(net_resolved)):
+					spr.frame = 0
+					spr.play(net_resolved)
+				_prev_net_anim = _net_anim
+		var rep_spd: float = (global_position - prev_pos).length() / maxf(delta, 0.001)
+		_apply_lively_motion(delta, rep_spd)
 		_contact_t -= delta
 		if not _submerged and _contact_t <= 0.0:
 			var lp: Node = Global.local_player()
@@ -439,7 +456,8 @@ func _physics_process(delta: float) -> void:
 								_fire(dir.angle() + float(si) * 0.14, 190.0, epj, edmg)
 						else:
 							_fire(dir.angle(), 185.0, epj, edmg)
-						_attack_anim_t = 0.3
+						_trigger_mob_attack(0.32, Vector2(1.14, 0.88))
+						Fx.anim(get_parent(), global_position + dir * radius, "fx/muzzle.png", 12, 10, 24.0, 0.9, dir.angle(), Color(1.0, 0.85, 0.55) if epj == "arrow" else Color(1.0, 0.55, 0.9), true, 6)
 				"tank":
 					desired = _chase_dir(delta, dir, dist, 0.18, 0.18)
 				"caster":
@@ -448,12 +466,14 @@ func _physics_process(delta: float) -> void:
 					if _shoot_t <= 0.0:
 						_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15) * shoot_rate_mult
 						_fire_ring(10, randf() * TAU, 115.0, "orb_poison")
-						_attack_anim_t = 0.3
+						_trigger_mob_attack(0.34, Vector2(0.90, 1.16))
+						Fx.burst(get_parent(), global_position, Color(0.75, 0.4, 1.0), 22.0, 0.28)
 					_summon_t -= delta
 					if _summon_t <= 0.0 and room != null:
 						_summon_t = randf_range(5.0, 7.0)
 						var folk: Array = EnemyData.chapter(level).folk
 						var p := global_position + Vector2.from_angle(randf() * TAU) * 26.0
+						_trigger_mob_attack(0.40, Vector2(0.88, 1.18))
 						Fx.particles(get_parent(), p, Color(0.8, 0.4, 1.0), 16, 90.0, 0.5)
 						room.spawn_enemy(folk.pick_random(), p)
 				"ring":
@@ -462,6 +482,8 @@ func _physics_process(delta: float) -> void:
 					if _shoot_t <= 0.0:
 						_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15) * shoot_rate_mult
 						_fire_ring(10, randf() * TAU, 120.0, "orb_pink")
+						_trigger_mob_attack(0.34, Vector2(0.90, 1.16))
+						Fx.burst(get_parent(), global_position, Color(1.0, 0.5, 0.78), 22.0, 0.26)
 				"charge":
 					desired = _charge_ai(delta, dir, dist, 4.2)
 				"rifle":
@@ -470,7 +492,8 @@ func _physics_process(delta: float) -> void:
 					if _shoot_t <= 0.0:
 						_shoot_t = data.get("shoot_cd", 1.2) * randf_range(0.8, 1.15) * shoot_rate_mult
 						_fire(dir.angle() + randf_range(-0.04, 0.04), 245.0, "bullet", 2 if elite else 1)
-						_attack_anim_t = 0.2
+						_trigger_mob_attack(0.24, Vector2(1.15, 0.87))
+						Fx.anim(get_parent(), global_position + dir * radius, "fx/muzzle.png", 12, 10, 24.0, 1.0, dir.angle(), Color.WHITE, true, 6)
 				"mg":
 					desired = _keep_distance(delta, dir, dist, 175.0, 110.0) * 0.6
 					_shoot_t -= delta
@@ -514,11 +537,21 @@ func _physics_process(delta: float) -> void:
 				if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")) and _touches_player((lp as Node2D).global_position) and _contact_t <= 0.0:
 					lp.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
 					_contact_t = 0.8
-					_attack_anim_t = 0.3
+					if is_boss():
+						_trigger_action_anim("melee_sweep", 0.35)
+						Fx.slash(get_parent(), hurtbox_center() + Vector2(_face * radius * 0.6, 0.0), Vector2(_face, 0.0), maxf(radius * 1.9, 30.0), deg_to_rad(120.0), _boss_color(), "swing")
+					else:
+						_trigger_mob_attack(0.32, Vector2(1.18, 0.85))
+						Fx.slash(get_parent(), hurtbox_center() + Vector2(_face * radius * 0.7, 0.0), Vector2(_face, 0.0), maxf(radius * 2.0, 18.0), deg_to_rad(110.0), Color(1.0, 0.75, 0.5), "swing")
 			elif _touches_player(player.global_position) and _contact_t <= 0.0:
 				player.take_damage((2 + int(power() / 5.0)) if is_boss() else (2 if elite else 1))
 				_contact_t = 0.8
-				_attack_anim_t = 0.3
+				if is_boss():
+					_trigger_action_anim("melee_sweep", 0.35)
+					Fx.slash(get_parent(), hurtbox_center() + Vector2(_face * radius * 0.6, 0.0), Vector2(_face, 0.0), maxf(radius * 1.9, 30.0), deg_to_rad(120.0), _boss_color(), "swing")
+				else:
+					_trigger_mob_attack(0.32, Vector2(1.18, 0.85))
+					Fx.slash(get_parent(), hurtbox_center() + Vector2(_face * radius * 0.7, 0.0), Vector2(_face, 0.0), maxf(radius * 2.0, 18.0), deg_to_rad(110.0), Color(1.0, 0.75, 0.5), "swing")
 
 	_update_burst(delta)
 	_knock = _knock.move_toward(Vector2.ZERO, 900.0 * delta)
@@ -537,6 +570,19 @@ func _physics_process(delta: float) -> void:
 
 func _build_anims(n: int) -> Dictionary:
 	var anims := {"walk": [[0, 1, 2, 3], 9.0 if n == 8 else 8.0, true]}
+	if n >= 36:
+		anims["idle"] = [[0, 1, 2, 3], 6.0, true]
+		anims["walk"] = [[4, 5, 6, 7, 8, 9, 10, 11], 13.0, true]
+		anims["windup"] = [[12, 13, 14, 15], 12.0, false]
+		anims["melee_sweep"] = [[16, 17, 18, 19], 15.0, false]
+		anims["attack"] = [[16, 17, 18, 19], 15.0, false]
+		anims["ranged_shot"] = [[20, 21, 22, 23], 14.0, false]
+		anims["cast_summon"] = [[24, 25, 26, 27], 11.0, false]
+		anims["dash"] = [[28, 29], 14.0, true]
+		anims["leap"] = [[30, 31, 32], 10.0, false]
+		anims["rage"] = [[33, 15], 8.0, true]
+		anims["special"] = [[34, 35], 8.0, true]
+		return anims
 	if n >= 24:
 		anims["walk"] = [[0, 1, 2, 3, 4, 5, 6, 7], 13.0, true]
 		anims["windup"] = [[8, 9, 10], 11.0, false]
@@ -572,38 +618,47 @@ func _build_anims(n: int) -> Dictionary:
 	return anims
 
 
-func _update_anim(delta: float = 0.016) -> void:
-	spr.flip_h = _face < 0.0
-	_anim_scale = _anim_scale.lerp(_base_scale, clampf(delta * 11.0, 0.0, 1.0))
-	spr.scale = _anim_scale
-	if _special in ["ong_dong", "ham_chi_huy", "boc_chay", "cuu_vi", "rung_gia", "song_than"] and _special_t > 0.0 and spr.sprite_frames.has_animation("special"):
-		spr.play("special")
-		spr.speed_scale = 1.0
-	elif not is_boss() and _hurt_anim_t > 0.0 and spr.sprite_frames.has_animation("hurt"):
-		spr.play("hurt")
-		spr.speed_scale = 1.0
-	elif (_charge_state == "windup" or _leap_state == "windup") and spr.sprite_frames.has_animation("windup"):
-		spr.play("windup")
-		spr.speed_scale = 1.0
-	elif _leap_state in ["air", "land"] and is_boss() and spr.sprite_frames.has_animation("leap"):
-		spr.play("leap")
-		spr.speed_scale = 1.0
-	elif _charge_state == "dash" and is_boss() and spr.sprite_frames.has_animation("dash"):
-		spr.play("dash")
-		spr.speed_scale = 1.0
-	elif (_charge_state == "dash" or _leap_state == "air") and is_boss() and spr.sprite_frames.has_animation("attack"):
-		spr.play("attack")
-		spr.speed_scale = 1.0
-	elif _attack_anim_t > 0.0 and spr.sprite_frames.has_animation("attack"):
-		spr.play("attack")
-		spr.speed_scale = 1.0
-	elif hp < max_hp / 2 and is_boss() and spr.sprite_frames.has_animation("rage") and _attack_anim_t > -0.4:
-		spr.play("rage")
-		spr.speed_scale = 1.0
-	else:
-		spr.play("walk")
-		spr.speed_scale = clampf(velocity.length() / maxf(speed, 1.0), 0.3, 2.0)
+func _resolve_anim(anim: String) -> String:
+	if spr == null or spr.sprite_frames == null:
+		return anim
+	if spr.sprite_frames.has_animation(anim):
+		return anim
+	if anim == "idle" and spr.sprite_frames.has_animation("walk"):
+		return "walk"
+	if anim in ["melee_sweep", "ranged_shot", "cast_summon"] and spr.sprite_frames.has_animation("attack"):
+		return "attack"
+	if spr.sprite_frames.has_animation("walk"):
+		return "walk"
+	return anim
 
+
+func _trigger_action_anim(anim: String, dur: float) -> void:
+	_action_anim = anim
+	_action_anim_t = dur
+	if anim in ["melee_sweep", "ranged_shot", "cast_summon", "attack"]:
+		_attack_anim_t = maxf(_attack_anim_t, dur)
+	if spr != null and spr.sprite_frames != null:
+		var resolved := _resolve_anim(anim)
+		if spr.sprite_frames.has_animation(resolved):
+			if spr.animation == resolved:
+				spr.frame = 0
+			spr.play(resolved)
+
+
+func _trigger_mob_attack(dur: float, squash_mult: Vector2 = Vector2(1.16, 0.86)) -> void:
+	_attack_anim_t = maxf(_attack_anim_t, dur)
+	_anim_scale = Vector2(_base_scale.x * squash_mult.x, _base_scale.y * squash_mult.y)
+	if spr != null and spr.sprite_frames != null and spr.sprite_frames.has_animation("attack"):
+		if spr.animation == "attack":
+			spr.frame = 0
+		spr.play("attack")
+
+
+func _apply_lively_motion(delta: float, cur_spd: float) -> void:
+	if spr == null:
+		return
+	_anim_scale = _anim_scale.lerp(_base_scale, clampf(delta * 11.0, 0.0, 1.0))
+	var final_scale: Vector2 = _anim_scale
 	if is_boss():
 		if _morph_t <= 0.0 and _stun_t <= 0.0 and not _submerged:
 			var bob_y: float = 0.0
@@ -614,26 +669,95 @@ func _update_anim(delta: float = 0.016) -> void:
 			else:
 				if _shadow != null:
 					_shadow.scale = Vector2(radius / 7.0, radius / 7.0)
-				var spd_r: float = clampf(velocity.length() / maxf(speed, 1.0), 0.0, 2.4)
+				var spd_r: float = clampf(cur_spd / maxf(speed, 1.0), 0.0, 2.4)
 				if spd_r > 0.15 and _charge_state != "windup":
 					_step_t += delta * (7.5 + 3.5 * spd_r)
 					bob_y = -absf(sin(_step_t)) * (2.6 if _charge_state != "dash" else 1.0)
+					var w_sq: float = sin(_step_t * 2.0) * 0.045
+					final_scale = Vector2(_anim_scale.x * (1.0 - w_sq), _anim_scale.y * (1.0 + w_sq))
 					_step_dust_t -= delta
 					if spd_r > 0.25 and _step_dust_t <= 0.0 and _charge_state != "dash":
 						_step_dust_t = 0.28
 						Fx.anim(get_parent(), global_position + Vector2(randf_range(-6.0, 6.0), radius * 0.85), "fx/dust.png", 10, 10, 14.0, 1.15)
 						if transformed or enraged:
 							Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.7), _boss_color(), 2, 28.0, 0.3, -18.0, 1.6)
+				else:
+					var br: float = sin(_boss_t * 4.2) * 0.032
+					final_scale = Vector2(_anim_scale.x * (1.0 - br * 0.65), _anim_scale.y * (1.0 + br))
 				spr.position.y = _base_spr_y + bob_y
 	elif _morph_t <= 0.0:
-		spr.position.y = _base_spr_y
+		var phase_off: float = float(get_instance_id() % 17) * 0.37
+		if cur_spd > 8.0 and _stun_t <= 0.0 and _hurt_anim_t <= 0.0 and _charge_state != "windup":
+			_step_t += delta * (8.5 + 3.5 * clampf(cur_spd / maxf(speed, 1.0), 0.0, 2.0))
+			spr.position.y = _base_spr_y - absf(sin(_step_t)) * 2.1
+			var m_sq: float = sin(_step_t * 2.0) * 0.06
+			final_scale = Vector2(_anim_scale.x * (1.0 - m_sq), _anim_scale.y * (1.0 + m_sq))
+			_step_dust_t -= delta
+			if cur_spd > 28.0 and _step_dust_t <= 0.0:
+				_step_dust_t = 0.20 if _charge_state == "dash" else 0.44
+				Fx.anim(get_parent(), global_position + Vector2(randf_range(-4.0, 4.0), radius * 0.8), "fx/dust.png", 10, 10, 14.0, 0.9)
+		else:
+			spr.position.y = _base_spr_y
+			var m_br: float = sin(_boss_t * 4.8 + phase_off) * 0.045
+			final_scale = Vector2(_anim_scale.x * (1.0 - m_br * 0.6), _anim_scale.y * (1.0 + m_br))
+	spr.scale = final_scale
 
 	var target_tilt: float = 0.0
 	if _charge_state == "dash" and is_boss() and _charge_dir.length_squared() > 0.01:
 		target_tilt = clampf(_charge_dir.x * 0.14, -0.16, 0.16)
-	elif _stun_t <= 0.0 and _morph_t <= 0.0 and not _submerged and velocity.length() > 8.0:
-		target_tilt = clampf(velocity.x / maxf(speed, 45.0) * 0.065, -0.08, 0.08)
+	elif _stun_t <= 0.0 and _morph_t <= 0.0 and not _submerged and cur_spd > 8.0:
+		var vx: float = _charge_dir.x * cur_spd if is_replica and _charge_dir.length_squared() > 0.01 else velocity.x
+		target_tilt = clampf(vx / maxf(speed, 45.0) * 0.065, -0.08, 0.08)
 	spr.rotation = lerpf(spr.rotation, target_tilt, clampf(delta * 10.0, 0.0, 1.0))
+
+
+func _update_anim(delta: float = 0.016) -> void:
+	spr.flip_h = _face < 0.0
+	_action_anim_t = maxf(_action_anim_t - delta, 0.0)
+	if _action_anim_t <= 0.0:
+		_action_anim = ""
+	if is_boss():
+		var target_anim: String = ""
+		var spd_scale: float = 1.0
+		if _morph_t > 0.0:
+			target_anim = "rage"
+		elif _special != "" and _special_t > 0.0:
+			target_anim = "special"
+		elif _charge_state == "windup" or _leap_state == "windup":
+			target_anim = "windup"
+		elif _leap_state in ["air", "land"]:
+			target_anim = "leap"
+		elif _charge_state in ["dash", "under"]:
+			target_anim = "dash"
+		elif _action_anim != "" and _action_anim_t > 0.0:
+			target_anim = _action_anim
+		elif velocity.length_squared() > 16.0:
+			target_anim = "walk"
+			spd_scale = clampf(velocity.length() / maxf(speed, 1.0), 0.45, 2.0)
+		else:
+			target_anim = "idle"
+		var resolved := _resolve_anim(target_anim)
+		if spr.sprite_frames.has_animation(resolved) and spr.animation != resolved:
+			spr.play(resolved)
+		spr.speed_scale = spd_scale
+	else:
+		if _hurt_anim_t > 0.0 and spr.sprite_frames.has_animation("hurt"):
+			if spr.animation != "hurt":
+				spr.play("hurt")
+			spr.speed_scale = 1.0
+		elif _charge_state == "windup" and spr.sprite_frames.has_animation("windup"):
+			if spr.animation != "windup":
+				spr.play("windup")
+			spr.speed_scale = 1.0
+		elif _attack_anim_t > 0.0 and spr.sprite_frames.has_animation("attack"):
+			if spr.animation != "attack":
+				spr.play("attack")
+			spr.speed_scale = 1.0
+		else:
+			if spr.animation != "walk":
+				spr.play("walk")
+			spr.speed_scale = clampf(velocity.length() / maxf(speed, 1.0), 0.35, 2.0)
+	_apply_lively_motion(delta, velocity.length())
 
 
 func _chase_dir(delta: float, dir: Vector2, dist: float, wander_w: float, flank_w: float) -> Vector2:
@@ -747,11 +871,14 @@ func _charge_ai(delta: float, dir: Vector2, dist: float, mult: float) -> Vector2
 				_charge_t = 0.46 if boss else 0.5
 				_dash_hit_wall = false
 				if boss:
-					_attack_anim_t = 0.50
+					_trigger_action_anim("dash", 0.50)
 					_anim_scale = Vector2(_base_scale.x * 1.24, _base_scale.y * 0.80)
 					Fx.burst(get_parent(), global_position, _boss_color(), 42.0, 0.30)
 					Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.7), Color(0.9, 0.85, 0.75), 10, 95.0, 0.35, 0.0, 2.2, 65.0, -_charge_dir)
 					Fx.shake(get_tree(), 2.5)
+				else:
+					_trigger_mob_attack(0.45, Vector2(1.20, 0.82))
+					Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.6), Color(0.9, 0.85, 0.75), 6, 70.0, 0.3, 0.0, 1.8, 55.0, -_charge_dir)
 			if boss and _charge_t > 0.30:
 				return -_charge_dir * 12.0
 			return Vector2.ZERO
@@ -778,6 +905,7 @@ func _charge_ai(delta: float, dir: Vector2, dist: float, mult: float) -> Vector2
 				_charge_state = "rest"
 				_charge_t = 0.85 if boss else 1.2
 				if boss:
+					_trigger_action_anim("melee_sweep", 0.30)
 					_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.85)
 					Fx.burst(get_parent(), global_position + _charge_dir * radius, _boss_color(), 48.0, 0.32)
 					Fx.slash(get_parent(), hurtbox_center() + _charge_dir * (radius * 0.7), _charge_dir, maxf(radius * 2.2, 34.0), deg_to_rad(130.0), _boss_color(), "swing")
@@ -830,7 +958,7 @@ func _leap_slam_ai(delta: float, dir: Vector2, _dist: float) -> Vector2:
 				_leap_state = "air"
 				_leap_t = 0.48
 				_leap_start = global_position
-				_attack_anim_t = 0.55
+				_trigger_action_anim("leap", 0.55)
 				_anim_scale = Vector2(_base_scale.x * 0.82, _base_scale.y * 1.26)
 				Fx.anim(get_parent(), global_position + Vector2(0.0, radius * 0.8), "fx/dust.png", 10, 10, 14.0, 1.6)
 				Fx.burst(get_parent(), global_position, Color(0.9, 0.85, 0.7), 34.0, 0.25)
@@ -871,7 +999,11 @@ func _start_burst(n: int, spread_deg: float) -> void:
 	_burst_left = n
 	_burst_t = 0.0
 	_burst_spread = spread_deg
-	_attack_anim_t = 0.6
+	if is_boss():
+		_trigger_action_anim("ranged_shot", 0.60)
+		_anim_scale = Vector2(_base_scale.x * 1.12, _base_scale.y * 0.88)
+	else:
+		_trigger_mob_attack(0.60, Vector2(1.12, 0.88))
 
 
 func _update_burst(delta: float) -> void:
@@ -883,6 +1015,8 @@ func _update_burst(delta: float) -> void:
 		_burst_left -= 1
 		var a: float = (player.global_position - global_position).angle() + deg_to_rad(randf_range(-_burst_spread, _burst_spread))
 		_fire(a, 255.0, "bullet", 2 if (elite and level >= 5) else 1)
+		if _burst_left % 2 == 0:
+			Fx.anim(get_parent(), global_position + Vector2.from_angle(a) * radius, "fx/muzzle.png", 12, 10, 24.0, 1.0, a, Color.WHITE, true, 6)
 
 
 func _mortar(pos: Vector2, delay: float) -> void:
@@ -891,7 +1025,12 @@ func _mortar(pos: Vector2, delay: float) -> void:
 	m.delay = delay
 	get_parent().add_child(m)
 	Fx.anim(get_parent(), global_position + Vector2(0, -radius), "fx/poof.png", 28, 28, 18.0, 0.5)
-	_attack_anim_t = 0.3
+	Fx.particles(get_parent(), global_position + Vector2(0, -radius), Color(1.0, 0.72, 0.35), 6, 55.0, 0.3, -60.0, 1.8)
+	if is_boss():
+		_trigger_action_anim("ranged_shot", 0.35)
+		_anim_scale = Vector2(_base_scale.x * 0.90, _base_scale.y * 1.14)
+	else:
+		_trigger_mob_attack(0.32, Vector2(0.90, 1.14))
 	if Net.is_online() and Net.is_host():
 		Net.send_enemy_event("mortar", {"x": pos.x, "y": pos.y, "delay": delay, "root": false, "radius": 0.0}, false)
 
@@ -904,7 +1043,12 @@ func _cannon(dir: Vector2, dmg: int) -> void:
 	b.explode_radius = 22.0
 	get_parent().add_child(b)
 	Fx.anim(get_parent(), bpos, "fx/muzzle.png", 12, 10, 24.0, 1.4, dir.angle(), Color.WHITE, true, 6)
-	_attack_anim_t = 0.3
+	Fx.particles(get_parent(), bpos, Color(1.0, 0.72, 0.30), 6, 65.0, 0.28, 0.0, 1.8, 35.0, dir)
+	if is_boss():
+		_trigger_action_anim("ranged_shot", 0.35)
+		_anim_scale = Vector2(_base_scale.x * 1.14, _base_scale.y * 0.86)
+	else:
+		_trigger_mob_attack(0.32, Vector2(1.14, 0.86))
 	if Net.is_online() and Net.is_host():
 		Net.send_enemy_event("bullet", {
 			"x": bpos.x, "y": bpos.y, "dx": dir.x, "dy": dir.y,
@@ -920,6 +1064,7 @@ func _slam_ai(delta: float, dir: Vector2, dist: float) -> Vector2:
 		_flash = 0.3 + 0.3 * sin(_charge_t * 40.0)
 		if _charge_t <= 0.0:
 			_charge_state = ""
+			_trigger_mob_attack(0.35, Vector2(1.24, 0.78))
 			_fire_ring(14, randf() * TAU, 110.0, "orb_pink")
 			Fx.burst(get_parent(), global_position, Color(0.6, 0.9, 0.5), 60.0, 0.4)
 			Fx.particles(get_parent(), global_position + Vector2(0, radius), Color(0.6, 0.5, 0.35), 14, 120.0, 0.5, 150.0, 2.0)
@@ -1020,8 +1165,10 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		var low := hp < max_hp * 0.4
 		if (low and sp in ["tran_khien", "tron_chay", "mua_ten", "sa_lay", "boc_chay", "phao_kich", "ham_chi_huy", "cuu_vi", "rung_gia", "song_than"]) or (sp == "thuy_quai" and rage) or (sp == "ong_dong" and hp < max_hp * 0.35) or (sp == "bo_chay" and hp < max_hp * 0.3):
 			_start_special(sp)
-	if _special == "tron_chay" and _special_t <= 0.0:
-		spr.modulate.a = 1.0
+	if _special != "" and _special_t <= 0.0:
+		if _special == "tron_chay":
+			spr.modulate.a = 1.0
+		_special = ""
 	if _special_t > 0.0:
 		_special_t -= delta
 		match _special:
@@ -1033,8 +1180,12 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 					Fx.afterimage(get_parent(), spr, global_position, Color(_boss_color(), 0.55), 0.28)
 				return _charge_dir * speed * 3.0
 			"bo_chay":
+				if int(_boss_t * 20.0) % 4 == 0:
+					Fx.anim(get_parent(), global_position + Vector2(0, radius * 0.8), "fx/dust.png", 10, 10, 14.0, 1.1)
 				return -dir * speed * 2.4
 			"tron_chay":
+				if int(_boss_t * 20.0) % 4 == 0:
+					Fx.anim(get_parent(), global_position + Vector2(0, radius * 0.8), "fx/dust.png", 10, 10, 14.0, 1.0)
 				return (-dir + _wander_vec(delta)).normalized() * speed * 1.8
 			"mua_ten":
 				_shoot_t -= delta
@@ -1117,6 +1268,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.8 * cd_mult
 				_volleys += 1
+				_trigger_action_anim("ranged_shot", 0.42)
 				Fx.burst(get_parent(), global_position, _boss_color(), 34.0, 0.35)
 				for i in 5:
 					var bdir := Vector2.from_angle(dir.angle() + deg_to_rad(lerpf(-40, 40, i / 4.0)))
@@ -1138,7 +1290,9 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.6 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.3
+				_trigger_action_anim("melee_sweep", 0.36)
+				_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.86)
+				Fx.slash(get_parent(), hurtbox_center() + dir * (radius * 0.5), dir, maxf(radius * 2.4, 38.0), deg_to_rad(140.0), _boss_color(), "swing")
 				Fx.burst(get_parent(), global_position, _boss_color(), 30.0, 0.3)
 				for i in 9:
 					_fire(dir.angle() + deg_to_rad(lerpf(-55, 55, i / 8.0)), 130.0)
@@ -1150,14 +1304,16 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		"ring":
 			if _shoot_t <= 0.0:
 				_shoot_t = 0.8 * cd_mult
-				_attack_anim_t = 0.3
+				_trigger_action_anim("cast_summon", 0.36)
+				_anim_scale = Vector2(_base_scale.x * 0.88, _base_scale.y * 1.18)
 				Fx.burst(get_parent(), global_position, _boss_color(), 38.0, 0.35)
 				_fire_ring(16 if rage else 12, randf() * TAU, 105.0)
 			return _boss_strafe(delta, dir, dist, 0.6)
 		"summon":
 			if _shoot_t <= 0.0 and _volleys == 0 and room != null:
 				_volleys = 1
-				_attack_anim_t = 0.5
+				_trigger_action_anim("cast_summon", 0.50)
+				_anim_scale = Vector2(_base_scale.x * 0.86, _base_scale.y * 1.20)
 				Fx.burst(get_parent(), global_position, _boss_color(), 46.0, 0.45)
 				Fx.particles(get_parent(), global_position, _boss_color(), 14, 70.0, 0.5, -40.0, 2.0)
 				for i in (3 if rage else 2) + int(power() / 4.0):
@@ -1165,9 +1321,14 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 					room.spawn_enemy(data.summon, p)
 			return Vector2.ZERO
 		"spiral":
+			_spiral_fx_t -= delta
 			if _shoot_t <= 0.0:
 				_shoot_t = 0.07 * cd_mult
 				_spiral += 0.3
+				_trigger_action_anim("cast_summon", 0.25)
+				if _spiral_fx_t <= 0.0:
+					_spiral_fx_t = 0.35
+					Fx.particles(get_parent(), hurtbox_center(), _boss_color(), 4, 48.0, 0.35, -20.0, 1.8)
 				_fire(_spiral, 120.0, "orb_water")
 				_fire(_spiral + PI, 120.0, "orb_water")
 				if rage:
@@ -1177,7 +1338,9 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 4:
 				_shoot_t = 0.45 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.25
+				_trigger_action_anim("ranged_shot", 0.30)
+				_anim_scale = Vector2(_base_scale.x * 1.12, _base_scale.y * 0.88)
+				Fx.anim(get_parent(), global_position + dir * radius, "fx/muzzle.png", 12, 10, 24.0, 1.2, dir.angle(), _boss_color(), true, 6)
 				for i in 5:
 					_fire(dir.angle() + deg_to_rad(lerpf(-16, 16, i / 4.0)), 190.0, "arrow")
 			return _boss_strafe(delta, dir, dist, 0.5)
@@ -1185,34 +1348,39 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.7 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.3
+				_trigger_action_anim("ranged_shot", 0.35)
+				_anim_scale = Vector2(_base_scale.x * 1.16, _base_scale.y * 0.86)
 				var cpos: Vector2 = global_position + dir * radius
 				var b := Bullet.new()
 				b.setup(false, cpos, dir, 150.0, 2, 3.0, "cannonball")
 				get_parent().add_child(b)
+				Fx.anim(get_parent(), cpos, "fx/muzzle.png", 12, 10, 24.0, 1.5, dir.angle(), Color.WHITE, true, 6)
 				Fx.anim(get_parent(), cpos, "fx/poof.png", 28, 28, 18.0, 0.6)
 				if Net.is_online() and Net.is_host():
 					Net.send_enemy_event("bullet", {
 						"x": cpos.x, "y": cpos.y, "dx": dir.x, "dy": dir.y,
 						"spd": 150.0, "dmg": 2, "life": 3.0, "proj": "cannonball",
-						"exp": 0.0, "ox": global_position.x, "oy": global_position.y, "muzzle": false,
+						"exp": 0.0, "ox": global_position.x, "oy": global_position.y, "muzzle": true,
 					}, false)
 			return -dir * speed * 0.45 if dist < 90.0 else _boss_strafe(delta, dir, dist, 0.35)
 		"tails":   # Hồ Tinh: quạt lửa hồ ly theo số đuôi
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 0.65 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.35
+				_trigger_action_anim("ranged_shot", 0.38)
+				_anim_scale = Vector2(_base_scale.x * 1.16, _base_scale.y * 0.86)
 				var nt := 9 if transformed else 5
 				_spiral += 0.4
 				Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 34.0, 0.35)
+				Fx.particles(get_parent(), hurtbox_center(), Color(1.0, 0.55, 0.25), 8, 75.0, 0.4, -25.0, 2.0)
 				for i in nt:
 					_fire(_spiral + TAU * i / nt, 105.0, "fireball")
 			return _boss_strafe(delta, dir, dist, 0.55)
 		"clone":   # Hồ Tinh: phân thân thành bầy cáo ảo
 			if _shoot_t <= 0.0 and _volleys == 0 and room != null:
 				_volleys = 1
-				_attack_anim_t = 0.5
+				_trigger_action_anim("cast_summon", 0.50)
+				_anim_scale = Vector2(_base_scale.x * 0.86, _base_scale.y * 1.20)
 				Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 44.0, 0.45)
 				for i in (3 if transformed else 2) + int(power() / 4.0):
 					var cp := global_position + Vector2.from_angle(TAU * i / 3.0 + randf()) * 36.0
@@ -1224,7 +1392,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 3:
 				_shoot_t = 1.0 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.4
+				_trigger_action_anim("cast_summon", 0.45)
+				_anim_scale = Vector2(_base_scale.x * 0.88, _base_scale.y * 1.18)
 				Fx.burst(get_parent(), global_position, _boss_color(), 36.0, 0.4)
 				Fx.particles(get_parent(), global_position, _boss_color(), 12, 60.0, 0.45, -20.0, 2.0)
 				var lines := 2 if transformed else 1
@@ -1240,15 +1409,23 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 						if Net.is_online() and Net.is_host():
 							Net.send_enemy_event("mortar", {"x": m.position.x, "y": m.position.y, "delay": m.delay, "root": true, "radius": 12.0}, false)
 			return -dir * speed * 0.35 if dist < 80.0 else Vector2.ZERO
-		"dive":    # Ngư Tinh: lặn xuống tạo sóng ngầm rồi phóng vọt lên phun cột nước
+		"dive":    # Ngư Tinh: lấy đà -> lặn xuống tạo sóng ngầm rồi phóng vọt lên phun cột nước
 			match _charge_state:
 				"":
-					_charge_state = "under"
-					_charge_t = 1.3
-					_submerged = true
-					spr.modulate.a = 0.25
-					Fx.burst(get_parent(), global_position, Color(0.35, 0.85, 1.0), 42.0, 0.35)
-					Fx.particles(get_parent(), global_position, Color(0.5, 0.85, 1.0), 20, 110.0, 0.5, 140.0, 2.5)
+					_charge_state = "windup"
+					_charge_t = 0.24
+					_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.82)
+					Fx.burst(get_parent(), global_position, Color(0.35, 0.85, 1.0), 28.0, 0.25)
+				"windup":
+					_charge_t -= delta
+					_flash = 0.25 + 0.25 * sin(_charge_t * 36.0)
+					if _charge_t <= 0.0:
+						_charge_state = "under"
+						_charge_t = 1.25
+						_submerged = true
+						spr.modulate.a = 0.25
+						Fx.burst(get_parent(), global_position, Color(0.35, 0.85, 1.0), 42.0, 0.35)
+						Fx.particles(get_parent(), global_position, Color(0.5, 0.85, 1.0), 20, 110.0, 0.5, 140.0, 2.5)
 				"under":
 					_charge_t -= delta
 					spr.modulate.a = 0.25
@@ -1260,7 +1437,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 						_charge_t = 0.9
 						_submerged = false
 						spr.modulate.a = 1.0
-						_attack_anim_t = 0.5
+						_trigger_action_anim("cast_summon", 0.45)
 						_anim_scale = Vector2(_base_scale.x * 0.84, _base_scale.y * 1.24)
 						_fire_ring(18 if transformed else 14, randf() * TAU, 110.0, "orb_water")
 						Fx.burst(get_parent(), global_position, Color(0.35, 0.85, 1.0), 68.0, 0.42)
@@ -1277,15 +1454,19 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			if _shoot_t <= 0.0 and _volleys < 2:
 				_shoot_t = 1.6 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.4
+				_trigger_action_anim("cast_summon", 0.45)
+				_anim_scale = Vector2(_base_scale.x * 0.88, _base_scale.y * 1.18)
 				Fx.burst(get_parent(), global_position, _boss_color(), 42.0, 0.45)
+				Fx.particles(get_parent(), global_position, Color(0.35, 0.85, 1.0), 12, 80.0, 0.4, -20.0, 2.0)
 				_tidal_wall()
 			return Vector2.ZERO
 		"fan":     # quạt gió: quạt đạn rộng và chậm
 			if _shoot_t <= 0.0 and _volleys < 2:
 				_shoot_t = 0.9 * cd_mult
 				_volleys += 1
-				_attack_anim_t = 0.4
+				_trigger_action_anim("melee_sweep", 0.40)
+				_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.84)
+				Fx.slash(get_parent(), hurtbox_center() + dir * (radius * 0.5), dir, maxf(radius * 2.5, 42.0), deg_to_rad(155.0), _boss_color(), "swing")
 				Fx.burst(get_parent(), hurtbox_center(), _boss_color(), 34.0, 0.35)
 				for i in 14:
 					_fire(dir.angle() + deg_to_rad(lerpf(-75, 75, i / 13.0)), 85.0)
@@ -1356,7 +1537,7 @@ func _finish_morph() -> void:
 	transformed = true
 	spr.position.x = 0.0
 	var size2: Vector2i = data.get("size2", data.size)
-	var anims := _build_anims(int(data.get("frames", 24)))
+	var anims := _build_anims(int(data.get("frames", 36 if is_boss() else 24)))
 	spr.sprite_frames = Art.frames(data.sheet2, size2.x, size2.y, anims)
 	radius = float(data.get("radius2", radius))
 	_shape.radius = radius * 0.72
@@ -1418,6 +1599,8 @@ func _enrage(banner := true) -> void:
 	_rage_t = 1.5
 	_mat.set_shader_parameter("flash_color", Color(1.0, 0.25, 0.2))
 	_flash = 1.0
+	_trigger_action_anim("rage", 0.55)
+	_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.86)
 	var glow := Art.light(Color(1.0, 0.3, 0.2), 1.6, 0.8)
 	add_child(glow)
 	if banner:
@@ -1438,6 +1621,8 @@ func _rage_skill(delta: float) -> void:
 		return
 	_rage_t = 3.6
 	_rage_n += 1
+	_trigger_action_anim("rage", 0.45)
+	_anim_scale = Vector2(_base_scale.x * 1.14, _base_scale.y * 0.88)
 	if _rage_n % 2 == 1:
 		# chướng khí: đám mây độc lan ra ngay dưới chân người chơi
 		var m := Miasma.new()
@@ -1445,15 +1630,16 @@ func _rage_skill(delta: float) -> void:
 		m.from_player = false
 		m.color = Color(0.45, 0.85, 0.3) if not EnemyData.chapter(level).get("modern", false) else Color(0.75, 0.8, 0.5)
 		get_parent().add_child(m)
+		Fx.burst(get_parent(), hurtbox_center(), Color(0.55, 0.95, 0.35), 32.0, 0.3)
 		Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 20), "Chướng khí!", Color(0.6, 1.0, 0.4), 13)
 		if Net.is_online() and Net.is_host():
 			Net.send_enemy_event("miasma", {"x": m.position.x, "y": m.position.y, "r": m.color.r, "g": m.color.g, "b": m.color.b}, false)
 	else:
 		# hỏa tiễn: quạt 5 quả cầu lửa gây cháy
+		Fx.burst(get_parent(), hurtbox_center(), Color(1.0, 0.48, 0.2), 34.0, 0.3)
 		var a: float = (player.global_position - global_position).angle()
 		for i in 5:
 			_fire(a + deg_to_rad(lerpf(-30, 30, i / 4.0)), 140.0, "fireball")
-		_attack_anim_t = 0.4
 
 
 func _start_special(sp: String) -> void:
@@ -1578,6 +1764,7 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 		_flash = 1.0
 		if not is_boss():
 			_hurt_anim_t = 0.16
+			_anim_scale = Vector2(_base_scale.x * 1.24, _base_scale.y * 0.76)
 			_hp_bar_t = 3.0
 			queue_redraw()
 		Sfx.play("hit_boss" if is_boss() else "enemy_hurt")
@@ -1632,8 +1819,11 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	_flash = 1.0
 	if not is_boss():
 		_hurt_anim_t = 0.16
+		_anim_scale = Vector2(_base_scale.x * 1.24, _base_scale.y * 0.76)
 		_hp_bar_t = 3.0
 		queue_redraw()
+	elif _morph_t <= 0.0 and _leap_state != "air":
+		_anim_scale = Vector2(_base_scale.x * 1.08, _base_scale.y * 0.92)
 	if blocked:
 		Sfx.play("hit_metal")
 	elif crit:
@@ -1665,6 +1855,7 @@ func dot_damage(amount: int, kind: String) -> void:
 	_flash = maxf(_flash, 0.4)
 	if not is_boss():
 		_hurt_anim_t = 0.16
+		_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.82)
 		_hp_bar_t = 3.0
 		queue_redraw()
 	var top_dot := Vector2(global_position.x + randf_range(-6, 6), hurtbox_rect().position.y - 4.0)

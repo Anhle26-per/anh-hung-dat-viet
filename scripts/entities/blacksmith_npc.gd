@@ -10,7 +10,9 @@ var used: bool = false
 var applied_mod: String = ""
 
 var _forge: AnimatedSprite2D = null
+var _smith: AnimatedSprite2D = null
 var _light: PointLight2D = null
+var _spark_t: float = 0.4
 
 
 func _ready() -> void:
@@ -21,19 +23,26 @@ func _ready() -> void:
 	var sh := Sprite2D.new()
 	sh.texture = Art.tex("fx/shadow.png")
 	sh.position = Vector2(0, 6)
-	sh.scale = Vector2(1.9, 1.05)
+	sh.scale = Vector2(2.2, 1.1)
 	sh.z_index = -1
 	add_child(sh)
 
 	_forge = AnimatedSprite2D.new()
-	_forge.sprite_frames = Art.strip("world/forge.png", 32, 28, 8.0, true)
+	_forge.sprite_frames = Art.strip("world/forge.png", 32, 28, 7.5, true)
 	_forge.scale = Vector2(0.85, 0.85)
-	_forge.position = Vector2(0, -6)
+	_forge.position = Vector2(-9, -6)
 	_forge.play("play")
 	add_child(_forge)
 
-	_light = Art.light(Color(1.0, 0.62, 0.28), 1.0, 0.75)
-	_light.position = Vector2(0, -6)
+	_smith = AnimatedSprite2D.new()
+	_smith.sprite_frames = Art.strip("world/npc_blacksmith.png", 28, 30, 5.5, true)
+	_smith.position = Vector2(13, -7)
+	_smith.flip_h = true
+	_smith.play("play")
+	add_child(_smith)
+
+	_light = Art.light(Color(1.0, 0.62, 0.28), 1.05, 0.8)
+	_light.position = Vector2(-6, -6)
 	add_child(_light)
 
 
@@ -97,6 +106,18 @@ func interact() -> void:
 
 func _process(delta: float) -> void:
 	super(delta)
+	if _smith != null and is_instance_valid(_smith):
+		var br := sin(_t * 3.8) * 0.03
+		_smith.scale = Vector2(1.0 - br * 0.5, 1.0 + br)
+		if not used:
+			_spark_t -= delta
+			if _spark_t <= 0.0 and _smith.frame == 2:
+				_spark_t = 0.72
+				Fx.particles(_fx_parent(), global_position + Vector2(3, -8), Color(1.0, 0.86, 0.35), 6, 52.0, 0.38, 65.0, 1.6, 110.0, Vector2.UP, Color(1.0, 0.35, 0.1))
+		else:
+			_smith.speed_scale = 0.45
+	if _light != null and not used:
+		_light.energy = 0.72 + 0.22 * sin(_t * 8.5)
 	queue_redraw()
 
 

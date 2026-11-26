@@ -13,6 +13,9 @@ var _atk := 0.0
 var _target = null
 var _spr: AnimatedSprite2D
 var _lunge := 0.0
+var _t := 0.0
+var _atk_anim_t := 0.0
+var _dust_t := 0.0
 
 
 func _ready() -> void:
@@ -32,15 +35,21 @@ func _ready() -> void:
 	sh.z_index = -2
 	add_child(sh)
 	_spr = AnimatedSprite2D.new()
-	_spr.sprite_frames = Art.strip("fx/ally.png", 18, 20, 10.0, true)
+	_spr.sprite_frames = Art.frames("fx/ally.png", 18, 20, {
+		"walk": [[0, 1, 2, 3], 11.0, true],
+		"idle": [[4, 4, 5, 4], 4.5, true],
+		"attack": [[6, 7, 6], 14.0, false],
+	})
 	_spr.position = Vector2(0, -3)
-	_spr.play("play")
+	_spr.play("idle")
 	add_child(_spr)
 
 
 func _physics_process(delta: float) -> void:
+	_t += delta
 	_life -= delta
 	_atk -= delta
+	_atk_anim_t = maxf(0.0, _atk_anim_t - delta)
 	_lunge = move_toward(_lunge, 0.0, delta * 40.0)
 	if _life <= 0.0:
 		Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0)
@@ -61,7 +70,9 @@ func _physics_process(delta: float) -> void:
 		if to.length() < 16.0 + _target.radius:
 			if _atk <= 0.0:
 				_atk = 0.6
+				_atk_anim_t = 0.24
 				_lunge = 6.0
+				_spr.play("attack")
 				if not visual_only:
 					_target.take_damage(damage, to.normalized() * 100.0)
 				Fx.slash(get_parent(), global_position, to.normalized(), 26.0, 0.4, Color(1, 0.9, 0.7), "thrust")
@@ -74,9 +85,31 @@ func _physics_process(delta: float) -> void:
 			if to_p.length() > 30.0:
 				velocity = to_p.normalized() * 115.0
 				_spr.flip_h = to_p.x < 0.0
+	var moving := velocity.length() > 1.0
 	_spr.position.x = _lunge * (-1.0 if _spr.flip_h else 1.0)
-	_spr.speed_scale = 1.0 if velocity.length() > 1.0 else 0.0
+	if _atk_anim_t <= 0.0:
+		_spr.play("walk" if moving else "idle")
+	_spr.speed_scale = 1.0
+	if moving:
+		_spr.position.y = -3.0 - absf(sin(_t * 14.0)) * 1.4
+		_spr.scale = Vector2(1.04, 0.96)
+		_dust_t -= delta
+		if _dust_t <= 0.0 and get_parent() != null:
+			_dust_t = 0.28
+			Fx.particles(get_parent(), global_position + Vector2(0, 6), Color(0.88, 0.82, 0.7, 0.55), 2, 18.0, 0.25, -4.0, 1.3)
+	else:
+		var br := sin(_t * 4.5) * 0.03
+		_spr.position.y = -3.0 + sin(_t * 4.5) * 0.5
+		_spr.scale = Vector2(1.0 - br * 0.6, 1.0 + br)
+	queue_redraw()
 	move_and_slide()
+
+
+func _draw() -> void:
+	var pulse := 0.28 + 0.16 * sin(_t * 4.0)
+	draw_set_transform(Vector2(0, 6), 0.0, Vector2(1.0, 0.45))
+	draw_arc(Vector2.ZERO, 9.0, 0.0, TAU, 18, Color(1.0, 0.84, 0.35, pulse), 1.2)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _find_target():

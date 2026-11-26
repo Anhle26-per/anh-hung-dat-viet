@@ -1349,6 +1349,291 @@ def build_material_shop():
     save(sheet(ban_frames), "world/shop_banner.png")
 
 
+def build_lobby_npcs():
+    """5 NPC Doanh Trại sống động 4 khung mỗi nhân vật."""
+    skin, skin_d = _c("f5c7a1"), _c("d4957a")
+    gold, gold_l, gold_d = _c("ebbc42"), _c("fff29c"), _c("946418")
+    wood, w_l, w_d = _c("7e4c28"), _c("a87042"), _c("4a2812")
+    steel, st_l, st_d = _c("b8c2d6"), _c("ffffff"), _c("545c74")
+    eye = _c("22182c")
+
+    # 1. Thợ Rèn Doanh Trại (4 khung 28x30 -> 112x30): vung búa tạ nện đe tóe tia lửa
+    bs_frames = []
+    for f in range(4):
+        img, d = canvas(28, 30)
+        bob = 1 if f == 2 else 0
+        # Đầu & băng trán đỏ
+        d.ellipse([7, 4 + bob, 16, 12 + bob], fill=skin)
+        d.rectangle([7, 3 + bob, 16, 6 + bob], fill=_c("2e2438"))
+        d.rectangle([7, 6 + bob, 16, 7 + bob], fill=_c("d83434"))
+        d.line([(6, 6 + bob), (4, 8 + bob + (1 if f in (1, 2) else 0))], fill=_c("d83434"))
+        d.point([10, 9 + bob], fill=eye)
+        d.point([14, 9 + bob], fill=eye)
+        d.line([(10, 11 + bob), (14, 12 + bob)], fill=_c("3c2820"))  # râu quai nón
+        # Thân áo nâu & tạp dề da bò
+        d.rectangle([7, 13 + bob, 16, 22], fill=_c("6c3e24"))
+        d.rectangle([8, 14 + bob, 15, 22], fill=_c("a66838"), outline=w_d)
+        # Chân & ủng
+        d.rectangle([8, 22, 10, 26], fill=_c("3a2c24"))
+        d.rectangle([13, 22, 15, 26], fill=_c("3a2c24"))
+        # Đe sắt nhỏ bên phải
+        d.polygon([(18, 20), (26, 20), (25, 23), (20, 23)], fill=st_d)
+        d.line([(18, 20), (26, 20)], fill=st_l)
+        d.rectangle([20, 23, 24, 26], fill=_c("2a2634"))
+        d.rectangle([19, 19, 24, 20], fill=_c("ff7828") if f != 2 else _c("fff088"))
+        # Cánh tay & búa tạ 4 pha: nâng -> vung cao -> nện mạnh + tia lửa -> nảy lên
+        if f == 0:
+            d.line([(15, 14), (19, 10)], fill=skin, width=2)
+            d.line([(18, 11), (20, 4)], fill=w_l)
+            d.rectangle([17, 2, 22, 5], fill=steel, outline=st_d)
+        elif f == 1:
+            d.line([(15, 13), (13, 8)], fill=skin, width=2)
+            d.line([(13, 8), (10, 2)], fill=w_l)
+            d.rectangle([7, 1, 12, 4], fill=steel, outline=st_d)
+        elif f == 2:
+            d.line([(15, 15), (20, 16)], fill=skin, width=2)
+            d.line([(19, 16), (22, 18)], fill=w_l)
+            d.rectangle([20, 15, 24, 18], fill=steel, outline=st_d)
+            for sx, sy, col in ((22, 13, "fff6a0"), (25, 15, "ff9e2c"), (18, 14, "ffe060"), (26, 12, "ff6020")):
+                d.point([sx, sy], fill=_c(col))
+        else:
+            d.line([(15, 14), (19, 12)], fill=skin, width=2)
+            d.line([(18, 13), (21, 8)], fill=w_l)
+            d.rectangle([19, 6, 24, 9], fill=steel, outline=st_d)
+            d.point([23, 14], fill=_c("ffaa38"))
+        bs_frames.append(_with_shadow(outline(img), 6, 23, 26, 28, 85))
+    save(sheet(bs_frames), "world/npc_blacksmith.png")
+
+    # 2. Cô Hàng Trà (4 khung 24x30 -> 96x30): áo tứ thân hồng đào, nâng ấm trà & quạt giấy
+    tl_frames = []
+    for f in range(4):
+        img, d = canvas(24, 30)
+        bob = -1 if f in (1, 2) else 0
+        sw = 1 if f in (1, 3) else 0
+        # Khăn mỏ quạ & dải lụa đỏ
+        d.ellipse([7, 3 + bob, 16, 11 + bob], fill=_c("261c2e"))
+        d.ellipse([8, 6 + bob, 15, 12 + bob], fill=skin)
+        if f == 2:
+            d.line([(9, 9 + bob), (10, 9 + bob)], fill=eye)
+            d.line([(13, 9 + bob), (14, 9 + bob)], fill=eye)
+        else:
+            d.point([10, 9 + bob], fill=eye)
+            d.point([13, 9 + bob], fill=eye)
+        d.point([9, 10 + bob], fill=_c("f48a94"))
+        d.point([14, 10 + bob], fill=_c("f48a94"))
+        # Áo tứ thân hồng đào & yếm kem + dải lụa bay
+        d.polygon([(8, 13 + bob), (15, 13 + bob), (17, 25), (6, 25)], fill=_c("d84e6c"))
+        d.polygon([(10, 13 + bob), (13, 13 + bob), (13, 21), (10, 21)], fill=_c("fbe8d4"))
+        d.line([(8, 16 + bob), (5, 21 + sw)], fill=_c("f2b844"))
+        d.rectangle([9, 25, 14, 27], fill=_c("2c2234"))
+        # Khay trà + ấm sứ trên tay phải
+        ty = 17 + bob + (0 if f % 2 == 0 else -1)
+        d.line([(14, 15 + bob), (18, ty + 1)], fill=skin)
+        d.rectangle([16, ty, 22, ty + 2], fill=wood)
+        d.ellipse([17, ty - 3, 21, ty], fill=_c("f0ece0"), outline=_c("447696"))
+        d.point([19, ty - 5], fill=_c("e8f8ff", 190))
+        tl_frames.append(_with_shadow(outline(img), 5, 24, 18, 28, 80))
+    save(sheet(tl_frames), "world/npc_tea_lady.png")
+
+    # 3. Quân Sư Cầm Quạt Lông (4 khung 24x30 -> 96x30): phe phẩy quạt & vuốt râu
+    st_frames = []
+    for f in range(4):
+        img, d = canvas(24, 30)
+        bob = -1 if f in (1, 2) else 0
+        # Mũ cánh chuồn & đầu
+        d.rectangle([8, 4 + bob, 15, 7 + bob], fill=_c("222030"))
+        d.rectangle([10, 2 + bob, 13, 4 + bob], fill=gold)
+        d.line([(4, 6 + bob), (8, 6 + bob)], fill=gold)
+        d.line([(15, 6 + bob), (19, 6 + bob)], fill=gold)
+        d.ellipse([8, 7 + bob, 15, 13 + bob], fill=skin)
+        d.point([10, 9 + bob], fill=eye)
+        d.point([13, 9 + bob], fill=eye)
+        d.polygon([(10, 12 + bob), (13, 12 + bob), (12, 16 + bob)], fill=_c("e8ecf2"))
+        # Áo dài xanh lam viền vàng
+        d.polygon([(7, 14 + bob), (16, 14 + bob), (17, 26), (6, 26)], fill=_c("2a5296"))
+        d.line([(11, 15 + bob), (11, 25)], fill=gold)
+        d.rectangle([8, 26, 14, 27], fill=_c("1c2238"))
+        # Quạt lông trắng phe phẩy 4 nhịp
+        fy = [15, 13, 12, 14][f]
+        fx = [18, 19, 18, 17][f]
+        d.line([(14, 17 + bob), (fx, fy + 2)], fill=skin)
+        d.ellipse([fx - 2, fy - 3, fx + 3, fy + 2], fill=_c("f4f6fc"), outline=gold_d)
+        d.point([fx + 1, fy - 1], fill=_c("7ad4ff"))
+        st_frames.append(_with_shadow(outline(img), 5, 24, 18, 28, 80))
+    save(sheet(st_frames), "world/npc_strategist.png")
+
+    # 4. Học Giả Đọc Sách (4 khung 24x30 -> 96x30): khăn xếp, gật đầu đọc cuộn thư phát sáng
+    sc_frames = []
+    for f in range(4):
+        img, d = canvas(24, 30)
+        nod = 1 if f in (1, 2) else 0
+        # Khăn xếp đen & khuôn mặt hiền từ
+        d.rectangle([8, 3 + nod, 15, 7 + nod], fill=_c("221e2a"))
+        d.line([(8, 6 + nod), (15, 6 + nod)], fill=gold_d)
+        d.ellipse([8, 7 + nod, 15, 13 + nod], fill=skin)
+        if f == 3:
+            d.line([(9, 10 + nod), (10, 10 + nod)], fill=eye)
+            d.line([(13, 10 + nod), (14, 10 + nod)], fill=eye)
+        else:
+            d.point([10, 10 + nod], fill=eye)
+            d.point([13, 10 + nod], fill=eye)
+        # Áo dài gấm tím-đỏ
+        d.polygon([(8, 14), (15, 14), (17, 26), (6, 26)], fill=_c("6c243a"))
+        d.rectangle([10, 14, 13, 25], fill=_c("b4843a"))
+        # Cuộn sách cổ mở trên tay + ánh sáng chữ vàng
+        sy = 16 + (0 if f % 2 == 0 else -1)
+        d.rectangle([13, sy, 21, sy + 6], fill=_c("f5ead0"), outline=gold_d)
+        d.line([(17, sy + 1), (17, sy + 5)], fill=w_d)
+        d.point([15, sy + 2], fill=_c("543822"))
+        d.point([19, sy + 3], fill=_c("543822"))
+        if f in (1, 2):
+            d.point([18, sy - 2], fill=gold_l)
+        sc_frames.append(_with_shadow(outline(img), 5, 24, 18, 28, 80))
+    save(sheet(sc_frames), "world/npc_scholar.png")
+
+    # 5. Vệ Binh Canh Gác (4 khung 24x30 -> 96x30): giáp đỏ-vàng & cây kích tua đỏ phất phới
+    gd_frames = []
+    for f in range(4):
+        img, d = canvas(24, 30)
+        bob = -1 if f == 2 else 0
+        # Mũ trụ thép chỏm đỏ
+        d.polygon([(8, 7 + bob), (12, 2 + bob), (16, 7 + bob)], fill=steel, outline=st_d)
+        d.point([12, 1 + bob], fill=_c("e03c3c"))
+        d.ellipse([8, 7 + bob, 15, 13 + bob], fill=skin)
+        if f == 3:
+            d.line([(9, 10 + bob), (10, 10 + bob)], fill=eye)
+            d.line([(13, 10 + bob), (14, 10 + bob)], fill=eye)
+        else:
+            d.point([10, 10 + bob], fill=eye)
+            d.point([13, 10 + bob], fill=eye)
+        # Giáp chiến đỏ viền đồng vàng
+        d.rectangle([7, 14 + bob, 16, 22], fill=_c("a82830"))
+        d.rectangle([9, 15 + bob, 14, 20], fill=gold)
+        d.rectangle([8, 22, 10, 26], fill=_c("3a2c24"))
+        d.rectangle([13, 22, 15, 26], fill=_c("3a2c24"))
+        # Cây kích cầm tay phải & tua đỏ bay theo gió
+        hy = bob
+        d.line([(18, 5 + hy), (18, 26)], fill=w_d, width=1)
+        d.polygon([(17, 6 + hy), (18, 1 + hy), (19, 6 + hy)], fill=st_l if f % 2 == 0 else steel)
+        tx = 19 + (1 if f in (1, 2) else 0)
+        d.line([(18, 7 + hy), (tx + 1, 10 + hy)], fill=_c("e43c38"), width=2)
+        d.line([(15, 17 + bob), (18, 17 + hy)], fill=skin)
+        gd_frames.append(_with_shadow(outline(img), 5, 24, 20, 28, 85))
+    save(sheet(gd_frames), "world/npc_guard.png")
+
+
+def build_animated_world_actors():
+    """Nâng cấp 4 khung mượt cho Thương Nhân, Lò Rèn, Hình Nhân & Đèn Lồng."""
+    # 1. Thương nhân áo tứ thân đội nón lá quai thao (4 khung 32x32 -> 128x32)
+    m_frames = []
+    for f in range(4):
+        img, d = canvas(32, 32)
+        bob = 1 if f in (1, 2) else 0
+        wave = [0, -1, -2, -1][f]
+        rib = 1 if f in (1, 3) else 0
+        d.polygon([(7, 9 + bob), (16, 1 + bob), (25, 9 + bob)], fill=_c("ecd89c"))
+        d.line([(8, 8 + bob), (24, 8 + bob)], fill=_c("c4a462"))
+        d.line([(7, 9 + bob), (25, 9 + bob)], fill=_c("8e2632"))
+        d.line([(10, 9 + bob), (9 - rib, 15 + bob)], fill=_c("d83a3a"))
+        d.line([(22, 9 + bob), (23 + rib, 15 + bob)], fill=_c("d83a3a"))
+        d.ellipse([11, 8 + bob, 20, 16 + bob], fill=_c("f5c7a1"))
+        if f == 2:
+            d.line([(12, 12 + bob), (13, 12 + bob)], fill=_c("2a1d2e"))
+            d.line([(17, 12 + bob), (18, 12 + bob)], fill=_c("2a1d2e"))
+        else:
+            d.point([13, 12 + bob], fill=_c("2a1d2e"))
+            d.point([18, 12 + bob], fill=_c("2a1d2e"))
+        d.point([12, 13 + bob], fill=_c("f08a8a"))
+        d.point([19, 13 + bob], fill=_c("f08a8a"))
+        d.line([(14, 14 + bob), (17, 14 + bob)], fill=_c("b8444a"))
+        d.polygon([(11, 16 + bob), (20, 16 + bob), (22, 26), (9, 26)], fill=_c("a82a34"))
+        d.polygon([(13, 16 + bob), (18, 16 + bob), (17, 24), (14, 24)], fill=_c("f090a0"))
+        d.line([(13, 17 + bob), (18, 17 + bob)], fill=_c("ffd84a"))
+        d.line([(10, 22), (21, 22)], fill=_c("e8b04a"))
+        # Tay phải cầm quạt giấy phe phẩy mượt
+        d.line([(11, 18 + bob), (7, 16 + bob + wave)], fill=_c("f5c7a1"), width=2)
+        d.pieslice([2, 11 + bob + wave, 9, 18 + bob + wave], 180, 350, fill=_c("fff2cc"), outline=_c("d83a3a"))
+        # Tay trái nâng đồng xu vàng lấp lánh
+        d.line([(20, 18 + bob), (25, 18 + bob)], fill=_c("a82a34"), width=2)
+        d.ellipse([24, 14 + bob, 28, 18 + bob], fill=_c("ffd84a"))
+        d.point([26, 16 + bob], fill=_c("a86a2a"))
+        if f in (1, 3):
+            d.point([27, 13 + bob], fill=_c("ffffff"))
+        d.rectangle([12, 26, 14, 30], fill=_c("2e2434"))
+        d.rectangle([17, 26, 19, 30], fill=_c("2e2434"))
+        m_frames.append(outline(img))
+    save(sheet(m_frames), "world/merchant.png")
+
+    # 2. Lò Rèn lưu động 4 khung 32x28 -> 128x28
+    f_frames = []
+    for f in range(4):
+        img, d = canvas(32, 28)
+        d.rectangle([2, 6, 18, 26], fill=_c("8a3e32"))
+        auto_shade(img, _c("8a3e32"), _c("b05444"), _c("5e2620"))
+        for y in range(8, 26, 4):
+            d.line([(2, y), (18, y)], fill=_c("5e2620"))
+        d.rectangle([6, 14, 14, 22], fill=_c("2a1414"))
+        fl = [0, -2, -1, 1][f]
+        d.polygon([(7, 22), (10, 15 + fl), (13, 22)], fill=_c("ff8a2a"))
+        d.polygon([(9, 22), (10, 18 + fl), (11, 22)], fill=_c("ffe060"))
+        d.rectangle([4, 2, 9, 6], fill=_c("5e2620"))
+        if f in (1, 2):
+            d.point([6 + (f % 2), 1], fill=_c("ffe270"))
+        # Đe & thanh kiếm nóng đỏ + búa nện
+        d.rectangle([21, 18, 30, 21], fill=_c("4a4458"))
+        d.rectangle([24, 21, 27, 26], fill=_c("3a3448"))
+        d.line([(21, 18), (30, 18)], fill=_c("8a84a0"))
+        d.rectangle([22, 16, 28, 17], fill=_c("ff6424") if f % 2 == 0 else _c("ffae38"))
+        hy = [0, -2, 2, 0][f]
+        d.line([(26, 12 + hy), (29, 17 + hy)], fill=_c("6a4028"), width=2)
+        d.rectangle([23, 10 + hy, 28, 12 + hy], fill=_c("9ca6c2"))
+        if f == 2:
+            d.point([24, 14], fill=_c("fff6a8"))
+            d.point([27, 13], fill=_c("ff9e2c"))
+        f_frames.append(outline(img))
+    save(sheet(f_frames), "world/forge.png")
+
+    # 3. Hình nhân rơm 4 khung 20x28 -> 80x28 (0: đứng yên, 1: trúng đòn mạnh, 2-3: đung đưa gió)
+    dm_frames = []
+    for f in range(4):
+        img, d = canvas(20, 28)
+        tilt = 2 if f == 1 else (-1 if f == 2 else (1 if f == 3 else 0))
+        d.line([(10, 14), (10, 27)], fill=_c("6a4028"), width=2)
+        d.line([(3 + tilt, 12), (17 + tilt, 12)], fill=_c("6a4028"), width=2)
+        d.ellipse([5 + tilt, 9, 15 + tilt, 22], fill=_c("d8b860"))
+        d.ellipse([6 + tilt, 1, 14 + tilt, 10], fill=_c("e0c470"))
+        auto_shade(img, _c("d8b860"), _c("f0d888"), _c("a88a3a"))
+        d.line([(6 + tilt, 15), (14 + tilt, 15)], fill=_c("8a5a32"))
+        d.line([(6 + tilt, 18), (14 + tilt, 18)], fill=_c("8a5a32"))
+        d.point([8 + tilt, 5], fill=_c("2a1d2e"))
+        d.point([12 + tilt, 5], fill=_c("2a1d2e"))
+        d.ellipse([8 + tilt, 12, 12 + tilt, 16], outline=_c("ff5448" if f == 1 else "d83a3a"))
+        if f == 1:
+            d.point([3, 7], fill=_c("f0d888"))
+            d.point([17, 9], fill=_c("f0d888"))
+            d.point([10, 0], fill=_c("fff4a8"))
+        elif f in (2, 3):
+            d.point([6 + tilt * 2, 19], fill=_c("e0c470"))
+        dm_frames.append(outline(img))
+    save(sheet(dm_frames), "world/dummy.png")
+
+    # 4. Đèn lồng sạp hàng 4 khung đung đưa 10x18 -> 40x18
+    ln_frames = []
+    for f in range(4):
+        sw = [-1, 0, 1, 0][f]
+        img, d = canvas(10, 18)
+        d.line([(5, 0), (5 + sw, 2)], fill=_c("5e3a20"))
+        d.rectangle([3 + sw, 2, 6 + sw, 3], fill=_c("ffd84a"))
+        d.ellipse([1 + sw, 3, 8 + sw, 12], fill=_c("d83438"))
+        auto_shade(img, _c("d83438"), _c("ff8862") if f % 2 == 1 else _c("f06854"), _c("8e222e"))
+        d.line([(5 + sw, 3), (5 + sw, 12)], fill=_c("e8b04a"))
+        d.point([5 + sw, 7], fill=_c("fff4a8") if f in (1, 2) else _c("ffbe48"))
+        d.rectangle([3 + sw, 12, 6 + sw, 13], fill=_c("ffd84a"))
+        d.line([(5 + sw, 14), (5 + sw, 17)], fill=_c("ffd84a"))
+        ln_frames.append(outline(img))
+    save(sheet(ln_frames), "world/shop_lantern.png")
+
+
 def build():
     save(build_stele(), "world/lobby_stele.png")
     save(build_well(), "world/lobby_well.png")
@@ -1367,6 +1652,8 @@ def build():
     build_animals()
     build_props()
     build_material_shop()
+    build_lobby_npcs()
+    build_animated_world_actors()
 
 
 if __name__ == "__main__":

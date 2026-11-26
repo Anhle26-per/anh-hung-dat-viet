@@ -88,7 +88,7 @@ func _run() -> void:
 		_check(s0 != s2, "%s walk khung 0 và 2 bị giống hệt nhau" % path)
 		_check(s8 != s9 and s10 != s11 and s11 != s14, "%s thiếu biến thiên giữa lấy đà/tấn công/trúng đòn" % path)
 
-	print("== 2. Kiểm tra toàn bộ 26 tờ trùm (10 lịch sử P1/P2 + 3 Tam Yêu P1/P2) có đủ 24 khung & <= 3456px")
+	print("== 2. Kiểm tra toàn bộ 26 tờ trùm (10 lịch sử P1/P2 + 3 Tam Yêu P1/P2) có đủ 36 khung & <= 5184px")
 	var boss_count: int = 0
 	for bid in EnemyData.BOSSES:
 		var is_ship: bool = (bid == "tau_hy_vong")
@@ -103,20 +103,23 @@ func _run() -> void:
 			if bt == null:
 				continue
 			var bi: Image = bt.get_image()
-			_check(bi.get_width() == bfw * 24 and bi.get_height() == bfh, "%s phải là %dx%d" % [bp, bfw * 24, bfh])
-			_check(bi.get_width() <= 3456, "%s quá rộng (%d)" % [bp, bi.get_width()])
-			var w0 := _sig(bi, 0, bfw, bfh)
+			_check(bi.get_width() == bfw * 36 and bi.get_height() == bfh, "%s phải là %dx%d" % [bp, bfw * 36, bfh])
+			_check(bi.get_width() <= 5184, "%s quá rộng (%d)" % [bp, bi.get_width()])
+			var id0 := _sig(bi, 0, bfw, bfh)
 			var w4 := _sig(bi, 4, bfw, bfh)
-			var wu0 := _sig(bi, 8, bfw, bfh)
-			var wu2 := _sig(bi, 10, bfw, bfh)
-			var a1 := _sig(bi, 12, bfw, bfh)
-			var d0 := _sig(bi, 15, bfw, bfh)
-			var lp := _sig(bi, 18, bfw, bfh)
-			var rg := _sig(bi, 20, bfw, bfh)
-			var sp0 := _sig(bi, 22, bfw, bfh)
-			var sp1 := _sig(bi, 23, bfw, bfh)
-			_check(w0 != w4 and wu0 != wu2, "%s walk/windup trùng khung" % bp)
-			_check(a1 != wu2 and d0 != a1 and lp != rg and sp0 != sp1, "%s các pha chiến đấu chưa tách biệt" % bp)
+			var w8 := _sig(bi, 8, bfw, bfh)
+			var wu0 := _sig(bi, 12, bfw, bfh)
+			var wu2 := _sig(bi, 14, bfw, bfh)
+			var a1 := _sig(bi, 16, bfw, bfh)
+			var rg_shot := _sig(bi, 20, bfw, bfh)
+			var cast_s := _sig(bi, 24, bfw, bfh)
+			var d0 := _sig(bi, 28, bfw, bfh)
+			var lp := _sig(bi, 31, bfw, bfh)
+			var rg := _sig(bi, 33, bfw, bfh)
+			var sp0 := _sig(bi, 34, bfw, bfh)
+			var sp1 := _sig(bi, 35, bfw, bfh)
+			_check(w4 != w8 and wu0 != wu2 and id0 != w4, "%s idle/walk/windup trùng khung" % bp)
+			_check(a1 != wu2 and rg_shot != a1 and cast_s != rg_shot and d0 != a1 and lp != rg and sp0 != sp1, "%s các pha chiến đấu chưa tách biệt" % bp)
 			boss_count += 1
 	for lid in EnemyData.LEGENDS:
 		var sz: Vector2i = EnemyData.LEGENDS[lid]["size"]
@@ -126,12 +129,12 @@ func _run() -> void:
 			_check(lt != null, "thiếu " + lp)
 			if lt != null:
 				var li: Image = lt.get_image()
-				_check(li.get_width() == sz.x * 24 and li.get_height() == sz.y, "%s phải là %dx%d" % [lp, sz.x * 24, sz.y])
-				_check(_sig(li, 0, sz.x, sz.y) != _sig(li, 4, sz.x, sz.y) and _sig(li, 22, sz.x, sz.y) != _sig(li, 23, sz.x, sz.y), "%s khung hành động trùng nhau" % lp)
+				_check(li.get_width() == sz.x * 36 and li.get_height() == sz.y, "%s phải là %dx%d" % [lp, sz.x * 36, sz.y])
+				_check(_sig(li, 0, sz.x, sz.y) != _sig(li, 4, sz.x, sz.y) and _sig(li, 34, sz.x, sz.y) != _sig(li, 35, sz.x, sz.y), "%s khung hành động trùng nhau" % lp)
 				boss_count += 1
 	_check(boss_count == 26, "phải kiểm đủ 26 tờ trùm (thực tế %d)" % boss_count)
 
-	print("== 3. Kiểm tra Enemy SpriteFrames cho quái 16 khung, Ngư Tinh, Trùm Pha 1 & Pha 2 (24 khung)")
+	print("== 3. Kiểm tra Enemy SpriteFrames cho quái 16 khung, Ngư Tinh, Trùm Pha 1 & Pha 2 (36 khung)")
 	var arena := Node2D.new()
 	add_child(arena)
 
@@ -149,7 +152,7 @@ func _run() -> void:
 	await _frames(2)
 	for check_phase in [1, 2]:
 		var sf: SpriteFrames = boss.spr.sprite_frames
-		var expected := {"walk": 8, "windup": 3, "attack": 4, "dash": 2, "leap": 3, "rage": 2, "special": 2}
+		var expected := {"idle": 4, "walk": 8, "windup": 4, "melee_sweep": 4, "attack": 4, "ranged_shot": 4, "cast_summon": 4, "dash": 2, "leap": 3, "rage": 2, "special": 2}
 		for aname in expected:
 			_check(sf.has_animation(aname) and sf.get_frame_count(aname) == int(expected[aname]), "Trùm Pha %d sai animation %s (%d)" % [check_phase, aname, sf.get_frame_count(aname) if sf.has_animation(aname) else -1])
 		boss._leap_state = "windup"
