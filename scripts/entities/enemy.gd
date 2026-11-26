@@ -42,6 +42,7 @@ var _wander := Vector2.ZERO
 var _wander_t := 0.0
 var _face := 1.0
 var _attack_anim_t := 0.0
+var _hurt_anim_t := 0.0
 # lấy đà / xông tới
 var _charge_state := ""
 var _charge_t := 0.0
@@ -190,13 +191,19 @@ func _ready() -> void:
 
 	var size: Vector2i = data.size
 	var n: int = data.get("frames", 4)
-	var anims := {"walk": [[0, 1, 2, 3], 8.0, true]}
+	var anims := {"walk": [[0, 1, 2, 3], 9.0 if n == 8 else 8.0, true]}
 	if n == 5:
 		anims["attack"] = [[4], 1.0, false]
-	if n >= 6:
+	elif n == 8:
+		anims["windup"] = [[4], 1.0, false]
+		anims["attack"] = [[4, 5, 6], 11.0, false]
+		anims["hurt"] = [[7], 1.0, false]
+		if str(data.get("id", "")) == "ngu_tinh":
+			anims["rage"] = [[6], 1.0, false]
+	elif n >= 6:
 		anims["attack"] = [[4], 1.0, false]
 		anims["rage"] = [[5], 1.0, false]
-	if n >= 7:
+	if n == 7:
 		anims["special"] = [[6], 1.0, false]
 	spr = AnimatedSprite2D.new()
 	spr.sprite_frames = Art.frames(data.sheet, size.x, size.y, anims)
@@ -327,6 +334,7 @@ func _physics_process(delta: float) -> void:
 	var base_glow := 0.18 + 0.1 * sin(Time.get_ticks_msec() / 150.0) if elite else 0.0
 	_mat.set_shader_parameter("flash", maxf(_flash, base_glow))
 	_attack_anim_t -= delta
+	_hurt_anim_t = maxf(_hurt_anim_t - delta, 0.0)
 	if is_boss() and (enraged or transformed) and not _submerged and _spawn_t <= 0.0 and _morph_t <= 0.0:
 		_boss_fx_t -= delta
 		if _boss_fx_t <= 0.0:
@@ -515,12 +523,22 @@ func _update_anim(delta: float = 0.016) -> void:
 	spr.scale = _anim_scale
 	if _special in ["ong_dong", "ham_chi_huy", "boc_chay", "cuu_vi", "rung_gia", "song_than"] and _special_t > 0.0 and spr.sprite_frames.has_animation("special"):
 		spr.play("special")
+		spr.speed_scale = 1.0
+	elif not is_boss() and _hurt_anim_t > 0.0 and spr.sprite_frames.has_animation("hurt"):
+		spr.play("hurt")
+		spr.speed_scale = 1.0
+	elif not is_boss() and _charge_state == "windup" and spr.sprite_frames.has_animation("windup"):
+		spr.play("windup")
+		spr.speed_scale = 1.0
 	elif (_charge_state == "dash" or _leap_state == "air") and is_boss() and spr.sprite_frames.has_animation("attack"):
 		spr.play("attack")
+		spr.speed_scale = 1.0
 	elif _attack_anim_t > 0.0 and spr.sprite_frames.has_animation("attack"):
 		spr.play("attack")
+		spr.speed_scale = 1.0
 	elif hp < max_hp / 2 and is_boss() and spr.sprite_frames.has_animation("rage") and _attack_anim_t > -0.4:
 		spr.play("rage")
+		spr.speed_scale = 1.0
 	else:
 		spr.play("walk")
 		spr.speed_scale = clampf(velocity.length() / maxf(speed, 1.0), 0.3, 2.0)
@@ -1473,6 +1491,7 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 			Net.send_enemy_event("dmg_req", {"id": net_id, "dmg": amount, "kx": knock.x, "ky": knock.y}, true)
 		_flash = 1.0
 		if not is_boss():
+			_hurt_anim_t = 0.16
 			_hp_bar_t = 3.0
 			queue_redraw()
 		Sfx.play("hit_boss" if is_boss() else "enemy_hurt")
@@ -1517,6 +1536,7 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	hp -= dmg
 	_flash = 1.0
 	if not is_boss():
+		_hurt_anim_t = 0.16
 		_hp_bar_t = 3.0
 		queue_redraw()
 	if blocked:
@@ -1549,6 +1569,7 @@ func dot_damage(amount: int, kind: String) -> void:
 	hp -= dmg
 	_flash = maxf(_flash, 0.4)
 	if not is_boss():
+		_hurt_anim_t = 0.16
 		_hp_bar_t = 3.0
 		queue_redraw()
 	var top_dot := Vector2(global_position.x + randf_range(-6, 6), hurtbox_rect().position.y - 4.0)

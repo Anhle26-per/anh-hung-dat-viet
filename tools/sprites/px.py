@@ -196,4 +196,26 @@ def polish(img, rim=0.24, shadow=0.26, contrast=0.12, region=0.14, texture=True)
     return outline(img, DARK_LINE)
 
 
+def mix(c1, c2, t):
+    """Pha màu tuyến tính giữa c1 và c2 theo tỉ lệ t (0..1)."""
+    k = max(0.0, min(1.0, t))
+    return (
+        int(c1[0] + (c2[0] - c1[0]) * k),
+        int(c1[1] + (c2[1] - c1[1]) * k),
+        int(c1[2] + (c2[2] - c1[2]) * k),
+        int(c1[3] + (c2[3] - c1[3]) * k) if len(c1) > 3 and len(c2) > 3 else 255,
+    )
+
+
+def hue_ramp(h):
+    """Tạo dải 5 sắc độ pixel art (deep, dark, base, light, spec) có dịch chuyển tông màu tự nhiên:
+    vùng tối ngả lạnh tím-chàm, vùng sáng ngả ấm vàng-kem."""
+    b = hexc(h)
+    deep = mix(shade(b, -0.52), (24, 14, 42, 255), 0.28)
+    dark = mix(shade(b, -0.28), (36, 20, 56, 255), 0.14)
+    light = mix(shade(b, 0.28), (255, 244, 198, 255), 0.16)
+    spec = mix(shade(b, 0.52), (255, 252, 232, 255), 0.34)
+    return deep, dark, b, light, spec
+
+
 DARK_LINE = (16, 10, 20, 255)

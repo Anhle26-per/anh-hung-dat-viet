@@ -342,13 +342,14 @@ def build_iron_horse():
     save(sheet(frames), "fx/iron_horse.png")
 
 
-# ---------------------------------------------------------------- Quái
+# ---------------------------------------------------------------- Quái (8 khung chi tiết)
 E = {
-    "a": hexc("6cc44a"), "A": hexc("3a7a3a"), "B": hexc("a8e870"),
-    "i": hexc("f4ecd8"), "I": hexc("b8a888"),
-    "w": hexc("ffffff"), "r": hexc("e8303a"), "K": hexc("3a1428"),
-    "f": hexc("ec8a3a"), "F": hexc("a8482a"), "L": hexc("ffbe7a"), "W": hexc("d8c8c0"),
-    "e": hexc("2a1d2e"), "n": hexc("2a1d2e"), "u": hexc("7ad8ff"), "U": hexc("2a8ae0"),
+    "a": hexc("64cc4c"), "A": hexc("2d7236"), "B": hexc("b2f27a"), "C": hexc("1d4a26"),
+    "i": hexc("f6eedc"), "I": hexc("b8a686"),
+    "w": hexc("ffffff"), "r": hexc("ec363c"), "K": hexc("3a1428"),
+    "f": hexc("f28d38"), "F": hexc("aa4626"), "L": hexc("ffd082"), "W": hexc("f6ece6"),
+    "e": hexc("26182c"), "n": hexc("26182c"), "u": hexc("7ee6ff"), "U": hexc("288ee4"),
+    "g": hexc("f0ba4a"), "G": hexc("a46824"), "c": hexc("d8f8ff"), "p": hexc("c850ff"),
 }
 
 TIEU_YEU = [
@@ -358,13 +359,28 @@ TIEU_YEU = [
     "....iBaaaaaI",
     "...aBBaaaaaaa",
     "..aBaaaaaaaaaA",
-    "..aBwraaawraaA",
-    "..aawraaawraaA",
-    "..aaaaaaaaaaaA",
+    "..aBwrraawrraA",
+    "..aawrgaawrgaA",
+    "..aaaaCCaaaaaA",
     "..aaKwKwKwKaaA",
-    "..AaaKKKKKaaAA",
+    "..gGaaKKKKKaaA",
     "...AaaaaaaaAA",
-    "..a.AAAAAAAA.a",
+    "..a.AAAAgAAA.a",
+]
+TIEU_YEU_HURT = [
+    "",
+    "...i........i",
+    "...iI......Ii",
+    "....iBaaaaaI",
+    "...aBBaaaaaaa",
+    "..aBaaaaaaaaaA",
+    "..aBraaaawraaA",
+    "..aaaraaaaraaA",
+    "..aaaaCCaaaaaA",
+    "..aaKKKKKKKaaA",
+    "..gGaaKwwKaaAA",
+    "...AaaaaaaaAA",
+    "..a.AAAAgAAA.a",
 ]
 TIEU_YEU_LEGS = [
     ["....aA....aA", "....AA....AA"],
@@ -375,164 +391,241 @@ TIEU_YEU_LEGS = [
 
 HO_TINH = [
     "",
-    "..w..........F..F",
-    ".wLw........fF.fF",
-    ".wLfw.......ffffff",
+    "..W..........F..F",
+    ".WLW........fF.fF",
+    ".WLfW.......ffffff",
     "..fLf......fLffffff",
     "..fFf.....fLfeefffff",
-    "..ffF....fffffffwwwn",
-    ".fffF...ffffffwwwww",
-    ".ffFF.fLffffffwww",
-    "..fFFfLffffffffw",
-    "...FFffffffffffF",
+    "..ffF....fffffffWWWn",
+    ".fffF...ffffffWWWWW",
+    ".ffFF.fLffffffWWW",
+    "..fFFfLffffffffW",
+    "...FFfffffffffgF",
     ".....FffffffffF",
 ]
 HO_TINH_LEGS = [
-    [".....fF.fF..fF.fF", ".....ww.ww..ww.ww"],
-    ["....fF...fF.fF..fF", "....ww...ww.ww..ww"],
-    [".....fF.fF..fF.fF", ".....ww.ww..ww.ww"],
-    ["......fFfF...fFfF", "......wwww...wwww"],
+    [".....fF.fF..fF.fF", ".....WW.WW..WW.WW"],
+    ["....fF...fF.fF..fF", "....WW...WW.WW..WW"],
+    [".....fF.fF..fF.fF", ".....WW.WW..WW.WW"],
+    ["......fFfF...fFfF", "......WWWW...WWWW"],
 ]
 
 
-def _enemy_frames(up, legs_list, pal, size, up_y, leg_y, bobs):
+def _tieu_yeu():
     frames = []
-    for i, legs in enumerate(legs_list):
+    size = (16, 17)
+    bobs = [0, -1, 0, -1, 1, -1, 1, -1]
+    for f in range(8):
         img = Image.new("RGBA", size, (0, 0, 0, 0))
-        img.alpha_composite(grid(legs, pal, size[0]), (0, leg_y))
-        img.alpha_composite(grid(up, pal, size[0]), (0, up_y + bobs[i]))
+        d = ImageDraw.Draw(img)
+        if f < 4:
+            legs = TIEU_YEU_LEGS[f]
+            dx = 0
+            up = TIEU_YEU
+        elif f == 4:
+            legs = ["...aA......aA", "...AA......AA"]
+            dx = -1
+            up = TIEU_YEU
+        elif f == 5:
+            legs = ["..aA........aA", "..AA........AA"]
+            dx = 1
+            up = TIEU_YEU
+        elif f == 6:
+            legs = ["....aA....aA", "....AA....AA"]
+            dx = 0
+            up = TIEU_YEU
+        else:
+            legs = ["...aA......aA", "...AA......AA"]
+            dx = -1
+            up = TIEU_YEU_HURT
+        img.alpha_composite(grid(legs, E, size[0]), (dx, 13))
+        img.alpha_composite(grid(up, E, size[0]), (dx, max(0, bobs[f])))
+        if f == 4:
+            d.point([13, 10], fill=E["w"])
+            d.point([12, 11], fill=E["B"])
+        elif f == 5:
+            d.line([(12, 7), (15, 5)], fill=E["w"])
+            d.line([(12, 10), (15, 8)], fill=E["c"])
+            d.line([(13, 12), (15, 11)], fill=E["u"])
+        elif f == 6:
+            d.point([14, 12], fill=E["B"])
+        elif f == 7:
+            d.point([2, 3], fill=E["r"])
+            d.point([1, 5], fill=E["w"])
+        frames.append(polish(img))
+    return frames
+
+
+def _ho_tinh():
+    frames = []
+    size = (22, 16)
+    bobs = [0, -1, 0, -1, 1, -1, 0, 0]
+    for f in range(8):
+        img = Image.new("RGBA", size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        legs = HO_TINH_LEGS[f % 4] if f < 4 else (HO_TINH_LEGS[1] if f in (4, 5) else HO_TINH_LEGS[0])
+        dx = -1 if f in (4, 7) else (1 if f == 5 else 0)
+        img.alpha_composite(grid(legs, E, size[0]), (max(-1, dx), 12))
+        img.alpha_composite(grid(HO_TINH, E, size[0]), (max(-1, dx), max(0, bobs[f])))
+        if f == 4:
+            d.ellipse([18, 2, 21, 5], fill=E["u"])
+            d.point([19, 3], fill=E["w"])
+        elif f == 5:
+            d.line([(18, 5), (21, 3)], fill=E["u"], width=2)
+            d.point([21, 2], fill=E["w"])
+            d.point([20, 6], fill=E["c"])
+        elif f == 6:
+            d.point([20, 4], fill=E["U"])
+        elif f == 7:
+            d.point([14, 5], fill=E["r"])
+            d.point([15, 5], fill=E["r"])
+            d.point([3, 3], fill=E["w"])
+        else:
+            y = 2 + [0, 1, 2, 1][f]
+            d.point([20, y], fill=E["u"])
+            d.point([20, y + 1], fill=E["U"])
+            d.point([19, y + 1], fill=E["c"])
         frames.append(polish(img))
     return frames
 
 
 def build_enemies():
-    save(sheet(_enemy_frames(TIEU_YEU, TIEU_YEU_LEGS, E, (16, 17), 0, 13, [0, -1, 0, 1])), "enemies/tieu_yeu.png")
-    fox = _enemy_frames(HO_TINH, HO_TINH_LEGS, E, (22, 16), 0, 12, [0, -1, 0, -1])
-    # đốm ma trơi xanh bay quanh hồ tinh
-    for i, f in enumerate(fox):
-        d = ImageDraw.Draw(f)
-        y = 2 + [0, 1, 2, 1][i]
-        d.point([20, y], fill=E["u"])
-        d.point([20, y + 1], fill=E["U"])
-        d.point([19, y + 1], fill=E["u"])
-    save(sheet(fox), "enemies/ho_tinh.png")
+    save(sheet(_tieu_yeu()), "enemies/tieu_yeu.png")
+    save(sheet(_ho_tinh()), "enemies/ho_tinh.png")
     save(sheet(_moc_tinh()), "enemies/moc_tinh.png")
     save(sheet(_ngu_tinh()), "enemies/ngu_tinh.png")
 
 
 def _moc_tinh():
-    bark, bark_l, bark_d = hexc("7a4e2e"), hexc("a8744a"), hexc("4a2e1e")
-    leaf, leaf_l, leaf_d = hexc("4a9a3a"), hexc("86d05a"), hexc("2a5a2e")
+    bark, bark_l, bark_d = hexc("7e5030"), hexc("b27b4e"), hexc("46291c")
+    leaf, leaf_l, leaf_d = hexc("4ea23e"), hexc("90dc62"), hexc("285c2c")
     rng = random.Random(7)
     frames = []
-    for f in range(4):
+    for f in range(8):
         img, d = canvas(26, 28)
-        sway = [0, 1, 0, -1][f]
-        # rễ chân
-        lo = [(0, 2), (1, 1), (2, 0), (1, 1)][f]
-        d.line([9, 22, 6 - lo[0], 26], fill=bark_d, width=2)
-        d.line([16, 22, 19 + lo[1], 26], fill=bark_d, width=2)
-        # thân
-        d.rectangle([8, 11, 17, 23], fill=bark)
+        sway = [0, 1, 0, -1][f] if f < 4 else (-1 if f == 7 else 0)
+        bob = [0, -1, 0, -1][f] if f < 4 else (1 if f == 5 else (-1 if f == 4 else 0))
+        lo = [(0, 2), (1, 1), (2, 0), (1, 1)][f] if f < 4 else ((0, 0) if f in (4, 6) else (2, 2))
+        d.line([9, 22 + bob, 6 - lo[0], 26], fill=bark_d, width=2)
+        d.line([16, 22 + bob, 19 + lo[1], 26], fill=bark_d, width=2)
+        d.rectangle([8, 11 + bob, 17, 23 + bob], fill=bark)
         auto_shade(img, bark, bark_l, bark_d)
-        for y in range(13, 23, 3):
+        for y in range(13 + bob, 23 + bob, 3):
             d.line([10, y, 11, y + 1], fill=bark_d)
             d.point([15, y + 1], fill=bark_d)
-        # cành tay
-        d.line([8, 15, 3, 12 + sway], fill=bark, width=2)
-        d.line([17, 15, 22, 12 - sway], fill=bark, width=2)
-        d.point([2, 11 + sway], fill=leaf)
-        d.point([23, 11 - sway], fill=leaf)
-        # tán lá
-        for cx, cy, r in ((8, 7, 6), (17, 7, 6), (12 + sway, 4, 6), (12, 9, 5)):
+        # Ấn cổ mộc phát sáng trước ngực
+        rune_c = hexc("ffe86a") if f in (4, 5) else hexc("7af488")
+        d.rectangle([12, 20 + bob, 13, 21 + bob], fill=rune_c)
+        # Cành tay theo từng hoạt động
+        if f == 4:
+            d.line([8, 15 + bob, 3, 7], fill=bark, width=2)
+            d.line([17, 15 + bob, 22, 7], fill=bark, width=2)
+            d.point([2, 6], fill=leaf_l)
+            d.point([23, 6], fill=leaf_l)
+        elif f == 5:
+            d.line([8, 15 + bob, 2, 22], fill=bark, width=2)
+            d.line([17, 15 + bob, 23, 22], fill=bark, width=2)
+            d.ellipse([1, 21, 5, 25], fill=leaf_l)
+            d.ellipse([20, 21, 24, 25], fill=leaf_l)
+        elif f == 7:
+            d.line([8, 15 + bob, 4, 18], fill=bark, width=2)
+            d.line([17, 15 + bob, 21, 18], fill=bark, width=2)
+        else:
+            d.line([8, 15 + bob, 3, 12 + sway], fill=bark, width=2)
+            d.line([17, 15 + bob, 22, 12 - sway], fill=bark, width=2)
+            d.point([2, 11 + sway], fill=leaf)
+            d.point([23, 11 - sway], fill=leaf)
+        for cx, cy, r in ((8, 7 + bob, 6), (17, 7 + bob, 6), (12 + sway, 4 + bob, 6), (12, 9 + bob, 5)):
             d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=leaf)
         auto_shade(img, leaf, leaf_l, leaf_d)
         px = img.load()
-        for _ in range(16):
-            x, y = rng.randint(3, 22), rng.randint(0, 12)
+        for _ in range(18):
+            x, y = rng.randint(3, 22), rng.randint(max(0, bob), 12)
             if px[x, y] == leaf:
-                px[x, y] = leaf_d if rng.random() < 0.5 else leaf_l
-        # mặt: hốc mắt tối với mắt vàng rực, lông mày giận, miệng răng cưa
+                px[x, y] = leaf_d if rng.random() < 0.45 else leaf_l
         dark = hexc("24140e")
-        d.rectangle([9, 13, 11, 15], fill=dark)
-        d.rectangle([14, 13, 16, 15], fill=dark)
-        d.rectangle([10, 14, 11, 15], fill=hexc("ffd84a"))
-        d.rectangle([14, 14, 15, 15], fill=hexc("ffd84a"))
-        d.point([10, 14], fill=hexc("fff8c0"))
-        d.point([14, 14], fill=hexc("fff8c0"))
-        d.line([8, 11, 11, 12], fill=dark)
-        d.line([14, 12, 17, 11], fill=dark)
-        d.rectangle([10, 17, 15, 19], fill=dark)
+        d.rectangle([9, 13 + bob, 11, 15 + bob], fill=dark)
+        d.rectangle([14, 13 + bob, 16, 15 + bob], fill=dark)
+        eye_c = hexc("ff4838") if f == 7 else (hexc("fff8a8") if f in (4, 5) else hexc("ffd84a"))
+        d.rectangle([10, 14 + bob, 11, 15 + bob], fill=eye_c)
+        d.rectangle([14, 14 + bob, 15, 15 + bob], fill=eye_c)
+        d.line([8, 11 + bob, 11, 12 + bob], fill=dark)
+        d.line([14, 12 + bob, 17, 11 + bob], fill=dark)
+        mouth_h = 3 if f in (4, 5) else 2
+        d.rectangle([10, 17 + bob, 15, 17 + bob + mouth_h], fill=dark)
         for x in (10, 12, 14):
-            d.point([x, 17], fill=hexc("e8dcc0"))
+            d.point([x, 17 + bob], fill=hexc("e8dcc0"))
         for x in (11, 13, 15):
-            d.point([x, 19], fill=hexc("e8dcc0"))
+            d.point([x, 17 + bob + mouth_h], fill=hexc("e8dcc0"))
+        if f == 5:
+            d.line([(3, 26), (22, 26)], fill=hexc("a8f080"))
+        elif f == 7:
+            d.point([6, 12], fill=hexc("d8a060"))
+            d.point([19, 12], fill=hexc("d8a060"))
         frames.append(polish(img))
     return frames
 
 
 def _ngu_tinh():
-    """Trùm Ngư Tinh: cá yêu khổng lồ. 6 khung: bơi(4) + há miệng(1) + gồng(1)."""
-    body, body_l, body_d = hexc("2e8a9a"), hexc("5ec8c8"), hexc("1a4e6a")
-    belly, belly_l, belly_d = hexc("e8d8a8"), hexc("fff4d0"), hexc("b8a078")
-    fin, fin_l, fin_d = hexc("c84a5a"), hexc("f07a7a"), hexc("7a2a44")
+    """Thủy quái Ngư Tinh (60x46 x 8 khung): 0-3 bơi, 4 lấy đà, 5 táp phun nước, 6 cuồng nộ, 7 trúng đòn."""
+    body, body_l, body_d = hexc("2b92a8"), hexc("70e4dc"), hexc("154868")
+    belly, belly_l, belly_d = hexc("f2e4b8"), hexc("fff8dc"), hexc("b89e74")
+    fin, fin_l, fin_d = hexc("df4b58"), hexc("ff8a8a"), hexc("7e223c")
     frames = []
-    for f in range(6):
+    for f in range(8):
         img, d = canvas(60, 46)
         t = f % 4
-        sway = [0, 2, 0, -2][t] if f < 4 else 0
-        mouth_open = f == 4
-        rage = f == 5
-        cy = 24
-        # đuôi
-        d.polygon([(14, cy), (2, cy - 12 + sway), (6, cy + sway // 2), (2, cy + 12 + sway)], fill=fin)
+        sway = [0, 3, 0, -3][t] if f < 4 else (-4 if f == 4 else (4 if f == 5 else 0))
+        dx = -2 if f in (4, 7) else (3 if f == 5 else 0)
+        mouth_open = f in (4, 5)
+        rage = f == 6
+        cy = 24 + ([0, -1, 0, 1][t] if f < 4 else 0)
+        d.polygon([(14 + dx, cy), (2 + dx, cy - 12 + sway), (6 + dx, cy + sway // 2), (2 + dx, cy + 12 + sway)], fill=fin)
         auto_shade(img, fin, fin_l, fin_d)
-        # vây lưng (gai)
         for i, x in enumerate(range(20, 42, 5)):
-            h = 10 - abs(i - 2) * 2
-            d.polygon([(x, cy - 11), (x + 3, cy - 11 - h + (sway if i % 2 else 0) // 2), (x + 6, cy - 11)], fill=fin)
-        # thân
-        d.ellipse([10, cy - 14, 52, cy + 14], fill=body)
+            h = 11 - abs(i - 2) * 2
+            d.polygon([(x + dx, cy - 11), (x + 3 + dx, cy - 11 - h + (sway if i % 2 else 0) // 2), (x + 6 + dx, cy - 11)], fill=fin)
+        d.ellipse([10 + dx, cy - 14, 52 + dx, cy + 14], fill=body)
         auto_shade(img, body, body_l, body_d)
-        # bụng
-        d.chord([14, cy - 2, 50, cy + 14], 0, 180, fill=belly)
+        d.chord([14 + dx, cy - 2, 50 + dx, cy + 14], 0, 180, fill=belly)
         auto_shade(img, belly, belly_l, belly_d)
-        # vảy
         px = img.load()
         for row, y in enumerate(range(cy - 10, cy, 4)):
             for x in range(18 + (row % 2) * 3, 46, 6):
-                for dx in range(4):
-                    if px[x + dx, y + (1 if dx in (0, 3) else 2)] == body:
-                        px[x + dx, y + (1 if dx in (0, 3) else 2)] = body_d
-        # vây ngực
-        fy = [0, 2, 3, 1][t]
-        d.polygon([(27, cy + 10), (35, cy + 10), (31, cy + 19 + fy), (24, cy + 16 + fy)], fill=fin)
-        d.line([(28, cy + 12), (27, cy + 16 + fy)], fill=fin_d)
-        d.line([(31, cy + 12), (30, cy + 17 + fy)], fill=fin_d)
-        # râu dài
-        d.line([(50, cy + 2), (56, cy + 6), (58, cy + 12 + sway // 2)], fill=fin_d)
-        d.line([(48, cy - 6), (54, cy - 12), (58, cy - 13 - sway // 2)], fill=fin_d)
-        # mắt
-        ex, ey = 43, cy - 5
-        d.ellipse([ex - 3, ey - 3, ex + 3, ey + 3], fill=hexc("fff4c0"))
-        pupil = hexc("e8202a") if rage else hexc("1a1222")
+                for ddx in range(4):
+                    xx, yy = x + ddx + dx, y + (1 if ddx in (0, 3) else 2)
+                    if 0 <= xx < 60 and 0 <= yy < 46 and px[xx, yy] == body:
+                        px[xx, yy] = body_d
+        fy = [0, 2, 3, 1][t] if f < 4 else (-2 if f == 4 else 3)
+        d.polygon([(27 + dx, cy + 10), (35 + dx, cy + 10), (31 + dx, cy + 19 + fy), (24 + dx, cy + 16 + fy)], fill=fin)
+        d.line([(28 + dx, cy + 12), (27 + dx, cy + 16 + fy)], fill=fin_d)
+        d.line([(31 + dx, cy + 12), (30 + dx, cy + 17 + fy)], fill=fin_d)
+        d.line([(50 + dx, cy + 2), (55 + dx, cy + 6), (min(59, 58 + dx), cy + 12 + sway // 2)], fill=hexc("f0b848"))
+        d.line([(48 + dx, cy - 6), (54 + dx, cy - 12), (min(59, 58 + dx), cy - 13 - sway // 2)], fill=hexc("f0b848"))
+        ex, ey = 43 + dx, cy - 5
+        d.ellipse([ex - 3, ey - 3, ex + 3, ey + 3], fill=hexc("fff6c4"))
+        pupil = hexc("e8202a") if rage or f == 7 else hexc("1a1222")
         d.rectangle([ex, ey - 2, ex + 1, ey + 2], fill=pupil)
         d.line([(ex - 4, ey - 5), (ex + 3, ey - 3)], fill=body_d, width=2)
-        # miệng + răng
         if mouth_open:
-            d.polygon([(52, cy - 1), (44, cy + 3), (52, cy + 10)], fill=hexc("3a0e22"))
+            d.polygon([(min(59, 52 + dx), cy - 1), (44 + dx, cy + 3), (min(59, 52 + dx), cy + 10)], fill=hexc("3a0e22"))
             for y in range(cy, cy + 10, 3):
-                d.point([50, y], fill=hexc("ffffff"))
+                d.point([min(59, 50 + dx), y], fill=hexc("ffffff"))
+            if f == 5:
+                d.line([(min(59, 53 + dx), cy + 3), (59, cy + 2)], fill=hexc("9ee8ff"), width=2)
+                d.line([(min(59, 53 + dx), cy + 6), (59, cy + 7)], fill=hexc("ffffff"))
         else:
-            d.line([(52, cy + 2), (45, cy + 4)], fill=hexc("3a0e22"))
-            d.point([49, cy + 3], fill=hexc("ffffff"))
-            d.point([47, cy + 4], fill=hexc("ffffff"))
+            d.line([(min(59, 52 + dx), cy + 2), (45 + dx, cy + 4)], fill=hexc("3a0e22"))
+            d.point([49 + dx, cy + 3], fill=hexc("ffffff"))
+            d.point([47 + dx, cy + 4], fill=hexc("ffffff"))
         if rage:
             for y in range(46):
                 for x in range(60):
                     c = px[x, y]
-                    if c[3] and c not in (hexc("fff4c0"),):
-                        px[x, y] = (min(255, c[0] + 40), c[1], c[2], 255)
+                    if c[3] and c not in (hexc("fff6c4"),):
+                        px[x, y] = (min(255, c[0] + 45), int(c[1] * 0.9), int(c[2] * 0.9), 255)
+        elif f == 7:
+            d.ellipse([36, 12, 40, 15], fill=hexc("ffffff"))
         frames.append(polish(img))
     return frames
 
