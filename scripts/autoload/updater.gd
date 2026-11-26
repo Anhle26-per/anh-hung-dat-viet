@@ -32,8 +32,12 @@ var _dl_expected_bytes: int = 0
 var _last_prog_bytes: int = -1
 
 
+static func _is_running_from_project_dir() -> bool:
+	return FileAccess.file_exists(ProjectSettings.globalize_path("res://project.godot"))
+
+
 func _enter_tree() -> void:
-	if not OS.has_feature("editor") and DisplayServer.get_name() != "headless":
+	if not _is_running_from_project_dir() and DisplayServer.get_name() != "headless":
 		try_mount_saved_patch()
 
 
