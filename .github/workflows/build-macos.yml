@@ -1,0 +1,111 @@
+name: Build & Sign macOS Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag release để đính kèm file macOS (ví dụ: v1.3.0). Bỏ trống nếu chỉ build artifact."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Godot & Export Templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/godot-cache
+          key: godot-macos-${{ env.GODOT_VERSION }}-stable
+
+      - name: Install Godot & macOS Export Templates
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/godot-cache "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          BASE_URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          if [ ! -d "/tmp/godot-cache/Godot.app" ]; then
+            curl -fL "${BASE_URL}/Godot_v${GODOT_VERSION}-stable_macos.universal.zip" -o /tmp/godot.zip
+            ditto -x -k /tmp/godot.zip /tmp/godot-cache
+            rm -f /tmp/godot.zip
+          fi
+          if [ ! -f "/tmp/godot-cache/templates/macos.zip" ]; then
+            curl -fL "${BASE_URL}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o /tmp/templates.zip
+            ditto -x -k /tmp/templates.zip /tmp/godot-cache
+            rm -f /tmp/templates.zip
+          fi
+          cp -R /tmp/godot-cache/templates/* "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable/"
+          chmod +x /tmp/godot-cache/Godot.app/Contents/MacOS/*
+
+      - name: Import Godot project assets
+        run: |
+          set -euo pipefail
+          GODOT_BIN="$(find /tmp/godot-cache/Godot.app/Contents/MacOS -maxdepth 1 -type f | head -n 1)"
+          "$GODOT_BIN" --headless --path . --import
+
+      - name: Export macOS Release
+        run: |
+          set -euo pipefail
+          mkdir -p build/macos_stage build/dmg_root
+          GODOT_BIN="$(find /tmp/godot-cache/Godot.app/Contents/MacOS -maxdepth 1 -type f | head -n 1)"
+          "$GODOT_BIN" --headless --path . --export-release "macOS" "build/AnhHungDatViet-raw.zip"
+
+      - name: Unpack, Ad-hoc Sign & Verify .app
+        run: |
+          set -euo pipefail
+          ditto -x -k build/AnhHungDatViet-raw.zip build/macos_stage
+          APP_PATH="$(find build/macos_stage -maxdepth 2 -name "*.app" | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: Exported .app bundle not found in build/macos_stage"
+            exit 1
+          fi
+          TARGET_APP="build/macos_stage/AnhHungDatViet.app"
+          if [ "$APP_PATH" != "$TARGET_APP" ]; then
+            mv "$APP_PATH" "$TARGET_APP"
+          fi
+          chmod +x "$TARGET_APP/Contents/MacOS/"*
+          xattr -cr "$TARGET_APP"
+          # Ký ad-hoc miễn phí trên macOS giúp bỏ lỗi "damaged" và không cần gõ xattr/codesign trên Terminal.
+          # (Tuỳ chọn về sau: nếu có tài khoản Apple Developer $99/năm, thay "-" bằng Developer ID cert + chạy xcrun notarytool submit & stapler staple)
+          codesign --force --deep --sign - "$TARGET_APP"
+          codesign --verify --deep --strict --verbose=2 "$TARGET_APP"
+
+      - name: Package signed .zip and .dmg
+        run: |
+          set -euo pipefail
+          ditto -c -k --sequesterRsrc --keepParent build/macos_stage/AnhHungDatViet.app build/AnhHungDatViet-macOS.zip
+          cp -R build/macos_stage/AnhHungDatViet.app build/dmg_root/
+          ln -s /Applications build/dmg_root/Applications
+          hdiutil create -volname "Anh Hung Dat Viet" -srcfolder build/dmg_root -ov -format UDZO build/AnhHungDatViet-macOS.dmg
+          ls -lh build/AnhHungDatViet-macOS.zip build/AnhHungDatViet-macOS.dmg
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnhHungDatViet-macOS-${{ github.ref_name }}
+          path: |
+            build/AnhHungDatViet-macOS.zip
+            build/AnhHungDatViet-macOS.dmg
+
+      - name: Attach signed macOS builds to GitHub Release
+        if: github.ref_type == 'tag' || inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Anh Hùng Đất Việt $TAG" --generate-notes
+          gh release upload "$TAG" build/AnhHungDatViet-macOS.dmg build/AnhHungDatViet-macOS.zip --clobber
