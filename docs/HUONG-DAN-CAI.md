@@ -1,72 +1,65 @@
-# Hướng dẫn cài đặt và chơi thử **Anh Hùng Đất Việt**
+# Hướng dẫn cài đặt và chơi **Anh Hùng Đất Việt** (`v2.0.0`)
 
-> **Lưu ý:** Đây là **bản thử nội bộ** chỉ dùng để gửi trong nhóm bạn bè chơi thử và góp ý cân bằng, **không phải bản phát hành công khai**.
+> Tải các gói cài đặt chính thức tại trang [**GitHub Releases**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest).
 
 ---
 
-## 1. Cách cài đặt và chạy game
+## 1. Cách cài đặt và mở game
 
-### Trên máy tính Windows (`AnhHungDatViet.exe`)
-1. Chép tệp `AnhHungDatViet.exe` vào một thư mục bất kỳ (ví dụ `D:\Games\AnhHungDatViet\`). Không cần cài đặt thêm, mọi dữ liệu đã được nhúng sẵn trong tệp `.exe`.
-2. Nhấp đúp `AnhHungDatViet.exe` để mở game.
-3. Vì bản thử nội bộ chưa mua chữ ký số thương mại, **Windows SmartScreen** có thể hiện màn hình xanh cảnh báo *"Windows protected your PC"*:
-   - Bấm **"More info"** (**"Thông tin thêm"**).
-   - Bấm **"Run anyway"** (**"Vẫn chạy"**).
+### Trên máy tính Windows (`AnhHungDatViet-Windows.zip`)
+1. Tải tệp **`AnhHungDatViet-Windows.zip`** và **giải nén toàn bộ thư mục `AnhHungDatViet/`** ra máy tính (không tách lẻ 2 tệp `AnhHungDatViet.exe` và `AnhHungDatViet.pck`).
+2. Nhấp đúp **`AnhHungDatViet.exe`** để vào thẳng game (không cần cài thêm Godot hay thư viện rời).
+3. Gói `AnhHungDatViet.exe` sử dụng trình chạy chính thức **đã ký số hợp lệ (`Valid`, Prehensile Tales B.V.)** nên chạy mượt ngay cả trên **Windows 11 có bật Smart App Control** mà không bị chặn.
 
-### Chạy thử trực tiếp bằng Godot (khuyên dùng trên máy có Windows Smart App Control)
-Trên Windows 11 bật chính sách **Smart App Control**, tệp `.exe` tự xuất chưa ký số có thể bị Windows chặn không cho mở trực tiếp. Khi đó bạn có thể test ngay bản đóng gói thông qua trình Godot đã có chữ ký số hợp lệ:
-1. Chạy tệp `build\choi_bang_godot.bat`, hoặc chạy lệnh:
-   `"D:\Games\Godot\Godot_v4.7.2-stable_win64.exe" --main-pack "build\AnhHungDatViet.pck"`
-2. Hoặc mở `project.godot` trong Godot 4.7.2 và bấm **F5** để chạy trực tiếp từ dự án.
+*(Nếu tự chạy từ mã nguồn: mở `project.godot` bằng Godot 4.7.2 và bấm **F5**, hoặc chạy `Godot_v4.7.2-stable_win64.exe --main-pack "build\AnhHungDatViet.pck"`).*
+
+### Trên máy tính MacBook (`AnhHungDatViet-macOS.dmg` / `.zip`)
+Hỗ trợ chuẩn **Universal** cho cả **Apple Silicon (M1–M4)** và **Intel**. Bản dựng đã được ký nội bộ (*ad-hoc codesign*) trên GitHub Actions, chỉ cần xác nhận **1 lần duy nhất ở lần mở đầu tiên**:
+1. Tải **`AnhHungDatViet-macOS.dmg`**, mở ra và kéo **`AnhHungDatViet.app`** vào thư mục **Applications** (hoặc tải `AnhHungDatViet-macOS.zip` rồi giải nén).
+2. Nhấp mở **`AnhHungDatViet.app`** lần đầu: nếu macOS báo chưa xác minh nhà phát triển, bấm **Done (Xong)**.
+3. Mở **System Settings → Privacy & Security**, kéo xuống bấm **Open Anyway (Vẫn mở)**.  
+   *(Hoặc mở Terminal và chạy nhanh 1 dòng:)*
+   ```bash
+   xattr -cr /Applications/AnhHungDatViet.app
+   ```
+4. Từ lần mở thứ 2 trở đi chỉ cần nhấp đúp mở bình thường (và khi tự cập nhật trong game cũng không cần xác nhận lại).
 
 ### Trên điện thoại Android (`AnhHungDatViet.apk`)
-1. Chép tệp `AnhHungDatViet.apk` vào điện thoại (chỉ hỗ trợ máy 64-bit `arm64-v8a`, xoay ngang màn hình).
-2. Mở tệp `.apk` từ trình quản lý tệp.
-3. Khi Android hỏi quyền cài ngoài Play Store: vào **Cài đặt → Cho phép từ nguồn này (Cho phép nguồn không xác định)** rồi bấm **Cài đặt**.
-4. Nếu Google Play Protect hỏi khi cài bản debug nội bộ, chọn **"Vẫn cài đặt"**.
-
-### Trên máy tính MacBook (`AnhHungDatViet-macOS.zip`)
-Hỗ trợ cả chip **Apple Silicon (M1–M4)** và **Intel**. Vì đây là bản thử nội bộ chưa ký số/công chứng với Apple:
-1. Giải nén `AnhHungDatViet-macOS.zip` để lấy `Anh Hùng Đất Việt.app` (có thể kéo vào thư mục *Applications* hoặc để ngay ngoài *Downloads*).
-2. Mở **Terminal** tại thư mục chứa tệp `.app` (hoặc gõ `xattr -cr ` rồi kéo biểu tượng `Anh Hùng Đất Việt.app` vào cửa sổ Terminal) và chạy:
-   ```bash
-   xattr -cr "Anh Hùng Đất Việt.app"
-   ```
-3. Nhấp chuột phải vào `Anh Hùng Đất Việt.app` → chọn **Open** (nếu macOS vẫn hỏi, vào **System Settings → Privacy & Security → Open Anyway**).
+1. Chép **`AnhHungDatViet.apk`** vào điện thoại Android 64-bit (`arm64-v8a`, xoay ngang màn hình).
+2. Mở tệp `.apk` từ trình quản lý tệp, bật **Cho phép cài đặt từ nguồn này** nếu được hỏi, rồi bấm **Cài đặt**.
 
 ---
 
-## 2. Bảng phím điều khiển
+## 2. Bảng phím điều khiển (`v2.0.0`)
 
-| Hành động | Máy tính | Điện thoại (cảm ứng) | Tay cầm |
+| Hành động | Máy tính (`PC`) | Điện thoại (`Touch`) | Tay cầm (`Gamepad`) |
 |---|---|---|---|
-| Di chuyển | `WASD` hoặc phím mũi tên | Cần gạt bên trái | Cần trái |
-| Tấn công | Giữ chuột trái hoặc `J` | Giữ nút vũ khí | `A` / Cò phải (`RT`) |
-| Ngắm bắn | Con trỏ chuột | Tự ngắm giặc gần nhất | Tự ngắm |
-| Tung kỹ năng | Chuột phải / `Space` / `K` | Nút kỹ năng | `B` |
-| **Đổi vũ khí** | **Lăn chuột** (lên/xuống) hoặc `Q` | Nút **Đổi** | `LB` |
-| **Nhặt / dùng** | `E` | Nút **Nhặt / Dùng** | `Y` |
-| Tạm dừng / Cài đặt | `Esc` hoặc `P` | Nút **II** | `Start` |
+| **Di chuyển** | `WASD` hoặc phím mũi tên | Cần gạt trái | Cần trái |
+| **Tấn công / Tụ lực** | Giữ chuột trái hoặc `J` | Giữ nút Tấn công | `A` / Cò phải (`RT`) |
+| **Ngắm bắn** | Con trỏ chuột | Tự ngắm giặc gần nhất | Tự ngắm |
+| **Tung Kỹ năng** | Chuột phải hoặc `K` | Nút Kỹ năng | `B` |
+| **Lướt né (i-frame)** | `Space` | Nút Lướt | `X` |
+| **Chạy nhanh** | `Shift` | — | Nhấn cần trái (`L3`) / Cò trái (`LT`) |
+| **Đổi vũ khí** | `Q` hoặc **Lăn chuột** | Nút **Đổi** | `LB` |
+| **Nhặt / Tương tác** | `E` | Nút **Nhặt / Dùng** | `Y` |
+| **Hợp nhất vũ khí** | `R` *(khi đứng cạnh đồ ghép được)* | Nút **Hợp nhất** | `RB` |
+| **Tạm dừng / Cài đặt** | `Esc` hoặc `P` | Nút `II` | `Start` |
 
-*(Gợi ý nhỏ: `E` chỉ nhặt vũ khí dưới chân hoặc tương tác trạm/chợ/rương, không bao giờ đổi nhầm vũ khí khi đang đứng trống!)*
+*(Gợi ý nhỏ: `E` dùng để nhặt vũ khí dưới chân hoặc tương tác rương, thương nhân, bàn thờ sự kiện `[!]`, thú cưỡi; `R` tự hiện gợi ý khi vũ khí trên tay ghép được với vũ khí gần cạnh hoặc trong túi).*
 
 ---
 
-## 3. Đồng điệu binh khí (`★★` / `★`) và 6 Ấn hệ
+## 3. Kỹ năng 2, Đồng điệu binh khí (`★★` / `★`) & 6 Ấn hệ
 
-Khi tung kỹ năng (`Space` / Chuột phải), game kiểm tra vũ khí **đang cầm trên tay** và kích hoạt đồng thời **mức Đồng điệu** + **Ấn hệ**:
+- **Chọn Chiêu 1 / Chiêu 2 & xem Nội tại**: trong Doanh trại, bấm `E` vào tượng tướng → chuyển đổi tự do giữa **Chiêu 1** và **Chiêu 2** trước khi vào cổng xuất trận.
+- **Đồng điệu khi tung chiêu** (`Chuột phải` / `K`):
+  - **★★ Tâm đắc (Vàng):** Cầm **vũ khí khởi đầu** của chính tướng đó hoặc **binh khí định mệnh** (*Nỏ thần Liên Châu* cho Lý Thường Kiệt, *Gươm Thuận Thiên* cho Lê Lợi, *Hỏa hổ* cho Quang Trung, *Súng hỏa mai* cho Hoàng Hoa Thám).
+  - **★ Cùng hệ (Bạc):** Cầm vũ khí cùng hệ với vũ khí khởi đầu hoặc vũ khí hệ **Thần khí**.
+  - **Chưa đồng điệu:** Giữ nguyên hiệu ứng gốc.
 
-- **★★ Tâm đắc (Vàng):** Đang cầm **vũ khí khởi đầu** của chính tướng đó, hoặc **binh khí định mệnh**:
-  - Lý Thường Kiệt → *Nỏ thần Liên Châu*
-  - Lê Lợi → *Gươm Thuận Thiên*
-  - Quang Trung → *Hỏa hổ*
-  - Hoàng Hoa Thám → *Súng hỏa mai*
-- **★ Cùng hệ (Bạc):** Đang cầm vũ khí cùng hệ với vũ khí khởi đầu, hoặc bất kỳ vũ khí hệ **Thần khí**.
-- **Chưa đồng điệu:** Giữ nguyên hiệu ứng kỹ năng gốc. *(Hiệu ứng kéo dài luôn giữ nguyên mức lúc bạn tung chiêu, đổi vũ khí giữa chừng không bị mất.)*
+### Bảng 6 Ấn hệ (luôn kích hoạt thêm theo vũ khí trên tay lúc tung chiêu)
 
-### Bảng 6 Ấn hệ (luôn cộng thêm vào chiêu gốc)
-
-| Hệ vũ khí | Tên Ấn hệ | Hiệu ứng cộng thêm khi tung chiêu |
+| Hệ vũ khí | Tên Ấn hệ | Hiệu ứng cộng thêm |
 |---|---|---|
 | Đao kiếm | **Kiếm khí** | Phóng 6 luồng sóng kiếm tỏa 360° quanh mình (sát thương = vũ khí đang cầm, tối thiểu 4) |
 | Côn thương | **Trấn địa** | Tạo sóng chấn địa bán kính 60 (sát thương 4, đẩy lùi mạnh, choáng 0,6 giây) |
@@ -77,75 +70,46 @@ Khi tung kỹ năng (`Space` / Chuột phải), game kiểm tra vũ khí **đang
 
 ---
 
-## 4. Tu luyện tướng và Rèn binh khí khởi đầu
+## 4. Tu luyện tướng, Rèn binh khí & Tầng Hầm
 
-Trong doanh trại (sảnh chính), đứng cạnh tượng tướng đã mở khóa, bấm `E` và chuyển sang thẻ **Tu luyện**:
-
-- **Tu luyện tướng (Cấp 1 → 5):**
-  - Cấp 2 (`150 xu`): `+1 máu tối đa`
-  - Cấp 3 (`300 xu`): `+1 giáp tối đa`
-  - Cấp 4 (`500 xu + 2 Yêu hồn`): `+30 năng lượng tối đa`
-  - Cấp 5 (`800 xu + 1 Ngọc thần`): `hồi kỹ năng ×0,85` *(đạt tối đa: "Đã viên mãn")*
-  - *(Cộng dồn trực tiếp với nâng cấp chung ở Lò rèn.)*
-- **Rèn binh khí khởi đầu (Bậc 1 → 5):**
-  - Bậc 2 (`100 xu + 3 Đồng`): sát thương `×1,25`
-  - Bậc 3 (`220 xu + 5 Sắt + 2 Đồng`): sát thương `×1,5`, hồi đòn `×0,92`, **mở Đặc tính 1** *(viền xanh lam)*
-  - Bậc 4 (`400 xu + 6 Sắt + 2 Yêu hồn`): sát thương `×1,8`, hồi đòn `×0,88`
-  - Bậc 5 — **Thức tỉnh** (`700 xu + 8 Sắt + 3 Yêu hồn + 2 Ngọc thần`): sát thương `×2,2`, hồi đòn `×0,85`, **mở Đặc tính 2** *(viền vàng lấp lánh)*
-
-Ngoài ra, tại **Lò rèn** trong sảnh (thẻ *Rèn binh khí*), bạn có thể dùng **Xu** và **6 loại nguyên liệu** nhặt từ giặc/rương (*Đồng, Sắt, Gỗ lim, Hỏa dược, Yêu hồn, Ngọc thần*) để rèn sẵn 1 vũ khí cấp 2–5 đã sưu tầm mang vào ô 2 ở lượt xuất trận kế tiếp.
+Trong Doanh trại (sảnh chính), đứng cạnh tượng tướng đã mở khóa, bấm `E` và mở thẻ **Tu luyện**:
+- **Tu luyện tướng (Cấp 1 → 5):** Cấp 2 `+1 máu` (`150 xu`), Cấp 3 `+1 giáp` (`300 xu`), Cấp 4 `+30 năng lượng` (`500 xu + 2 Yêu hồn`), Cấp 5 `hồi kỹ năng ×0,85` (`800 xu + 1 Ngọc thần`). *(Cộng dồn với nâng cấp Lò rèn.)*
+- **Rèn binh khí khởi đầu (Bậc 1 → 5):** Bậc 2 (`100 xu + 3 Đồng`): sát thương `×1,25`; Bậc 3 (`220 xu + 5 Sắt + 2 Đồng`): sát thương `×1,5`, hồi đòn `×0,92`, mở **Đặc tính 1**; Bậc 4 (`400 xu + 6 Sắt + 2 Yêu hồn`): sát thương `×1,8`, hồi đòn `×0,88`; Bậc 5 — **Thức tỉnh** (`700 xu + 8 Sắt + 3 Yêu hồn + 2 Ngọc thần`): sát thương `×2,2`, hồi đòn `×0,85`, mở **Đặc tính 2**.
+- **Lò rèn & Tầng Hầm Vinh Quang:** Dùng Xu và 6 loại nguyên liệu (*Đồng, Sắt, Gỗ lim, Hỏa dược, Yêu hồn, Ngọc thần*) để rèn sẵn vũ khí mang theo vào trận, hoặc đi xuống **Tầng Hầm** xem Bàn Bản Vẽ (207 bản thiết kế) và tủ thành tựu.
 
 ---
 
-## 5. Nơi lưu game và cách gửi lại tệp nhật ký trận (`nhat_ky.csv`)
+## 5. Nơi lưu game & nhật ký trận (`nhat_ky.csv`)
 
-Mỗi khi kết thúc một lượt chơi (kể cả khi bỏ lượt), game tự động ghi thêm 1 dòng thống kê vào tệp `nhat_ky.csv` trên máy bạn (không hề gửi qua mạng đi đâu).
-
-- **Đường dẫn lưu trên Windows:**
-  `%APPDATA%\Godot\app_userdata\Anh Hùng Đất Việt\`
-  *(Trong đó có `save.json`, `run.json` và `nhat_ky.csv`.)*
-- **Đường dẫn lưu trên macOS:**
-  `~/Library/Application Support/Godot/app_userdata/Anh Hùng Đất Việt/`
-- **Cách mở nhanh ngay trong game:** bấm `Esc` (tạm dừng) → **Cài đặt** → bấm nút **"Mở thư mục nhật ký"**.
-- Sau vài trận chơi thử, bạn chỉ cần nén hoặc gửi trực tiếp tệp `nhat_ky.csv` lại cho nhóm phát triển để cân bằng độ khó ở bản cập nhật sau!
+Game lưu tự động hoàn toàn trên máy bạn:
+- **Windows:** `%APPDATA%\Godot\app_userdata\Anh Hùng Đất Việt\` *(chứa `save.json`, `run.json`, `nhat_ky.csv`)*
+- **macOS:** `~/Library/Application Support/Godot/app_userdata/Anh Hùng Đất Việt/`
+- **Mở nhanh trong game:** bấm `Esc` (tạm dừng) → **Cài đặt** → **"Mở thư mục nhật ký"**.
 
 ---
 
 ## 6. Chơi chung qua mạng LAN (Co-op 2–4 người)
 
-Game hỗ trợ **2 đến 4 người** chơi chung trực tiếp trong cùng mạng Wi-Fi / LAN nhà (không cần Internet, không dùng máy chủ ngoài).
+Game hỗ trợ **2 đến 4 người** chơi chung trong cùng mạng Wi-Fi / LAN nhà (không cần Internet, không dùng máy chủ ngoài):
+1. Đảm bảo mọi máy kết nối **cùng một mạng Wi-Fi hoặc mạng dây LAN**.
+2. Ở màn hình chính, mỗi người bấm **"Chơi LAN"** và nhập tên hiển thị.
+3. **Chủ phòng (Host):** nhập tên phòng → bấm **"Tạo phòng LAN"** (IP hiện ở góc trên bên phải).
+4. **Người tham gia (Khách):** chọn phòng ở mục **"Phòng LAN đang mở (tự tìm)"** hoặc nhập IP của Chủ phòng vào **"Vào bằng IP thủ công"**.
+5. Khi mọi người bấm **"Sẵn sàng"**, Chủ phòng bấm **"Bắt đầu trận"**.
 
-### Cách kết nối nhanh
-1. Đảm bảo tất cả máy tính / điện thoại đang kết nối **cùng một mạng Wi-Fi hoặc mạng dây LAN**.
-2. Ở màn hình chính, mỗi người bấm **"Chơi LAN"** và nhập tên hiển thị của mình.
-3. **Chủ phòng (Host):** nhập tên phòng rồi bấm **"Tạo phòng LAN"**. Địa chỉ IP của Chủ phòng sẽ hiện ngay góc trên bên phải phòng chờ.
-4. **Người tham gia (Khách):**
-   - Chọn phòng hiện ra trong danh sách **"Phòng LAN đang mở (tự tìm)"**; hoặc
-   - Nhập địa chỉ IP của Chủ phòng vào ô **"Vào bằng IP thủ công"** rồi bấm **"Vào bằng IP"**.
-5. Khi mọi người chọn tướng xong và bấm **"Sẵn sàng"**, Chủ phòng bấm **"Bắt đầu trận"**.
+### Mở tường lửa & Tìm IP nội bộ (Windows)
+- Lần đầu tạo phòng, nếu **Windows Defender Firewall** hỏi, tích **Private networks (Mạng riêng)** → **Allow access**.
+- Nếu không tự thấy phòng, mở 2 cổng nội bộ **TCP/UDP `7777`** (trận đấu) và **UDP `7778`** (tự tìm phòng).
+- Xem IP máy Host: mở `cmd` → gõ `ipconfig` → lấy dòng **`IPv4 Address`** dưới mục Wi-Fi/Ethernet.
 
-### Mở tường lửa Windows Firewall và tìm IP nội bộ
-- Khi tạo phòng lần đầu trên Windows, nếu cửa sổ **Windows Defender Firewall** hiện lên, hãy đánh dấu **Private networks (Mạng riêng)** và bấm **Allow access (Cho phép)**.
-- Nếu máy khác không tự thấy phòng hoặc không kết nối được, hãy mở cho game (hoặc mở thủ công) 2 cổng mạng nội bộ:
-  - **Cổng `7777` (TCP và UDP):** kết nối trận đấu LAN.
-  - **Cổng `7778` (UDP):** phát tín hiệu tự tìm phòng trong mạng Wi-Fi.
-- **Cách tìm địa chỉ IP trên máy Chủ phòng (Windows):**
-  1. Nhấn `Win + R`, gõ `cmd` rồi nhấn `Enter`.
-  2. Gõ lệnh `ipconfig` và nhấn `Enter`.
-  3. Tìm mục **Wireless LAN adapter Wi-Fi** (hoặc **Ethernet adapter**) → xem dòng **`IPv4 Address`** (thường có dạng `192.168.1.xxx` hoặc `192.168.0.xxx`). Đọc dãy số này cho bạn bè nhập vào ô **Vào bằng IP**.
-
-### Quy tắc lưu game theo Chủ phòng (Host Savegame)
-- Cả đội chơi chung theo **kho tướng đã mở khóa, nâng cấp Lò rèn, cấp tu luyện tướng, bậc binh khí khởi đầu và độ khó của Chủ phòng**.
-- Người tham gia được tự do chọn bất kỳ tướng nào Chủ phòng đã mở khóa, và tệp lưu cá nhân (`save.json`) trên máy Khách sẽ **không bị ghi đè** khi chơi LAN.
-
-### Gục ngã, cứu đồng đội và vào lại khi rớt mạng
-- **Gục ngã & Cứu đồng đội:** khi có từ 2 người trở lên, nếu máu của bạn về 0 trong lúc đồng đội vẫn còn sống, bạn sẽ **gục ngã** thay vì thua ngay. Đồng đội chỉ cần chạy tới **đứng cạnh trong 3 giây** để cứu dậy (hồi **2 máu** và có thời gian bất tử ngắn để rút lui). Trận đấu chỉ kết thúc khi **toàn bộ đội đều gục ngã**.
-- **Rớt mạng giữa trận:** nếu máy Khách bị mất kết nối, chỗ của bạn được giữ trong **60 giây** — chỉ cần vào lại đúng phòng với **cùng tên nhân vật** để tiếp tục chiến đấu bên cạnh đồng đội. Nếu Chủ phòng thoát, phòng sẽ đóng và các máy còn lại quay về màn hình chính với thông báo *"Chủ phòng đã rời"*.
+### Quy tắc đồng bộ LAN
+- Đội dùng chung tiến độ mở khóa tướng, nâng cấp Lò rèn, tu luyện và độ khó của **Chủ phòng**; file `save.json` máy Khách **không bị ghi đè**.
+- Khi máu về 0 lúc đồng đội còn sống, bạn chỉ **gục ngã** — đồng đội đứng cạnh **3 giây** sẽ cứu dậy (hồi 2 máu). Nếu Khách rớt mạng, chỗ được giữ **60 giây** để vào lại với đúng tên cũ.
 
 ---
 
-## 7. Tự động cập nhật ngay trong game (~2,4 MB)
+## 7. Tự động cập nhật ngay trong game (`patch.pck`)
 
-- Khi mở game có kết nối Internet, **Anh Hùng Đất Việt** tự kiểm tra phiên bản mới từ GitHub Releases (`https://github.com/Anhle26-per/anh-hung-dat-viet`). Nếu đang chơi offline, game bỏ qua im lặng.
-- Khi có bản cập nhật mới, màn hình chính tự hiện hộp thoại thông báo cùng nút **"Có bản mới!"** ở góc trên phải (hoặc bạn có thể bấm **Cài đặt → Kiểm tra cập nhật** bất cứ lúc nào).
-- Bấm **Cập nhật ngay** → game tự tải bản vá `.pck` (~2,4 MB), kiểm tra mã `SHA-256` chống lỗi tệp và tự khởi động lại lên bản mới — **không cần tải lại tệp `.zip` nặng và giữ nguyên 100% dữ liệu lưu (`save.json`)**.
+- Khi mở game có Internet, **Anh Hùng Đất Việt** tự kiểm tra phiên bản mới từ GitHub Releases (`https://github.com/Anhle26-per/anh-hung-dat-viet`). Nếu chơi offline, game bỏ qua im lặng.
+- Khi có bản mới, màn hình chính hiện hộp thoại thông báo cùng nút **"Có bản mới!"** ở góc trên phải (hoặc bấm **Cài đặt → Kiểm tra cập nhật**).
+- Bấm **Cập nhật ngay** → game tự tải gói vá `.pck` (~7,8 MB ở `v2.0.0`), kiểm tra `SHA-256` và tự khởi động lại lên bản mới — **không cần tải lại tệp `.zip` và giữ nguyên 100% file lưu (`save.json`)**.
