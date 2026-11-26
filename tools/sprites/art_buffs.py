@@ -1,6 +1,7 @@
 """Biểu tượng phúc lành 32x32 (pixel art chi tiết, chiều sâu phân lớp, ánh sáng & viền tối)."""
 import math
 from px import hexc, shade, outline, save, DARK_LINE, Image
+import art_v20_world
 
 S = 32
 
@@ -995,6 +996,175 @@ def draw_huyet_nguyet():
     return img
 
 
+def draw_phan_tach():
+    img = _blank()
+    # Đạn phân tách: mũi đạn cam-vàng bắn vào lăng kính giữa rồi tách thành 2 tia sáng rực
+    _line(img, 4, 16, 14, 16, C["fire"], 2)
+    _line(img, 6, 16, 14, 16, C["fire_hi"], 1)
+    # Tinh thể phân tách giữa
+    for dy in range(-4, 5):
+        hw = 4 - abs(dy)
+        for dx in range(-hw, hw + 1):
+            col = C["white"] if abs(dx) + abs(dy) <= 1 else (C["blue_hi"] if dx < 0 else C["blue_l"])
+            _pp(img, 15 + dx, 16 + dy, col)
+    # Hai mảnh đạn tách góc trên/dưới phải
+    _line(img, 17, 15, 26, 8, C["fire_l"], 2)
+    _line(img, 17, 15, 26, 8, C["fire_hi"], 1)
+    _disc(img, 26, 8, 2.1, C["fire_hi"])
+    _pp(img, 26, 8, C["white"])
+    _line(img, 17, 17, 26, 24, C["fire_l"], 2)
+    _line(img, 17, 17, 26, 24, C["fire_hi"], 1)
+    _disc(img, 26, 24, 2.1, C["fire_hi"])
+    _pp(img, 26, 24, C["white"])
+    _spark(img, 15, 16, C["gold_hi"], C["white"], 2)
+    return img
+
+
+def draw_khuc_xa():
+    img = _blank()
+    # Khúc xạ liên hoàn: tia sáng lam-vàng bật dội giữa 2 mặt gương đá trên/dưới
+    _rect(img, 5, 5, 26, 8, C["stone"])
+    _rect(img, 6, 6, 25, 7, C["stone_hi"])
+    _rect(img, 5, 23, 26, 26, C["stone_d"])
+    _rect(img, 6, 24, 25, 25, C["stone_l"])
+    # Đường đạn zig-zag 3 đoạn
+    pts = [(5, 19), (12, 9), (20, 22), (27, 12)]
+    for i in range(len(pts) - 1):
+        _line(img, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], C["blue"], 2)
+        _line(img, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], C["blue_hi"], 1)
+    _spark(img, 12, 9, C["gold_hi"], C["white"], 2)
+    _spark(img, 20, 22, C["gold_hi"], C["white"], 2)
+    _disc(img, 27, 12, 2.0, C["white"])
+    return img
+
+
+def draw_bang_tam():
+    img = _blank()
+    # Băng tâm hàn khí: tinh thể băng lục giác sắc cạnh với lõi trắng sáng & bông tuyết
+    for y in range(6, 27):
+        for x in range(6, 27):
+            dx, dy = abs(x - 16), abs(y - 16)
+            if dx <= 8 and dy <= 9 and dx + dy <= 12:
+                if dx >= 6 or dy >= 7 or dx + dy >= 10:
+                    col = C["blue_d"]
+                elif (x - 16) + (y - 16) < -2:
+                    col = C["white"]
+                elif (x - 16) + (y - 16) < 3:
+                    col = C["blue_hi"]
+                else:
+                    col = C["blue_l"]
+                _pp(img, x, y, col)
+    # Gân tuyết 6 hướng
+    for ang_i in range(6):
+        ang = ang_i * math.pi / 3
+        _line(img, 16, 16, 16 + math.cos(ang) * 10.5, 16 + math.sin(ang) * 10.5, C["white"])
+    _disc(img, 16, 16, 2.6, C["blue_hi"])
+    _pp(img, 16, 16, C["white"])
+    _spark(img, 7, 9, C["blue_hi"], C["white"], 1)
+    _spark(img, 25, 22, C["blue_hi"], C["white"], 1)
+    return img
+
+
+def draw_cuong_no_trum():
+    img = _blank()
+    # Cuồng nộ diệt trùm: vương miện/đầu sừng trùm đỏ sẫm bị thanh kiếm vàng chém xuyên
+    # Sừng trùm hai bên
+    _line(img, 9, 13, 5, 6, C["gold_l"], 2)
+    _line(img, 23, 13, 27, 6, C["gold"], 2)
+    # Đầu lâu/giáp trùm đỏ
+    _disc(img, 16, 17, 7.2, C["red_d"])
+    _disc(img, 16, 16, 6.0, C["red"])
+    _pp(img, 13, 15, C["fire_hi"])
+    _pp(img, 19, 15, C["fire_hi"])
+    _rect(img, 13, 20, 19, 23, C["cream"])
+    _pp(img, 15, 20, C["ink_d"])
+    _pp(img, 17, 20, C["ink_d"])
+    # Thanh kiếm vàng chém chéo xuyên qua
+    for i in range(18):
+        _pp(img, 7 + i, 24 - i, C["gold_hi"])
+        _pp(img, 8 + i, 24 - i, C["white"])
+        _pp(img, 7 + i, 25 - i, C["gold"])
+    _line(img, 6, 21, 10, 25, C["bronze_l"], 2)
+    _spark(img, 16, 16, C["fire_l"], C["white"], 2)
+    return img
+
+
+def draw_song_kiem_hop():
+    img = _blank()
+    # Tam binh hợp bích: 3 thanh binh khí (ngọc, đỏ, vàng) đan chéo quanh ấn sao vàng
+    # Kiếm 1 (trái dưới -> phải trên)
+    _line(img, 7, 24, 24, 7, C["steel_hi"], 2)
+    _line(img, 6, 20, 10, 24, C["jade_l"], 2)
+    # Kiếm 2 (phải dưới -> trái trên)
+    _line(img, 24, 24, 7, 7, C["steel_l"], 2)
+    _line(img, 21, 24, 25, 20, C["red_l"], 2)
+    # Thanh thứ 3 dựng thẳng giữa (vàng rực)
+    _line(img, 16, 26, 16, 5, C["gold_hi"], 2)
+    _line(img, 12, 22, 20, 22, C["gold"], 2)
+    _pp(img, 16, 4, C["white"])
+    # Ấn sao vàng ở giao điểm
+    _disc(img, 16, 15, 3.2, C["gold_d"])
+    _disc(img, 16, 15, 2.2, C["gold_hi"])
+    _spark(img, 16, 15, C["white"], C["white"], 2)
+    return img
+
+
+def draw_tuong_thach():
+    img = _blank()
+    # Tường thạch hộ thân: khiên đá chạm cổ ngữ + 2 phiến đá hộ vệ bay hai bên
+    _shield_base(img, 16, 7, 7, 18, C["stone_d"], C["stone"], C["stone_l"], C["stone_hi"], C["bronze_d"], C["gold_l"])
+    # Cổ ngữ vàng ở giữa khiên đá
+    _ring(img, 16, 15, 2.0, 3.2, C["gold_l"])
+    _pp(img, 16, 15, C["gold_hi"])
+    # 2 phiến đá lơ lửng trái/phải
+    _rect(img, 4, 11, 7, 20, C["stone_l"])
+    _rect(img, 5, 12, 6, 18, C["stone_hi"])
+    _rect(img, 24, 11, 27, 20, C["stone"])
+    _rect(img, 25, 12, 26, 18, C["stone_l"])
+    _spark(img, 6, 9, C["gold_l"], C["white"], 1)
+    _spark(img, 26, 9, C["gold_l"], C["white"], 1)
+    return img
+
+
+def draw_chien_xa_ben():
+    img = _blank()
+    # Chiến xa bất khuất: đầu giáp chiến xa đồng đỏ + ngà sắt húc + cờ đỏ
+    # Bánh/đế thép
+    _rect(img, 6, 22, 25, 26, C["ink"])
+    for wx in (9, 16, 23):
+        _disc(img, wx, 24, 2.0, C["steel_l"])
+    # Thân giáp đỏ-đồng
+    _rect(img, 7, 12, 24, 22, C["bronze"])
+    _rect(img, 8, 13, 23, 18, C["red"])
+    _rect(img, 9, 13, 22, 14, C["gold_hi"])
+    # Đôi ngà thép húc phía trước
+    _line(img, 22, 19, 28, 15, C["steel_hi"], 2)
+    _line(img, 21, 21, 27, 19, C["steel_l"], 2)
+    _pp(img, 28, 14, C["white"])
+    # Cờ hiệu đỏ sau lưng
+    _line(img, 10, 5, 10, 12, C["gold_l"])
+    _rect(img, 10, 5, 16, 9, C["red_l"])
+    _pp(img, 13, 7, C["gold_hi"])
+    return img
+
+
+def draw_lien_kich_ba():
+    img = _blank()
+    # Liên kích tam đoạn: 3 vòng trảm khí tầng lớp (đồng -> lửa vàng -> trăng lam trắng 360°)
+    _ring(img, 16, 16, 10.2, 12.2, C["blue_hi"])
+    for i in range(22):
+        ang = -0.6 + (i / 21.0) * 2.5
+        _disc(img, 15 + math.cos(ang) * 8.0, 16 + math.sin(ang) * 8.0, 1.3, C["fire_hi"] if i % 2 == 0 else C["fire_l"])
+    for i in range(16):
+        ang = 1.4 + (i / 15.0) * 2.2
+        _disc(img, 16 + math.cos(ang) * 5.2, 16 + math.sin(ang) * 5.2, 1.1, C["gold_hi"])
+    # Lõi thanh kiếm chém ngang
+    _line(img, 8, 22, 23, 9, C["white"], 2)
+    _line(img, 7, 19, 11, 23, C["gold_l"], 2)
+    _spark(img, 23, 9, C["blue_hi"], C["white"], 2)
+    return img
+
+
 DRAWERS = {
     "banh_chung": draw_banh_chung,
     "giap_dong": draw_giap_dong,
@@ -1027,6 +1197,14 @@ DRAWERS = {
     "phi_kiem": draw_phi_kiem,
     "ngu_hanh": draw_ngu_hanh,
     "huyet_nguyet": draw_huyet_nguyet,
+    "phan_tach": draw_phan_tach,
+    "khuc_xa": draw_khuc_xa,
+    "bang_tam": draw_bang_tam,
+    "cuong_no_trum": draw_cuong_no_trum,
+    "song_kiem_hop": draw_song_kiem_hop,
+    "tuong_thach": draw_tuong_thach,
+    "chien_xa_ben": draw_chien_xa_ben,
+    "lien_kich_ba": draw_lien_kich_ba,
 }
 
 
@@ -1034,6 +1212,7 @@ def build():
     for k, fn in DRAWERS.items():
         img = fn()
         save(outline(img, DARK_LINE), f"ui/buff_{k}.png")
+    art_v20_world.build()
 
 
 if __name__ == "__main__":

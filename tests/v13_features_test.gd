@@ -97,8 +97,8 @@ func _run() -> void:
 	_reset_global()
 	Global.save_game()
 
-	print("== 1. Kiểm tra 200 vũ khí, 14 bản vẽ, 10 loại đạn mới, SynergyData & weapon_pivot khi ngắm lên")
-	_check(WeaponData.DATA.size() == 200, "WeaponData.DATA.size() phải bằng 200 (hiện %d)" % WeaponData.DATA.size())
+	print("== 1. Kiểm tra 217 vũ khí, 14 bản vẽ, 10 loại đạn mới, SynergyData & weapon_pivot khi ngắm lên")
+	_check(WeaponData.DATA.size() == 217, "WeaponData.DATA.size() phải bằng 217 (hiện %d)" % WeaponData.DATA.size())
 
 	var grips_file: FileAccess = FileAccess.open("res://assets/sprites/weapons/grips.json", FileAccess.READ)
 	_check(grips_file != null, "không mở được grips.json")
@@ -157,8 +157,8 @@ func _run() -> void:
 	p_holder.queue_free()
 	await _frames(2)
 
-	print("== 2. Kiểm tra 31 biểu tượng phúc lành 32x32 & BuffSelect")
-	_check(BuffData.DATA.size() == 31, "BuffData.DATA phải có 31 phúc lành (hiện %d)" % BuffData.DATA.size())
+	print("== 2. Kiểm tra 39 biểu tượng phúc lành 32x32 & BuffSelect")
+	_check(BuffData.DATA.size() == 39, "BuffData.DATA phải có 39 phúc lành (hiện %d)" % BuffData.DATA.size())
 	for bid_v in BuffData.DATA:
 		var bid: String = str(bid_v)
 		var bpath: String = "res://assets/sprites/ui/buff_%s.png" % bid

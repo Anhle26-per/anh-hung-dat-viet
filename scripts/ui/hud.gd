@@ -8,8 +8,15 @@ const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
 const ProgressionData = preload("res://scripts/data/progression.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
+const HeroSkillsExt = preload("res://scripts/data/hero_skills_ext.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
+
+const MOUNT_NAMES := {
+	"voi_chien_mount": "Voi Chiến",
+	"ngua_sat_mount": "Ngựa Sắt",
+	"xe_tang_mount": "Xe Tăng Chiến",
+}
 
 var player = null
 var _banner := ""
@@ -165,6 +172,47 @@ func draw_hud(ci: Control) -> void:
 		Art.draw_text(ci, Vector2(10, left_y + 12), "Tăng tốc [Shift]", 12, Color(0.45, 0.90, 1.0), false)
 		left_y += 18.0
 
+	# --- Lướt né (Dodge Dash cooldown gauge)
+	var dash_cd_v: Variant = player.get("dash_cd_left")
+	var dash_cd: float = maxf(0.0, float(dash_cd_v)) if dash_cd_v != null else 0.0
+	var dash_pct: float = 1.0 - clampf(dash_cd / 1.6, 0.0, 1.0)
+	_panel(ci, Rect2(4, left_y, 118, 16))
+	ci.draw_rect(Rect2(7, left_y + 11, 112.0 * dash_pct, 3.0), Color(0.42, 0.92, 1.0) if dash_cd <= 0.0 else Color(0.62, 0.68, 0.78))
+	var dash_lbl: String = "Lướt [Space]: Sẵn" if dash_cd <= 0.0 else "Lướt [Space]: %.1fs" % dash_cd
+	Art.draw_text(ci, Vector2(10, left_y + 10), dash_lbl, 11, Color(0.65, 0.96, 1.0) if dash_cd <= 0.0 else Color(0.75, 0.78, 0.82), false)
+	left_y += 18.0
+
+	# --- Thú cưỡi (Mount badge & HP)
+	var mount_v: Variant = player.get("mount_id")
+	var m_id: String = str(mount_v) if mount_v != null else Global.active_mount
+	if m_id != "":
+		var m_hp_v: Variant = player.get("mount_hp")
+		var m_max_v: Variant = player.get("mount_max_hp")
+		var m_hp: int = int(m_hp_v) if m_hp_v != null else Global.active_mount_hp
+		var m_max: int = maxi(1, int(m_max_v) if m_max_v != null else maxi(1, m_hp))
+		var m_pct: float = clampf(float(m_hp) / float(m_max), 0.0, 1.0)
+		_panel(ci, Rect2(4, left_y, 132, 20))
+		ci.draw_rect(Rect2(8, left_y + 14, 124.0 * m_pct, 3.0), Color(1.0, 0.76, 0.32))
+		Art.draw_text(ci, Vector2(10, left_y + 12), "%s (%d/%d)" % [str(MOUNT_NAMES.get(m_id, m_id)), m_hp, m_max], 11, Color(1.0, 0.88, 0.45), false)
+		left_y += 22.0
+
+	# --- Tượng Thần Việt & Quân Sư
+	if Global.statue_id != "" or Global.mentor_upgraded:
+		var st_parts: PackedStringArray = []
+		var st_col := Color(0.98, 0.84, 0.42)
+		if Global.statue_id != "":
+			var sdata: Dictionary = HeroSkillsExt.STATUES.get(Global.statue_id, {})
+			st_parts.append(str(sdata.get("name", Global.statue_id)))
+			if sdata.get("color") is Color:
+				st_col = sdata.get("color") as Color
+		if Global.mentor_upgraded:
+			st_parts.append("Quân Sư ★")
+		var st_txt: String = " | ".join(st_parts)
+		var st_w: float = clampf(Art.text_width(st_txt, 11) + 14.0, 118.0, 185.0)
+		_panel(ci, Rect2(4, left_y, st_w, 16))
+		Art.draw_text(ci, Vector2(10, left_y + 12), st_txt, 11, st_col, false)
+		left_y += 18.0
+
 	# --- Trạng thái đồng đội trong phòng LAN
 	if Net != null and Net.is_online():
 		_draw_teammates(ci, left_y)
@@ -175,11 +223,26 @@ func draw_hud(ci: Control) -> void:
 	var chn := EnemyData.stage_chapter_num(Global.level)
 	var is_m_hud: bool = EnemyData.is_mythic_level(Global.level) or Global.level >= 32
 	var stage_lbl: String = ("Thần %d-%d" if is_m_hud else "Màn %d-%d") % [chn, stage]
-	Art.draw_text(ci, Vector2(w - 92, 19), stage_lbl, 15 if is_m_hud else 16, Color(0.92, 0.76, 1.0) if is_m_hud else Color(1, 0.92, 0.75), false)
+	var stage_col: Color = Color(0.92, 0.76, 1.0) if is_m_hud else Color(1, 0.92, 0.75)
+	var stage_sz: int = 15 if is_m_hud else 16
+	if Global.is_boss_rush():
+		stage_lbl = "Khải Hoàn" if Global.level >= 13 else "Boss %d/12" % Global.level
+		stage_col = Color(1.0, 0.88, 0.35) if Global.level >= 13 else Color(1.0, 0.44, 0.42)
+		stage_sz = 14
+	Art.draw_text(ci, Vector2(w - 92, 19), stage_lbl, stage_sz, stage_col, false)
 	ci.draw_texture_rect_region(_icons.coin, Rect2(w - 92, 25, 9, 9), Rect2(0, 0, 9, 9))
 	Art.draw_text(ci, Vector2(w - 79, 34), str(Global.run_coins), 16, Color(1, 0.88, 0.45), false)
 	_draw_minimap(ci, Vector2(w - 96, 40), Vector2(88, 64))
 	var right_y: float = 110.0
+	if Global.badass_mode or not Global.active_mutators.is_empty():
+		var mode_tags: PackedStringArray = []
+		if Global.badass_mode:
+			mode_tags.append("ÁC MỘNG")
+		if not Global.active_mutators.is_empty():
+			mode_tags.append("Biến×%d" % Global.active_mutators.size())
+		_panel(ci, Rect2(w - 100, right_y, 96, 16))
+		Art.draw_text(ci, Vector2(w - 52, right_y + 12), " ".join(mode_tags), 11, Color("ff384c") if Global.badass_mode else Color(0.65, 0.9, 1.0), true)
+		right_y += 18.0
 	if not Global.run_materials.is_empty():
 		var items: Array = []
 		for mid in MaterialData.ORDER:
@@ -220,26 +283,29 @@ func draw_hud(ci: Control) -> void:
 
 	# --- Vũ khí + kỹ năng (máy tính). Trên điện thoại thì nằm trên nút ảo.
 	if not Global.touch_mode:
+		var slot_cnt: int = mini(player.weapons.size(), 3)
 		var panel_w: float = 230.0
-		for i in 2:
+		for i in slot_cnt:
 			var id_chk: String = str(player.weapons[i])
 			if id_chk == "":
 				continue
+			var wd_chk: Dictionary = player.effective_weapon(id_chk) if player.has_method("effective_weapon") else WeaponData.get_data(id_chk)
+			var is_st: bool = (id_chk == str(player.hero.get("weapon", "")))
+			var wr_chk: int = Global.eff_weapon_rank(player.hero_id) if is_st else 1
+			var wn_chk: String = str(wd_chk.get("name", id_chk)) + (" (Bậc %d)" % wr_chk if is_st else "")
+			if Global.is_weapon_evolved(id_chk) and not wn_chk.contains("Tiến Hóa"):
+				wn_chk += " ★TH"
+			var tx_chk: String = wn_chk + ("" if int(wd_chk.get("energy", 0)) == 0 else "  %d" % int(wd_chk.energy))
 			var mod_chk: String = Global.get_weapon_mod(id_chk)
-			if mod_chk != "":
-				var wd_chk: Dictionary = player.effective_weapon(id_chk) if player.has_method("effective_weapon") else WeaponData.get_data(id_chk)
-				var is_st: bool = (id_chk == str(player.hero.get("weapon", "")))
-				var wr_chk: int = Global.eff_weapon_rank(player.hero_id) if is_st else 1
-				var wn_chk: String = str(wd_chk.name) + (" (Bậc %d)" % wr_chk if is_st else "")
-				var tx_chk: String = wn_chk + ("" if int(wd_chk.get("energy", 0)) == 0 else "  %d" % int(wd_chk.energy))
-				var badge_chk: String = "[%s]" % WeaponMods.mod_name(mod_chk)
-				var need_w: float = 54.0 + Art.text_width(tx_chk, 14) + Art.text_width(badge_chk, 12) + 12.0
-				panel_w = maxf(panel_w, minf(need_w, 296.0))
+			var badge_w: float = Art.text_width("[%s]" % WeaponMods.mod_name(mod_chk), 12) + 8.0 if mod_chk != "" else 0.0
+			var need_w: float = 54.0 + Art.text_width(tx_chk, 14) + badge_w + 12.0
+			panel_w = maxf(panel_w, minf(need_w, 304.0))
+		var panel_h: float = 72.0 + float(maxi(0, slot_cnt - 2)) * 18.0
 		var px: float = w - panel_w - 4.0
-		_panel(ci, Rect2(px, h - 76, panel_w, 72))
-		for i in 2:
+		_panel(ci, Rect2(px, h - panel_h - 4.0, panel_w, panel_h))
+		for i in slot_cnt:
 			var id: String = str(player.weapons[i])
-			var y: float = h - 70.0 + i * 18.0
+			var y: float = h - panel_h + 2.0 + i * 18.0
 			var sel: bool = i == player.slot
 			if sel:
 				ci.draw_rect(Rect2(px + 4.0, y - 1.0, panel_w - 8.0, 17.0), Color(1, 0.85, 0.4, 0.15))
@@ -252,10 +318,16 @@ func draw_hud(ci: Control) -> void:
 			var tex: Texture2D = Art.tex(ProgressionData.weapon_texture_path(id, wr))
 			var sc: float = minf(36.0 / tex.get_width(), 16.0 / tex.get_height())
 			ci.draw_texture_rect(tex, Rect2(px + 6.0, y + 8.0 - tex.get_height() * sc / 2.0, tex.get_width() * sc, tex.get_height() * sc), false)
-			var wname: String = str(wd.name) + (" (Bậc %d)" % wr if is_starter else "")
+			var wname: String = str(wd.get("name", id)) + (" (Bậc %d)" % wr if is_starter else "")
+			if Global.is_weapon_evolved(id) and not wname.contains("Tiến Hóa"):
+				wname += " ★TH"
 			var txt: String = wname + ("" if int(wd.get("energy", 0)) == 0 else "  %d" % int(wd.energy))
 			var tx_x: float = px + 46.0
-			Art.draw_text(ci, Vector2(tx_x, y + 12.0), txt, 14, WeaponData.tier_color(id) if sel else WeaponData.tier_color(id).darkened(0.35), false)
+			var is_boss_motif: bool = bool(wd.get("boss_motif", false))
+			var wcol: Color = Color("ff384c") if is_boss_motif else WeaponData.tier_color(id)
+			if is_boss_motif and sel:
+				ci.draw_rect(Rect2(px + 4.0, y - 1.0, panel_w - 8.0, 17.0), Color(1.0, 0.22, 0.30, 0.16))
+			Art.draw_text(ci, Vector2(tx_x, y + 12.0), txt, 14, wcol if sel else wcol.darkened(0.35), false)
 			var mod_id: String = Global.get_weapon_mod(id)
 			if mod_id != "":
 				var badge: String = "[%s]" % WeaponMods.mod_name(mod_id)
@@ -264,9 +336,11 @@ func draw_hud(ci: Control) -> void:
 				var mcol: Color = WeaponMods.mod_color(mod_id) if sel else WeaponMods.mod_color(mod_id).darkened(0.3)
 				ci.draw_rect(Rect2(bx_badge - 2.0, y + 1.0, bw_badge + 4.0, 13.0), Color(0.06, 0.03, 0.08, 0.72))
 				Art.draw_text(ci, Vector2(bx_badge, y + 11.0), badge, 12, mcol, false)
+		var sk_info: Dictionary = HeroData.skill_info(player.hero_id, Global.active_skill_index(player.hero_id))
+		var sk_title: String = str(sk_info.get("skill_name", player.hero.skill_name))
 		var ready: bool = player.skill_timer <= 0.0
 		var sk: String = "Sẵn sàng" if ready else "%.1fs" % player.skill_timer
-		Art.draw_text(ci, Vector2(px + 6.0, h - 22.0), "[Space] %s: %s" % [player.hero.skill_name, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)
+		Art.draw_text(ci, Vector2(px + 6.0, h - 22.0), "[K] %s: %s" % [sk_title, sk], 14, Color(0.6, 0.88, 1.0) if ready else Color(0.6, 0.6, 0.65), false)
 		var cur_wid: String = str(player.weapons[player.slot])
 		var syn_lv: int = SynergyData.level(player.hero_id, cur_wid)
 		var syn_fam: String = SynergyData.family(cur_wid)
@@ -275,13 +349,42 @@ func draw_hud(ci: Control) -> void:
 		Art.draw_text(ci, Vector2(px + 6.0, h - 7.0), syn_txt, 12, syn_col, false)
 		Art.draw_text(ci, Vector2(px + 116.0, h - 7.0), "Ấn: %s" % SynergyData.imprint_name(cur_wid), 12, SynergyData.family_color(syn_fam), false)
 
+	# --- Thanh Tụ lực vũ khí (Charge bar)
+	var charge_v: Variant = player.get("charge_ratio")
+	var charge_r: float = clampf(float(charge_v), 0.0, 1.0) if charge_v != null else 0.0
+	if charge_r > 0.0:
+		var cw: float = 56.0
+		var cx_b: float = (w - cw) * 0.5
+		var cy_b: float = h * 0.5 + 22.0
+		ci.draw_rect(Rect2(cx_b - 1.0, cy_b - 1.0, cw + 2.0, 7.0), Color(0.04, 0.02, 0.05, 0.9))
+		ci.draw_rect(Rect2(cx_b, cy_b, cw, 5.0), Color(0.18, 0.12, 0.18, 0.85))
+		var ccol: Color = Color("ff384c") if charge_r >= 0.99 else Color(1.0, 0.85, 0.32)
+		ci.draw_rect(Rect2(cx_b, cy_b, cw * charge_r, 5.0), ccol)
+		if charge_r >= 0.99:
+			ci.draw_rect(Rect2(cx_b - 1.0, cy_b - 1.0, cw + 2.0, 7.0), Color(1.0, 0.92, 0.45), false, 1.0)
+
+	# --- Gợi ý Hợp nhất vũ khí ([R] Hợp nhất)
+	if player.has_method("can_merge_nearby"):
+		var merge_info: Dictionary = player.can_merge_nearby()
+		if not merge_info.is_empty():
+			var rec: Dictionary = merge_info.get("recipe", {})
+			var res_id: String = str(rec.get("result", ""))
+			var mname: String = str(rec.get("name", ""))
+			if mname == "" and res_id != "":
+				mname = str(WeaponData.get_data(res_id).get("name", res_id))
+			var mkey := "Bấm HỢP NHẤT" if Global.touch_mode else "[R] Hợp nhất"
+			var pulse_m: float = 0.72 + 0.28 * sin(Time.get_ticks_msec() / 130.0)
+			Art.draw_text(ci, Vector2(w / 2.0, h - 94.0), "%s → %s" % [mkey, mname], 16, Color(0.45, 1.0, 0.86, pulse_m))
+
 	# --- Gợi ý nhặt vũ khí hoặc Thẻ soi hàng Thương Nhân ---
 	if player.interact_target != null and is_instance_valid(player.interact_target) and player.interact_target.has_method("inspect_info"):
 		_draw_shop_inspect(ci, w, h, player.interact_target)
 	elif player.nearby_pickup != null and is_instance_valid(player.nearby_pickup):
 		var pid: String = player.nearby_pickup.weapon_id
+		var pwd: Dictionary = WeaponData.get_data(pid)
 		var key := "Bấm ĐỔI" if Global.touch_mode else "Nhấn E"
-		Art.draw_text(ci, Vector2(w / 2.0, h - 76), "%s để nhặt: %s" % [key, WeaponData.get_data(pid).name], 18, WeaponData.tier_color(pid))
+		var pcol_w: Color = Color("ff384c") if bool(pwd.get("boss_motif", false)) else WeaponData.tier_color(pid)
+		Art.draw_text(ci, Vector2(w / 2.0, h - 76), "%s để nhặt: %s" % [key, str(pwd.get("name", pid))], 18, pcol_w)
 
 	# --- Băng chân dung khi tung chiêu
 	if _cutin_t > 0.0 and _cutin_hero != "":
@@ -481,9 +584,16 @@ func _draw_minimap(ci: Control, origin: Vector2, area: Vector2) -> void:
 			col = Color(0.75, 0.4, 1.0)
 		elif r.kind == "shop":
 			col = Color(0.45, 0.85, 0.45)
+		elif r.kind == "event":
+			col = Color(1.0, 0.62, 0.25)
+		elif r.kind == "victory_hall":
+			col = Color(1.0, 0.88, 0.38)
 		if r.player_inside:
 			col = Color.WHITE
-		ci.draw_rect(Rect2(off + Vector2(c - lo) * cs + Vector2(1.5, 1.5), Vector2(cs - 3, cs * 0.75 - 1)), col)
+		var mr := Rect2(off + Vector2(c - lo) * cs + Vector2(1.5, 1.5), Vector2(cs - 3, cs * 0.75 - 1))
+		ci.draw_rect(mr, col)
+		if r.kind == "event":
+			Art.draw_text(ci, mr.get_center() + Vector2(0, 3), "!", 9, Color(0.1, 0.04, 0.04))
 
 
 func get_wayfinder_targets() -> Array:

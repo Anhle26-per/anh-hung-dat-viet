@@ -58,6 +58,11 @@ var qi_wave: bool = false
 var crit_pierce: bool = false
 var spawn_origin: Vector2 = Vector2.INF
 var bounces: int = 0
+var split_on_hit: int = 0
+var refract_boost: bool = false
+var fire_ignited: bool = false
+var boss_motif: bool = false
+var bullet_scale: float = 1.0
 var _hit: Array = []
 var _done := false
 var _t := 0.0
@@ -90,8 +95,10 @@ func _ready() -> void:
 	var def_chain: int = int(info.get("chain", 0))
 	if chain_count <= 0 and def_chain > 0:
 		chain_count = def_chain
+	var is_big_mut: bool = Global != null and Global.has_method("has_mutator") and Global.has_mutator("big_bullets")
+	var eff_scale: float = maxf(0.25, bullet_scale * (1.6 if is_big_mut else 1.0))
 	var shape := CircleShape2D.new()
-	shape.radius = info.get("r", 3.0)
+	shape.radius = float(info.get("r", 3.0)) * minf(eff_scale, 2.2)
 	var cs := CollisionShape2D.new()
 	cs.shape = shape
 	add_child(cs)
@@ -116,13 +123,22 @@ func _ready() -> void:
 		s.texture = tex
 		_spr = s
 	_spr.modulate = color * info.get("tint", Color.WHITE)
-	var sc: float = info.get("scale", 1.0)
+	if boss_motif:
+		_spr.modulate = _spr.modulate.lerp(Color("ff384c"), 0.72)
+	if fire_ignited:
+		force_burn = true
+		_spr.modulate = _spr.modulate.lerp(Color(1.0, 0.52, 0.18), 0.6)
+	var sc: float = info.get("scale", 1.0) * eff_scale
 	_spr.scale = Vector2(sc, sc)
 	if info.get("add", false):
 		_spr.material = Art.additive()
 	add_child(_spr)
 	if info.has("light"):
-		add_child(Art.light(info.light, 0.5, 0.7))
+		add_child(Art.light(info.light, 0.5 * minf(eff_scale, 1.8), 0.7))
+	elif boss_motif:
+		add_child(Art.light(Color("ff384c"), 0.75, 0.85))
+	elif fire_ignited:
+		add_child(Art.light(Color(1.0, 0.55, 0.2), 0.65, 0.75))
 	if not info.get("spin", false):
 		rotation = dir.angle()
 	z_index = 3
@@ -155,11 +171,20 @@ func _physics_process(delta: float) -> void:
 				queue_free()
 				return
 		life = 99.0
-	if info.get("trail", false):
+	if fire_ignited and not force_burn:
+		force_burn = true
+		if _spr != null:
+			_spr.modulate = _spr.modulate.lerp(Color(1.0, 0.52, 0.18), 0.6)
+	if info.get("trail", false) or fire_ignited or boss_motif:
 		_trail_t -= delta
 		if _trail_t <= 0.0:
-			_trail_t = 0.03
-			Fx.anim(get_parent(), global_position - dir * 6.0, "fx/poof.png", 28, 28, 18.0, 0.3, 0.0, Color(1, 1, 1, 0.7))
+			_trail_t = 0.03 if info.get("trail", false) else 0.05
+			if info.get("trail", false):
+				Fx.anim(get_parent(), global_position - dir * 6.0, "fx/poof.png", 28, 28, 18.0, 0.3, 0.0, Color(1, 1, 1, 0.7))
+			elif fire_ignited:
+				Fx.particles(get_parent(), global_position, Color(1.0, 0.55, 0.2), 1, 35.0, 0.2, -30.0, 1.3)
+			elif boss_motif:
+				Fx.particles(get_parent(), global_position, Color("ff384c"), 1, 30.0, 0.2, 0.0, 1.2)
 	if not _checked_spawn:
 		_checked_spawn = true
 		if spawn_origin != Vector2.INF and not (boomerang and _returning) and (global_position - spawn_origin).length_squared() > 1.0:
@@ -291,13 +316,57 @@ func _hit_enemy(body: Node) -> void:
 		chain_count = 0
 	var lhc: Variant = body.get("last_hit_crit") if is_instance_valid(body) else null
 	var was_crit: bool = typeof(lhc) == TYPE_BOOL and (lhc as bool)
-	Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1.0, 0.92, 0.35) if was_crit else color.lerp(Color(1, 0.9, 0.6), 0.5), true)
+	var hit_col: Color = Color(1.0, 0.92, 0.35) if was_crit else (Color("ff384c") if boss_motif else color.lerp(Color(1, 0.9, 0.6), 0.5))
+	Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, hit_col, true)
+	if split_on_hit > 0 and from_player and not visual_only and get_parent() != null:
+		_spawn_split_bullets()
+		split_on_hit = 0
 	if crit_pierce and was_crit:
 		return
 	if pierce > 0:
 		pierce -= 1
 		return
 	_finish()
+
+
+func ignite_fire() -> void:
+	if fire_ignited:
+		return
+	fire_ignited = true
+	force_burn = true
+	damage = maxi(damage + 1, int(ceil(float(damage) * 1.3)))
+	if _spr != null:
+		_spr.modulate = _spr.modulate.lerp(Color(1.0, 0.52, 0.18), 0.6)
+	if is_inside_tree() and get_parent() != null:
+		Fx.particles(get_parent(), global_position, Color(1.0, 0.55, 0.2), 4, 45.0, 0.25)
+
+
+func _spawn_split_bullets() -> void:
+	var par: Node = get_parent()
+	if par == null or not is_instance_valid(par):
+		return
+	var n_split: int = clampi(split_on_hit, 1, 4)
+	var child_dmg: int = maxi(1, int(round(float(damage) * 0.55)))
+	var child_life: float = maxf(0.35, _start_life * 0.55)
+	for i in n_split:
+		var ang_off: float = lerpf(-0.48, 0.48, 0.5 if n_split == 1 else float(i) / float(n_split - 1))
+		if n_split == 1:
+			ang_off = 0.35 if randf() < 0.5 else -0.35
+		var sdir: Vector2 = dir.rotated(ang_off)
+		var sb: Area2D = get_script().new()
+		sb.setup(true, global_position + sdir * 6.0, sdir, speed * 0.88, child_dmg, child_life, proj)
+		sb.spawn_origin = global_position
+		sb.split_on_hit = 0
+		sb._hit = _hit.duplicate()
+		sb.bounces = bounces
+		sb.boss_motif = boss_motif
+		sb.fire_ignited = fire_ignited
+		sb.force_burn = force_burn
+		sb.refract_boost = refract_boost
+		sb.bullet_scale = bullet_scale * 0.78
+		sb.owner_node = owner_node
+		sb.color = color
+		par.add_child.call_deferred(sb)
 
 
 func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
@@ -325,6 +394,10 @@ func _hit_solid(body: Object, hit_pos: Vector2, normal: Vector2) -> void:
 	if bounces > 0:
 		bounces -= 1
 		dir = dir.bounce(n).normalized()
+		if refract_boost:
+			damage = maxi(damage + 1, int(ceil(float(damage) * 1.2)))
+			if is_inside_tree() and get_parent() != null:
+				Fx.particles(get_parent(), hit_pos, Color(0.45, 0.92, 1.0), 4, 65.0, 0.22)
 		if from_player and not PROJ.get(proj, {}).get("grenade", false):
 			speed = maxf(speed * 0.9, 90.0)
 			life = maxf(life, 0.35)

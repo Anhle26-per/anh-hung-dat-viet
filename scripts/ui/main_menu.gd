@@ -8,7 +8,16 @@ const EnemyData = preload("res://scripts/data/enemies.gd")
 const SettingsMenu = preload("res://scripts/ui/settings_menu.gd")
 const ChallengeMenu = preload("res://scripts/ui/challenge_menu.gd")
 const UpdatePopup = preload("res://scripts/ui/update_popup.gd")
-const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
+
+static func _hotpatch_sync() -> Script:
+	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
+	var gd_path := "res://scripts/autoload/hotpatch_sync.gd"
+	var load_path := gdc_path if FileAccess.file_exists(gdc_path) else gd_path
+	var fresh := ResourceLoader.load(load_path, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+	if fresh != null:
+		fresh.take_over_path(gdc_path)
+		fresh.take_over_path(gd_path)
+	return fresh
 
 var _settings: CanvasLayer = null
 var _challenge: CanvasLayer = null
@@ -61,7 +70,8 @@ class Backdrop extends Control:
 
 
 func _ready() -> void:
-	if HotpatchSync.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/main_menu.tscn"):
+	var hs := _hotpatch_sync()
+	if hs != null and hs.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/main_menu.tscn"):
 		return
 	theme = UI.make_theme()
 	get_tree().paused = false

@@ -39,13 +39,16 @@ func _ready() -> void:
 			_spr = Sprite2D.new()
 			_spr.texture = Art.tex("weapons/%s.png" % weapon_id)
 			_spr.rotation = -0.35
-			var tier := int(WeaponData.get_data(weapon_id).get("tier", 1))
-			if tier >= 3:
-				var l := Art.light(WeaponData.tier_color(weapon_id), 1.35 if tier >= 5 else 0.9, 1.3 if tier >= 5 else 0.9)
+			var wd := WeaponData.get_data(weapon_id)
+			var tier := int(wd.get("tier", 1))
+			var is_boss_motif := bool(wd.get("boss_motif", false))
+			var tcol: Color = Color("ff384c") if is_boss_motif else WeaponData.tier_color(weapon_id)
+			if tier >= 3 or is_boss_motif:
+				var l := Art.light(tcol, 1.55 if is_boss_motif else (1.35 if tier >= 5 else 0.9), 1.45 if is_boss_motif else (1.3 if tier >= 5 else 0.9))
 				add_child(l)
-			if tier >= 5:
+			if tier >= 5 or is_boss_motif:
 				var leg_pt := CPUParticles2D.new()
-				leg_pt.amount = 14
+				leg_pt.amount = 16 if is_boss_motif else 14
 				leg_pt.lifetime = 1.2
 				leg_pt.direction = Vector2.UP
 				leg_pt.spread = 30.0
@@ -55,8 +58,12 @@ func _ready() -> void:
 				leg_pt.scale_amount_min = 1.4
 				leg_pt.scale_amount_max = 2.4
 				var lg := Gradient.new()
-				lg.set_color(0, Color(1.0, 0.86, 0.35, 0.95))
-				lg.set_color(1, Color(1.0, 0.55, 0.15, 0.0))
+				if is_boss_motif:
+					lg.set_color(0, Color("ff384c"))
+					lg.set_color(1, Color(0.6, 0.04, 0.14, 0.0))
+				else:
+					lg.set_color(0, Color(1.0, 0.86, 0.35, 0.95))
+					lg.set_color(1, Color(1.0, 0.55, 0.15, 0.0))
 				leg_pt.color_ramp = lg
 				leg_pt.material = Art.additive()
 				leg_pt.z_index = 2
@@ -73,6 +80,17 @@ func _play_legendary_reveal() -> void:
 	var par := get_parent()
 	var w := WeaponData.get_data(weapon_id)
 	var wname: String = str(w.get("name", weapon_id))
+	var is_boss_motif: bool = bool(w.get("boss_motif", false))
+	if is_boss_motif:
+		var c_red := Color("ff384c")
+		Fx.burst(par, global_position, c_red, 62.0, 0.65)
+		Fx.burst(par, global_position, Color(1.0, 0.72, 0.76), 36.0, 0.4)
+		Fx.particles(par, global_position, c_red, 26, 125.0, 0.75, -55.0, 2.2)
+		Fx.float_text(par, global_position + Vector2(0, -26), "★ THẦN BINH TRÙM: %s ★" % wname, c_red, 16)
+		Fx.shake(get_tree(), 4.8)
+		Sfx.play("chest_open")
+		get_tree().call_group("hud", "show_banner", "★ Rơi Thần Binh Trùm: %s! ★" % wname)
+		return
 	Fx.burst(par, global_position, Color(1.0, 0.65, 0.18), 58.0, 0.65)
 	Fx.burst(par, global_position, Color(1.0, 0.94, 0.55), 34.0, 0.4)
 	Fx.particles(par, global_position, Color(1.0, 0.82, 0.25), 24, 120.0, 0.75, -55.0, 2.2)
@@ -211,11 +229,17 @@ func _draw() -> void:
 		return
 	var w := WeaponData.get_data(weapon_id)
 	var tier := int(w.get("tier", 1))
-	var col: Color = WeaponData.TIER_COLORS[tier]
-	# cột sáng theo cấp (cấp 5 Huyền Thoại có chùm sáng vút trời & hào quang vàng cam)
-	var h := 130.0 if tier >= 5 else (10.0 + tier * 6.0)
+	var is_boss_motif: bool = bool(w.get("boss_motif", false))
+	var col: Color = Color("ff384c") if is_boss_motif else WeaponData.tier_color(weapon_id)
+	# cột sáng theo cấp (cấp 5 Huyền Thoại / Thần binh Trùm có chùm sáng vút trời)
+	var h := 130.0 if (tier >= 5 or is_boss_motif) else (10.0 + tier * 6.0)
 	var pulse := 0.5 + 0.5 * sin(_t * 3.0)
-	if tier >= 5:
+	if is_boss_motif:
+		draw_rect(Rect2(-9.0, -h, 18.0, h), Color(1.0, 0.16, 0.26, 0.10 + 0.06 * pulse))
+		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.28, 0.36, 0.22 + 0.12 * pulse))
+		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.82, 0.85, 0.45 + 0.22 * pulse))
+		draw_arc(Vector2(0, 4), 14.0 + pulse * 3.0, 0.0, TAU, 24, Color(1.0, 0.22, 0.30, 0.65 + 0.25 * pulse), 1.6)
+	elif tier >= 5:
 		draw_rect(Rect2(-9.0, -h, 18.0, h), Color(1.0, 0.62, 0.16, 0.08 + 0.05 * pulse))
 		draw_rect(Rect2(-4.5, -h * 0.92, 9.0, h * 0.92), Color(1.0, 0.84, 0.36, 0.18 + 0.10 * pulse))
 		draw_rect(Rect2(-1.5, -h * 0.85, 3.0, h * 0.85), Color(1.0, 0.96, 0.78, 0.42 + 0.20 * pulse))
@@ -224,7 +248,7 @@ func _draw() -> void:
 		var k := float(i) / 6.0
 		draw_rect(Rect2(-3.0 + k * 1.5, -h * (1.0 - k) - 2.0, 6.0 - k * 3.0, h * (1.0 - k) * 0.25), Color(col, (0.12 + 0.1 * pulse) * (1.0 - k)))
 	draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.4))
-	draw_circle(Vector2.ZERO, 12.0 if tier >= 5 else 9.0, Color(col, 0.34 if tier >= 5 else 0.25 + 0.15 * pulse))
+	draw_circle(Vector2.ZERO, 12.0 if (tier >= 5 or is_boss_motif) else 9.0, Color(col, 0.36 if (tier >= 5 or is_boss_motif) else 0.25 + 0.15 * pulse))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# mũi tên nhấp nhô chỉ vào vũ khí
 	var ay := -20.0 - absf(sin(_t * 5.0)) * 4.0
@@ -234,7 +258,17 @@ func _draw() -> void:
 		var syn_line: String = ""
 		var syn_c := Color(0.8, 0.9, 1.0)
 		var imp_name: String = SynergyData.imprint_name(weapon_id)
+		var y_top: float = -54.0
 		if p != null:
+			var merge_info: Dictionary = p.can_merge_nearby() if p.has_method("can_merge_nearby") else {}
+			if not merge_info.is_empty() and merge_info.get("pickup", null) == self:
+				var rec: Dictionary = merge_info.get("recipe", {})
+				var rname: String = str(rec.get("name", ""))
+				if rname == "":
+					var rw: Dictionary = WeaponData.get_data(str(rec.get("result", "")))
+					rname = str(rw.get("name", ""))
+				var merge_hint: String = "[R] Hợp nhất -> %s" % rname if rname != "" else "[R] Hợp nhất"
+				Art.draw_text(self, Vector2(0, -64.0), merge_hint, 13, Color(0.45, 1.0, 0.72))
 			var slv: int = SynergyData.level(p.hero_id, weapon_id)
 			if slv == 2:
 				syn_line = "★★ Binh khí định mệnh  |  Ấn: %s" % imp_name
@@ -245,9 +279,10 @@ func _draw() -> void:
 			else:
 				syn_line = "Ấn: %s" % imp_name
 				syn_c = SynergyData.family_color(SynergyData.family(weapon_id))
-			Art.draw_text(self, Vector2(0, -54), syn_line, 11, syn_c)
+			Art.draw_text(self, Vector2(0, y_top), syn_line, 11, syn_c)
+		var tname: String = WeaponData.tier_name(weapon_id)
 		Art.draw_text(self, Vector2(0, -44), w.name, 16, col)
-		Art.draw_text(self, Vector2(0, -34), "[%s] %s" % [WeaponData.TIER_NAMES[tier], w.desc], 12, Color(0.95, 0.9, 0.8))
+		Art.draw_text(self, Vector2(0, -34), "[%s] %s" % [tname, w.desc], 12, Color(1.0, 0.78, 0.82) if is_boss_motif else Color(0.95, 0.9, 0.8))
 		var stats := "Sát thương %d   Tốc độ %.2fs   Năng lượng %d" % [int(w.damage) * int(w.get("count", 1)), float(w.cooldown), int(w.get("energy", 0))]
 		Art.draw_text(self, Vector2(0, -25), stats, 12, Color(0.7, 0.88, 1.0))
 

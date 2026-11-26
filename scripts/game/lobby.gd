@@ -18,7 +18,16 @@ const HeroData = preload("res://scripts/data/heroes.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
-const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
+
+static func _hotpatch_sync() -> Script:
+	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
+	var gd_path := "res://scripts/autoload/hotpatch_sync.gd"
+	var load_path := gdc_path if FileAccess.file_exists(gdc_path) else gd_path
+	var fresh := ResourceLoader.load(load_path, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+	if fresh != null:
+		fresh.take_over_path(gdc_path)
+		fresh.take_over_path(gd_path)
+	return fresh
 
 const SIZE := Vector2(1360, 760)
 const SPAWN_POS := Vector2(680, 524)
@@ -75,7 +84,8 @@ var _mat_shop_pos := Vector2(1204, 452)
 
 
 func _ready() -> void:
-	if HotpatchSync.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/lobby.tscn"):
+	var hs := _hotpatch_sync()
+	if hs != null and hs.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/lobby.tscn"):
 		return
 	add_to_group("lobby")
 	get_tree().paused = false

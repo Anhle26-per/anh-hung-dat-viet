@@ -54,8 +54,8 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra dữ liệu 31 phúc lành & ảnh icon")
-	_check(BuffData.DATA.size() == 31, "phải có đủ 31 phúc lành (hiện có %d)" % BuffData.DATA.size())
+	print("== 1. Kiểm tra dữ liệu 39 phúc lành & ảnh icon")
+	_check(BuffData.DATA.size() == 39, "phải có đủ 39 phúc lành (hiện có %d)" % BuffData.DATA.size())
 	for bid_v in BuffData.DATA:
 		var bid: String = str(bid_v)
 		var b: Dictionary = BuffData.DATA[bid]

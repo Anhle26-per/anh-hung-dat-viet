@@ -6,6 +6,7 @@ signal portal_entered
 
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const WeaponEvolutions = preload("res://scripts/data/weapon_evolutions.gd")
 const Enemy = preload("res://scripts/entities/enemy.gd")
 const Door = preload("res://scripts/entities/door.gd")
 const Pickup = preload("res://scripts/entities/pickup.gd")
@@ -18,6 +19,9 @@ const Cover = preload("res://scripts/entities/cover.gd")
 const Trap = preload("res://scripts/entities/trap.gd")
 const VictoryAltar = preload("res://scripts/entities/victory_altar.gd")
 const BlacksmithNpc = preload("res://scripts/entities/blacksmith_npc.gd")
+const EventAltar = preload("res://scripts/entities/event_altar.gd")
+const MountPickup = preload("res://scripts/entities/mount_pickup.gd")
+const BattlefieldHazard = preload("res://scripts/entities/battlefield_hazard.gd")
 
 const T := 16
 const MAX_ENEMIES := 14
@@ -37,17 +41,33 @@ var _waves_left := 0
 var _chest: AnimatedSprite2D = null
 var shop: Node2D = null
 var blacksmith: Node2D = null
+var event_altar: Node2D = null
+var _challenge_altar: Node2D = null
 var legend_id := ""          # phòng Tam Yêu: mã yêu quái
 var loot_chest: Node2D = null
 var victory_altar: Node2D = null
 var covers: Array = []
 var traps: Array = []
+var hazards: Array = []
+
+
+func _is_badass() -> bool:
+	return Global != null and bool(Global.get("badass_mode"))
+
+
+func _is_boss_rush() -> bool:
+	return Global != null and Global.has_method("is_boss_rush") and Global.is_boss_rush()
+
+
+func _has_mutator(mid: String) -> bool:
+	return Global != null and Global.has_method("has_mutator") and Global.has_mutator(mid)
 
 
 func _ready() -> void:
 	if kind in ["combat", "boss", "legend"]:
 		_spawn_covers()
 		_spawn_traps()
+		_spawn_biome_hazards()
 	if kind == "start":
 		state = "done"
 		# phòng đầu: màn 1 luôn có 1 vũ khí để nhặt (các màn sau 35%)
@@ -62,7 +82,14 @@ func _ready() -> void:
 		shop.position = rect.get_center() + Vector2(0, 6)
 		add_child(shop)
 		_spawn_blacksmith(rect.get_center() + Vector2(-95, -35))
-	if kind == "exit" and randf() < 0.55:
+		if randf() < 0.15 and (not Net.is_online() or Net.is_host()):
+			_spawn_mount_pickup.call_deferred(rect.get_center() + Vector2(98, -26))
+	if kind == "event":
+		state = "done"
+		_spawn_event_altar()
+		if randf() < 0.28 and (not Net.is_online() or Net.is_host()):
+			_spawn_mount_pickup.call_deferred(rect.get_center() + Vector2(78, 12))
+	if kind == "exit" and randf() < 0.55 and not _is_boss_rush():
 		_spawn_blacksmith(rect.get_center() + Vector2(-70, 0))
 	if kind == "victory_hall":
 		state = "done"
@@ -71,7 +98,7 @@ func _ready() -> void:
 		victory_altar.mythic = (level >= 32)
 		victory_altar.position = vc + Vector2(0, 14)
 		get_parent().add_child.call_deferred(victory_altar)
-		if level == 16:
+		if level == 16 and not _is_boss_rush():
 			_spawn_portal.call_deferred(vc + Vector2(0, -56), "Cổng Thần Thoại (4-1)", true)
 	if kind == "treasure":
 		_chest = AnimatedSprite2D.new()
@@ -80,6 +107,8 @@ func _ready() -> void:
 		_chest.scale = Vector2(1.5, 1.5)
 		_chest.play("closed")
 		add_child(_chest)
+		if randf() < 0.25 and (not Net.is_online() or Net.is_host()):
+			_spawn_mount_pickup.call_deferred(rect.get_center() + Vector2(68, 14))
 
 
 func _process(_delta: float) -> void:
@@ -164,8 +193,11 @@ func _enter() -> void:
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			Sfx.play("boss_appear")
 			_play_boss_room_music("boss")
-			var bpos: Vector2 = rect.get_center() + Vector2(0, -20)
+			var dbl: bool = _has_mutator("double_boss")
+			var bpos: Vector2 = rect.get_center() + (Vector2(-38, -20) if dbl else Vector2(0, -20))
 			spawn_enemy("boss", bpos)
+			if dbl:
+				spawn_enemy("boss", rect.get_center() + Vector2(38, -20))
 			var bid := EnemyData.boss_id(level)
 			var b: Dictionary = EnemyData.MYTHIC_BOSSES[bid] if EnemyData.MYTHIC_BOSSES.has(bid) else EnemyData.BOSSES[bid]
 			var is_mythic_b: bool = EnemyData.MYTHIC_BOSSES.has(bid) or EnemyData.is_mythic_level(level)
@@ -186,8 +218,11 @@ func _enter() -> void:
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			Sfx.play("boss_appear")
 			_play_boss_room_music("legend")
-			var lpos: Vector2 = rect.get_center() + Vector2(0, -20)
+			var dbl_l: bool = _has_mutator("double_boss")
+			var lpos: Vector2 = rect.get_center() + (Vector2(-38, -20) if dbl_l else Vector2(0, -20))
 			spawn_enemy("legend:" + legend_id, lpos)
+			if dbl_l:
+				spawn_enemy("legend:" + legend_id, rect.get_center() + Vector2(38, -20))
 			var lg: Dictionary = EnemyData.LEGENDS[legend_id]
 			var is_mythic_l: bool = EnemyData.is_mythic_level(level)
 			var lcol: Color = Color(0.86, 0.48, 1.0)
@@ -204,7 +239,7 @@ func _enter() -> void:
 			_chest.play("open")
 			Sfx.play("chest_open")
 			var c := rect.get_center()
-			_spawn_weapon(c + Vector2(0, 18), 1)
+			_spawn_weapon(c + Vector2(0, 18), 2 if _is_badass() else 1)
 			_drop("potion", 2, c + Vector2(-16, 16))
 			Fx.particles(get_parent(), c, Color(1, 0.85, 0.3), 24, 120.0, 0.7, -40.0, 2.0)
 			Fx.burst(get_parent(), c, Color(1, 0.85, 0.3), 40.0, 0.5)
@@ -212,7 +247,19 @@ func _enter() -> void:
 				Net.send_world_event("room_treasure", {"key": room_key}, false)
 		"exit":
 			state = "done"
-			_spawn_portal(rect.get_center())
+			if _is_boss_rush():
+				var ec: Vector2 = rect.get_center()
+				_spawn_portal(ec + Vector2(0, -24))
+				if not Net.is_online() or Net.is_host():
+					loot_chest = LootChest.new()
+					loot_chest.level = level
+					loot_chest.chest_id = room_key + "_br"
+					loot_chest.position = ec + Vector2(-42, 18)
+					get_parent().add_child(loot_chest)
+					if randf() < 0.30:
+						_spawn_mount_pickup(ec + Vector2(48, 18))
+			else:
+				_spawn_portal(rect.get_center())
 			if Net.is_online() and Net.is_host():
 				Net.send_world_event("room_exit", {"key": room_key}, false)
 
@@ -334,6 +381,12 @@ func _spawn_wave() -> void:
 		var depth: int = mini(maxi(level - 1, 0), 15)
 		n = mini(4 + int(depth / 3) + randi() % 3, 10)
 		elite_chance = minf(0.10 + 0.022 * float(depth), 0.42)
+	if _is_badass():
+		n += 1
+		elite_chance = clampf(elite_chance + 0.22, 0.0, 0.85)
+	if _has_mutator("elite_swarm"):
+		n += 2
+		elite_chance = maxf(elite_chance, 0.80)
 	for i in n:
 		spawn_enemy(pool.pick_random(), _random_point(), randf() < elite_chance)
 
@@ -341,7 +394,8 @@ func _spawn_wave() -> void:
 func spawn_enemy(k: String, pos: Vector2, elite := false) -> void:
 	if Net.is_online() and not Net.is_host():
 		return
-	if _enemies.size() >= MAX_ENEMIES and k != "boss" and not k.begins_with("legend:"):
+	var eff_max: int = MAX_ENEMIES + (4 if (_is_badass() or _has_mutator("elite_swarm")) else 0)
+	if _enemies.size() >= eff_max and k != "boss" and not k.begins_with("legend:"):
 		return
 	var inner := rect.grow(-T * 1.5)
 	var clamped_pos: Vector2 = pos.clamp(inner.position, inner.end)
@@ -480,16 +534,26 @@ func _on_enemy_killed(e) -> void:
 	if Net.is_online() and not Net.is_host():
 		return
 	if e.is_boss():
-		_waves_left = 0
-		for other in _enemies.duplicate():
-			if is_instance_valid(other):
-				other.die(false)
-		_enemies.clear()
+		var other_boss_alive: bool = false
+		for other_e in _enemies:
+			if is_instance_valid(other_e) and not bool(other_e.get("dead")) and other_e.is_boss():
+				other_boss_alive = true
+				break
+		if not other_boss_alive:
+			_waves_left = 0
+			for other in _enemies.duplicate():
+				if is_instance_valid(other):
+					other.die(false)
+			_enemies.clear()
 	if _enemies.is_empty():
 		if _waves_left > 0:
 			get_tree().create_timer(0.7).timeout.connect(_spawn_wave)
 		else:
 			_clear.call_deferred()
+
+
+func _boss_motif_weapon(bid: String) -> String:
+	return WeaponEvolutions.boss_weapon_for(bid)
 
 
 func _clear() -> void:
@@ -511,33 +575,60 @@ func _clear() -> void:
 	if kind == "boss":
 		Sfx.play("level_clear")
 		Sfx.play_music("victory")
-		if level == 15:
+		var bonus_tier: int = 3 if _is_badass() else 2
+		if _is_boss_rush():
+			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
+			get_tree().call_group("hud", "show_banner", "Hạ Trùm Vượt Ải %d! Tiến sang cửa kế!" % level)
+		elif level == 15:
 			_spawn_portal(c + Vector2(0, -30), "Sảnh Khải Hoàn (3-6)")
-			_spawn_weapon(c + Vector2(0, 24), 2)
+			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "Đại thắng 3 Chương! Bước qua cổng vào Sảnh Khải Hoàn (3-6)!")
 		elif level == 31:
 			_spawn_portal(c + Vector2(0, -30), "Sảnh Huyền Thoại (6-6)", true)
-			_spawn_weapon(c + Vector2(0, 24), 2)
+			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "ĐẠI THẮNG THẦN THOẠI! Vào Sảnh Huyền Thoại (6-6)!")
 		else:
 			_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
-			_spawn_weapon(c + Vector2(0, 24), 2)
+			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
+		# Rương sơn mài thưởng Trùm + cơ hội rớt Thần Binh Trùm (Motif Weapon)
+		loot_chest = LootChest.new()
+		loot_chest.level = level
+		loot_chest.chest_id = room_key + "_boss"
+		loot_chest.position = c + Vector2(0, 14)
+		get_parent().add_child(loot_chest)
+		var bid: String = EnemyData.boss_id(level)
+		var motif_wid: String = _boss_motif_weapon(bid)
+		var milestone: bool = _is_boss_rush() and (level % 3 == 0 or level >= 10)
+		var motif_chance: float = 1.0 if milestone else (0.65 if _is_badass() else (0.50 if _is_boss_rush() else 0.35))
+		if motif_wid != "" and randf() < motif_chance:
+			_spawn_specific_weapon(c + Vector2(30, 24), motif_wid)
 	elif kind == "legend":
 		Sfx.play("level_clear")
 		Sfx.play_music("victory")
 		_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
-		_spawn_weapon(c + Vector2(0, 24), 1)
+		_spawn_weapon(c + Vector2(0, 24), 2 if _is_badass() else 1)
 		for i in 5:
 			_drop_local("coin", 2, c)
 		get_tree().call_group("hud", "show_banner", "Diệt yêu trừ hại, như Lạc Long Quân năm xưa!")
 	else:
-		# rương sơn mài chiến lợi phẩm sau mỗi phòng dọn sạch
+		# Rương sơn mài chiến lợi phẩm sau mỗi phòng dọn sạch
 		loot_chest = LootChest.new()
 		loot_chest.level = level
 		loot_chest.chest_id = room_key
-		loot_chest.position = c
+		loot_chest.position = c + Vector2(-30, 18) if _challenge_altar != null else c
 		get_parent().add_child(loot_chest)
+		if _is_badass():
+			_drop_local("coin", 2, c + Vector2(14, 12))
+		if _challenge_altar != null and is_instance_valid(_challenge_altar):
+			if _challenge_altar.has_method("mark_arena_cleared"):
+				_challenge_altar.mark_arena_cleared()
+			_challenge_altar = null
+			_spawn_weapon(c + Vector2(28, 18), 3 if _is_badass() else 2)
+			var ch_bid: String = EnemyData.boss_id(level)
+			var ch_motif: String = _boss_motif_weapon(ch_bid)
+			if ch_motif != "" and randf() < (0.45 if _is_badass() else 0.25):
+				_spawn_specific_weapon(c + Vector2(0, 26), ch_motif)
 	if Net.is_online() and Net.is_host():
 		Net.send_world_event("room_clear", {"key": room_key}, false)
 
@@ -558,9 +649,15 @@ func drop_weapon_at(pos: Vector2, bonus: int) -> void:
 
 
 func _spawn_weapon(pos: Vector2, bonus: int) -> void:
+	_spawn_specific_weapon(pos, WeaponData.roll(level, bonus))
+
+
+func _spawn_specific_weapon(pos: Vector2, wid: String) -> void:
+	if wid == "":
+		return
 	var p := Pickup.new()
 	p.kind = "weapon"
-	p.weapon_id = WeaponData.roll(level, bonus)
+	p.weapon_id = wid
 	p.position = pos
 	if Net.is_online() and Net.is_host():
 		var ns: Node = get_tree().get_first_node_in_group("net_sync")
@@ -629,6 +726,98 @@ func _spawn_blacksmith(pos: Vector2) -> void:
 	bn.position = pos
 	add_child(bn)
 	blacksmith = bn
+
+
+func _spawn_event_altar() -> void:
+	var candidates: Array[String] = EventAltar.KINDS.duplicate()
+	if bool(Global.get("mentor_upgraded")):
+		candidates.erase("mentor_npc")
+	var ea := EventAltar.new()
+	ea.kind = candidates[randi() % candidates.size()]
+	ea.level = level
+	ea.room = self
+	ea.position = rect.get_center() + Vector2(0, 4)
+	add_child(ea)
+	event_altar = ea
+
+
+func _spawn_mount_pickup(pos: Vector2, mid: String = "") -> void:
+	var mp := MountPickup.new()
+	mp.mount_id = mid if mid != "" else MountPickup.MOUNT_ORDER[randi() % MountPickup.MOUNT_ORDER.size()]
+	mp.position = pos
+	get_parent().add_child(mp)
+
+
+func start_challenge_arena(altar: Node2D) -> void:
+	if Net.is_online() and not Net.is_host():
+		return
+	_challenge_altar = altar
+	state = "fighting"
+	_waves_left = 0
+	_lock()
+	_play_combat_room_music()
+	var pool := EnemyData.pool(level)
+	var cnt: int = 4 if _is_badass() else 3
+	for i in cnt:
+		spawn_enemy(pool.pick_random(), _random_point(), true)
+
+
+func _is_safe_hazard_pos(pos: Vector2) -> bool:
+	var inner: Rect2 = rect.grow(-T * 2.5)
+	if not inner.has_point(pos):
+		return false
+	if pos.distance_to(rect.get_center()) < 40.0:
+		return false
+	for dr in door_rects:
+		if (dr as Rect2).grow(50.0).has_point(pos):
+			return false
+	for cv in covers:
+		if is_instance_valid(cv) and pos.distance_to((cv as Node2D).global_position) < 26.0:
+			return false
+	return true
+
+
+func _add_hazard(hkind: String, pos: Vector2, phase_off: float = 0.0, h_size: Vector2 = Vector2(78, 42)) -> void:
+	if not _is_safe_hazard_pos(pos):
+		return
+	var hz := BattlefieldHazard.new()
+	hz.kind = hkind
+	hz.room = self
+	hz.size = h_size
+	hz.phase_offset = phase_off
+	hz.position = pos
+	add_child(hz)
+	hazards.append(hz)
+
+
+func _spawn_biome_hazards() -> void:
+	var ch: Dictionary = EnemyData.chapter(level)
+	var theme: int = int(ch.get("theme", 0))
+	var c: Vector2 = rect.get_center()
+	match theme:
+		1:
+			# Sông nước: vùng nước làm chậm + cọc Bạch Đằng
+			var w_off := Vector2(-84, -42) if randf() < 0.5 else Vector2(84, 42)
+			_add_hazard("water_zone", c + w_off, 0.0, Vector2(74, 40))
+			_add_hazard("bach_dang_stake", c + Vector2(-78, 48), 0.0)
+			_add_hazard("bach_dang_stake", c + Vector2(78, -48), 0.3)
+		0, 5, 4:
+			# Núi rừng / sương mù: bụi ẩn thân + đá lở
+			_add_hazard("stealth_bush", c + Vector2(-92, -46), 0.0)
+			_add_hazard("stealth_bush", c + Vector2(92, 46), 0.0)
+			if theme in [0, 5] and randf() < 0.7:
+				_add_hazard("falling_boulder", c + Vector2(0, -64), 0.4)
+				_add_hazard("falling_boulder", c + Vector2(0, 64), 2.1)
+		2, 3:
+			# Tết / Thành cổ: chậu lửa châm đạn
+			_add_hazard("fire_brazier", c + Vector2(-74, -26), 0.0)
+			_add_hazard("fire_brazier", c + Vector2(74, 26), 0.4)
+		6:
+			# Điện Biên Phủ: chiến hào + pháo kích
+			_add_hazard("trench", c + Vector2(-86, 0), 0.0, Vector2(64, 28))
+			_add_hazard("trench", c + Vector2(86, 0), 0.0, Vector2(64, 28))
+			_add_hazard("mortar_flare", c + Vector2(0, -66), 0.6)
+			_add_hazard("mortar_flare", c + Vector2(0, 66), 2.3)
 
 
 func _draw() -> void:

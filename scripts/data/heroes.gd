@@ -5,6 +5,8 @@ extends RefCounted
 ##   skill  : mã kỹ năng
 ##   cost   : số xu để mở khóa (0 = có sẵn)
 
+const HeroSkillsExt = preload("res://scripts/data/hero_skills_ext.gd")
+
 const ORDER := ["hai_ba_trung", "ba_trieu", "ngo_quyen", "ly_thuong_kiet", "tran_hung_dao",
 	"le_loi", "quang_trung", "nguyen_trung_truc", "hoang_hoa_tham", "chien_si_dien_bien", "thanh_giong"]
 
@@ -98,3 +100,18 @@ const DATA := {
 		"color": Color(0.76, 0.24, 0.20), "accent": Color(1.0, 0.78, 0.28), "cost": 1200, "secret": true, "unlock_level": 6,
 	},
 }
+
+
+static func passive_info(hid: String) -> Dictionary:
+	return HeroSkillsExt.get_passive(hid)
+
+
+static func skill_info(hid: String, idx: int = 1) -> Dictionary:
+	if not DATA.has(hid):
+		return {}
+	var out: Dictionary = (DATA[hid] as Dictionary).duplicate()
+	if idx == 2 and HeroSkillsExt.SKILLS_2.has(hid):
+		var s2: Dictionary = HeroSkillsExt.SKILLS_2[hid]
+		for k in s2:
+			out[k] = s2[k]
+	return out

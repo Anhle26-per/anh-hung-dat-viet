@@ -581,8 +581,14 @@ def tiers():
     return {m[0]: int(m[1]) for m in re.findall(r'"([a-z_]+)": \{"name": "[^"]+", "tier": (\d)', src)}
 
 
-TIER_EDGE = {4: hexc("4a1a6a"), 5: hexc("7a3a00")}
-TIER_GLOW = {4: hexc("c070ff", 110), 5: hexc("ffc040", 140)}
+def boss_motifs():
+    import re
+    src = open(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "data", "weapons.gd"), encoding="utf-8").read()
+    return set(re.findall(r'"([a-z_]+)": \{[^\n]*"boss_motif": true', src))
+
+
+TIER_EDGE = {4: hexc("4a1a6a"), 5: hexc("7a3a00"), "red": hexc("7a101c")}
+TIER_GLOW = {4: hexc("c070ff", 110), 5: hexc("ffc040", 140), "red": hexc("ff384c", 165)}
 BASIC_WEAPONS = (
     "kiem_dong", "doan_dao", "giao_tre", "no_tay", "guom_lenh",
     "con_lam_son", "ong_lua", "dao_rua", "hoa_mai_yen_the", "sung_truong_bo_binh",
@@ -590,10 +596,13 @@ BASIC_WEAPONS = (
 )
 
 
-def finalize(img, tier):
-    """Viền đen cho cấp 1-3; cấp 4 viền tím, cấp 5 viền vàng phát sáng."""
+def finalize(img, tier, is_boss=False):
+    """Viền đen cho cấp 1-3; cấp 4 viền tím, cấp 5 viền vàng phát sáng; Thần binh Trùm viền đỏ rực."""
     pad = Image.new("RGBA", (img.width + 4, img.height + 4), (0, 0, 0, 0))
     pad.alpha_composite(img, (2, 2))
+    if is_boss:
+        out = outline(pad, TIER_EDGE["red"])
+        return outline(out, TIER_GLOW["red"]), 2
     if tier >= 4:
         out = outline(pad, TIER_EDGE[tier])
         return outline(out, TIER_GLOW[tier]), 2
@@ -624,27 +633,28 @@ def finalize_rank(img, rank):
 
 def build():
     tier = tiers()
+    boss_set = boss_motifs()
     grips = {}
     raw_imgs = {}
     for wid, (grip, rows) in art_chars.WEAPONS.items():
         w = max(len(r) for r in rows)
         raw = grid(rows, art_chars.W, w)
         raw_imgs[wid] = raw
-        img, off = finalize(raw, tier.get(wid, 1))
+        img, off = finalize(raw, tier.get(wid, 1), wid in boss_set)
         save(img, f"weapons/{wid}.png")
         grips[wid] = (grip[0] + off, grip[1] + off)
     for wid, fn in PROC.items():
         res = fn()
         raw, g = res
         raw_imgs[wid] = raw
-        img, off = finalize(raw, tier.get(wid, 1))
+        img, off = finalize(raw, tier.get(wid, 1), wid in boss_set)
         save(img, f"weapons/{wid}.png")
         grips[wid] = (g[0] + off, g[1] + off)
     for wid, fn in art_weapons_ext.PROC_EXT.items():
         res = fn()
         raw, g = res
         raw_imgs[wid] = raw
-        img, off = finalize(raw, tier.get(wid, 1))
+        img, off = finalize(raw, tier.get(wid, 1), wid in boss_set)
         save(img, f"weapons/{wid}.png")
         grips[wid] = (g[0] + off, g[1] + off)
     art_weapons_ext.build_projectiles_ext()

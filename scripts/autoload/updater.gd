@@ -9,7 +9,6 @@ signal download_finished(ok: bool, message: String)
 
 const VersionData = preload("res://scripts/data/version.gd")
 const Art = preload("res://scripts/art/art.gd")
-const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 
 var patch_path: String = "user://patch.pck"
 var patch_tmp_path: String = "user://patch.pck.tmp"
@@ -95,7 +94,9 @@ func try_mount_saved_patch() -> bool:
 		current_version = p_ver
 		current_build = p_build if p_build > 0 else base_build
 		Art.clear_cache()
-		HotpatchSync.ensure_autoloads_synced.call_deferred(get_tree())
+		var hs: Script = _load_hotpatch_sync()
+		if hs != null:
+			hs.call_deferred("ensure_autoloads_synced", get_tree())
 		return true
 	clear_saved_patch()
 	return false
@@ -338,13 +339,26 @@ func _on_download_completed(result: int, response_code: int, _headers: PackedStr
 	download_finished.emit(true, "Tải xong bản v%s!" % str(meta.version))
 
 
+static func _load_hotpatch_sync() -> Script:
+	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
+	var gd_path := "res://scripts/autoload/hotpatch_sync.gd"
+	var load_path := gdc_path if FileAccess.file_exists(gdc_path) else gd_path
+	var fresh := ResourceLoader.load(load_path, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+	if fresh != null:
+		fresh.take_over_path(gdc_path)
+		fresh.take_over_path(gd_path)
+	return fresh
+
+
 func restart_to_apply() -> void:
 	if DisplayServer.get_name() == "headless":
 		try_mount_saved_patch()
 		return
 	if OS.has_feature("mobile"):
 		try_mount_saved_patch()
-		HotpatchSync.ensure_autoloads_synced(get_tree())
+		var hs: Script = _load_hotpatch_sync()
+		if hs != null:
+			hs.ensure_autoloads_synced(get_tree())
 		get_tree().reload_current_scene()
 		return
 	OS.set_restart_on_exit(true)

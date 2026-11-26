@@ -59,6 +59,15 @@ const DATA := {
 	"phi_kiem": {"name": "Ngự kiếm phi hành", "desc": "Triệu hồi Phi Kiếm bay quanh thân, tự phóng đâm giặc gần nhất mỗi 1,1 giây.", "max": 1, "cat": "dac_biet", "tier": 3},
 	"ngu_hanh": {"name": "Ngũ hành tương sinh", "desc": "Đòn đánh luân phiên truyền Hỏa / Độc / Lôi; +30% sát thương lên giặc dính hiệu ứng.", "max": 1, "cat": "dac_biet", "tier": 3},
 	"huyet_nguyet": {"name": "Huyết nguyệt cuồng chiến", "desc": "Hạ giặc kích Cuồng chiến 3,5s: +25% tốc đánh, +15% tốc chạy, +15% chí mạng.", "max": 1, "cat": "dac_biet", "tier": 3},
+	# --- Mở rộng v2.0.0 (8 Phúc lành Hiếm & Tuyệt kỹ) ---
+	"phan_tach": {"name": "Đạn phân tách", "desc": "Đạn trúng giặc hoặc hết tầm tách ra 2 mảnh đạn phụ gây 50% sát thương.", "max": 1, "cat": "cong", "tier": 2},
+	"khuc_xa": {"name": "Khúc xạ liên hoàn", "desc": "Đạn nảy tường thêm 2 lần và tăng +15% sát thương sau mỗi lần bật.", "max": 1, "cat": "cong", "tier": 2},
+	"bang_tam": {"name": "Băng tâm hàn khí", "desc": "Đòn đánh có 25% đóng băng làm chậm giặc 45% trong 2,5s; miễn nhiễm đóng băng.", "max": 1, "cat": "nguyen_to", "tier": 2},
+	"cuong_no_trum": {"name": "Cuồng nộ diệt trùm", "desc": "+35% sát thương lên Trùm và giặc Tinh Anh.", "max": 1, "cat": "cong", "tier": 2},
+	"song_kiem_hop": {"name": "Tam binh hợp bích", "desc": "Mở thêm ô vũ khí thứ 3; đổi vũ khí tăng +20% tốc đánh trong 2 giây.", "max": 1, "cat": "dac_biet", "tier": 3},
+	"tuong_thach": {"name": "Tường thạch hộ thân", "desc": "Giảm 1 sát thương nhận vào (tối thiểu 1); khi trúng đòn gọi vòng đá chắn đạn 2s.", "max": 1, "cat": "thu", "tier": 2},
+	"chien_xa_ben": {"name": "Chiến xa bất khuất", "desc": "Thú cưỡi và chiến xa +50% máu tối đa, +25% sát thương húc.", "max": 1, "cat": "chien_thuat", "tier": 2},
+	"lien_kich_ba": {"name": "Liên kích tam đoạn", "desc": "Đòn cận chiến thứ 3 phóng sóng khí 360° gây +65% sát thương và xóa đạn địch.", "max": 1, "cat": "dac_biet", "tier": 3},
 }
 
 

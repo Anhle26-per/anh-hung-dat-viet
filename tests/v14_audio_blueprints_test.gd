@@ -98,8 +98,8 @@ func _run() -> void:
 	Sfx.stop_all_sfx()
 	_check(skill_keys.size() == 11, "phải có đủ 11 khóa SFX kỹ năng riêng biệt (hiện %d)" % skill_keys.size())
 
-	print("== 2. Kiểm tra toàn bộ 200 vũ khí có weapon_sfx_profile hợp lệ & phân biệt")
-	_check(WeaponData.DATA.size() == 200, "WeaponData.DATA phải có 200 vũ khí (hiện %d)" % WeaponData.DATA.size())
+	print("== 2. Kiểm tra toàn bộ 217 vũ khí có weapon_sfx_profile hợp lệ & phân biệt")
+	_check(WeaponData.DATA.size() == 217, "WeaponData.DATA phải có 217 vũ khí (hiện %d)" % WeaponData.DATA.size())
 	var profile_sigs: Dictionary = {}
 	for wid_v in WeaponData.DATA:
 		var wid: String = str(wid_v)
@@ -114,15 +114,15 @@ func _run() -> void:
 		var sig: String = "%s|%.4f|%.2f" % [sid, pitch, vol]
 		_check(not profile_sigs.has(sig), "profile âm thanh trùng giữa %s và %s: %s" % [str(profile_sigs.get(sig, "")), wid, sig])
 		profile_sigs[sig] = wid
-	_check(profile_sigs.size() == 200, "phải có 200 profile âm thanh phân biệt (hiện %d)" % profile_sigs.size())
+	_check(profile_sigs.size() == 217, "phải có 217 profile âm thanh phân biệt (hiện %d)" % profile_sigs.size())
 	Sfx.play_weapon("kiem_dong", WeaponData.DATA["kiem_dong"])
 	Sfx.play_weapon("gay_tre", WeaponData.DATA["gay_tre"])
 	await _frames(1)
 	Sfx.stop_all_sfx()
 
-	print("== 3. Kiểm tra 190 vũ khí bản vẽ rèn (can_forge_weapon == true)")
+	print("== 3. Kiểm tra 207 vũ khí bản vẽ rèn (can_forge_weapon == true)")
 	var all_bps: Array = MaterialData.all_blueprint_weapons()
-	_check(all_bps.size() == 190, "MaterialData.all_blueprint_weapons().size() phải là 190 (hiện %d)" % all_bps.size())
+	_check(all_bps.size() == 207, "MaterialData.all_blueprint_weapons().size() phải là 207 (hiện %d)" % all_bps.size())
 	var basic_cnt: int = 0
 	for wid_v in WeaponData.DATA:
 		var wid: String = str(wid_v)
@@ -225,7 +225,7 @@ func _run() -> void:
 	await _frames(2)
 	_check(lobby.ui.is_open(), "lobby_ui.open_blueprints('all') không mở")
 	var bp_texts: Array = _collect_texts(lobby.ui._panel)
-	_check(_has_substr(bp_texts, "/ 190"), "open_blueprints() thiếu tiêu đề X / 190")
+	_check(_has_substr(bp_texts, "/ 207"), "open_blueprints() thiếu tiêu đề X / 207")
 	_check(_has_substr(bp_texts, "Huyền Thoại"), "open_blueprints() thiếu tab Huyền Thoại")
 	lobby.ui.open_blueprints("legendary")
 	await _frames(2)

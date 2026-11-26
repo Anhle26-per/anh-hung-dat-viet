@@ -89,7 +89,7 @@ const DATA := {
 		"desc": "Bắn nhanh, chính xác."},
 	"phi_tieu": {"name": "Phi tiêu", "tier": 2, "type": "ranged", "proj": "dart", "damage": 3, "cooldown": 0.3, "energy": 1, "speed": 420.0, "life": 0.6, "count": 3, "spread": 20.0,
 		"desc": "Phóng 3 phi tiêu một lúc."},
-	"cung_dai": {"name": "Cung dài", "tier": 2, "type": "ranged", "proj": "arrow", "damage": 6, "cooldown": 0.5, "energy": 1, "speed": 560.0, "life": 1.0, "pierce": 2,
+	"cung_dai": {"name": "Cung dài", "tier": 2, "type": "ranged", "proj": "arrow", "damage": 6, "cooldown": 0.5, "energy": 1, "speed": 560.0, "life": 1.0, "pierce": 2, "charge_max": 0.75,
 		"desc": "Tên bay xa, xuyên 3 địch."},
 	"hoa_ho": {"name": "Hỏa hổ", "tier": 3, "type": "ranged", "proj": "fireball", "damage": 2, "cooldown": 0.09, "energy": 1, "speed": 240.0, "life": 0.42, "count": 2, "spread": 26.0, "inaccuracy": 10.0, "knock": 20.0, "muzzle": "fire",
 		"desc": "Ống phun lửa của quân Tây Sơn."},
@@ -97,13 +97,13 @@ const DATA := {
 		"desc": "Tên lửa thời Trần, nổ lan."},
 	"than_co_sang": {"name": "Súng thần cơ", "tier": 3, "type": "ranged", "proj": "cannonball", "damage": 11, "cooldown": 0.7, "energy": 3, "speed": 380.0, "life": 1.0, "knock": 240.0, "recoil": 4.0, "muzzle": "flash", "shake": 2.0,
 		"desc": "Súng của Hồ Nguyên Trừng. Đạn nặng."},
-	"phao_dong": {"name": "Pháo đồng", "tier": 4, "type": "ranged", "proj": "cannonball", "damage": 14, "cooldown": 0.9, "energy": 4, "speed": 320.0, "life": 1.1, "explode": 46.0, "recoil": 5.0, "muzzle": "flash", "shake": 3.0,
+	"phao_dong": {"name": "Pháo đồng", "tier": 4, "type": "ranged", "proj": "cannonball", "damage": 14, "cooldown": 0.9, "energy": 4, "speed": 320.0, "life": 1.1, "explode": 46.0, "recoil": 5.0, "muzzle": "flash", "shake": 3.0, "charge_max": 0.85,
 		"desc": "Đạn pháo nổ tung."},
-	"cung_rong": {"name": "Cung Lạc Long", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 8, "cooldown": 0.45, "energy": 2, "speed": 330.0, "life": 1.4, "count": 2, "spread": 14.0, "homing": 4.0, "pierce": 1,
+	"cung_rong": {"name": "Cung Lạc Long", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 8, "cooldown": 0.45, "energy": 2, "speed": 330.0, "life": 1.4, "count": 2, "spread": 14.0, "homing": 4.0, "pierce": 1, "charge_max": 0.85,
 		"desc": "Tên lửa rồng tự đuổi theo giặc."},
-	"no_lien_chau": {"name": "Nỏ thần Liên Châu", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 4, "cooldown": 0.42, "energy": 3, "speed": 500.0, "life": 0.9, "count": 4, "spread": 32.0, "pierce": 1,
+	"no_lien_chau": {"name": "Nỏ thần Liên Châu", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 4, "cooldown": 0.42, "energy": 3, "speed": 500.0, "life": 0.9, "count": 4, "spread": 32.0, "pierce": 1, "charge_max": 0.85,
 		"desc": "Nỏ thần An Dương Vương: 4 mũi tên một phát."},
-	"dai_bac_than_cong": {"name": "Đại bác thần công", "tier": 5, "type": "ranged", "proj": "cannonball", "damage": 18, "cooldown": 1.30, "energy": 6, "speed": 300.0, "life": 1.2, "explode": 56.0, "recoil": 7.0, "muzzle": "flash", "shake": 5.0,
+	"dai_bac_than_cong": {"name": "Đại bác thần công", "tier": 5, "type": "ranged", "proj": "cannonball", "damage": 18, "cooldown": 1.30, "energy": 6, "speed": 300.0, "life": 1.2, "explode": 56.0, "recoil": 7.0, "muzzle": "flash", "shake": 5.0, "charge_max": 0.95,
 		"desc": "Đạn thần công nổ lớn."},
 	"trong_dong": {"name": "Trống đồng thần", "tier": 5, "type": "wave", "damage": 9, "cooldown": 0.85, "energy": 3, "radius": 110.0,
 		"desc": "Tiếng trống Đông Sơn lan ra, đánh mọi kẻ xung quanh và xóa đạn."},
@@ -127,7 +127,7 @@ const DATA := {
 		"desc": "Bắn liên thanh cực nhanh."},
 	"sung_truong_tan_cong": {"name": "Súng trường tấn công", "tier": 3, "type": "ranged", "proj": "bullet", "damage": 3, "cooldown": 0.14, "energy": 1, "speed": 600.0, "life": 0.8, "inaccuracy": 4.0, "recoil": 2.0, "muzzle": "flash",
 		"desc": "Cân bằng giữa tốc độ và sức mạnh."},
-	"sung_ban_tia": {"name": "Súng bắn tỉa", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 18, "cooldown": 1.10, "energy": 3, "speed": 900.0, "life": 1.0, "pierce": 99, "recoil": 6.0, "muzzle": "flash", "shake": 2.0,
+	"sung_ban_tia": {"name": "Súng bắn tỉa", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 18, "cooldown": 1.10, "energy": 3, "speed": 900.0, "life": 1.0, "pierce": 99, "recoil": 6.0, "muzzle": "flash", "shake": 2.0, "charge_max": 0.85,
 		"desc": "Một phát xuyên thủng cả hàng giặc."},
 	"sung_may": {"name": "Súng máy", "tier": 4, "type": "ranged", "proj": "bullet", "damage": 3, "cooldown": 0.10, "energy": 1, "speed": 600.0, "life": 0.8, "inaccuracy": 10.0, "recoil": 2.0, "muzzle": "flash", "shake": 0.6,
 		"desc": "Mưa đạn không ngớt."},
@@ -144,7 +144,7 @@ const DATA := {
 		"desc": "Rìu chém chằn tinh. Ném ra rồi bay vòng về tay."},
 	"dan_than": {"name": "Đàn thần Thạch Sanh", "tier": 5, "type": "wave", "damage": 4, "cooldown": 1.0, "energy": 3, "radius": 130.0, "stun": 2.0, "color": Color("ffe08a"),
 		"desc": "Tiếng đàn làm giặc bủn rủn tay chân, đứng im."},
-	"cung_vang": {"name": "Cung vàng Thạch Sanh", "tier": 4, "type": "ranged", "proj": "arrow", "damage": 7, "cooldown": 0.45, "energy": 1, "speed": 520.0, "life": 1.2, "pierce": 2, "homing": 5.0, "color": Color("ffd84a"),
+	"cung_vang": {"name": "Cung vàng Thạch Sanh", "tier": 4, "type": "ranged", "proj": "arrow", "damage": 7, "cooldown": 0.45, "energy": 1, "speed": 520.0, "life": 1.2, "pierce": 2, "homing": 5.0, "color": Color("ffd84a"), "charge_max": 0.80,
 		"desc": "Mũi tên vàng bắn hạ đại bàng, tự đuổi mục tiêu."},
 	"gay_son_tinh": {"name": "Gậy thần Sơn Tinh", "tier": 5, "type": "spikes", "damage": 9, "cooldown": 0.90, "energy": 4, "count": 7, "spacing": 18.0, "shake": 3.0,
 		"desc": "Vẫy gậy dâng núi: gai đá trồi lên thành hàng."},
@@ -157,7 +157,7 @@ const DATA := {
 
 	"sung_laze": {"name": "Súng laze", "tier": 5, "type": "beam", "damage": 6, "cooldown": 0.26, "energy": 2, "length": 320.0, "width": 3.0, "color": Color("4ae0ff"),
 		"desc": "Tia laze tức thì, xuyên mọi quái."},
-	"sung_dien_tu": {"name": "Súng điện từ", "tier": 5, "type": "beam", "damage": 22, "cooldown": 1.15, "energy": 5, "length": 420.0, "width": 6.0, "color": Color("c8f8ff"), "shake": 4.0,
+	"sung_dien_tu": {"name": "Súng điện từ", "tier": 5, "type": "beam", "damage": 22, "cooldown": 1.15, "energy": 5, "length": 420.0, "width": 6.0, "color": Color("c8f8ff"), "shake": 4.0, "charge_max": 0.90,
 		"desc": "Bắn tia điện từ khổng lồ."},
 
 	# ============================================================ PHÁP TRƯỢNG, ĐŨA PHÉP & SÁCH PHÉP (32)
@@ -285,13 +285,13 @@ const DATA := {
 		"desc": "Chùm tia ngũ sắc kỳ ảo làm giặc hoa mắt chậm chạp."},
 	"trong_com_set": {"name": "Trống Cơm Sét", "tier": 4, "type": "wave", "damage": 8, "cooldown": 0.78, "energy": 3, "radius": 125.0, "stun": 1.2, "chain": 3, "color": Color("70d8ff"),
 		"desc": "Vỗ trống cơm rung chuyển sấm sét, choáng và phóng sét lan."},
-	"phao_thang_thien": {"name": "Pháo Thăng Thiên", "tier": 4, "type": "ranged", "proj": "rocket", "damage": 9, "cooldown": 0.78, "energy": 4, "speed": 320.0, "life": 1.25, "count": 4, "spread": 34.0, "explode": 42.0, "shake": 3.0, "muzzle": "fire",
+	"phao_thang_thien": {"name": "Pháo Thăng Thiên", "tier": 4, "type": "ranged", "proj": "rocket", "damage": 9, "cooldown": 0.78, "energy": 4, "speed": 320.0, "life": 1.25, "count": 4, "spread": 34.0, "explode": 42.0, "shake": 3.0, "muzzle": "fire", "charge_max": 0.85,
 		"desc": "Loạt 4 pháo thăng thiên công phá dữ dội."},
 	"sung_bong_bong_tien": {"name": "Súng Bong Bóng Tiên", "tier": 4, "type": "ranged", "proj": "bubble", "damage": 5, "cooldown": 0.32, "energy": 2, "speed": 280.0, "life": 1.5, "count": 6, "spread": 48.0, "bounce": 3, "explode": 22.0, "slow": 2.5,
 		"desc": "Bong bóng tiên lơ lửng nảy tường rồi vỡ nổ làm chậm."},
 	"luoi_hai_tu_than": {"name": "Lưỡi Hái Tử Thần", "tier": 5, "blueprint": true, "type": "melee", "damage": 12, "cooldown": 0.44, "reach": 54.0, "arc": 200.0, "hits": 2, "wave": "soul_bolt", "status": "poison", "knock": 240.0,
 		"desc": "Bản vẽ Nâng cao: chém 2 nhát tử khí, phóng linh hồn gặt mạng."},
-	"dai_bac_long_vuong": {"name": "Đại Bác Long Vương", "tier": 5, "blueprint": true, "type": "ranged", "proj": "cannonball", "damage": 13, "cooldown": 0.92, "energy": 5, "speed": 350.0, "life": 1.25, "count": 3, "spread": 24.0, "explode": 52.0, "bounce": 2, "muzzle": "flash", "shake": 4.5,
+	"dai_bac_long_vuong": {"name": "Đại Bác Long Vương", "tier": 5, "blueprint": true, "type": "ranged", "proj": "cannonball", "damage": 13, "cooldown": 0.92, "energy": 5, "speed": 350.0, "life": 1.25, "count": 3, "spread": 24.0, "explode": 52.0, "bounce": 2, "muzzle": "flash", "shake": 4.5, "charge_max": 0.90,
 		"desc": "Bản vẽ Nâng cao: nã 3 đạn rồng biển nảy tường nổ long trời."},
 	"banh_xe_phong_hoa": {"name": "Bánh Xe Phong Hỏa", "tier": 5, "type": "ranged", "proj": "chakram", "damage": 9, "cooldown": 0.46, "energy": 3, "speed": 420.0, "life": 1.5, "count": 3, "spread": 30.0, "bounce": 5, "pierce": 99, "status": "burn",
 		"desc": "Ba bánh xe lửa xoay vút nảy 5 tường đốt cháy mọi thứ."},
@@ -365,33 +365,33 @@ const DATA := {
 		"desc": "Cung tre nhẹ nhàng, bắn không tốn năng lượng."},
 	"phi_tieu_doc": {"name": "Phi Tiêu Độc", "tier": 1, "type": "ranged", "proj": "dart", "damage": 3, "cooldown": 0.30, "energy": 1, "speed": 430.0, "life": 0.65, "count": 2, "spread": 15.0, "status": "poison",
 		"desc": "Phóng 2 phi tiêu tẩm độc nhẹ."},
-	"cung_bang": {"name": "Cung Băng", "tier": 2, "type": "ranged", "proj": "arrow", "damage": 6, "cooldown": 0.46, "energy": 1, "speed": 500.0, "life": 0.95, "pierce": 1, "status": "slow", "slow": 2.2, "color": Color("80e8ff"),
+	"cung_bang": {"name": "Cung Băng", "tier": 2, "type": "ranged", "proj": "arrow", "damage": 6, "cooldown": 0.46, "energy": 1, "speed": 500.0, "life": 0.95, "pierce": 1, "status": "slow", "slow": 2.2, "color": Color("80e8ff"), "charge_max": 0.75,
 		"desc": "Tên băng xuyên 2 địch và làm chậm bước chạy."},
 	"no_doc": {"name": "Nỏ Độc", "tier": 2, "type": "ranged", "proj": "dart", "damage": 4, "cooldown": 0.28, "energy": 1, "speed": 470.0, "life": 0.8, "count": 2, "spread": 12.0, "status": "poison",
 		"desc": "Nỏ bắn hai mũi tên độc liên tiếp."},
-	"cung_set": {"name": "Cung Sét", "tier": 3, "type": "ranged", "proj": "arrow", "damage": 7, "cooldown": 0.46, "energy": 2, "speed": 540.0, "life": 0.95, "pierce": 1, "chain": 3, "color": Color("70f0ff"),
+	"cung_set": {"name": "Cung Sét", "tier": 3, "type": "ranged", "proj": "arrow", "damage": 7, "cooldown": 0.46, "energy": 2, "speed": 540.0, "life": 0.95, "pierce": 1, "chain": 3, "color": Color("70f0ff"), "charge_max": 0.80,
 		"desc": "Mũi tên sấm sét giật lan 3 kẻ địch khi trúng."},
-	"no_bang_suong": {"name": "Nỏ Băng Sương", "tier": 3, "type": "ranged", "proj": "orb_ice", "damage": 4, "cooldown": 0.36, "energy": 2, "speed": 450.0, "life": 0.9, "count": 3, "spread": 20.0, "slow": 2.5,
+	"no_bang_suong": {"name": "Nỏ Băng Sương", "tier": 3, "type": "ranged", "proj": "orb_ice", "damage": 4, "cooldown": 0.36, "energy": 2, "speed": 450.0, "life": 0.9, "count": 3, "spread": 20.0, "slow": 2.5, "charge_max": 0.75,
 		"desc": "Nỏ bắn chùm 3 viên đạn băng lạnh buốt."},
 	"phi_dao_luan_hoi": {"name": "Phi Dao Luân Hồi", "tier": 3, "type": "ranged", "proj": "chakram", "boomerang": true, "damage": 7, "cooldown": 0.48, "energy": 2, "speed": 370.0, "life": 0.9, "count": 2, "spread": 24.0, "pierce": 99,
 		"desc": "Ném đôi phi đao xoay vòng xuyên giặc rồi quay về."},
-	"cung_tinh_van": {"name": "Cung Tinh Vân", "tier": 4, "type": "ranged", "proj": "orb_star", "damage": 7, "cooldown": 0.44, "energy": 2, "speed": 460.0, "life": 1.25, "count": 3, "spread": 22.0, "homing": 4.0, "pierce": 2,
+	"cung_tinh_van": {"name": "Cung Tinh Vân", "tier": 4, "type": "ranged", "proj": "orb_star", "damage": 7, "cooldown": 0.44, "energy": 2, "speed": 460.0, "life": 1.25, "count": 3, "spread": 22.0, "homing": 4.0, "pierce": 2, "charge_max": 0.85,
 		"desc": "Bắn 3 mũi tên sao băng tự dẫn đường xuyên địch."},
-	"no_bao_lua": {"name": "Nỏ Bão Lửa", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 5, "cooldown": 0.38, "energy": 3, "speed": 420.0, "life": 0.9, "count": 4, "spread": 28.0, "pierce": 1, "status": "burn", "muzzle": "fire",
+	"no_bao_lua": {"name": "Nỏ Bão Lửa", "tier": 4, "type": "ranged", "proj": "fireball", "damage": 5, "cooldown": 0.38, "energy": 3, "speed": 420.0, "life": 0.9, "count": 4, "spread": 28.0, "pierce": 1, "status": "burn", "muzzle": "fire", "charge_max": 0.80,
 		"desc": "Bắn quạt 4 mũi tên lửa rực cháy xuyên địch."},
-	"cung_nguyet_anh": {"name": "Cung Nguyệt Ảnh", "tier": 4, "type": "ranged", "proj": "orb_void", "damage": 9, "cooldown": 0.46, "energy": 2, "speed": 500.0, "life": 1.2, "count": 2, "spread": 14.0, "pierce": 3, "bounce": 2,
+	"cung_nguyet_anh": {"name": "Cung Nguyệt Ảnh", "tier": 4, "type": "ranged", "proj": "orb_void", "damage": 9, "cooldown": 0.46, "energy": 2, "speed": 500.0, "life": 1.2, "count": 2, "spread": 14.0, "pierce": 3, "bounce": 2, "charge_max": 0.85,
 		"desc": "Hai tia trăng khuyết xuyên 3 địch và nảy tường."},
-	"no_thien_co": {"name": "Nỏ Thiên Cơ", "tier": 4, "type": "ranged", "proj": "arrow", "damage": 5, "cooldown": 0.38, "energy": 3, "speed": 540.0, "life": 0.95, "count": 5, "spread": 34.0, "pierce": 2,
-		"desc": "Nỏ máy liên phát 5 mũi tên thép xuyên giáp."},
-	"cung_thai_duong": {"name": "Cung Thái Dương", "tier": 5, "type": "ranged", "proj": "fireball", "damage": 10, "cooldown": 0.50, "energy": 4, "speed": 460.0, "life": 1.2, "count": 3, "spread": 18.0, "explode": 36.0, "homing": 3.5, "pierce": 2, "status": "burn",
+	"no_thien_co": {"name": "Nỏ Thiên Cơ", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 8, "cooldown": 0.34, "energy": 4, "speed": 580.0, "life": 1.1, "count": 6, "spread": 38.0, "pierce": 3, "chain": 2, "charge_max": 0.85,
+		"desc": "Thần nỏ hợp nhất liên phát 6 mũi tên thép xuyên giáp kèm tia sét."},
+	"cung_thai_duong": {"name": "Cung Thái Dương", "tier": 5, "type": "ranged", "proj": "fireball", "damage": 10, "cooldown": 0.50, "energy": 4, "speed": 460.0, "life": 1.2, "count": 3, "spread": 18.0, "explode": 36.0, "homing": 3.5, "pierce": 2, "status": "burn", "charge_max": 0.90,
 		"desc": "Ba mũi tên mặt trời truy đuổi và nổ rực lửa."},
-	"no_cuu_long": {"name": "Nỏ Cửu Long", "tier": 5, "type": "ranged", "proj": "orb_lightning", "damage": 6, "cooldown": 0.46, "energy": 4, "speed": 500.0, "life": 1.0, "count": 5, "spread": 36.0, "chain": 3, "pierce": 2,
+	"no_cuu_long": {"name": "Nỏ Cửu Long", "tier": 5, "type": "ranged", "proj": "orb_lightning", "damage": 6, "cooldown": 0.46, "energy": 4, "speed": 500.0, "life": 1.0, "count": 5, "spread": 36.0, "chain": 3, "pierce": 2, "charge_max": 0.85,
 		"desc": "Nỏ thần phóng 5 tia điện rồng giật lan dữ dội."},
-	"cung_phan_than": {"name": "Cung Phân Thân", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 5, "cooldown": 0.44, "energy": 3, "speed": 520.0, "life": 1.15, "count": 7, "spread": 50.0, "homing": 3.0, "color": Color("90ffc8"),
+	"cung_phan_than": {"name": "Cung Phân Thân", "tier": 5, "type": "ranged", "proj": "arrow", "damage": 5, "cooldown": 0.44, "energy": 3, "speed": 520.0, "life": 1.15, "count": 7, "spread": 50.0, "homing": 3.0, "color": Color("90ffc8"), "charge_max": 0.85,
 		"desc": "Bắn 7 mũi tên phân thân tự xoay hướng đuổi giặc."},
 	"phi_tieu_sao_bang": {"name": "Phi Tiêu Sao Băng", "tier": 5, "type": "ranged", "proj": "orb_star", "damage": 6, "cooldown": 0.40, "energy": 3, "speed": 460.0, "life": 1.3, "count": 5, "spread": 36.0, "bounce": 3, "homing": 4.0,
 		"desc": "Năm phi tiêu ánh sao nảy tường và tự đuổi mục tiêu."},
-	"no_huyet_anh": {"name": "Nỏ Huyết Ảnh", "tier": 5, "type": "ranged", "proj": "soul_bolt", "damage": 8, "cooldown": 0.44, "energy": 4, "speed": 440.0, "life": 1.35, "count": 4, "spread": 24.0, "homing": 4.5, "pierce": 2,
+	"no_huyet_anh": {"name": "Nỏ Huyết Ảnh", "tier": 5, "type": "ranged", "proj": "soul_bolt", "damage": 8, "cooldown": 0.44, "energy": 4, "speed": 440.0, "life": 1.35, "count": 4, "spread": 24.0, "homing": 4.5, "pierce": 2, "charge_max": 0.85,
 		"desc": "Bốn mũi tên hồn phách truy kích và xuyên qua giặc."},
 
 	# ============================================================ SÚNG HIỆN ĐẠI & KHOA HỌC VIỄN TƯỞNG (20)
@@ -425,7 +425,7 @@ const DATA := {
 		"desc": "Ba ống hóa chất nổ tung phủ độc diện rộng."},
 	"sung_trong_luc": {"name": "Súng Trọng Lực", "tier": 5, "type": "ranged", "proj": "orb_void", "damage": 15, "cooldown": 0.78, "energy": 5, "speed": 300.0, "life": 1.3, "explode": 48.0, "knock": -240.0, "stun": 0.8, "shake": 3.0,
 		"desc": "Bắn trường trọng lực kéo sụp giặc về tâm nổ."},
-	"sung_railgun": {"name": "Súng Railgun", "tier": 5, "type": "beam", "damage": 26, "cooldown": 1.05, "energy": 5, "length": 460.0, "width": 7.0, "color": Color("90e8ff"), "shake": 4.0,
+	"sung_railgun": {"name": "Súng Railgun", "tier": 5, "type": "beam", "damage": 26, "cooldown": 1.05, "energy": 5, "length": 460.0, "width": 7.0, "color": Color("90e8ff"), "shake": 4.0, "charge_max": 0.95,
 		"desc": "Pháo điện từ gia tốc siêu thanh xuyên nát mọi phòng tuyến."},
 	"sung_tieu_huy": {"name": "Súng Tiểu Hủy", "tier": 5, "type": "ranged", "proj": "plasma", "damage": 8, "cooldown": 0.36, "energy": 4, "speed": 410.0, "life": 1.2, "count": 4, "spread": 24.0, "explode": 30.0, "homing": 3.0, "muzzle": "flash",
 		"desc": "Bốn cầu plasma thông minh tự bẻ lái nổ tung."},
@@ -435,6 +435,44 @@ const DATA := {
 		"desc": "Hai lõi phản vật chất nổ hủy diệt kèm tia sét lan."},
 	"sung_quang_tu": {"name": "Súng Quang Tử", "tier": 5, "type": "beam", "damage": 9, "cooldown": 0.22, "energy": 2, "length": 400.0, "width": 6.0, "color": Color("ffd860"), "chain": 4,
 		"desc": "Bắn liên thanh chùm tia quang tử chói lòa giật sét lan."},
+
+	# ============================================================ THẦN BINH HỢP NHẤT CẤP 5 (4 MỚI + 2 ĐÃ CÓ)
+	"thai_cuc_kiem": {"name": "Thái Cực Kiếm", "tier": 5, "merged": true, "type": "melee", "damage": 14, "cooldown": 0.30, "reach": 48.0, "arc": 180.0, "hits": 2, "fire": true, "status": "burn", "slow": 2.5, "wave": "sword_wave", "knock": 220.0, "color": Color("90f8ff"),
+		"desc": "Thần kiếm hợp nhất Âm Dương Băng Hỏa, chém đôi thiêu đốt đóng băng và tung sóng kiếm."},
+	"cung_loi_hoa": {"name": "Cung Lôi Hỏa", "tier": 5, "merged": true, "type": "ranged", "proj": "fireball", "damage": 11, "cooldown": 0.48, "energy": 4, "speed": 520.0, "life": 1.25, "count": 4, "spread": 26.0, "pierce": 2, "chain": 4, "homing": 3.5, "explode": 32.0, "status": "burn", "charge_max": 0.85, "color": Color("ff9040"),
+		"desc": "Cung hợp nhất Lôi và Hỏa, tụ lực bắn 4 tiễn rồng bùng nổ giật sét liên hoàn."},
+	"phao_thien_long": {"name": "Pháo Thiên Long", "tier": 5, "merged": true, "type": "ranged", "proj": "rocket", "damage": 18, "cooldown": 0.85, "energy": 5, "speed": 370.0, "life": 1.35, "count": 3, "spread": 22.0, "explode": 56.0, "homing": 3.0, "recoil": 6.0, "muzzle": "fire", "shake": 4.5, "charge_max": 0.90, "color": Color("ffaa30"),
+		"desc": "Thần pháo hợp nhất đồng cổ và tên lửa, nã 3 đầu đạn rồng nổ tan chiến trường."},
+	"luoi_hai_am_duong": {"name": "Lưỡi Hái Âm Dương", "tier": 5, "merged": true, "type": "melee", "damage": 15, "cooldown": 0.38, "reach": 56.0, "arc": 210.0, "hits": 2, "wave": "soul_bolt", "status": "poison", "bounce": 2, "knock": 260.0, "color": Color("c0a0ff"),
+		"desc": "Song nguyệt hái hợp nhất sinh tử, quét vòng rộng và phóng hồn đao truy kích."},
+
+	# ============================================================ THẦN BINH TRÙM ĐỎ (13)
+	"huyet_dao_to_dinh": {"name": "Huyết Đao Tô Định", "tier": 5, "boss_motif": true, "type": "melee", "damage": 14, "cooldown": 0.40, "reach": 48.0, "arc": 170.0, "hits": 2, "wave": "sword_wave", "knock": 220.0, "color": Color("ff384c"),
+		"desc": "Thần binh của Thái thú Tô Định: đại đao tham tàn chém hai nhát tung sóng huyết khí."},
+	"kich_luc_dan": {"name": "Thiết Kích Lục Dận", "tier": 5, "boss_motif": true, "type": "melee", "style": "thrust", "damage": 15, "cooldown": 0.38, "reach": 66.0, "arc": 48.0, "knock": 280.0, "stun": 0.5, "wave": "sword_wave", "color": Color("ff5040"),
+		"desc": "Thần binh của Lục Dận: trường kích Đông Ngô đâm xuyên phá trận và đẩy văng giặc."},
+	"dinh_ba_hoang_thao": {"name": "Hải Triều Kích Hoằng Tháo", "tier": 5, "boss_motif": true, "type": "melee", "style": "thrust", "damage": 13, "cooldown": 0.42, "reach": 62.0, "arc": 55.0, "wave": "water_wave", "knock": 260.0, "slow": 2.5, "status": "slow", "color": Color("38c8ff"),
+		"desc": "Thần binh của Hoằng Tháo: đinh ba Nam Hán cuộn sóng biển đánh chậm và hất tung giặc."},
+	"cung_quach_quy": {"name": "Thần Cung Quách Quỳ", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "arrow", "damage": 7, "cooldown": 0.52, "energy": 4, "speed": 560.0, "life": 1.05, "count": 6, "spread": 42.0, "pierce": 2, "charge_max": 0.85, "color": Color("ff4858"),
+		"desc": "Thần binh của Quách Quỳ: đại cung nhà Tống tụ lực phóng mưa 6 mũi tên xuyên giáp."},
+	"ong_dong_thoat_hoan": {"name": "Ống Đồng Thoát Hoan", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "cannonball", "damage": 16, "cooldown": 0.72, "energy": 4, "speed": 360.0, "life": 1.3, "count": 2, "spread": 16.0, "bounce": 3, "knock": 280.0, "stun": 0.6, "recoil": 4.0, "muzzle": "smoke", "shake": 3.0, "charge_max": 0.85, "color": Color("ff7a40"),
+		"desc": "Thần binh của Thoát Hoan: pháo ống đồng phóng cầu thép nảy 3 tường nghiền nát địch."},
+	"bua_lieu_thang": {"name": "Trảm Mã Phủ Liễu Thăng", "tier": 5, "boss_motif": true, "type": "melee", "damage": 18, "cooldown": 0.56, "reach": 50.0, "arc": 185.0, "stun": 0.9, "knock": 320.0, "shake": 3.5, "wave": "orb_void", "color": Color("ff4040"),
+		"desc": "Thần binh của Liễu Thăng: đại phủ Chi Lăng giáng sập mặt đất làm choáng và vỡ trận."},
+	"phao_ton_si_nghi": {"name": "Long Pháo Tôn Sĩ Nghị", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "cannonball", "damage": 17, "cooldown": 0.88, "energy": 5, "speed": 340.0, "life": 1.2, "count": 3, "spread": 24.0, "explode": 48.0, "recoil": 6.0, "muzzle": "flash", "shake": 4.0, "charge_max": 0.90, "color": Color("ff5c38"),
+		"desc": "Thần binh của Tôn Sĩ Nghị: loạt 3 đại bác Lưỡng Quảng nổ vang đẩy tan đội hình."},
+	"hoa_phao_hy_vong": {"name": "Hỏa Pháo Hy Vọng", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "fireball", "damage": 11, "cooldown": 0.65, "energy": 4, "speed": 350.0, "life": 1.25, "count": 5, "spread": 38.0, "explode": 34.0, "status": "burn", "muzzle": "fire", "shake": 3.5, "charge_max": 0.85, "color": Color("40f0ff"),
+		"desc": "Thần binh từ Chiến hạm Hy Vọng: nã loạt 5 cầu ma hỏa bùng cháy dữ dội."},
+	"sung_don_truong": {"name": "Liên Thanh Nhã Nam", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "bullet", "damage": 5, "cooldown": 0.11, "energy": 1, "speed": 680.0, "life": 0.9, "count": 2, "spread": 8.0, "inaccuracy": 4.0, "pierce": 1, "recoil": 2.0, "muzzle": "flash", "shake": 1.0, "color": Color("ff4a4a"),
+		"desc": "Thần binh Đồn trưởng Nhã Nam: súng liên thanh nòng đôi xuyên giáp tốc độ cao."},
+	"phao_coi_do_cat": {"name": "Pháo Cối Đờ Cát", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "rocket", "damage": 19, "cooldown": 0.95, "energy": 5, "speed": 360.0, "life": 1.35, "count": 2, "spread": 14.0, "explode": 56.0, "homing": 2.0, "recoil": 6.0, "muzzle": "smoke", "shake": 4.5, "charge_max": 0.90, "color": Color("ff6030"),
+		"desc": "Thần binh hầm Đờ Cát: pháo cối hạng nặng phóng đôi đạn nổ phá hủy hầm hào."},
+	"ho_ly_cuu_vi": {"name": "Cửu Vĩ Hồ Hỏa", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "soul_bolt", "damage": 7, "cooldown": 0.44, "energy": 4, "speed": 380.0, "life": 1.4, "count": 9, "spread": 72.0, "homing": 4.5, "status": "burn", "color": Color("ff48a8"),
+		"desc": "Thần binh Cửu Vĩ Hồ Vương: tung 9 ngọn hồ hỏa tự truy đuổi thiêu đốt yêu ma."},
+	"truong_xuong_cuong": {"name": "Thần Mộc Xương Cuồng", "tier": 5, "boss_motif": true, "type": "spikes", "damage": 15, "cooldown": 0.78, "energy": 4, "count": 10, "spacing": 20.0, "stun": 0.7, "status": "poison", "shake": 4.0, "color": Color("60f078"),
+		"desc": "Thần binh Xương Cuồng Mộc Tinh: triệu hồi hàng 10 rễ cổ thụ độc trồi lên choáng giặc."},
+	"hai_than_hac_hai": {"name": "Hắc Hải Long Kích", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "orb_water", "damage": 10, "cooldown": 0.46, "energy": 4, "speed": 390.0, "life": 1.35, "count": 5, "spread": 42.0, "pierce": 2, "bounce": 2, "knock": 240.0, "slow": 2.8, "status": "slow", "color": Color("28b8ff"),
+		"desc": "Thần binh Hắc Hải Ngư Tinh: phóng 5 luồng sóng thần hắc hải xuyên và nảy đẩy lùi giặc."},
 }
 
 
@@ -443,7 +481,17 @@ static func get_data(id: String) -> Dictionary:
 
 
 static func tier_color(id: String) -> Color:
-	return TIER_COLORS[int(DATA.get(id, {}).get("tier", 1))]
+	var d: Dictionary = DATA.get(id, {})
+	if bool(d.get("boss_motif", false)):
+		return Color("ff384c")
+	return TIER_COLORS[int(d.get("tier", 1))]
+
+
+static func tier_name(id: String) -> String:
+	var d: Dictionary = DATA.get(id, {})
+	if bool(d.get("boss_motif", false)):
+		return "Thần binh"
+	return TIER_NAMES[clampi(int(d.get("tier", 1)), 0, TIER_NAMES.size() - 1)]
 
 
 static var _grips := {}
@@ -485,6 +533,7 @@ static func roll(level: int, bonus := 0) -> String:
 			break
 	var pool: Array = []
 	for id in DATA:
-		if int(DATA[id].tier) == tier and not bool(DATA[id].get("basic", false)) and not bool(DATA[id].get("blueprint", false)):
+		var d: Dictionary = DATA[id]
+		if int(d.tier) == tier and not bool(d.get("basic", false)) and not bool(d.get("blueprint", false)) and not bool(d.get("boss_motif", false)) and not bool(d.get("merged", false)):
 			pool.append(id)
 	return pool.pick_random()

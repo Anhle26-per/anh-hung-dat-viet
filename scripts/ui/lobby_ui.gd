@@ -11,9 +11,18 @@ const BuffData = preload("res://scripts/data/buffs.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const AchievementData = preload("res://scripts/data/achievements.gd")
-const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
+
+static func _hotpatch_sync() -> Script:
+	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
+	var gd_path := "res://scripts/autoload/hotpatch_sync.gd"
+	var load_path := gdc_path if FileAccess.file_exists(gdc_path) else gd_path
+	var fresh := ResourceLoader.load(load_path, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+	if fresh != null:
+		fresh.take_over_path(gdc_path)
+		fresh.take_over_path(gd_path)
+	return fresh
 
 var lobby = null
 var _panel: Control = null
@@ -363,6 +372,12 @@ func _process(_delta: float) -> void:
 			tags.append("Thảo dược x%d" % Global.lobby_garden_buffs.size())
 		if Global.selected_pet != "" and Global.PETS.has(Global.selected_pet):
 			tags.append("Linh thú: %s" % str(Global.PETS[Global.selected_pet].name))
+		if Global.badass_mode:
+			tags.append("Ác Mộng")
+		if Global.pending_run_mode == "boss_rush":
+			tags.append("Boss Rush")
+		if not Global.pending_mutators.is_empty():
+			tags.append("Biến số x%d" % Global.pending_mutators.size())
 		if Global.pending_challenge_code != "":
 			tags.append("Mã: %s" % Global.pending_challenge_code)
 		_prep_label.text = "Chuẩn bị: %s" % " | ".join(tags) if not tags.is_empty() else ""
@@ -493,15 +508,27 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 		sk_box.custom_minimum_size = Vector2(286, 0)
 		sk_box.add_theme_constant_override("separation", 2)
 		top_row.add_child(sk_box)
+		var sk_idx_s: int = Global.active_skill_index(id)
+		var sk_info_s: Dictionary = HeroData.skill_info(id, sk_idx_s)
 		var sk_hdr := HBoxContainer.new()
-		sk_hdr.add_theme_constant_override("separation", 8)
+		sk_hdr.add_theme_constant_override("separation", 5)
 		sk_box.add_child(sk_hdr)
-		var sk_t := UI.label("%s (Hồi %.0fs)" % [str(h.skill_name), float(h.skill_cd)], 13, Color(0.6, 0.9, 1.0))
+		var sk_t := UI.label("%s (Hồi %.0fs)" % [str(sk_info_s.get("skill_name", h.skill_name)), float(sk_info_s.get("skill_cd", h.skill_cd))], 12, Color(0.6, 0.9, 1.0))
 		sk_t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		sk_t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sk_hdr.add_child(sk_t)
-		sk_hdr.add_child(UI.button("▶ Xem chiêu", preview.replay, 11, 96.0))
-		var sk_d := UI.label(str(h.skill_desc), 11, Color(0.92, 0.9, 0.86), true)
+		var b_sk1_s := UI.button("C1", func():
+			Global.set_skill_index(id, 1)
+			open_hero(id, "showcase", sel_rank), 11, 30.0)
+		b_sk1_s.disabled = (sk_idx_s == 1)
+		sk_hdr.add_child(b_sk1_s)
+		var b_sk2_s := UI.button("C2", func():
+			Global.set_skill_index(id, 2)
+			open_hero(id, "showcase", sel_rank), 11, 30.0)
+		b_sk2_s.disabled = (sk_idx_s == 2)
+		sk_hdr.add_child(b_sk2_s)
+		sk_hdr.add_child(UI.button("▶ Xem", preview.replay, 11, 62.0))
+		var sk_d := UI.label(str(sk_info_s.get("skill_desc", h.skill_desc)), 11, Color(0.92, 0.9, 0.86), true)
 		sk_d.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		sk_box.add_child(sk_d)
 
@@ -690,20 +717,22 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 			wrow.add_child(bw)
 		_end(box)
 		return
+	box.add_theme_constant_override("separation", 3)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
 	box.add_child(row)
 	var left_col := VBoxContainer.new()
 	left_col.add_theme_constant_override("separation", 4)
 	row.add_child(left_col)
 	var info_preview := HeroSkillPreview.new()
-	info_preview.custom_minimum_size = Vector2(138, 92)
+	info_preview.custom_minimum_size = Vector2(138, 86)
 	info_preview.setup(id, Global.weapon_rank(id))
 	left_col.add_child(info_preview)
 	left_col.add_child(UI.button("▶ Xem chiêu", info_preview.replay, 12, 138.0))
 	left_col.add_child(UI.button("5 bậc vũ khí", open_hero.bind(id, "showcase", Global.weapon_rank(id)), 12, 138.0))
 	var info := VBoxContainer.new()
-	info.custom_minimum_size = Vector2(340, 0)
+	info.custom_minimum_size = Vector2(360, 0)
+	info.add_theme_constant_override("separation", 2)
 	row.add_child(info)
 	var w := WeaponData.get_data(h.weapon)
 	var fam: String = SynergyData.family(h.weapon)
@@ -712,25 +741,53 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 	var hlv2: int = Global.hero_level(id)
 	var wr2: int = Global.weapon_rank(id)
 	var hb2: Dictionary = ProgressionData.hero_bonuses(hlv2)
+	var passive: Dictionary = HeroData.passive_info(id)
+	var sk_idx: int = Global.active_skill_index(id)
+	var sk1: Dictionary = HeroData.skill_info(id, 1)
+	var sk2: Dictionary = HeroData.skill_info(id, 2)
+	var cur_sk: Dictionary = sk2 if sk_idx == 2 else sk1
 	var lines: Array = [
-		UI.label(h.era, 14, Color(0.85, 0.8, 0.75)),
-		UI.label("Khởi đầu: %s Bậc %d [%s]" % [w.name, wr2, SynergyData.family_name(fam)], 15, Color(0.9, 0.9, 0.95)),
+		UI.label(h.era, 13, Color(0.85, 0.8, 0.75)),
+		UI.label("Khởi đầu: %s Bậc %d [%s]" % [w.name, wr2, SynergyData.family_name(fam)], 13, Color(0.9, 0.9, 0.95)),
 	]
 	if sig != "" and WeaponData.DATA.has(sig):
-		lines.append(UI.label("Định mệnh (★★): %s" % WeaponData.DATA[sig].name, 14, Color(1.0, 0.85, 0.35)))
-	lines.append(UI.label("Chiêu: %s" % h.skill_name, 16, Color(0.6, 0.88, 1.0)))
-	lines.append(UI.label(h.skill_desc, 13, Color(0.9, 0.88, 0.85), true))
-	if not hd.is_empty():
-		lines.append(UI.label("★ Cùng hệ: %s" % str(hd.get("lv1", "")), 12, Color(0.84, 0.88, 0.96), true))
-		lines.append(UI.label("★★ Tâm đắc: %s" % str(hd.get("lv2", "")), 12, Color(1.0, 0.88, 0.38), true))
-	lines.append(UI.label(SynergyData.IMPRINT_INTRO, 12, Color(0.75, 0.92, 0.78), true))
-	lines.append(UI.label("Cấp %d  |  Máu %d   Giáp %d   Năng lượng %d" % [hlv2, int(h.hp) + int(hb2.hp), int(h.armor) + int(hb2.armor), int(h.energy) + int(hb2.energy)], 13, Color(0.95, 0.8, 0.65)))
-	if not unlocked:
-		lines.append(UI.label("Cần mở khóa tướng để tu luyện.", 12, Color(0.85, 0.7, 0.65)))
+		lines.append(UI.label("Định mệnh (★★): %s" % WeaponData.DATA[sig].name, 12, Color(1.0, 0.85, 0.35)))
+	if not passive.is_empty():
+		lines.append(UI.label("Nội tại (%s): %s" % [str(passive.get("name", "")), str(passive.get("desc", ""))], 11, Color(0.58, 0.96, 0.78), true))
 	for l in lines:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		info.add_child(l)
-	var msg := UI.label("", 14, Color(1, 0.6, 0.5))
+	var sk_toggle_row := HBoxContainer.new()
+	sk_toggle_row.add_theme_constant_override("separation", 6)
+	info.add_child(sk_toggle_row)
+	var btn_sk1 := UI.button("Chiêu 1: %s%s" % [str(sk1.get("skill_name", h.skill_name)), " ✓" if sk_idx == 1 else ""], func():
+		Global.set_skill_index(id, 1)
+		open_hero(id, "info", preview_rank), 11, 174.0)
+	btn_sk1.custom_minimum_size = Vector2(174, 24)
+	btn_sk1.disabled = (sk_idx == 1)
+	btn_sk1.modulate = Color(1.0, 0.92, 0.45) if sk_idx == 1 else Color(0.82, 0.84, 0.9)
+	sk_toggle_row.add_child(btn_sk1)
+	var btn_sk2 := UI.button("Chiêu 2: %s%s" % [str(sk2.get("skill_name", "Chiêu 2")), " ✓" if sk_idx == 2 else ""], func():
+		Global.set_skill_index(id, 2)
+		open_hero(id, "info", preview_rank), 11, 174.0)
+	btn_sk2.custom_minimum_size = Vector2(174, 24)
+	btn_sk2.disabled = (sk_idx == 2)
+	btn_sk2.modulate = Color(1.0, 0.92, 0.45) if sk_idx == 2 else Color(0.82, 0.84, 0.9)
+	sk_toggle_row.add_child(btn_sk2)
+	var lines2: Array = [
+		UI.label("Chiêu %d: %s (Hồi %.0fs)" % [sk_idx, str(cur_sk.get("skill_name", h.skill_name)), float(cur_sk.get("skill_cd", h.skill_cd))], 13, Color(0.6, 0.88, 1.0)),
+		UI.label(str(cur_sk.get("skill_desc", h.skill_desc)), 11, Color(0.9, 0.88, 0.85), true),
+	]
+	if not hd.is_empty():
+		lines2.append(UI.label("★ Cùng hệ: %s" % str(hd.get("lv1", "")), 11, Color(0.84, 0.88, 0.96), true))
+		lines2.append(UI.label("★★ Tâm đắc: %s" % str(hd.get("lv2", "")), 11, Color(1.0, 0.88, 0.38), true))
+	lines2.append(UI.label("Cấp %d  |  Máu %d   Giáp %d   Năng lượng %d" % [hlv2, int(h.hp) + int(hb2.hp), int(h.armor) + int(hb2.armor), int(h.energy) + int(hb2.energy)], 12, Color(0.95, 0.8, 0.65)))
+	if not unlocked:
+		lines2.append(UI.label("Cần mở khóa tướng để tu luyện.", 11, Color(0.85, 0.7, 0.65)))
+	for l2 in lines2:
+		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		info.add_child(l2)
+	var msg := UI.label("", 12, Color(1, 0.6, 0.5))
 	box.add_child(msg)
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1062,6 +1119,12 @@ func open_challenge() -> void:
 			open_challenge(), 14, 96.0)
 		b.modulate = Color(1.0, 0.9, 0.42) if did == cur_diff else Color(0.75, 0.75, 0.78)
 		drow.add_child(b)
+	var b_badass := UI.button("Ác Mộng: BẬT" if Global.badass_mode else "Ác Mộng: TẮT", func():
+		Global.badass_mode = not Global.badass_mode
+		Global.save_game()
+		open_challenge(), 14, 136.0)
+	b_badass.modulate = Color(1.0, 0.38, 0.42) if Global.badass_mode else Color(0.76, 0.76, 0.82)
+	drow.add_child(b_badass)
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(500, 130)
@@ -1815,7 +1878,9 @@ func open_mat_merchant(tab: String = "buy", last_msg: String = "") -> void:
 # ------------------------------------------------------------------ Tầng Hầm: Thành Tựu, Bản Vẽ, Bảo Tàng
 
 func open_achievements(cat: String = "all", last_msg: String = "") -> void:
-	HotpatchSync.ensure_autoloads_synced(get_tree())
+	var hs := _hotpatch_sync()
+	if hs != null:
+		hs.ensure_autoloads_synced(get_tree())
 	var box := _begin("Bia Thành Tựu Chiến Tích")
 	box.add_theme_constant_override("separation", 4)
 
@@ -1942,7 +2007,9 @@ func open_achievements(cat: String = "all", last_msg: String = "") -> void:
 
 
 func open_blueprints(grade: String = "all", last_msg: String = "") -> void:
-	HotpatchSync.ensure_autoloads_synced(get_tree())
+	var hs := _hotpatch_sync()
+	if hs != null:
+		hs.ensure_autoloads_synced(get_tree())
 	var box := _begin("Bàn Bản Vẽ Binh Khí")
 	box.add_theme_constant_override("separation", 4)
 

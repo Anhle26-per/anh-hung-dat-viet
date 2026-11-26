@@ -4,10 +4,13 @@ extends RefCounted
 const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/data/version.gd",
 	"res://scripts/data/weapons.gd",
+	"res://scripts/data/weapon_evolutions.gd",
 	"res://scripts/data/materials.gd",
 	"res://scripts/data/enemies.gd",
 	"res://scripts/data/achievements.gd",
 	"res://scripts/data/heroes.gd",
+	"res://scripts/data/hero_skills_ext.gd",
+	"res://scripts/data/run_modes.gd",
 	"res://scripts/data/buffs.gd",
 	"res://scripts/data/synergy.gd",
 	"res://scripts/data/progression.gd",
@@ -30,8 +33,13 @@ const SCENE_SCRIPTS: Array[String] = [
 	"res://scripts/ui/pause_menu.gd",
 	"res://scripts/ui/hud.gd",
 	"res://scripts/ui/lobby_ui.gd",
+	"res://scripts/entities/bullet.gd",
+	"res://scripts/entities/pickup.gd",
 	"res://scripts/entities/enemy.gd",
 	"res://scripts/entities/player.gd",
+	"res://scripts/entities/event_altar.gd",
+	"res://scripts/entities/mount_pickup.gd",
+	"res://scripts/entities/battlefield_hazard.gd",
 	"res://scripts/game/room.gd",
 	"res://scripts/game/dungeon.gd",
 	"res://scripts/game/lobby.gd",
@@ -57,10 +65,10 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g == null:
 		return false
-	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint"]:
+	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint", "active_skill_index"]:
 		if not g.has_method(m):
 			return true
-	if not InputMap.has_action("sprint"):
+	if not InputMap.has_action("sprint") or not InputMap.has_action("dash") or not InputMap.has_action("merge_weapon"):
 		return true
 	var s: Node = tree.root.get_node_or_null("Sfx")
 	if s == null:
@@ -74,15 +82,18 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 static func ensure_autoloads_synced(tree: SceneTree) -> bool:
 	if tree == null or not needs_autoload_sync(tree):
 		return false
+	_reload_script("res://scripts/autoload/hotpatch_sync.gd")
 	for p in DATA_SCRIPTS:
 		_reload_script(p)
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g != null:
 		var saved_path: String = str(g.get("save_path")) if g.get("save_path") != null else "user://save.json"
+		var saved_run_path: String = str(g.get("run_save_path")) if g.get("run_save_path") != null else ""
 		var fresh_g: Script = _reload_script("res://scripts/autoload/global.gd")
 		if fresh_g != null:
 			g.set_script(fresh_g)
 			g.save_path = saved_path
+			g.run_save_path = saved_run_path
 			g._ready()
 	var s: Node = tree.root.get_node_or_null("Sfx")
 	if s != null:

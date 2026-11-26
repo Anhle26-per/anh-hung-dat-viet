@@ -208,3 +208,82 @@ static func roll_chest_drops(modern: bool, mythic: bool = false) -> Array:
 	for i in count:
 		out.append(str(pool.pick_random()))
 	return out
+
+
+## Phân tách vũ khí tại Bệ Phân Tách thành xu và nguyên liệu theo cấp / Thần binh Trùm.
+static func decompose_yield(wid: String) -> Dictionary:
+	if wid == "" or not WeaponData.DATA.has(wid):
+		return {"coins": 0, "mats": {}}
+	var w: Dictionary = WeaponData.DATA[wid]
+	var tier: int = clampi(int(w.get("tier", 1)), 1, 5)
+	var is_boss: bool = bool(w.get("boss_motif", false))
+	var is_merged: bool = bool(w.get("merged", false))
+	var is_fire_gun: bool = _is_fire_or_gun(w)
+	var is_arcane: bool = _is_arcane_or_spirit(w)
+	var coins: int = 15
+	var mats: Dictionary = {}
+	match tier:
+		1:
+			coins = 15
+			mats["dong"] = 1
+			if is_fire_gun:
+				mats["hoa_duoc"] = 1
+			elif is_arcane:
+				mats["sat"] = 1
+			else:
+				mats["go_lim"] = 1
+		2:
+			coins = 30
+			mats["dong"] = 2
+			mats["sat"] = 1
+			if is_fire_gun:
+				mats["hoa_duoc"] = 1
+			elif is_arcane:
+				mats["yeu_hon"] = 1
+			else:
+				mats["go_lim"] = 1
+		3:
+			coins = 65
+			mats["sat"] = 2
+			mats["yeu_hon"] = 1
+			if is_fire_gun:
+				mats["hoa_duoc"] = 2
+			elif is_arcane:
+				mats["yeu_hon"] = 2
+			else:
+				mats["go_lim"] = 2
+		4:
+			coins = 150
+			mats["sat"] = 3
+			mats["dong"] = 2
+			mats["yeu_hon"] = 2
+			mats["ngoc_than"] = 1
+			if is_fire_gun:
+				mats["hoa_duoc"] = 2
+			elif is_arcane:
+				mats["yeu_hon"] = 3
+				mats["ngoc_than"] = 2
+			else:
+				mats["go_lim"] = 2
+		5:
+			coins = 360
+			mats["sat"] = 5
+			mats["dong"] = 4
+			mats["yeu_hon"] = 4
+			mats["ngoc_than"] = 3
+			if is_fire_gun:
+				mats["hoa_duoc"] = 4
+			elif is_arcane:
+				mats["yeu_hon"] = 5
+				mats["ngoc_than"] = 4
+			else:
+				mats["go_lim"] = 4
+	if is_boss:
+		coins += 160
+		mats["yeu_hon"] = int(mats.get("yeu_hon", 0)) + 2
+		mats["ngoc_than"] = int(mats.get("ngoc_than", 0)) + 2
+	elif is_merged:
+		coins += 120
+		mats["yeu_hon"] = int(mats.get("yeu_hon", 0)) + 2
+		mats["ngoc_than"] = int(mats.get("ngoc_than", 0)) + 1
+	return {"coins": coins, "mats": mats}

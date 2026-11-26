@@ -13,7 +13,16 @@ const BuffSelect = preload("res://scripts/ui/buff_select.gd")
 const NetSync = preload("res://scripts/net/net_sync.gd")
 const Pickup = preload("res://scripts/entities/pickup.gd")
 const Pet = preload("res://scripts/entities/pet.gd")
-const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
+
+static func _hotpatch_sync() -> Script:
+	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
+	var gd_path := "res://scripts/autoload/hotpatch_sync.gd"
+	var load_path := gdc_path if FileAccess.file_exists(gdc_path) else gd_path
+	var fresh := ResourceLoader.load(load_path, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+	if fresh != null:
+		fresh.take_over_path(gdc_path)
+		fresh.take_over_path(gd_path)
+	return fresh
 
 const SPAWN_OFFSETS: Array[Vector2] = [
 	Vector2(-18.0, 0.0),
@@ -46,7 +55,8 @@ var _combat_room_music_seq: int = 0
 
 
 func _ready() -> void:
-	if HotpatchSync.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/game.tscn"):
+	var hs := _hotpatch_sync()
+	if hs != null and hs.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/game.tscn"):
 		return
 	add_to_group("game")
 	get_tree().paused = false
@@ -56,6 +66,13 @@ func _ready() -> void:
 	add_child(darkness)
 
 	var resuming: bool = (not Net.is_online()) and (not Global.resume_data.is_empty())
+	if not resuming and not Global._run_active:
+		if Global.pending_run_mode != "normal":
+			Global.run_mode = Global.pending_run_mode
+			Global.pending_run_mode = "normal"
+		if not Global.pending_mutators.is_empty():
+			Global.active_mutators = Global.pending_mutators.duplicate()
+			Global.pending_mutators = []
 	if Net.is_online():
 		net_sync = NetSync.new()
 		net_sync.game = self
@@ -238,7 +255,8 @@ func _build_level() -> void:
 			c.queue_free()
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
-	if Global.level == 16 or Global.level >= 32:
+	var is_br_hall: bool = Global.is_boss_rush() and Global.level >= 13
+	if is_br_hall or Global.level == 16 or Global.level >= 32:
 		Sfx.play_music("victory")
 	elif Sfx.has_method("play_stage_music"):
 		Sfx.play_stage_music(Global.level, 0)
@@ -287,7 +305,12 @@ func _build_level() -> void:
 		Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
 	var stage := EnemyData.stage_in_chapter(Global.level)
 	var chn := EnemyData.stage_chapter_num(Global.level)
-	if Global.level == 16:
+	if Global.is_boss_rush():
+		if Global.level >= 13:
+			hud.show_banner("Boss Rush 13/13  -  Sảnh Chiến Thần Khải Hoàn!")
+		else:
+			hud.show_banner("Boss Rush %d/12  -  Trận Quyết Chiến Trùm!" % Global.level)
+	elif Global.level == 16:
 		hud.show_banner("Màn 3-6  -  Sảnh Khải Hoàn!")
 	elif Global.level >= 32:
 		hud.show_banner("Màn 6-6  -  Sảnh Huyền Thoại!")
@@ -316,7 +339,7 @@ func _on_portal() -> void:
 		return
 	Sfx.play("level_clear")
 	touch.reset()
-	if Global.level == 16 or Global.level == 31:
+	if (Global.is_boss_rush() and Global.level >= 13) or Global.level == 16 or Global.level == 31:
 		_advance.call_deferred()
 		return
 	# qua màn: chọn 1 phúc lành rồi mới sang màn mới
@@ -396,12 +419,14 @@ func _advance() -> void:
 		pet.on_next_level()
 	Global.level += 1
 	Global.best_level = maxi(Global.best_level, Global.level)
+	Global.on_next_stage_mutators(player)
 	_build_level()
 
 
 func _advance_to(lvl: int) -> void:
 	Global.level = lvl
 	Global.best_level = maxi(Global.best_level, Global.level)
+	Global.on_next_stage_mutators(player)
 	_build_level()
 
 
@@ -676,6 +701,10 @@ func show_victory(mythic: bool = false) -> void:
 		box.add_child(UI.label("VANG DANH SỬ SÁCH! ĐẠI THẮNG THẦN THOẠI!", 26, Color(0.92, 0.72, 1.0)))
 		box.add_child(UI.label("Chinh phục trọn vẹn 6 Chương & Yêu Vương Lĩnh Nam (Màn 4-1 → 6-6)!", 15, Color(0.86, 0.94, 0.98)))
 		box.add_child(UI.label("Thưởng Huyền Thoại: +90 xu, +2 Ngọc thần, +2 Yêu hồn  |  Xu trận: %d xu" % Global.run_coins, 14, Color(0.62, 0.98, 0.76)))
+	elif Global.is_boss_rush():
+		box.add_child(UI.label("ĐẠI THẮNG BOSS RUSH! CHIẾN THẦN VÔ ĐỊCH!", 26, Color(1.0, 0.42, 0.44)))
+		box.add_child(UI.label("Chinh phục trọn vẹn 12 Trùm liên hoàn!", 15, Color(0.86, 0.94, 0.98)))
+		box.add_child(UI.label("Thưởng khải hoàn: +50 xu & +1 Ngọc thần  |  Tổng kết xu trận: %d xu" % Global.run_coins, 14, Color(0.55, 0.98, 0.72)))
 	else:
 		box.add_child(UI.label("ĐẠI THẮNG! KHẢI HOÀN!", 30, Color(1.0, 0.88, 0.35)))
 		var ch := EnemyData.chapter(Global.level)
@@ -691,8 +720,8 @@ func show_victory(mythic: bool = false) -> void:
 	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 16, 200.0)
 	box.add_child(UI.center(_copy_btn))
 	if not Net.is_online():
-		if mythic:
-			box.add_child(UI.center(UI.button("Chính Thức Về Sảnh Chính (Đợt Hai)", _on_victory_lobby, 16, 270.0)))
+		if mythic or Global.is_boss_rush():
+			box.add_child(UI.center(UI.button("Về Doanh Trại (Tổng kết xu)", _on_victory_lobby, 16, 270.0)))
 		else:
 			box.add_child(UI.center(UI.button("Về Doanh Trại (Tổng kết xu)", _on_victory_lobby, 16, 250.0)))
 			box.add_child(UI.center(UI.button("Khởi Hành Thần Thoại (4-1 → 6-6)", _on_victory_continue, 16, 270.0)))
@@ -791,7 +820,11 @@ func _do_revive() -> void:
 
 func _on_restart() -> void:
 	var keep_code: String = Global.challenge_code
+	var keep_mode: String = Global.run_mode
+	var keep_muts: Array = Global.active_mutators.duplicate()
 	Global.end_run()
+	Global.pending_run_mode = keep_mode
+	Global.pending_mutators = keep_muts
 	Global.start_run(keep_code)
 	get_tree().reload_current_scene()
 

@@ -45,6 +45,8 @@ var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu
 var leaderboard: Array = []       # bảng điểm so tài cục bộ (tối đa 20 mục, xếp theo điểm giảm dần)
 var garden_plots: Array = []      # 3 ô Vườn Thảo Dược: [{"plant": String, "stage": int}]
 var selected_pet: String = ""     # linh thú đồng hành ra trận ("" = không mang)
+var selected_skills: Dictionary = {}  # mã tướng -> chỉ số chiêu thức (1 hoặc 2)
+var badass_mode: bool = false         # chế độ Ác Mộng (Badass Mode)
 var log_path: String = "user://nhat_ky.csv"
 
 const DEFAULT_SETTINGS: Dictionary = {
@@ -140,6 +142,8 @@ var lobby_weapon_mod: String = ""
 var lobby_shrine_buff: String = ""
 var lobby_garden_buffs: Array = []
 var pending_challenge_code: String = ""
+var pending_run_mode: String = "normal"   # "normal" | "boss_rush"
+var pending_mutators: Array = []
 
 # --- Trạng thái lượt chơi hiện tại ---
 var level: int = 1
@@ -152,6 +156,13 @@ var legend_last := ""      # thứ tự trùm ngẫu nhiên của lượt chơi 
 var run_buffs: Dictionary = {}   # phúc lành đã chọn trong lượt: mã -> số lần
 var run_materials: Dictionary = {} # nguyên liệu nhặt được trong lượt chơi hiện tại
 var run_weapon_mods: Dictionary = {} # bùa vũ khí gắn trong lượt: mã vũ khí -> mã bùa
+var run_mode: String = "normal"
+var active_mutators: Array = []
+var statue_id: String = ""
+var mentor_upgraded: bool = false
+var evolved_weapons: Dictionary = {}
+var active_mount: String = ""
+var active_mount_hp: int = 0
 var _run_active: bool = false
 var run_elapsed: float = 0.0
 var run_kills: int = 0
@@ -169,6 +180,8 @@ var joy_vector: Vector2 = Vector2.ZERO
 var touch_attack: bool = false   # đang giữ nút tấn công
 var touch_skill: bool = false    # vừa bấm nút kỹ năng (player đọc xong sẽ tắt)
 var touch_swap: bool = false     # vừa bấm nút đổi/nhặt vũ khí
+var touch_dash: bool = false     # vừa bấm nút lướt né (player đọc xong sẽ tắt)
+var touch_merge: bool = false    # vừa bấm nút hợp nhất vũ khí (player đọc xong sẽ tắt)
 var _force_touch: bool = false
 
 
@@ -306,8 +319,12 @@ func start_run(code: String = "") -> void:
 	# còn lượt chơi dở chưa xử lý: cộng xu của lượt đó vào kho trước khi bắt đầu lượt mới
 	if has_run():
 		var keep := selected_hero     # giữ tướng vừa chọn, không lấy tướng của lượt cũ
+		var keep_mode := pending_run_mode
+		var keep_muts := pending_mutators.duplicate()
 		abandon_run()
 		selected_hero = keep
+		pending_run_mode = keep_mode
+		pending_mutators = keep_muts
 	resume_data = {}
 	level = 1
 	boss_order = []
@@ -318,6 +335,21 @@ func start_run(code: String = "") -> void:
 	run_buffs = {}
 	run_materials = {}
 	run_weapon_mods = {}
+	run_mode = pending_run_mode if pending_run_mode in ["normal", "boss_rush"] else "normal"
+	active_mutators = []
+	for m in pending_mutators:
+		var ms: String = str(m)
+		if ms != "" and not active_mutators.has(ms):
+			active_mutators.append(ms)
+	pending_run_mode = "normal"
+	pending_mutators = []
+	statue_id = ""
+	mentor_upgraded = false
+	evolved_weapons = {}
+	active_mount = ""
+	active_mount_hp = 0
+	touch_dash = false
+	touch_merge = false
 	_run_active = true
 	_run_score_recorded = false
 	run_elapsed = 0.0
@@ -848,6 +880,62 @@ func _write_run_log(outcome: String) -> void:
 	f.close()
 
 
+func active_skill_index(hid: String) -> int:
+	return clampi(int(selected_skills.get(hid, 1)), 1, 2)
+
+
+func set_skill_index(hid: String, idx: int) -> void:
+	if hid == "":
+		return
+	selected_skills[hid] = clampi(idx, 1, 2)
+	save_game()
+
+
+func is_boss_rush() -> bool:
+	return run_mode == "boss_rush"
+
+
+func has_mutator(mid: String) -> bool:
+	return active_mutators.has(mid)
+
+
+func evolve_weapon(wid: String) -> void:
+	if wid != "" and WeaponData.DATA.has(wid):
+		evolved_weapons[wid] = true
+
+
+func is_weapon_evolved(wid: String) -> bool:
+	return wid != "" and bool(evolved_weapons.get(wid, false))
+
+
+func on_next_stage_mutators(player_node) -> void:
+	if player_node == null or not is_instance_valid(player_node):
+		return
+	if not has_mutator("weapon_roulette"):
+		return
+	if not ("weapons" in player_node):
+		return
+	var ws: Array = player_node.weapons
+	var changed: bool = false
+	for i in ws.size():
+		var old_wid: String = str(ws[i])
+		if old_wid == "":
+			continue
+		var new_wid: String = WeaponData.roll(level)
+		if new_wid != "" and WeaponData.DATA.has(new_wid):
+			ws[i] = new_wid
+			discover(new_wid, false)
+			changed = true
+	if changed:
+		if player_node.has_method("_refresh_weapon_sprite"):
+			player_node._refresh_weapon_sprite()
+		if player_node.has_signal("stats_changed"):
+			player_node.stats_changed.emit()
+		if player_node.get_parent() != null:
+			var fx_script := preload("res://scripts/effects/fx.gd")
+			fx_script.float_text(player_node.get_parent(), player_node.global_position + Vector2(0, -24), "Xoay vũ khí!", Color(1.0, 0.85, 0.4), 13)
+
+
 func end_run(outcome: String = "") -> void:
 	if Net != null and Net.is_online() and not Net.is_host():
 		_run_active = false
@@ -855,6 +943,15 @@ func end_run(outcome: String = "") -> void:
 		run_coins = 0
 		run_materials = {}
 		run_weapon_mods = {}
+		run_mode = "normal"
+		active_mutators = []
+		statue_id = ""
+		mentor_upgraded = false
+		evolved_weapons = {}
+		active_mount = ""
+		active_mount_hp = 0
+		touch_dash = false
+		touch_merge = false
 		resume_data = {}
 		return
 	if _run_active and not _run_score_recorded and outcome != "bo_luot":
@@ -866,6 +963,15 @@ func end_run(outcome: String = "") -> void:
 	run_coins = 0
 	_commit_run_materials()
 	run_weapon_mods = {}
+	run_mode = "normal"
+	active_mutators = []
+	statue_id = ""
+	mentor_upgraded = false
+	evolved_weapons = {}
+	active_mount = ""
+	active_mount_hp = 0
+	touch_dash = false
+	touch_merge = false
 	ensure_garden_plots()
 	for i in garden_plots.size():
 		var pl: Dictionary = garden_plots[i]
@@ -1115,6 +1221,8 @@ func save_game() -> void:
 		"leaderboard": leaderboard,
 		"garden_plots": garden_plots,
 		"selected_pet": selected_pet,
+		"selected_skills": selected_skills,
+		"badass_mode": badass_mode,
 		"achievements_claimed": achievements_claimed,
 		"blueprints": blueprints,
 	})
@@ -1195,6 +1303,14 @@ func save_run(p = null) -> bool:
 		"run_syn_counts": run_syn_counts,
 		"run_cap_bac": run_cap_bac,
 		"challenge_code": challenge_code,
+		"run_mode": run_mode,
+		"active_mutators": active_mutators,
+		"statue_id": statue_id,
+		"mentor_upgraded": mentor_upgraded,
+		"evolved_weapons": evolved_weapons,
+		"active_mount": active_mount,
+		"active_mount_hp": active_mount_hp,
+		"badass_mode": badass_mode,
 	})
 
 
@@ -1274,6 +1390,28 @@ func load_run() -> bool:
 		run_syn_counts = [int(sc_arr[0]), int(sc_arr[1]), int(sc_arr[2])]
 	run_cap_bac = str(d.get("run_cap_bac", "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]))
 	challenge_code = str(d.get("challenge_code", "")).strip_edges().to_upper()
+	var rm_mode: String = str(d.get("run_mode", "normal"))
+	run_mode = rm_mode if rm_mode in ["normal", "boss_rush"] else "normal"
+	active_mutators = []
+	var am_raw: Variant = d.get("active_mutators", [])
+	if typeof(am_raw) == TYPE_ARRAY:
+		for m in am_raw:
+			var ms: String = str(m)
+			if ms != "" and not active_mutators.has(ms):
+				active_mutators.append(ms)
+	statue_id = str(d.get("statue_id", ""))
+	mentor_upgraded = bool(d.get("mentor_upgraded", false))
+	evolved_weapons = {}
+	var ew_raw: Variant = d.get("evolved_weapons", {})
+	if typeof(ew_raw) == TYPE_DICTIONARY:
+		for k in ew_raw:
+			var wk: String = str(k)
+			if wk != "" and bool(ew_raw[k]):
+				evolved_weapons[wk] = true
+	active_mount = str(d.get("active_mount", ""))
+	active_mount_hp = maxi(0, int(d.get("active_mount_hp", 0)))
+	if d.has("badass_mode"):
+		badass_mode = bool(d.get("badass_mode", false))
 	_run_score_recorded = false
 	return true
 
@@ -1326,6 +1464,8 @@ func load_game() -> void:
 	leaderboard = []
 	garden_plots = []
 	selected_pet = ""
+	selected_skills = {}
+	badass_mode = false
 	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
 		ensure_garden_plots()
@@ -1417,6 +1557,14 @@ func load_game() -> void:
 	ensure_garden_plots()
 	var sp: String = str(data.get("selected_pet", ""))
 	selected_pet = sp if PETS.has(sp) else ""
+	var sk_val: Variant = data.get("selected_skills", null)
+	if typeof(sk_val) == TYPE_DICTIONARY:
+		var skd: Dictionary = sk_val
+		for k in skd:
+			var hk: String = str(k)
+			if HeroData.DATA.has(hk):
+				selected_skills[hk] = clampi(int(skd[k]), 1, 2)
+	badass_mode = bool(data.get("badass_mode", false))
 	var ac: Variant = data.get("achievements_claimed", null)
 	if typeof(ac) == TYPE_ARRAY:
 		var ac_arr: Array = ac
@@ -1442,7 +1590,7 @@ func _setup_inputs() -> void:
 	_add_keys("move_down", [KEY_S, KEY_DOWN])
 	_add_keys("attack", [KEY_J])
 	_add_mouse("attack", MOUSE_BUTTON_LEFT)
-	_add_keys("skill", [KEY_SPACE, KEY_K])
+	_add_keys("skill", [KEY_K])
 	_add_mouse("skill", MOUSE_BUTTON_RIGHT)
 	_add_keys("swap_weapon", [KEY_Q])
 	_add_mouse("swap_weapon", MOUSE_BUTTON_WHEEL_UP)
@@ -1463,6 +1611,20 @@ func _setup_inputs() -> void:
 	_add_pad("pause", JOY_BUTTON_START)
 	_add_pad("sprint", JOY_BUTTON_LEFT_STICK)
 	_add_axis("sprint", JOY_AXIS_TRIGGER_LEFT, 0.6)
+	_ensure_input_actions()
+
+
+func _ensure_input_actions() -> void:
+	# Gỡ Space khỏi skill nếu từ bản cũ, chuyển Space sang Dodge Dash
+	if InputMap.has_action("skill"):
+		var sp_ev := InputEventKey.new()
+		sp_ev.physical_keycode = KEY_SPACE
+		if InputMap.action_has_event("skill", sp_ev):
+			InputMap.action_erase_event("skill", sp_ev)
+	_add_keys("dash", [KEY_SPACE])
+	_add_pad("dash", JOY_BUTTON_X)
+	_add_keys("merge_weapon", [KEY_R])
+	_add_pad("merge_weapon", JOY_BUTTON_RIGHT_SHOULDER)
 
 
 func _ensure(action: String) -> void:

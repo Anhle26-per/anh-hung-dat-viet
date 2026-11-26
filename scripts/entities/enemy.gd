@@ -100,6 +100,9 @@ var _leap_start: Vector2 = Vector2.ZERO
 var _leap_target: Vector2 = Vector2.ZERO
 var _dash_hit_wall: bool = false
 var _windup_glint_done: bool = false
+var _hazard_slow_t: float = 0.0
+var _hazard_slow_mult: float = 1.0
+var _aggro_reveal_t: float = 0.0
 
 
 func setup(k: String, lvl: int, target) -> void:
@@ -109,11 +112,21 @@ func setup(k: String, lvl: int, target) -> void:
 	max_hp = data.hp
 	if Net.is_online() and Net.player_count() > 1:
 		max_hp = int(round(float(max_hp) * (1.0 + 0.5 * float(Net.player_count() - 1))))
+	if Global != null and bool(Global.get("badass_mode")):
+		max_hp = int(round(float(max_hp) * 1.45))
 	hp = max_hp
 	radius = data.radius
 	speed = data.speed
+	if Global != null and bool(Global.get("badass_mode")):
+		speed *= 1.18
+	if Global != null and Global.has_method("has_mutator") and Global.has_mutator("hyper_speed"):
+		speed *= 1.35
 	player = target
 	_shoot_t = randf_range(0.8, 1.8)
+	if Global != null and bool(Global.get("badass_mode")):
+		_shoot_t *= 0.8
+	if Global != null and Global.has_method("has_mutator") and Global.has_mutator("elite_swarm"):
+		_shoot_t *= 0.85
 	_summon_t = randf_range(4.0, 6.0)
 	_strafe_dir = -1.0 if randf() < 0.5 else 1.0
 	_strafe_t = randf_range(1.4, 2.6)
@@ -124,6 +137,8 @@ func setup(k: String, lvl: int, target) -> void:
 
 ## Biến thành giặc tinh nhuệ (gọi trước khi thêm vào cây cảnh)
 func make_elite() -> void:
+	if elite:
+		return
 	elite = true
 	max_hp = int(max_hp * 2.4)
 	hp = max_hp
@@ -322,6 +337,10 @@ func _physics_process(delta: float) -> void:
 	_mat.set_shader_parameter("flash", maxf(_flash, base_glow))
 	_attack_anim_t -= delta
 	_hurt_anim_t = maxf(_hurt_anim_t - delta, 0.0)
+	_hazard_slow_t = maxf(_hazard_slow_t - delta, 0.0)
+	_aggro_reveal_t = maxf(_aggro_reveal_t - delta, 0.0)
+	if _hazard_slow_t <= 0.0:
+		_hazard_slow_mult = 1.0
 	if is_boss() and (enraged or transformed) and not _submerged and _spawn_t <= 0.0 and _morph_t <= 0.0:
 		_boss_fx_t -= delta
 		if _boss_fx_t <= 0.0:
@@ -392,92 +411,102 @@ func _physics_process(delta: float) -> void:
 		var dist := to.length()
 		var dir := to / maxf(dist, 0.001)
 		_face = 1.0 if to.x >= 0.0 else -1.0
-		match data.ai:
-			"chase":
-				desired = _chase_dir(delta, dir, dist, 0.30, 0.24)
-			"shoot":
-				desired = _keep_distance(delta, dir, dist, 160.0, 85.0)
-				_shoot_t -= delta
-				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 1.35) * randf_range(0.8, 1.15)
-					var edmg: int = 2 if (elite and level >= 4) else 1
-					var epj: String = str(data.get("proj", "arrow"))
-					if level >= 4 and not elite:
-						_fire(dir.angle() - 0.12, 185.0, epj, edmg)
-						_fire(dir.angle() + 0.12, 185.0, epj, edmg)
-					elif elite:
-						for si in range(-1, 2):
-							_fire(dir.angle() + float(si) * 0.14, 190.0, epj, edmg)
-					else:
-						_fire(dir.angle(), 185.0, epj, edmg)
-					_attack_anim_t = 0.3
-			"tank":
-				desired = _chase_dir(delta, dir, dist, 0.18, 0.18)
-			"caster":
-				desired = _keep_distance(delta, dir, dist, 150.0, 95.0)
-				_shoot_t -= delta
-				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15)
-					_fire_ring(10, randf() * TAU, 115.0, "orb_poison")
-					_attack_anim_t = 0.3
-				_summon_t -= delta
-				if _summon_t <= 0.0 and room != null:
-					_summon_t = randf_range(5.0, 7.0)
-					var folk: Array = EnemyData.chapter(level).folk
-					var p := global_position + Vector2.from_angle(randf() * TAU) * 26.0
-					Fx.particles(get_parent(), p, Color(0.8, 0.4, 1.0), 16, 90.0, 0.5)
-					room.spawn_enemy(folk.pick_random(), p)
-			"ring":
-				desired = _chase_dir(delta, dir, dist, 0.42, 0.25)
-				_shoot_t -= delta
-				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15)
-					_fire_ring(10, randf() * TAU, 120.0, "orb_pink")
-			"charge":
-				desired = _charge_ai(delta, dir, dist, 4.2)
-			"rifle":
-				desired = _keep_distance(delta, dir, dist, 175.0, 90.0)
-				_shoot_t -= delta
-				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 1.2) * randf_range(0.8, 1.15)
-					_fire(dir.angle() + randf_range(-0.04, 0.04), 245.0, "bullet", 2 if elite else 1)
-					_attack_anim_t = 0.2
-			"mg":
-				desired = _keep_distance(delta, dir, dist, 175.0, 110.0) * 0.6
-				_shoot_t -= delta
-				if _shoot_t <= 0.0 and _burst_left == 0:
-					_shoot_t = data.get("shoot_cd", 2.1) * randf_range(0.8, 1.15)
-					_start_burst(7, 8.0)
-			"mortar":
-				desired = _keep_distance(delta, dir, dist, 190.0, 120.0)
-				_shoot_t -= delta
-				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.5) * randf_range(0.8, 1.15)
-					_mortar(player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10)), 0.9)
-			"tank_elite":
-				desired = _chase_dir(delta, dir, dist, 0.16, 0.16)
-				_shoot_t -= delta
-				if _shoot_t <= 0.0:
-					_shoot_t = data.get("shoot_cd", 2.0) * randf_range(0.8, 1.15)
-					if randf() < 0.5:
-						_cannon(dir, 2)
-					else:
-						_start_burst(9, 14.0)
-			"slam":
-				desired = _slam_ai(delta, dir, dist)
-			"kamikaze":
-				desired = (dir + _wander_vec(delta) * 0.25).normalized() * speed * (1.6 if dist < 60.0 else 1.0)
-				if dist < radius + 12.0:
-					if dist < radius + 12.0 and player.global_position.distance_to(global_position) < 26.0:
-						player.take_damage(1)
-					Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 20.0, 0.7, 0.0, Color(0.6, 0.85, 1.0))
-					Sfx.play("explode")
-					die(false)
-					return
-			"ngu":
-				desired = _ngu(delta, dir)
-			"boss":
-				desired = _boss(delta, dir, dist)
+		var stealthed: bool = bool(player.get("in_stealth_bush")) and _aggro_reveal_t <= 0.0 and dist > 75.0
+		if stealthed:
+			desired = _wander_vec(delta) * speed * 0.35
+		else:
+			var _badass: bool = Global != null and bool(Global.get("badass_mode"))
+			var _hspd: bool = Global != null and Global.has_method("has_mutator") and Global.has_mutator("hyper_speed")
+			var _esw: bool = Global != null and Global.has_method("has_mutator") and Global.has_mutator("elite_swarm")
+			var shoot_rate_mult: float = (0.8 if _badass else 1.0) * (0.85 if _hspd else 1.0) * (0.9 if _esw else 1.0)
+			if bool(player.get("in_stealth_bush")):
+				shoot_rate_mult *= 1.35
+			match data.ai:
+				"chase":
+					desired = _chase_dir(delta, dir, dist, 0.30, 0.24)
+				"shoot":
+					desired = _keep_distance(delta, dir, dist, 160.0, 85.0)
+					_shoot_t -= delta
+					if _shoot_t <= 0.0:
+						_shoot_t = data.get("shoot_cd", 1.35) * randf_range(0.8, 1.15) * shoot_rate_mult
+						var edmg: int = 2 if (elite and level >= 4) else 1
+						var epj: String = str(data.get("proj", "arrow"))
+						if level >= 4 and not elite:
+							_fire(dir.angle() - 0.12, 185.0, epj, edmg)
+							_fire(dir.angle() + 0.12, 185.0, epj, edmg)
+						elif elite:
+							for si in range(-1, 2):
+								_fire(dir.angle() + float(si) * 0.14, 190.0, epj, edmg)
+						else:
+							_fire(dir.angle(), 185.0, epj, edmg)
+						_attack_anim_t = 0.3
+				"tank":
+					desired = _chase_dir(delta, dir, dist, 0.18, 0.18)
+				"caster":
+					desired = _keep_distance(delta, dir, dist, 150.0, 95.0)
+					_shoot_t -= delta
+					if _shoot_t <= 0.0:
+						_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15) * shoot_rate_mult
+						_fire_ring(10, randf() * TAU, 115.0, "orb_poison")
+						_attack_anim_t = 0.3
+					_summon_t -= delta
+					if _summon_t <= 0.0 and room != null:
+						_summon_t = randf_range(5.0, 7.0)
+						var folk: Array = EnemyData.chapter(level).folk
+						var p := global_position + Vector2.from_angle(randf() * TAU) * 26.0
+						Fx.particles(get_parent(), p, Color(0.8, 0.4, 1.0), 16, 90.0, 0.5)
+						room.spawn_enemy(folk.pick_random(), p)
+				"ring":
+					desired = _chase_dir(delta, dir, dist, 0.42, 0.25)
+					_shoot_t -= delta
+					if _shoot_t <= 0.0:
+						_shoot_t = data.get("shoot_cd", 2.2) * randf_range(0.8, 1.15) * shoot_rate_mult
+						_fire_ring(10, randf() * TAU, 120.0, "orb_pink")
+				"charge":
+					desired = _charge_ai(delta, dir, dist, 4.2)
+				"rifle":
+					desired = _keep_distance(delta, dir, dist, 175.0, 90.0)
+					_shoot_t -= delta
+					if _shoot_t <= 0.0:
+						_shoot_t = data.get("shoot_cd", 1.2) * randf_range(0.8, 1.15) * shoot_rate_mult
+						_fire(dir.angle() + randf_range(-0.04, 0.04), 245.0, "bullet", 2 if elite else 1)
+						_attack_anim_t = 0.2
+				"mg":
+					desired = _keep_distance(delta, dir, dist, 175.0, 110.0) * 0.6
+					_shoot_t -= delta
+					if _shoot_t <= 0.0 and _burst_left == 0:
+						_shoot_t = data.get("shoot_cd", 2.1) * randf_range(0.8, 1.15) * shoot_rate_mult
+						_start_burst(7, 8.0)
+				"mortar":
+					desired = _keep_distance(delta, dir, dist, 190.0, 120.0)
+					_shoot_t -= delta
+					if _shoot_t <= 0.0:
+						_shoot_t = data.get("shoot_cd", 2.5) * randf_range(0.8, 1.15) * shoot_rate_mult
+						_mortar(player.global_position + Vector2(randf_range(-10, 10), randf_range(-10, 10)), 0.9)
+				"tank_elite":
+					desired = _chase_dir(delta, dir, dist, 0.16, 0.16)
+					_shoot_t -= delta
+					if _shoot_t <= 0.0:
+						_shoot_t = data.get("shoot_cd", 2.0) * randf_range(0.8, 1.15) * shoot_rate_mult
+						if randf() < 0.5:
+							_cannon(dir, 2)
+						else:
+							_start_burst(9, 14.0)
+				"slam":
+					desired = _slam_ai(delta, dir, dist)
+				"kamikaze":
+					desired = (dir + _wander_vec(delta) * 0.25).normalized() * speed * (1.6 if dist < 60.0 else 1.0)
+					if dist < radius + 12.0:
+						if dist < radius + 12.0 and player.global_position.distance_to(global_position) < 26.0:
+							player.take_damage(1)
+						Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 20.0, 0.7, 0.0, Color(0.6, 0.85, 1.0))
+						Sfx.play("explode")
+						die(false)
+						return
+				"ngu":
+					desired = _ngu(delta, dir)
+				"boss":
+					desired = _boss(delta, dir, dist)
 		_contact_t -= delta
 		if not _submerged and _leap_state != "air":
 			if Net.is_online():
@@ -497,6 +526,8 @@ func _physics_process(delta: float) -> void:
 	if _stun_t <= 0.0 and not is_dashing and not _submerged and _leap_state != "air":
 		desired += _separation_vec()
 		desired = _avoid_obstacles(desired, delta)
+	if _hazard_slow_t > 0.0:
+		desired *= _hazard_slow_mult
 	var accel: float = 1200.0 if is_dashing else (360.0 if (is_boss() or data.ai in ["tank", "tank_elite"]) else 540.0)
 	velocity = velocity.move_toward(desired + _knock, accel * delta)
 	if _leap_state != "air":
@@ -905,6 +936,12 @@ func _fire(angle: float, spd: float, proj := "orb_pink", dmg := 1) -> void:
 	var dir := Vector2.from_angle(angle)
 	if EnemyData.is_mythic_level(level):
 		spd *= 1.12
+	if Global != null and bool(Global.get("badass_mode")):
+		spd *= 1.15
+		if is_boss() or elite:
+			dmg += 1
+	if Global != null and Global.has_method("has_mutator") and Global.has_mutator("hyper_speed"):
+		spd *= 1.2
 	if is_boss():
 		spd *= 1.0 + 0.035 * minf(power(), 10.0)   # đạn trùm sau bay nhanh hơn
 	var bpos: Vector2 = global_position + dir * radius
@@ -1511,11 +1548,30 @@ func apply_stun(t: float) -> void:
 	_reset_motion_fx()
 
 
+func is_slowed() -> bool:
+	return _slowed or _hazard_slow_t > 0.0 or has_meta("weapon_slowed")
+
+
+func apply_hazard_slow(factor: float = 0.5, dur: float = 0.4) -> void:
+	if dead or _morph_t > 0.0 or _submerged:
+		return
+	var eff_factor: float = clampf(factor, 0.25, 1.0)
+	_hazard_slow_mult = minf(_hazard_slow_mult, eff_factor) if _hazard_slow_t > 0.0 else eff_factor
+	_hazard_slow_t = maxf(_hazard_slow_t, dur)
+
+
+func apply_hazard_damage(dmg: int, knock_vec: Vector2 = Vector2.ZERO) -> void:
+	if dead or is_replica or _spawn_t > 0.0 or _morph_t > 0.0 or _submerged:
+		return
+	take_damage(maxi(1, dmg), knock_vec)
+
+
 func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	if dead or _spawn_t > 0.0:
 		return
 	if _morph_t > 0.0 or _submerged:
 		return
+	_aggro_reveal_t = 2.5
 	if is_replica:
 		if net_id > 0:
 			Net.send_enemy_event("dmg_req", {"id": net_id, "dmg": amount, "kx": knock.x, "ky": knock.y}, true)
@@ -1538,12 +1594,21 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 			var has_fx: bool = _stun_t > 0.0 or (status != null and (status.has("burn") or status.has("poison")))
 			if has_fx:
 				dmg_mult *= 1.3
+		if (is_boss() or elite) and player.has_method("buff") and player.buff("cuong_no_trum") > 0:
+			dmg_mult *= 1.0 + 0.35 * float(player.buff("cuong_no_trum"))
+		if str(player.get("hero_id")) == "nguyen_trung_truc" and status != null and status.has("burn"):
+			dmg_mult *= 1.25
+		if player.has_method("buff") and player.buff("bang_tam") > 0 and is_slowed():
+			dmg_mult *= 1.25
 		dmg = int(round(float(amount) * dmg_mult))
 		var forced_crit: bool = player.has_method("is_kinetic_ready") and player.is_kinetic_ready()
+		var eff_crit: float = player.crit_chance()
+		if player.has_method("buff") and player.buff("bang_tam") > 0 and is_slowed():
+			eff_crit += 0.15
 		if forced_crit:
 			dmg = (dmg + 8) * 2
 			crit = true
-		elif randf() < player.crit_chance():
+		elif randf() < eff_crit:
 			dmg *= 2
 			crit = true
 	last_hit_crit = crit
@@ -1611,7 +1676,12 @@ func dot_damage(amount: int, kind: String) -> void:
 func apply_status(kind: String, duration: float) -> void:
 	if is_replica and net_id > 0:
 		Net.send_enemy_event("status_req", {"id": net_id, "kind": kind, "dur": duration}, true)
-	if not dead and status != null:
+	if dead:
+		return
+	if kind == "slow":
+		apply_hazard_slow(0.55, duration)
+		return
+	if status != null:
 		status.apply(kind, duration * (0.6 if is_boss() else 1.0))
 
 

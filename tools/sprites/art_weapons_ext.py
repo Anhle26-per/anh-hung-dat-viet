@@ -527,16 +527,95 @@ def scifi_gun(barrel=11, body=9, mb="gun", ms="black", glow="cyan", muzzle="brak
     return p.finish((gx, gy))
 
 
-def dragon_cannon():
+def dragon_cannon(body_m="jade", trim_m="gold", gem_m="red", eye_m="cyan"):
     p = Pen(28, 17)
     cy = 8
     p.rect(1, cy + 1, 7, cy + 2, "dwood")
-    p.rect(6, cy - 4, 21, cy + 4, "jade")
-    p.rect(10, cy - 5, 12, cy + 5, "gold")
-    p.poly([(20, cy - 5), (26, cy - 3), (26, cy + 3), (20, cy + 5)], "gold")
-    p.dot(23, cy - 2, "red", 0)
-    p.dot(26, cy, "cyan", 1)
+    p.rect(6, cy - 4, 21, cy + 4, body_m)
+    p.rect(10, cy - 5, 12, cy + 5, trim_m)
+    p.poly([(20, cy - 5), (26, cy - 3), (26, cy + 3), (20, cy + 5)], trim_m)
+    p.dot(23, cy - 2, gem_m, 0)
+    p.dot(26, cy, eye_m, 1)
     return p.finish((5, cy))
+
+
+def boss_halberd(shaft_m="dwood", blade_m="steel", trim_m="gold", glow_m="red"):
+    p = Pen(32, 17)
+    cy = 8
+    p.rect(1, cy, 20, cy + 1, shaft_m)
+    p.rect(19, cy - 2, 20, cy + 3, trim_m)
+    p.poly([(20, cy - 1), (31, cy), (31, cy + 1), (20, cy + 2)], blade_m)
+    p.poly([(21, cy - 1), (24, cy - 7), (27, cy - 5), (25, cy - 1)], blade_m)
+    p.poly([(21, cy + 2), (24, cy + 6), (26, cy + 2)], blade_m)
+    p.rect(17, cy + 2, 18, cy + 6, glow_m)
+    p.dot(26, cy, glow_m, 1)
+    return p.finish((7, cy))
+
+
+def boss_trident(shaft_m="void", prong_m="cyan", trim_m="red", glow_m="white"):
+    p = Pen(32, 15)
+    cy = 7
+    p.rect(1, cy, 22, cy + 1, shaft_m)
+    p.rect(20, cy - 4, 22, cy + 5, trim_m)
+    for dy in (-4, 0, 4):
+        p.rect(22, cy + dy, 27, cy + dy + (1 if dy == 0 else 0), prong_m)
+        p.poly([(27, cy + dy - 1), (31, cy + dy), (27, cy + dy + (2 if dy == 0 else 1))], prong_m)
+    p.dot(25, cy, glow_m, 1)
+    p.dot(14, cy, trim_m, 1)
+    return p.finish((7, cy))
+
+
+def taiji_sword():
+    p = Pen(30, 15)
+    cy = 7
+    p.rect(1, cy - 1, 6, cy + 1, "black")
+    p.rect(0, cy - 2, 2, cy + 2, "gold")
+    p.rect(7, cy - 4, 9, cy + 4, "gold")
+    p.poly([(9, cy - 3), (26, cy - 2), (29, cy), (26, cy)], "ice")
+    p.poly([(9, cy), (29, cy), (26, cy + 2), (9, cy + 3)], "fire")
+    p.dot(8, cy - 1, "white", 1)
+    p.dot(8, cy + 1, "black", 0)
+    p.dot(20, cy - 1, "white", 1)
+    p.dot(20, cy + 1, "gold", 1)
+    return p.finish((4, cy))
+
+
+def yinyang_scythe():
+    p = Pen(32, 22)
+    cy = 11
+    p.rect(1, cy, 20, cy + 1, "black")
+    p.rect(19, cy - 3, 21, cy + 3, "gold")
+    p.poly([(20, cy - 2), (28, cy - 9), (30, cy - 5), (24, cy)], "white")
+    p.poly([(20, cy + 2), (28, cy + 9), (30, cy + 5), (24, cy)], "void")
+    p.dot(27, cy - 6, "cyan", 1)
+    p.dot(27, cy + 6, "pink", 1)
+    p.dot(20, cy, "gold", 1)
+    return p.finish((7, cy))
+
+
+def fox_nine_tail_orb():
+    p = Pen(24, 19)
+    cy = 9
+    p.rect(1, cy, 12, cy + 1, "red")
+    p.rect(11, cy - 2, 13, cy + 3, "gold")
+    for dy in (-6, -3, 0, 3, 6):
+        p.line([(13, cy), (21, cy + dy)], "pink", 1)
+        p.dot(22, cy + dy, "fire", 1)
+    p.ell([13, cy - 3, 19, cy + 3], "pink")
+    p.dot(16, cy, "white", 1)
+    return p.finish((6, cy))
+
+
+def bronze_tube_cannon():
+    p = Pen(28, 15)
+    cy = 7
+    p.rect(1, cy, 6, cy + 2, "dwood")
+    p.rect(6, cy - 4, 24, cy + 4, "bronze")
+    p.rect(9, cy - 5, 11, cy + 5, "red")
+    p.rect(16, cy - 5, 18, cy + 5, "gold")
+    p.rect(24, cy - 5, 26, cy + 5, "gold")
+    p.dot(26, cy, "fire", 1)
+    return p.finish((4, cy))
 
 
 # ---------------------------------------------------------------- Danh sách 133 vũ khí mới
@@ -683,6 +762,27 @@ PROC_EXT = {
     "sung_hoa_ti_lien": lambda: scifi_gun(barrel=14, body=10, mb="olive", ms="red", glow="fire", muzzle="bell"),
     "sung_phan_vat_chat": lambda: scifi_gun(barrel=13, body=10, mb="black", ms="void", glow="purple", tank=True, muzzle="prism"),
     "sung_quang_tu": lambda: scifi_gun(barrel=15, body=10, mb="gold", ms="white", glow="cyan", coil=True, muzzle="prism"),
+
+    # --- 4 Thần binh Hợp nhất mới (no_thien_co & truong_ngu_hanh đã có ở trên)
+    "thai_cuc_kiem": taiji_sword,
+    "cung_loi_hoa": lambda: bow(24, "red", deco="gold", glow="cyan"),
+    "phao_thien_long": lambda: dragon_cannon("red", "gold", "fire", "cyan"),
+    "luoi_hai_am_duong": yinyang_scythe,
+
+    # --- 13 Thần binh Trùm Đỏ (boss_motif)
+    "huyet_dao_to_dinh": lambda: sword(6, 17, 4, "red", "black", "gold", curve=2, glow="fire"),
+    "kich_luc_dan": lambda: boss_halberd("dwood", "steel", "gold", "red"),
+    "dinh_ba_hoang_thao": lambda: boss_trident("void", "cyan", "red", "white"),
+    "cung_quach_quy": lambda: bow(24, "red", deco="gold", glow="fire"),
+    "ong_dong_thoat_hoan": bronze_tube_cannon,
+    "bua_lieu_thang": lambda: hammer(18, 6, "black", "red", "gold", "fire"),
+    "phao_ton_si_nghi": lambda: dragon_cannon("bronze", "gold", "red", "fire"),
+    "hoa_phao_hy_vong": lambda: scifi_gun(barrel=14, body=10, mb="black", ms="dwood", glow="cyan", muzzle="bell"),
+    "sung_don_truong": lambda: scifi_gun(barrel=13, body=10, mb="gun", ms="red", glow="fire", coil=True, muzzle="brake"),
+    "phao_coi_do_cat": lambda: scifi_gun(barrel=15, body=11, mb="olive", ms="red", glow="fire", tank=True, muzzle="bell"),
+    "ho_ly_cuu_vi": fox_nine_tail_orb,
+    "truong_xuong_cuong": lambda: magic_staff(23, "dwood", "poison", "rock", "red"),
+    "hai_than_hac_hai": lambda: boss_trident("black", "cyan", "red", "cyan"),
 }
 
 

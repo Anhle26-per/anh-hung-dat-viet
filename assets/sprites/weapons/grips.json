@@ -31,6 +31,10 @@
   6,
   8
  ],
+ "bua_lieu_thang": [
+  7,
+  12
+ ],
  "bua_sat": [
   7,
   10
@@ -99,6 +103,10 @@
   11,
   15
  ],
+ "cung_loi_hoa": [
+  12,
+  16
+ ],
  "cung_nguyet_anh": [
   12,
   15
@@ -106,6 +114,10 @@
  "cung_phan_than": [
   12,
   15
+ ],
+ "cung_quach_quy": [
+  12,
+  16
  ],
  "cung_rong": [
   11,
@@ -175,6 +187,10 @@
   7,
   8
  ],
+ "dinh_ba_hoang_thao": [
+  9,
+  9
+ ],
  "dinh_ba_thuy_tinh": [
   9,
   9
@@ -243,6 +259,14 @@
   6,
   10
  ],
+ "hai_than_hac_hai": [
+  9,
+  9
+ ],
+ "ho_ly_cuu_vi": [
+  8,
+  11
+ ],
  "hoa_ho": [
   6,
   5
@@ -255,13 +279,25 @@
   14,
   9
  ],
+ "hoa_phao_hy_vong": [
+  12,
+  12
+ ],
  "hoa_tien": [
   6,
   6
  ],
+ "huyet_dao_to_dinh": [
+  6,
+  9
+ ],
  "kich": [
   10,
   9
+ ],
+ "kich_luc_dan": [
+  9,
+  10
  ],
  "kich_thien_loi": [
   9,
@@ -335,6 +371,10 @@
   5,
   11
  ],
+ "luoi_hai_am_duong": [
+  9,
+  13
+ ],
  "luoi_hai_bac": [
   9,
   12
@@ -403,9 +443,17 @@
   6,
   9
  ],
+ "ong_dong_thoat_hoan": [
+  6,
+  9
+ ],
  "ong_lua": [
   5,
   9
+ ],
+ "phao_coi_do_cat": [
+  12,
+  12
  ],
  "phao_dong": [
   6,
@@ -418,6 +466,14 @@
  "phao_thang_thien": [
   7,
   9
+ ],
+ "phao_thien_long": [
+  7,
+  10
+ ],
+ "phao_ton_si_nghi": [
+  7,
+  10
  ],
  "phi_dao_luan_hoi": [
   5,
@@ -587,6 +643,10 @@
   12,
   12
  ],
+ "sung_don_truong": [
+  12,
+  12
+ ],
  "sung_hai_nong": [
   14,
   9
@@ -691,6 +751,10 @@
   12,
   12
  ],
+ "thai_cuc_kiem": [
+  6,
+  9
+ ],
  "than_co_sang": [
   6,
   6
@@ -784,6 +848,10 @@
   9
  ],
  "truong_trong_luc": [
+  9,
+  10
+ ],
+ "truong_xuong_cuong": [
   9,
   10
  ],

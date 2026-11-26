@@ -5,10 +5,11 @@ extends CanvasLayer
 signal pause_pressed
 
 const WeaponData = preload("res://scripts/data/weapons.gd")
+const HeroData = preload("res://scripts/data/heroes.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
 const BASE_JOY_R := 40.0
-const BASE_RADII := {"attack": 30.0, "skill": 22.0, "swap": 18.0, "pause": 13.0}
+const BASE_RADII := {"attack": 30.0, "skill": 22.0, "swap": 18.0, "dash": 19.0, "merge": 18.0, "pause": 13.0}
 
 var player = null
 var _joy_finger := -1
@@ -34,6 +35,8 @@ func _ready() -> void:
 		"attack": {"r": 30.0, "finger": -1, "pos": Vector2.ZERO},
 		"skill": {"r": 22.0, "finger": -1, "pos": Vector2.ZERO},
 		"swap": {"r": 18.0, "finger": -1, "pos": Vector2.ZERO},
+		"dash": {"r": 19.0, "finger": -1, "pos": Vector2.ZERO},
+		"merge": {"r": 18.0, "finger": -1, "pos": Vector2.ZERO},
 		"pause": {"r": 13.0, "finger": -1, "pos": Vector2.ZERO},
 	}
 	var view := PadView.new()
@@ -60,7 +63,17 @@ func _layout() -> void:
 	_buttons.attack.pos = Vector2(s.x - 62 * sc, s.y - 62 * sc)
 	_buttons.skill.pos = Vector2(s.x - 130 * sc, s.y - 38 * sc)
 	_buttons.swap.pos = Vector2(s.x - 38 * sc, s.y - 128 * sc)
+	_buttons.dash.pos = Vector2(s.x - 114 * sc, s.y - 108 * sc)
+	_buttons.merge.pos = Vector2(s.x - 178 * sc, s.y - 68 * sc)
 	_buttons.pause.pos = Vector2(s.x - 118, 20)
+
+
+func _is_merge_available() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	if player.has_method("can_merge_nearby"):
+		return not player.can_merge_nearby().is_empty()
+	return false
 
 
 ## Thả hết các nút (khi tạm dừng / thua) để không bị kẹt nút.
@@ -76,6 +89,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			for id in _buttons:
+				if id == "merge" and not _is_merge_available():
+					continue
 				var b: Dictionary = _buttons[id]
 				if b.finger == -1 and event.position.distance_to(b.pos) <= b.r * 1.35:
 					b.finger = event.index
@@ -114,6 +129,12 @@ func _on_button(id: String, pressed: bool) -> void:
 		"swap":
 			if pressed:
 				Global.touch_swap = true
+		"dash":
+			if pressed:
+				Global.touch_dash = true
+		"merge":
+			if pressed:
+				Global.touch_merge = true
 		"pause":
 			if pressed:
 				reset()
@@ -138,10 +159,12 @@ func draw_pad(ci: Node2D) -> void:
 	ci.draw_circle(knob, 16.0 * ui_sc, Color(1, 1, 1, 0.35 if active else 0.2))
 
 	for id in _buttons:
+		if id == "merge" and not _is_merge_available():
+			continue
 		var b: Dictionary = _buttons[id]
 		var pressed: bool = b.finger != -1
 		ci.draw_circle(b.pos, b.r, Color(1, 1, 1, 0.32 if pressed else 0.16))
-		ci.draw_arc(b.pos, b.r, 0.0, TAU, 28, Color(1, 1, 1, 0.45), 1.5)
+		ci.draw_arc(b.pos, b.r, 0.0, TAU, 28, Color(0.45, 1.0, 0.85, 0.85) if id == "merge" else Color(1, 1, 1, 0.45), 1.5)
 		var text := ""
 		var valid: bool = player != null and is_instance_valid(player)
 		match id:
@@ -151,18 +174,40 @@ func draw_pad(ci: Node2D) -> void:
 					var tex := Art.tex("weapons/%s.png" % wid)
 					var sc := minf(40.0 / tex.get_width(), 22.0 / tex.get_height())
 					ci.draw_texture_rect(tex, Rect2(b.pos - Vector2(tex.get_width(), tex.get_height()) * sc / 2.0, Vector2(tex.get_width(), tex.get_height()) * sc), false)
-					Art.draw_text(ci, b.pos + Vector2(0, b.r + 12), player.current_weapon().name, 13, WeaponData.tier_color(wid))
+					var cw: Dictionary = player.current_weapon()
+					var wcol: Color = Color("ff384c") if bool(cw.get("boss_motif", false)) else WeaponData.tier_color(wid)
+					Art.draw_text(ci, b.pos + Vector2(0, b.r + 12), str(cw.get("name", wid)), 13, wcol)
 				else:
 					text = "Đánh"
 			"skill":
 				if valid:
-					var icon := Art.tex("ui/skill_%s.png" % player.hero.skill)
+					var sk_idx: int = Global.active_skill_index(player.hero_id)
+					var sk_info: Dictionary = HeroData.skill_info(player.hero_id, sk_idx)
+					var sk_id: String = str(sk_info.get("skill", player.hero.skill))
+					var sk_rel := "ui/skill_%s.png" % sk_id
+					if not ResourceLoader.exists("res://assets/sprites/" + sk_rel):
+						sk_rel = "ui/skill_%s.png" % player.hero.skill
+					var icon := Art.tex(sk_rel)
 					ci.draw_texture_rect(icon, Rect2(b.pos - Vector2(16.5, 16.5), Vector2(33, 33)), false)
+					var sk_cd: float = maxf(0.1, float(sk_info.get("skill_cd", player.hero.skill_cd)))
 					if player.skill_timer > 0.0:
-						var k: float = player.skill_timer / player.hero.skill_cd
+						var k: float = player.skill_timer / sk_cd
 						ci.draw_circle(b.pos, b.r - 2.0, Color(0, 0, 0, 0.55))
 						ci.draw_arc(b.pos, b.r - 3.0, -PI / 2.0, -PI / 2.0 + TAU * k, 24, Color(1, 0.85, 0.4, 0.8), 3.0)
 						text = "%d" % ceili(player.skill_timer)
+			"dash":
+				text = "Lướt"
+				if valid:
+					var dcd_v: Variant = player.get("dash_cd_left")
+					var dcd: float = maxf(0.0, float(dcd_v)) if dcd_v != null else 0.0
+					if dcd > 0.0:
+						var dk: float = clampf(dcd / 1.6, 0.0, 1.0)
+						ci.draw_circle(b.pos, b.r - 2.0, Color(0, 0, 0, 0.55))
+						ci.draw_arc(b.pos, b.r - 3.0, -PI / 2.0, -PI / 2.0 + TAU * dk, 24, Color(0.45, 0.92, 1.0, 0.85), 3.0)
+						text = "%.1f" % dcd
+			"merge":
+				text = "Hợp"
+				ci.draw_arc(b.pos, b.r + 3.0, 0.0, TAU, 24, Color(0.45, 1.0, 0.86, 0.55 + 0.45 * sin(Time.get_ticks_msec() / 120.0)), 2.0)
 			"swap":
 				if valid and player.interact_target != null:
 					text = "Dùng"
@@ -174,4 +219,4 @@ func draw_pad(ci: Node2D) -> void:
 			"pause":
 				text = "II"
 		if text != "":
-			Art.draw_text(ci, b.pos + Vector2(0, 5), text, 16, Color.WHITE)
+			Art.draw_text(ci, b.pos + Vector2(0, 5), text, 15 if id in ["dash", "merge"] else 16, Color.WHITE)
