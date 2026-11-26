@@ -191,27 +191,14 @@ func _ready() -> void:
 
 	var size: Vector2i = data.size
 	var n: int = data.get("frames", 4)
-	var anims := {"walk": [[0, 1, 2, 3], 9.0 if n == 8 else 8.0, true]}
-	if n == 5:
-		anims["attack"] = [[4], 1.0, false]
-	elif n == 8:
-		anims["windup"] = [[4], 1.0, false]
-		anims["attack"] = [[4, 5, 6], 11.0, false]
-		anims["hurt"] = [[7], 1.0, false]
-		if str(data.get("id", "")) == "ngu_tinh":
-			anims["rage"] = [[6], 1.0, false]
-	elif n >= 6:
-		anims["attack"] = [[4], 1.0, false]
-		anims["rage"] = [[5], 1.0, false]
-	if n == 7:
-		anims["special"] = [[6], 1.0, false]
+	var anims := _build_anims(n)
 	spr = AnimatedSprite2D.new()
 	spr.sprite_frames = Art.frames(data.sheet, size.x, size.y, anims)
 	spr.position = Vector2(0, radius - size.y / 2.0)
 	_mat = Art.flash_material()
 	spr.material = _mat
 	spr.play("walk")
-	spr.frame = randi() % 4
+	spr.frame = randi() % (8 if n >= 16 else 4)
 	spr.modulate = Color(1, 1, 1, 0)
 	add_child(spr)
 	if elite:
@@ -517,6 +504,43 @@ func _physics_process(delta: float) -> void:
 	_update_anim(delta)
 
 
+func _build_anims(n: int) -> Dictionary:
+	var anims := {"walk": [[0, 1, 2, 3], 9.0 if n == 8 else 8.0, true]}
+	if n >= 24:
+		anims["walk"] = [[0, 1, 2, 3, 4, 5, 6, 7], 13.0, true]
+		anims["windup"] = [[8, 9, 10], 11.0, false]
+		anims["attack"] = [[11, 12, 13, 14], 14.0, false]
+		anims["dash"] = [[15, 16], 12.0, true]
+		anims["leap"] = [[17, 18, 19], 10.0, false]
+		anims["rage"] = [[20, 21], 7.0, true]
+		anims["special"] = [[22, 23], 8.0, true]
+		return anims
+	if n == 16:
+		anims["walk"] = [[0, 1, 2, 3, 4, 5, 6, 7], 13.0, true]
+		anims["windup"] = [[8, 9], 10.0, false]
+		if str(data.get("id", "")) == "ngu_tinh":
+			anims["attack"] = [[10, 11, 12], 14.0, false]
+			anims["rage"] = [[13], 1.0, false]
+		else:
+			anims["attack"] = [[10, 11, 12, 13], 15.0, false]
+		anims["hurt"] = [[14, 15], 10.0, false]
+		return anims
+	if n == 5:
+		anims["attack"] = [[4], 1.0, false]
+	elif n == 8:
+		anims["windup"] = [[4], 1.0, false]
+		anims["attack"] = [[4, 5, 6], 11.0, false]
+		anims["hurt"] = [[7], 1.0, false]
+		if str(data.get("id", "")) == "ngu_tinh":
+			anims["rage"] = [[6], 1.0, false]
+	elif n >= 6:
+		anims["attack"] = [[4], 1.0, false]
+		anims["rage"] = [[5], 1.0, false]
+	if n == 7:
+		anims["special"] = [[6], 1.0, false]
+	return anims
+
+
 func _update_anim(delta: float = 0.016) -> void:
 	spr.flip_h = _face < 0.0
 	_anim_scale = _anim_scale.lerp(_base_scale, clampf(delta * 11.0, 0.0, 1.0))
@@ -527,8 +551,14 @@ func _update_anim(delta: float = 0.016) -> void:
 	elif not is_boss() and _hurt_anim_t > 0.0 and spr.sprite_frames.has_animation("hurt"):
 		spr.play("hurt")
 		spr.speed_scale = 1.0
-	elif not is_boss() and _charge_state == "windup" and spr.sprite_frames.has_animation("windup"):
+	elif (_charge_state == "windup" or _leap_state == "windup") and spr.sprite_frames.has_animation("windup"):
 		spr.play("windup")
+		spr.speed_scale = 1.0
+	elif _leap_state in ["air", "land"] and is_boss() and spr.sprite_frames.has_animation("leap"):
+		spr.play("leap")
+		spr.speed_scale = 1.0
+	elif _charge_state == "dash" and is_boss() and spr.sprite_frames.has_animation("dash"):
+		spr.play("dash")
 		spr.speed_scale = 1.0
 	elif (_charge_state == "dash" or _leap_state == "air") and is_boss() and spr.sprite_frames.has_animation("attack"):
 		spr.play("attack")
@@ -1289,7 +1319,7 @@ func _finish_morph() -> void:
 	transformed = true
 	spr.position.x = 0.0
 	var size2: Vector2i = data.get("size2", data.size)
-	var anims := {"walk": [[0, 1, 2, 3], 8.0, true], "attack": [[4], 1.0, false], "rage": [[5], 1.0, false], "special": [[6], 1.0, false]}
+	var anims := _build_anims(int(data.get("frames", 24)))
 	spr.sprite_frames = Art.frames(data.sheet2, size2.x, size2.y, anims)
 	radius = float(data.get("radius2", radius))
 	_shape.radius = radius * 0.72

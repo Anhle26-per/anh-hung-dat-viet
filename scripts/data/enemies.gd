@@ -11,31 +11,31 @@ const ARCHETYPES := {
 	"khien_binh": {"name": "Khiên binh", "hp": 30, "speed": 42.0, "radius": 8.0, "ai": "tank", "coins": 2},
 	"phap_su": {"name": "Pháp sư", "hp": 19, "speed": 50.0, "radius": 7.0, "ai": "caster", "shoot_cd": 2.2, "coins": 2},
 	"ky_binh": {"name": "Kỵ binh", "hp": 24, "speed": 78.0, "radius": 10.0, "ai": "charge", "coins": 2,
-		"sheet": "enemies/nguyen_mong_ky_binh.png", "size": Vector2i(34, 30), "frames": 8},
+		"sheet": "enemies/nguyen_mong_ky_binh.png", "size": Vector2i(34, 30), "frames": 16},
 	# thời cận đại
 	"linh_sung": {"name": "Lính súng trường", "hp": 16, "speed": 60.0, "radius": 7.0, "ai": "rifle", "shoot_cd": 1.2, "coins": 1},
 	"xa_thu": {"name": "Xạ thủ súng máy", "hp": 22, "speed": 46.0, "radius": 7.0, "ai": "mg", "shoot_cd": 2.1, "coins": 2},
 	"phao_binh": {"name": "Pháo cối", "hp": 17, "speed": 44.0, "radius": 7.0, "ai": "mortar", "shoot_cd": 2.5, "coins": 2},
 	"xe_tang": {"name": "Xe tăng", "hp": 95, "speed": 30.0, "radius": 14.0, "ai": "tank_elite", "shoot_cd": 2.0, "coins": 6,
-		"sheet": "enemies/xe_tang.png", "size": Vector2i(40, 30), "frames": 8},
+		"sheet": "enemies/xe_tang.png", "size": Vector2i(40, 30), "frames": 16},
 }
 
 # Yêu quái do tà thuật gọi ra
 const FOLK := {
 	"tieu_yeu": {"name": "Tiểu yêu", "hp": 12, "speed": 82.0, "radius": 7.0, "ai": "chase", "coins": 1,
-		"sheet": "enemies/tieu_yeu.png", "size": Vector2i(16, 17), "frames": 8},
+		"sheet": "enemies/tieu_yeu.png", "size": Vector2i(16, 17), "frames": 16},
 	"ho_tinh": {"name": "Hồ tinh", "hp": 13, "speed": 66.0, "radius": 7.0, "ai": "shoot", "shoot_cd": 1.3, "coins": 1,
-		"sheet": "enemies/ho_tinh.png", "size": Vector2i(22, 16), "proj": "orb_pink", "frames": 8},
+		"sheet": "enemies/ho_tinh.png", "size": Vector2i(22, 16), "proj": "orb_pink", "frames": 16},
 	"moc_tinh": {"name": "Mộc tinh", "hp": 30, "speed": 32.0, "radius": 10.0, "ai": "ring", "shoot_cd": 2.2, "coins": 2,
-		"sheet": "enemies/moc_tinh.png", "size": Vector2i(26, 28), "frames": 8},
+		"sheet": "enemies/moc_tinh.png", "size": Vector2i(26, 28), "frames": 16},
 	"chan_tinh": {"name": "Chằn tinh", "hp": 52, "speed": 40.0, "radius": 11.0, "ai": "slam", "shoot_cd": 2.7, "coins": 3,
-		"sheet": "enemies/chan_tinh.png", "size": Vector2i(30, 32), "frames": 8},
+		"sheet": "enemies/chan_tinh.png", "size": Vector2i(30, 32), "frames": 16},
 	"dai_bang": {"name": "Đại bàng tinh", "hp": 18, "speed": 88.0, "radius": 9.0, "ai": "charge", "coins": 2,
-		"sheet": "enemies/dai_bang.png", "size": Vector2i(36, 26), "frames": 8},
+		"sheet": "enemies/dai_bang.png", "size": Vector2i(36, 26), "frames": 16},
 	"ma_troi": {"name": "Ma trơi", "hp": 7, "speed": 74.0, "radius": 6.0, "ai": "kamikaze", "coins": 1,
-		"sheet": "enemies/ma_troi.png", "size": Vector2i(14, 18), "frames": 8},
+		"sheet": "enemies/ma_troi.png", "size": Vector2i(14, 18), "frames": 16},
 	"ngu_tinh": {"name": "Thủy quái Ngư Tinh", "hp": 150, "speed": 50.0, "radius": 18.0, "ai": "ngu", "coins": 6,
-		"sheet": "enemies/ngu_tinh.png", "size": Vector2i(60, 46), "frames": 8},
+		"sheet": "enemies/ngu_tinh.png", "size": Vector2i(60, 46), "frames": 16},
 }
 
 # Trùm: mỗi chương một kẻ cầm đầu từng bị đánh bại
@@ -189,7 +189,7 @@ const MYTHIC_BOSSES := {
 		"sheet2": "enemies/boss_ho_tinh_vuong_2.png",
 		"size": Vector2i(84, 60),
 		"size2": Vector2i(84, 60),
-		"frames": 7,
+		"frames": 24,
 		"mythic": true,
 	},
 	"xuong_cuong": {
@@ -209,7 +209,7 @@ const MYTHIC_BOSSES := {
 		"sheet2": "enemies/boss_moc_tinh_vuong_2.png",
 		"size": Vector2i(72, 72),
 		"size2": Vector2i(72, 72),
-		"frames": 7,
+		"frames": 24,
 		"mythic": true,
 	},
 	"hac_hai_ngu": {
@@ -229,7 +229,7 @@ const MYTHIC_BOSSES := {
 		"sheet2": "enemies/boss_ngu_tinh_vuong_2.png",
 		"size": Vector2i(84, 60),
 		"size2": Vector2i(84, 60),
-		"frames": 7,
+		"frames": 24,
 		"mythic": true,
 	},
 }
@@ -368,7 +368,7 @@ static func info(id: String, level: int) -> Dictionary:
 		d["coins"] = 28 if is_mythic_boss else 16
 		d["sheet"] = b.get("sheet", "enemies/boss_%s.png" % bid)
 		d["size"] = b.get("size", Vector2i(48, 48))
-		d["frames"] = b.get("frames", 7)
+		d["frames"] = b.get("frames", 24)
 		d["army"] = home.army
 		d["summon"] = "%s@%s" % [b.summon, home.army]
 		d["power"] = power
@@ -389,7 +389,7 @@ static func info(id: String, level: int) -> Dictionary:
 		d["legend"] = true
 		d["ai"] = "boss"
 		d["coins"] = 18
-		d["frames"] = 7
+		d["frames"] = 24
 		d["sheet"] = "enemies/boss_%s.png" % lid
 		d["sheet2"] = "enemies/boss_%s_2.png" % lid
 		d["radius2"] = d.radius
@@ -408,7 +408,7 @@ static func info(id: String, level: int) -> Dictionary:
 		if not d.has("sheet"):
 			d["sheet"] = "enemies/%s_%s.png" % [army, id]
 			d["size"] = Vector2i(24, 26)
-			d["frames"] = 8
+			d["frames"] = 16
 		d["name"] = "%s (%s)" % [d.name, army_name(army)]
 	# Chỉ số tăng đều theo từng màn & nhảy bậc rõ khi vào Chuyến Du Hành Thần Thoại (4-1+)
 	var depth: float = float(maxi(level - 1, 0)) if level <= 15 else float(14 + maxi(level - 17, 0))

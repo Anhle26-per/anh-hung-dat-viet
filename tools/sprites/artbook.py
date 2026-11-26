@@ -119,7 +119,7 @@ def page_enemies():
             fr = frames(f"enemies/{aid}_{kid}.png", 24)
             x = 60 + k * 380
             p.paste(up(fr[0], 5), x, p.y + 38)
-            p.paste(up(fr[4], 5), x + 130, p.y + 38)
+            p.paste(up(fr[11], 5), x + 130, p.y + 38)
             p.text((x + 10, p.y + 172), kname, 24, CREAM)
         p.y += 215
     p.text((60, p.y), "Kỵ binh, xe tăng và yêu quái", 32, GOLD)
@@ -156,17 +156,17 @@ def page_bosses():
         p.paste(up(fr[0], 4), 50, p.y - 10)
         p.text((280, p.y), name, 40, GOLD)
         p.text((280, p.y + 42), f"{title}  -  Chiêu: {special}", 24, CREAM)
-        for i, f in enumerate(fr[1:]):
+        for i, f in enumerate([fr[2], fr[9], fr[12], fr[15], fr[18], fr[22]]):
             p.paste(up(f, 2), 280 + i * 110, p.y + 76)
         p.y += 200
     ship = frames("enemies/boss_tau_hy_vong.png", 64)
     p.text((60, p.y), "Tàu chiến Hy Vọng - Chiến thuyền thủy quân Pháp - Chiêu: Bốc cháy", 32, GOLD)
-    for i, f in enumerate([ship[0], ship[4], ship[6]]):
+    for i, f in enumerate([ship[0], ship[12], ship[22]]):
         p.paste(up(f, 4), 60 + i * 300, p.y + 46)
     p.y += 240
     ngu = frames("enemies/ngu_tinh.png", 60)
     p.text((60, p.y), "Thủy quái Ngư Tinh (do Hoằng Tháo gọi ra)", 32, GOLD)
-    for i, f in enumerate(ngu[:3] + ngu[4:6]):
+    for i, f in enumerate(ngu[:2] + [ngu[9], ngu[11], ngu[13]]):
         p.paste(up(f, 4), 60 + i * 300, p.y + 46)
     p.y += 240
     p.save("3-trum.png")
