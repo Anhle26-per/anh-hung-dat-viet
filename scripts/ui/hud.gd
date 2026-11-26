@@ -141,6 +141,10 @@ func draw_hud(ci: Control) -> void:
 		_panel(ci, Rect2(4, left_y, 118, 16))
 		Art.draw_text(ci, Vector2(10, left_y + 12), "Cuồng chiến %.1fs" % float(player.get("_frenzy_timer")), 12, Color(1.0, 0.42, 0.45), false)
 		left_y += 18.0
+	if bool(player.get("sprinting")):
+		_panel(ci, Rect2(4, left_y, 118, 16))
+		Art.draw_text(ci, Vector2(10, left_y + 12), "Tăng tốc [Shift]", 12, Color(0.45, 0.90, 1.0), false)
+		left_y += 18.0
 
 	# --- Trạng thái đồng đội trong phòng LAN
 	if Net != null and Net.is_online():

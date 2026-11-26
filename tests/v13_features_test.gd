@@ -323,4 +323,27 @@ func _run() -> void:
 	_check(int(Global.stats.get("mythic_bosses", -1)) == 0 and int(Global.stats.get("crafted", -1)) == 0,
 		"save cũ phải gán mặc định mythic_bosses=0 và crafted=0")
 
+	print("== 5. Kiểm tra Shift chạy nhanh tốn năng lượng & hết năng lượng tự tắt")
+	_check(InputMap.has_action("sprint"), "thiếu action 'sprint' cho nút Shift")
+	var sp_holder := Node2D.new()
+	add_child(sp_holder)
+	var sp_p := Player.new()
+	sp_p.setup("ngo_quyen")
+	sp_holder.add_child(sp_p)
+	await _frames(2)
+	sp_p.energy = 50
+	Input.action_press("move_right")
+	Input.action_press("sprint")
+	await _frames(15)
+	_check(sp_p.sprinting, "nhấn giữ Shift khi di chuyển và còn năng lượng phải bật sprinting")
+	_check(sp_p.velocity.length() > sp_p.speed * 1.30, "chạy nhanh Shift phải tăng tốc độ (%s vs %s)" % [str(sp_p.velocity.length()), str(sp_p.speed)])
+	_check(sp_p.energy < 50, "chạy nhanh Shift trong trận phải tiêu hao năng lượng (%d)" % sp_p.energy)
+	sp_p.energy = 0
+	await _frames(3)
+	_check(not sp_p.sprinting and sp_p.velocity.length() <= sp_p.speed * 1.05, "khi hết năng lượng phải ngừng chạy nhanh")
+	Input.action_release("move_right")
+	Input.action_release("sprint")
+	sp_holder.queue_free()
+	await _frames(2)
+
 	_completed = true

@@ -32,6 +32,8 @@ const SpiritBlade = preload("res://scripts/effects/spirit_blade.gd")
 const RADIUS := 7.0
 const AUTO_AIM_RANGE := 230.0
 const ARMOR_REGEN_DELAY := 3.5
+const SPRINT_SPEED_MULT := 1.48
+const SPRINT_ENERGY_COST := 18.0
 
 var hero_id := ""
 var hero: Dictionary = {}
@@ -109,6 +111,9 @@ var _elem_idx: int = 0
 var _elem_cd: float = 0.0
 var _qigong_shots: int = 0
 var _spirit_blade: Node2D = null
+var sprinting: bool = false
+var _sprint_drain_acc: float = 0.0
+var _sprint_fx_t: float = 0.0
 
 # Phần hình
 var body: AnimatedSprite2D
@@ -389,6 +394,7 @@ func _physics_process(delta: float) -> void:
 	if Global.joy_vector != Vector2.ZERO:
 		move = Global.joy_vector
 
+	sprinting = false
 	if _dash_time > 0.0:
 		_dash_time -= delta
 		velocity = _dash_dir * speed * 3.2
@@ -413,6 +419,21 @@ func _physics_process(delta: float) -> void:
 		mult *= 1.0 + 0.12 * buff("ngua_o")
 		if _frenzy_timer > 0.0:
 			mult *= 1.15
+		if move.length_squared() > 0.01 and Input.is_action_pressed("sprint"):
+			var in_lobby: bool = is_inside_tree() and get_tree().get_first_node_in_group("lobby") != null
+			if in_lobby or energy > 0:
+				sprinting = true
+				mult *= SPRINT_SPEED_MULT
+				if not in_lobby:
+					_sprint_drain_acc += delta * SPRINT_ENERGY_COST
+					if _sprint_drain_acc >= 1.0:
+						var drain: int = int(_sprint_drain_acc)
+						_sprint_drain_acc -= float(drain)
+						energy = maxi(0, energy - drain)
+						stats_changed.emit()
+			elif _msg_cd <= 0.0 and get_parent() != null:
+				_msg_cd = 1.2
+				Fx.float_text(get_parent(), global_position + Vector2(0, -18), "Hết năng lượng!", Color(0.5, 0.85, 1.0), 12)
 		velocity = move * speed * mult
 	move_and_slide()
 	if buff("tich_luc") > 0:
@@ -462,6 +483,7 @@ func _process(delta: float) -> void:
 	_mat.set_shader_parameter("flash", _flash)
 	_recoil = move_toward(_recoil, 0.0, delta * 40.0)
 	if dead or downed:
+		sprinting = false
 		if body.animation != "down":
 			body.play("down")
 		if weapon_pivot != null:
@@ -484,6 +506,7 @@ func _process(delta: float) -> void:
 		var moving := velocity.length() > 5.0
 		if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
 			body.play("walk" if moving else "idle")
+			body.speed_scale = 1.45 if (sprinting and moving) else 1.0
 
 	# vũ khí xoay theo hướng ngắm
 	var w := current_weapon()
@@ -507,6 +530,7 @@ func _process(delta: float) -> void:
 
 	# hiệu ứng kỹ năng đang chạy
 	_fx_t -= delta
+	_sprint_fx_t -= delta
 	if _dash_time > 0.0:
 		elephant.visible = true
 		elephant.play("play")
@@ -533,6 +557,11 @@ func _process(delta: float) -> void:
 		if iron_horse != null:
 			iron_horse.visible = false
 		body.position = Vector2(0, -6)
+		if sprinting and velocity.length() > 10.0 and _sprint_fx_t <= 0.0 and get_parent() != null:
+			_sprint_fx_t = 0.09
+			Fx.anim(get_parent(), global_position + Vector2(randf_range(-4.0, 4.0), 6.0), "fx/dust.png", 10, 10, 14.0, 0.95, 0.0, Color(0.75, 0.92, 1.0, 0.85))
+			Fx.particles(get_parent(), global_position + Vector2(0.0, 4.0), Color(0.42, 0.86, 1.0), 2, 42.0, 0.22, -20.0, 1.4, 40.0, -velocity.normalized())
+			Fx.afterimage(get_parent(), body, global_position, Color(0.38, 0.84, 1.0, 0.35), 0.16)
 	twin.visible = twin_timer > 0.0
 	if twin.visible:
 		twin.flip_h = body.flip_h

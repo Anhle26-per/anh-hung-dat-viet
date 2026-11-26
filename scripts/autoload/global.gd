@@ -1401,6 +1401,7 @@ func _setup_inputs() -> void:
 	_add_mouse("swap_weapon", MOUSE_BUTTON_WHEEL_DOWN)
 	_add_keys("interact", [KEY_E])
 	_add_keys("pause", [KEY_ESCAPE, KEY_P])
+	_add_keys("sprint", [KEY_SHIFT])
 	# Tay cầm (để sau này bán trên Steam)
 	_add_axis("move_left", JOY_AXIS_LEFT_X, -1.0)
 	_add_axis("move_right", JOY_AXIS_LEFT_X, 1.0)
@@ -1412,6 +1413,8 @@ func _setup_inputs() -> void:
 	_add_pad("swap_weapon", JOY_BUTTON_LEFT_SHOULDER)
 	_add_pad("interact", JOY_BUTTON_Y)
 	_add_pad("pause", JOY_BUTTON_START)
+	_add_pad("sprint", JOY_BUTTON_LEFT_STICK)
+	_add_axis("sprint", JOY_AXIS_TRIGGER_LEFT, 0.6)
 
 
 func _ensure(action: String) -> void:
