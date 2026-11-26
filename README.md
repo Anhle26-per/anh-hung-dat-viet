@@ -1,350 +1,342 @@
-# Anh Hùng Đất Việt
+<div align="center">
 
-> Game chỉ để chơi trong nhóm bạn: chơi một mình hoặc chơi chung qua LAN.
-> - **Bàn giao cho Antigravity/Gemini: [docs/BAN-GIAO.md](docs/BAN-GIAO.md)**
-> - Tiến độ và kế hoạch: [docs/TIEN-DO-VA-KE-HOACH.md](docs/TIEN-DO-VA-KE-HOACH.md)
-> - Việc còn lại giao cho Gemini: [docs/GIAO-VIEC-GEMINI.md](docs/GIAO-VIEC-GEMINI.md) (luật làm việc: `AGENTS.md`)
-> - Chạy test: `tools\run_tests.bat` (Windows) hoặc `bash tools/run_tests.sh` (Linux/Mac)
+# ⚔️ ANH HÙNG ĐẤT VIỆT ⚔️
 
-Game roguelike bắn quái góc nhìn từ trên xuống, đồ họa pixel. Người chơi chọn 1 trong **10 vị tướng** từ năm 40 đến năm 1954, đánh qua **10 chương lịch sử**, mỗi chương một đạo quân xâm lược và một trùm. Mỗi tướng khởi đầu bằng một vũ khí cơ bản riêng, vào trận nhặt thêm trong số 57 vũ khí chia 5 cấp (tổng 67 vũ khí).
+### Phiên bản `v2.0.0` — *Linh Hồn Chiến Trận*
 
-![Chọn tướng](docs/chon-tuong.png)
+*Game hành động Roguelike bắn quái góc nhìn từ trên xuống (Top-Down Bullet-Hell) lấy cảm hứng từ Soul Knight — Tái hiện hào khí 2.000 năm lịch sử & truyền thuyết Việt Nam bằng đồ họa Pixel Art.*
 
-| Cọc Bạch Đằng (Ngô Quyền) | Voi chiến (Bà Triệu) |
-|---|---|
-| ![](docs/chieu-coc-bach-dang.png) | ![](docs/chieu-voi-chien.png) |
-| **Hịch tướng sĩ (Trần Hưng Đạo)** | **Thần tốc (Quang Trung)** |
-| ![](docs/chieu-hich-tuong-si.png) | ![](docs/chieu-than-toc.png) |
+[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.0.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
+[![Godot](https://img.shields.io/badge/Godot-4.7.2-478cbf?style=for-the-badge&logo=godot-engine&logoColor=white)](https://godotengine.org/)
+[![Binh khí](https://img.shields.io/badge/Kho_Binh_Khí-217_Món-f59f00?style=for-the-badge)](#%EF%B8%8F-217-binh-khí-hợp-nhất--13-thần-binh-đỏ)
+[![Danh tướng](https://img.shields.io/badge/Danh_Tướng-11_Tướng_•_22_Chiêu-7950f2?style=for-the-badge)](#-11-danh-tướng--nội-tại-chiêu-1--chiêu-2)
+[![Nền tảng](https://img.shields.io/badge/Chơi_Trên-Windows_•_macOS_•_Android_•_LAN-2b8a3e?style=for-the-badge)](#-tải-game--cài-đặt)
 
-## Cách mở và chạy
+</div>
 
-1. Tải **Godot 4.7** (bản Standard) tại godotengine.org.
-2. Mở Godot, bấm **Import**, chọn `project.godot`. Lần đầu Godot cần vài giây để nạp ảnh.
-3. Bấm **F5** để chơi.
+---
 
-> Muốn thử điều khiển cảm ứng trên máy tính: vào *Debug → Customize Run Instances*, thêm `--touch` vào ô *Main Run Args*.
+<div align="center">
 
-## Điều khiển
+| Doanh Trại Anh Hùng 4 Khu | Sự Kiện `[!]`, Xe Tăng & Thần Binh Đỏ |
+| :---: | :---: |
+| <img src="docs/sanh-chinh.png" width="420" alt="Doanh trại Anh Hùng 4 khu"/> | <img src="docs/v20-event-mount.png" width="420" alt="Phòng sự kiện và Xe Tăng Chiến"/> |
+| **Nội Tại Riêng & Chọn Chiêu 1 / Chiêu 2** | **Ác Mộng, Boss Rush & 8 Biến Số Chiến Trường** |
+| <img src="docs/v20-skill2-modal.png" width="420" alt="Bảng chọn Chiêu 1 và Chiêu 2"/> | <img src="docs/v20-challenge-modes.png" width="420" alt="Menu Thử thách v2.0.0"/> |
 
-| | Máy tính | Điện thoại | Tay cầm |
+</div>
+
+---
+
+## 📦 Tải Game & Cài Đặt
+
+Tất cả bản dựng chính thức được phát hành tại trang [**GitHub Releases**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest):
+
+| Nền tảng | Tải trực tiếp | Cách chạy nhanh |
+|---|---|---|
+| **Windows (`.zip`)** | [**AnhHungDatViet-Windows.zip**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest/download/AnhHungDatViet-Windows.zip) | Giải nén toàn bộ thư mục và mở `AnhHungDatViet.exe` |
+| **macOS Universal (`.dmg` / `.zip`)** | [**Xem tại Releases**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest) | Kéo vào *Applications* (xem thêm [Hướng dẫn cài chi tiết](docs/HUONG-DAN-CAI.md)) |
+| **Android (`.apk`)** | [**AnhHungDatViet.apk**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest/download/AnhHungDatViet.apk) | Cài trực tiếp tệp `.apk` trên máy Android |
+| **Gói cập nhật (`.pck`)** | [**AnhHungDatViet.pck**](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest/download/AnhHungDatViet.pck) | Dùng cho tính năng tự động cập nhật trong game |
+
+> 💡 **Tự Động Cập Nhật Ngay Trong Game (Hotpatch `patch.pck`)**  
+> Từ các phiên bản `v1.2.9+`, khi mở game ở màn hình chính, hệ thống tự kiểm tra bản mới nhất trên GitHub và cho phép **bấm 1 nút để tải bản vá `.pck`**, áp dụng ngay không cần tải lại cả bộ cài và vẫn **giữ nguyên toàn bộ file lưu cũ** (tướng, xu, nguyên liệu, bản vẽ, thành tựu).
+
+---
+
+## 🔥 Điểm Nhấn Phiên Bản `v2.0.0 — Linh Hồn Chiến Trận`
+
+- **11 Danh Tướng Lịch Sử & Truyền Thuyết**: Từ Hai Bà Trưng (năm 40) tới Chiến sĩ Điện Biên (1954) cùng tướng ẩn **Thánh Gióng** — mỗi vị có **1 Nội tại riêng**, **2 Kỹ năng chủ động tùy chọn**, **5 cấp Tu luyện**, **5 bậc Rèn binh khí khởi đầu** và cơ chế **Đồng điệu (★ / ★★) + 6 Ấn hệ**.
+- **217 Binh Khí & Hợp Nhất Giữa Trận**: 6 cấp phẩm chất từ Thường đến **Thần binh Đỏ (`#ff384c`)**; **13 Thần Binh Trùm** độc quyền; **18 công thức Hợp nhất (`R`)** (gồm **6 Thần Binh Hợp Nhất Bậc 5**); **207 Bản vẽ chế tạo** dưới Tầng Hầm; cơ chế **Tụ lực cung/pháo**, **Tiến hóa vũ khí (`★Tiến Hóa`)** và **Phân tách nguyên liệu**.
+- **Vi Điều Khiển Chiến Đấu Mượt Mà**: **Lướt né (`Space`) có khung bất tử (i-frame)**, **Combo cận chiến 3 đoạn** chém tan đạn địch, **tự động chém khí công tầm gần** khi bắn giặc áp sát (`< 26px`), và **39 Phúc lành (3 bậc)** (có **Tam binh hợp bích** mở ô vũ khí thứ 3).
+- **6 Phòng Sự Kiện `[!]`, 3 Thú Cưỡi & 5 Tượng Thần Việt**: Trải nghiệm Lò Rèn Cổ, Bệ Phân Tách, Miếu Thần Việt, Quân Sư Truyền Nghệ, Trại Quân Y, Đài Thách Đấu; cưỡi **Voi Chiến, Ngựa Sắt, Xe Tăng Chiến**; cùng **4 cơ chế Địa hình Chiến trường** (Thủy triều & Cọc Bạch Đằng, Bụi rậm Yên Thế & Đá lở, Lò lửa Tết châm cháy đạn, Chiến hào & Pháo sáng Điện Biên).
+- **Đa Chế Độ Chơi & LAN Co-op**: Chinh phục **10 Chương lịch sử** + **Tam Yêu** (13 Đại Trùm có giai đoạn 2 hiện nguyên hình), **Ác Mộng (Badass)**, **Boss Rush (12 Trùm → Sảnh Khải Hoàn)**, **Thử thách Hôm Nay**, **8 Biến số Chiến trường**, Mã hạt giống + Bảng xếp hạng và **Chơi chung qua mạng LAN**.
+- **Đồ Họa & Âm Thanh Thuần Việt**: Hơn **1.100 tệp Pixel Art** dựng bằng mã Python (quái **16 khung**, trùm **24 khung** chuyển động mượt) kết hợp **nhạc nền dân gian điện tử (Folk-Synth BGM)** biến đổi theo nhịp chiến đấu và pha nổi giận của trùm.
+
+---
+
+## 🎮 Bảng Điều Khiển
+
+| Hành động | Máy tính (`PC`) | Điện thoại (`Touch`) | Tay cầm (`Gamepad`) |
 |---|---|---|---|
-| Di chuyển | WASD / phím mũi tên | Cần gạt trái | Cần trái |
-| Tấn công | Giữ chuột trái (hoặc J) | Giữ nút vũ khí | A / cò phải |
-| Ngắm | Theo chuột | Tự ngắm | Tự ngắm |
-| Kỹ năng | Chuột phải / Space | Nút kỹ năng | B |
-| Đổi vũ khí | Lăn chuột / Q | Nút **Đổi** | LB |
-| Nhặt / dùng | E | Nút **Nhặt / Dùng** | Y |
-| Tạm dừng | Esc / P | Nút **II** | Start |
+| **Di chuyển** | `WASD` / Phím mũi tên | Cần gạt trái | Cần trái |
+| **Tấn công / Tụ lực** | Giữ `Chuột trái` / `J` | Giữ nút Tấn công | `A` / Cò phải (`RT`) |
+| **Ngắm bắn** | Theo trỏ chuột | Tự động ngắm | Tự động ngắm |
+| **Tung Kỹ năng** | `Chuột phải` / `K` | Nút Kỹ năng | `B` |
+| **Lướt né (i-frame)** | `Space` | Nút Lướt | `X` |
+| **Chạy nhanh** | `Shift` | — | Nhấn cần trái (`L3`) / Cò trái (`LT`) |
+| **Đổi vũ khí** | `Q` / Lăn chuột | Nút **Đổi** | `LB` |
+| **Nhặt / Tương tác** | `E` | Nút **Nhặt / Dùng** | `Y` |
+| **Hợp nhất vũ khí** | `R` *(khi đứng cạnh đồ ghép được)* | Nút **Hợp nhất** | `RB` |
+| **Tạm dừng** | `Esc` / `P` | Nút `II` | `Start` |
 
-## 10 vị tướng và chiêu thức
+> Mẹo thử giao diện cảm ứng trên PC: mở Godot vào *Debug → Customize Run Instances*, thêm `--touch` vào *Main Run Args*.
 
-Tướng được vẽ ở khung 32x32, có 4 khung thở, 4 khung đi, 1 khung trúng đòn. Mỗi tướng khởi đầu bằng một vũ khí cơ bản riêng: cấp Thường, không tốn năng lượng, không rơi ngẫu nhiên.
+---
 
-### Tu luyện tướng và rèn binh khí khởi đầu (G19)
+## 🦸 11 Danh Tướng — Nội Tại, Chiêu 1 & Chiêu 2
 
-Đứng cạnh tượng tướng trong sảnh (bấm `E` -> thẻ **Tu luyện**) để nâng cấp riêng cho từng tướng đã mở khóa (cộng dồn với nâng cấp chung ở Lò rèn):
+Mỗi danh tướng sở hữu bộ chỉ số riêng, **1 Nội tại đặc trưng** và **2 Kỹ năng chủ động** có thể chuyển đổi tự do ngay trong Doanh trại trước giờ xuất trận.
 
-- **Tu luyện tướng (Cấp 1–5):** Cấp 2 `+1 máu` (`150 xu`), Cấp 3 `+1 giáp` (`300 xu`), Cấp 4 `+30 năng lượng` (`500 xu + 2 yeu_hon`), Cấp 5 `hồi kỹ năng ×0,85` (`800 xu + 1 ngoc_than`).
-- **Rèn binh khí khởi đầu (Bậc 1–5):**
+| Tướng | Thời kỳ | Vũ khí gốc | Nội tại | Chiêu 1 | Chiêu 2 | Mở khóa |
+|---|---|---|---|---|---|---|
+| **Hai Bà Trưng** | Năm 40 - Mê Linh | Kiếm đồng Mê Linh | *Uy danh Mê Linh* | **Song Trưng** | **Cờ lệnh Mê Linh** | Có sẵn |
+| **Bà Triệu** | Năm 248 - Núi Nưa | Đoản đao | *Thiết giáp cự tượng* | **Voi chiến** | **Chiêng núi Nưa** | Có sẵn |
+| **Ngô Quyền** | Năm 938 - Bạch Đằng | Giáo tre | *Thủy triều Bạch Đằng* | **Cọc Bạch Đằng** | **Thủy triều dâng** | Có sẵn |
+| **Lý Thường Kiệt** | Năm 1077 - Như Nguyệt | Nỏ tay | *Thơ thần hộ quốc* | **Nam quốc sơn hà** | **Tường Như Nguyệt** | `200 xu` |
+| **Trần Hưng Đạo** | Năm 1285 - Bình Nguyên | Gươm lệnh | *Hào khí Đông A* | **Hịch tướng sĩ** | **Hỏa công Bạch Đằng** | `300 xu` |
+| **Lê Lợi** | Năm 1427 - Chi Lăng | Côn Lam Sơn | *Ánh gươm Thuận Thiên* | **Gươm Thuận Thiên** | **Kim Quy hộ giá** | `400 xu` |
+| **Quang Trung** | Năm 1789 - Đống Đa | Ống lửa | *Hành quân thần tốc* | **Thần tốc** | **Hỏa hổ đại pháo** | `500 xu` |
+| **Nguyễn Trung Trực** | Năm 1861 - Nhật Tảo | Dao rựa | *Lửa thiêu Nhật Tảo* | **Hỏa hồng Nhật Tảo** | **Nhật Tảo xung kích** | `600 xu` |
+| **Hoàng Hoa Thám** | Năm 1890 - Yên Thế | Súng hỏa mai Yên Thế | *Bóng rừng Yên Thế* | **Hùm thiêng Yên Thế** | **Phục kích Yên Thế** | `700 xu` |
+| **Chiến sĩ Điện Biên** | Năm 1954 - Điện Biên Phủ | Súng trường bộ binh | *Quyết chiến Điện Biên* | **Kéo pháo vào trận** | **Bộc phá nghìn cân** | `800 xu` |
+| **Thánh Gióng** *(Ẩn)* | Truyền thuyết Phù Đổng | Gậy tre | *Sức mạnh Phù Đổng* | **Ngựa sắt phun lửa** | **Nhổ tre đánh giặc** | Màn 6 + `1.200 xu` |
+
+<div align="center">
+
+| Cọc Bạch Đằng *(Ngô Quyền)* | Voi Chiến *(Bà Triệu)* |
+| :---: | :---: |
+| <img src="docs/chieu-coc-bach-dang.png" width="380" alt="Chiêu Cọc Bạch Đằng"/> | <img src="docs/chieu-voi-chien.png" width="380" alt="Chiêu Voi Chiến"/> |
+| **Hịch Tướng Sĩ** *(Trần Hưng Đạo)* | **Thần Tốc** *(Quang Trung)* |
+| <img src="docs/chieu-hich-tuong-si.png" width="380" alt="Chiêu Hịch Tướng Sĩ"/> | <img src="docs/chieu-than-toc.png" width="380" alt="Chiêu Thần Tốc"/> |
+
+</div>
+
+<details>
+<summary>📖 <strong>Chi tiết Tu luyện Tướng (Cấp 1–5), Rèn Binh Khí Khởi Đầu (Bậc 1–5) & 6 Ấn Hệ Đồng Điệu</strong></summary>
+
+#### 1. Tu luyện tướng & Rèn binh khí khởi đầu
+Đứng cạnh tượng tướng trong Doanh trại (`E` → thẻ **Tu luyện**) để nâng cấp vĩnh viễn cho từng tướng:
+- **Tu luyện tướng (Cấp 1 → 5)**: Cấp 2 `+1 máu` (`150 xu`), Cấp 3 `+1 giáp` (`300 xu`), Cấp 4 `+30 năng lượng` (`500 xu + 2 yeu_hon`), Cấp 5 `hồi kỹ năng ×0,85` (`800 xu + 1 ngoc_than`).
+- **Rèn binh khí khởi đầu (Bậc 1 → 5)**:
   - Bậc 2 (`100 xu + 3 dong`): sát thương `×1,25`.
-  - Bậc 3 (`220 xu + 5 sat + 2 dong`): sát thương `×1,5`, hồi đòn `×0,92`, mở **Đặc tính 1** (viền xanh lam).
+  - Bậc 3 (`220 xu + 5 sat + 2 dong`): sát thương `×1,5`, hồi đòn `×0,92`, mở **Đặc tính 1**.
   - Bậc 4 (`400 xu + 6 sat + 2 yeu_hon`): sát thương `×1,8`, hồi đòn `×0,88`.
-  - Bậc 5 **Thức tỉnh** (`700 xu + 8 sat + 3 yeu_hon + 2 ngoc_than`): sát thương `×2,2`, hồi đòn `×0,85`, mở **Đặc tính 2** (viền vàng lấp lánh).
+  - Bậc 5 **Thức tỉnh** (`700 xu + 8 sat + 3 yeu_hon + 2 ngoc_than`): sát thương `×2,2`, hồi đòn `×0,85`, mở **Đặc tính 2**.
 
-| Tướng | Vũ khí cơ bản | Chiêu | Hiệu ứng | Mở khóa |
-|---|---|---|---|---|
-| Hai Bà Trưng | Kiếm đồng Mê Linh | **Song Trưng** | Trưng Nhị hiện ra, đánh theo mọi đòn trong 8 giây | Có sẵn |
-| Bà Triệu | Đoản đao | **Voi chiến** | Cưỡi voi húc văng giặc | Có sẵn |
-| Ngô Quyền | Giáo tre | **Cọc Bạch Đằng** | Nước dâng, 14 cọc trồi lên đâm giặc, chặn đạn | Có sẵn |
-| Lý Thường Kiệt | Nỏ tay | **Nam quốc sơn hà** | Vòng chữ thần xoay quanh, bật ngược đạn giặc | 200 xu |
-| Trần Hưng Đạo | Gươm lệnh | **Hịch tướng sĩ** | Ấn trống đồng, 3 binh sĩ ra trận | 300 xu |
-| Lê Lợi | Côn Lam Sơn | **Gươm Thuận Thiên** | 3 thanh gươm thần bay vòng quanh chém giặc | 400 xu |
-| Quang Trung | Ống lửa | **Thần tốc** | Hào quang sét, chạy và đánh nhanh gấp đôi | 500 xu |
-| Nguyễn Trung Trực | Dao rựa | **Hỏa hồng Nhật Tảo** | Ném 8 bầu lửa, biển lửa thiêu giặc | 600 xu |
-| Hoàng Hoa Thám | Súng hỏa mai Yên Thế | **Hùm thiêng Yên Thế** | Tiếng hổ gầm làm choáng, hổ thần lao ra vồ | 700 xu |
-| Chiến sĩ Điện Biên | Súng trường bộ binh | **Kéo pháo vào trận** | Đặt khẩu pháo tự động nã đạn 9 giây | 800 xu |
-
-Khi tung chiêu, một băng chân dung tướng trượt ngang màn hình.
-
-## Đồng điệu binh khí và Ấn hệ (G18)
-
-Khi tung chiêu, game tính **mức đồng điệu** và **Ấn hệ** theo vũ khí đang cầm trên tay (hiệu ứng kéo dài giữ mức lúc tung):
-
-- **★★ Tâm đắc (Mức 2):** Dùng đúng vũ khí khởi đầu của tướng hoặc **binh khí định mệnh** (`no_lien_chau` cho Lý Thường Kiệt, `thuan_thien` cho Lê Lợi, `hoa_ho` cho Quang Trung, `hoa_mai` cho Hoàng Hoa Thám). Kỹ năng nhận nâng cấp mạnh nhất kèm hiệu ứng phụ riêng.
-- **★ Cùng hệ (Mức 1):** Dùng vũ khí cùng hệ với vũ khí khởi đầu hoặc vũ khí **Thần khí**. Kỹ năng được tăng cường vừa phải.
-- **Chưa đồng điệu (Mức 0):** Giữ nguyên chiêu gốc.
-
-Ngoài ra, mỗi lần tung chiêu **luôn kích hoạt thêm Ấn hệ** theo hệ vũ khí đang cầm:
+#### 2. Đồng điệu binh khí (★ / ★★) & 6 Ấn hệ khi tung chiêu
+- **★★ Tâm đắc**: Cầm đúng vũ khí khởi đầu của tướng hoặc binh khí định mệnh → kỹ năng được cường hóa tối đa + hiệu ứng phụ riêng.
+- **★ Cùng hệ**: Cầm vũ khí cùng hệ hoặc **Thần khí** → tăng cường chiêu thức vừa phải.
+- **Ấn hệ (tự động kích hoạt khi tung chiêu theo vũ khí trên tay)**:
 
 | Hệ vũ khí | Ấn hệ | Hiệu ứng cộng thêm |
 |---|---|---|
-| Đao kiếm (`kiem`) | **Kiếm khí** | Phóng 6 sóng kiếm tỏa 360° (sát thương = vũ khí đang cầm, tối thiểu 4) |
-| Côn thương (`truong`) | **Trấn địa** | Sóng chấn địa bán kính 60, sát thương 4, đẩy lùi mạnh, choáng 0,6s |
-| Cung nỏ (`cung_no`) | **Mưa tên** | Trong 1,5s có 12 mũi tên rơi quanh mình bán kính 90 (ưu tiên giặc, 3 dmg/mũi) |
-| Hỏa khí (`hoa_khi`) | **Hỏa ấn** | Đặt 3 vùng lửa nhỏ (bán kính 14, 2s) hình tam giác quanh mình |
-| Súng (`sung`) | **Nạp đạn thần tốc** | Trong 4s tốc độ bắn +30%, đạn xuyên thêm 1 giặc |
-| Thần khí (`than_khi`) | **Linh khí** | Hồi 40 năng lượng, lần hồi chiêu này ngắn hơn 30% |
+| Đao kiếm (`kiem`) | **Kiếm khí** | Phóng 6 sóng kiếm tỏa 360° theo sát thương vũ khí đang cầm |
+| Côn thương (`truong`) | **Trấn địa** | Sóng chấn địa bán kính 60, đẩy lùi mạnh và choáng `0,6s` |
+| Cung nỏ (`cung_no`) | **Mưa tên** | Rơi 12 mũi tên đuổi quanh thân trong `1,5s` |
+| Hỏa khí (`hoa_khi`) | **Hỏa ấn** | Tạo 3 vùng lửa hình tam giác thiêu đốt giặc |
+| Súng (`sung`) | **Nạp đạn thần tốc** | Trong `4s`: tốc bắn `+30%`, đạn xuyên thêm 1 mục tiêu |
+| Thần khí (`than_khi`) | **Linh khí** | Hồi `40` năng lượng và giảm `30%` hồi chiêu lần đó |
 
-## 10 chương lịch sử (năm 40 đến năm 1954)
+</details>
 
-Có hư cấu cho kịch tính: pháp sư giặc dùng tà thuật gọi yêu quái dân gian ra trợ chiến.
+---
 
-Cột "Trùm gốc" là trùm gắn với chương theo lịch sử. Khi chơi, trùm được **xáo ngẫu nhiên** (xem mục "Trùm ngẫu nhiên" bên dưới).
+## 🗡️ 217 Binh Khí, Hợp Nhất & 13 Thần Binh Đỏ
 
-| # | Chương | Quân địch | Trùm gốc | Chiêu đặc biệt của trùm |
+Hệ thống vũ khí chia làm **6 bậc hiển thị** bằng màu sắc & hào quang:
+**Thường** *(xám)* → **Tốt** *(xanh lá)* → **Hiếm** *(xanh dương)* → **Sử thi** *(tím)* → **Huyền thoại** *(vàng cam)* → **Thần binh Đỏ (`#ff384c`, hào quang đỏ thẫm)** độc quyền rơi từ Trùm.
+
+### ⚡ 6 Thần Binh Hợp Nhất Bậc 5 (`Phím R`)
+Khi đang cầm 1 món nguyên liệu và đứng cạnh món còn lại rơi dưới đất (hoặc giữ đủ cặp trên tay), bấm **`R`** để hợp nhất ngay tại trận:
+
+| Thần Binh Hợp Nhất | Công thức ghép | Đặc trưng chiến đấu |
+|---|---|---|
+| **Thái Cực Kiếm** | `Kiếm Lửa` + `Kiếm Băng` | Song hành Hỏa & Băng, chém ra sóng kiếm lưỡng cực vừa đốt vừa làm chậm |
+| **Cung Lôi Hỏa** | `Cung Sét` + `Cung Lạc Long` | Tụ lực bắn loạt tên truy đuổi kèm giật sét lan và nổ lửa |
+| **Pháo Thiên Long** | `Pháo đồng` + `Súng phóng tên lửa` | Bắn loạt 3 hỏa tiễn dẫn đường công phá nổ rộng |
+| **Lưỡi Hái Âm Dương** | `Lưỡi Hái Bạc` + `Lưỡi Hái Huyết Nguyệt` | Vung hái tầm rộng, phóng cầu hồn nảy tường kèm độc |
+| **Nỏ Thiên Cơ** | `Nỏ Băng Sương` + `Nỏ Bão Lửa` | Tụ lực xả loạt 6 mũi tên xuyên giáp kèm tia sét lan |
+| **Trượng Ngũ Hành** | `Trượng Hỏa Cầu` + `Trượng Băng Giá` | Bắn 5 tinh cầu ngũ hành vừa gây cháy, làm chậm vừa giật sét |
+
+<details>
+<summary>🔩 <strong>Xem thêm 12 công thức Hợp nhất khác (tổng 18 công thức)</strong></summary>
+
+- `Kiếm đồng Mê Linh` + `Dao găm` → **Song Kiếm**
+- `Giáo tre` + `Cây tre trăm đốt` → **Thương Bạch Long**
+- `Cung tên` + `Cung dài` → **Cung Vàng Thạch Sanh**
+- `Nỏ` + `Nỏ tay` → **Nỏ Thần Liên Châu**
+- `Súng ngắn` + `Súng lục ổ quay` → **Tiểu Liên**
+- `Súng trường` + `Súng bắn tỉa` → **Súng Railgun**
+- `Súng săn` + `Súng hai nòng` → **Súng Máy**
+- `Súng plasma` + `Súng Điện Giật` → **Súng Tesla**
+- `Đũa Tia Lửa` + `Đũa Băng Sương` → **Quyền Trượng Phù Thủy**
+- `Súng hỏa mai` + `Súng thần cơ` → **Đại Bác Thần Công**
+- `Quạt thép` + `Quạt Ngọc Luân` → **Quạt Ba Tiêu**
+- `Búa Sắt` + `Búa Băng Hà` → **Búa Thiên Lôi**
+
+</details>
+
+### 🩸 13 Thần Binh Đỏ Của Trùm (`tier 5 • boss_motif`)
+Mỗi Đại Trùm có tỉ lệ rớt **Thần Binh Đỏ mang dấu ấn riêng** khi bị hạ gục (tỉ lệ tăng mạnh ở chế độ Ác Mộng và mốc Boss Rush):
+
+| Trùm | Thần Binh Đỏ | Hệ | Trùm | Thần Binh Đỏ | Hệ |
+|---|---|---|---|---|---|
+| **Tô Định** | *Huyết Đao Tô Định* | Đao kiếm | **Tàu Hy Vọng** | *Hỏa Pháo Hy Vọng* | Hỏa khí |
+| **Lục Dận** | *Thiết Kích Lục Dận* | Côn thương | **Đồn trưởng Nhã Nam** | *Liên Thanh Nhã Nam* | Súng |
+| **Hoằng Tháo** | *Hải Triều Kích Hoằng Tháo* | Côn thương | **Đờ Cát** | *Pháo Cối Đờ Cát* | Pháo |
+| **Quách Quỳ** | *Thần Cung Quách Quỳ* | Cung nỏ | **Cửu Vĩ Hồ Ly** *(Tam Yêu)* | *Cửu Vĩ Hồ Hỏa* | Thần khí |
+| **Thoát Hoan** | *Ống Đồng Thoát Hoan* | Hỏa khí | **Mộc Tinh Xương Cuồng** *(Tam Yêu)* | *Thần Mộc Xương Cuồng* | Thần khí |
+| **Liễu Thăng** | *Trảm Mã Phủ Liễu Thăng* | Rìu chiến | **Ngư Tinh Hắc Hải** *(Tam Yêu)* | *Hắc Hải Long Kích* | Thần khí |
+| **Tôn Sĩ Nghị** | *Long Pháo Tôn Sĩ Nghị* | Pháo | | | |
+
+### ⚡ Cơ chế Vi Điều Khiển & Nâng Cấp Vũ Khí
+- **Tụ lực (`charge_max`)**: Giữ nút bắn với các dòng cung nặng, nỏ, pháo, Railgun để nạp thanh tụ lực (`0% → 100%`), phóng phát đạn xuyên phá uy lực gấp bội.
+- **Combo cận chiến 3 đoạn & Chém tan đạn**: Vũ khí cận chiến xoay vòng 3 nhịp (*quét rộng → đâm tới → xung kích 360°*), chém rụng đạn địch bay tới.
+- **Tự động Chém Khí Công tầm gần**: Đang dùng súng/cung mà giặc áp sát dưới `26px` sẽ tự động xuất chiêu chém khí công đẩy lùi mà **không tốn thêm năng lượng**.
+- **Tiến Hóa (`★Tiến Hóa`) & Phân Tách**: Tiến hóa tại Lò Rèn Cổ trong phòng `[!]` giúp vũ khí nhận `+35%` sát thương, `+28%` cỡ đạn và `+1` xuyên; hoặc rã vũ khí thừa lấy xu & nguyên liệu rèn.
+
+---
+
+## 🏯 Doanh Trại 4 Khu, Tầng Hầm & Thế Giới Trong Trận
+
+<div align="center">
+  <img src="docs/v13-basement-hall.png" width="640" alt="Tầng Hầm Vinh Quang và Bàn Bản Vẽ"/>
+  <br/>
+  <sub><i>Tầng Hầm Vinh Quang — Nơi lưu giữ Bàn Bản Vẽ 207 Binh Khí, Thành tựu và Kỷ vật</i></sub>
+</div>
+
+### 🏛️ Doanh Trại Anh Hùng (4 Khu Liên Thông)
+- **Đại Sảnh Tướng**: Chọn/mở khóa 11 Tướng, đổi Chiêu 1 / Chiêu 2, Tu luyện 5 cấp, Rèn binh khí gốc, Đánh hình nhân rơm đo DPS và Bước vào Cổng xuất trận.
+- **Khu Rèn & Quán Trà**: Nâng cấp chỉ số vĩnh viễn tại Lò Rèn, rèn vũ khí mang vào trận từ nguyên liệu nhặt được, hoặc uống **Trà Quán Đá** nhận buff tạm đầu lượt.
+- **Vườn Dược Thảo & Linh Thú**: Trồng 3 ô thảo dược thu hoạch buff/nguyên liệu mỗi lượt, cưng nựng 4 Linh Thú (*Cún Vàng, Trâu Đất Việt, Gà Trống Gáy Sớm, Chim Hạc Trắng*) để dẫn theo vào hầm ngục.
+- **Tầng Hầm Vinh Quang**: Đi cầu thang xuống ngắm tủ trưng bày thành tựu, chiến công hạ trùm và **Bàn Bản Vẽ (207 bản thiết kế)**.
+
+### 🔮 6 Phòng Sự Kiện `[!]`, 3 Thú Cưỡi & 5 Tượng Thần Việt
+Trên bản đồ ngẫu nhiên xuất hiện phòng đặc biệt đánh dấu **`[!]`** với 1 trong 6 đài tương tác:
+1. **Lò Rèn Cổ (`reforge_furnace`)**: Đúc **Tiến Hóa** vũ khí đang cầm hoặc tái rèn ra binh khí mới.
+2. **Bệ Phân Tách (`decomposer`)**: Tách vũ khí không dùng thành **Xu + Nguyên liệu rèn**.
+3. **Miếu Thần Việt (`statue_shrine`)**: Thỉnh 1 trong **5 Tượng Thần** phát động kỹ năng cộng hưởng mỗi khi tung chiêu (*Lạc Long Quân*, *Âu Cơ*, *Sơn Tinh*, *Chử Đồng Tử*, *Phù Đổng*).
+4. **Quân Sư Truyền Nghệ (`mentor_npc`)**: Cường hóa kỹ năng tướng suốt lượt chơi & hồi chiêu tức thì.
+5. **Trại Quân Y (`rescue_camp`)**: Hồi phục Máu/Giáp hoặc chiêu mộ binh sĩ đi cùng.
+6. **Đài Thách Đấu (`challenge_arena`)**: Khiêu chiến làn sóng tinh anh để giành rương báu cao cấp.
+
+Dọc đường chơi còn có thể bắt gặp và bấm **`E`** lên cưỡi **3 Thú Cưỡi Chiến Trận** có thanh giáp riêng hấp thụ sát thương trước khi chạm tới giáp/máu tướng: **Voi Chiến** (`+14` giáp), **Ngựa Sắt** (`+10` giáp, siêu tốc), **Xe Tăng Chiến** (`+20` giáp, thiết giáp).
+
+### 🌟 39 Phúc Lành (3 Bậc) & Gánh Hàng Rong
+Qua mỗi màn được chọn **1 trong 3 Phúc lành**, nay mở rộng lên **39 loại** (gồm 8 phúc lành mới của `v2.0.0`: *Tam binh hợp bích* — mở ô vũ khí thứ 3, *Liên kích tam đoạn*, *Đạn phân tách*, *Khúc xạ liên hoàn*, *Băng tâm hàn khí*, *Cuồng nộ diệt trùm*, *Tường thạch hộ thân*, *Chiến xa bất khuất*). Ghé **Gánh Hàng Rong** trong phòng chợ để mua vũ khí, hồ lô thuốc và bùa phúc lành bằng xu nhặt được.
+
+<div align="center">
+  <img src="docs/ganh-hang-rong.png" width="520" alt="Gánh hàng rong trong phòng chợ"/>
+</div>
+
+---
+
+## 📜 10 Chương Lịch Sử, Địa Hình Chiến Trường & 13 Đại Trùm
+
+Game trải dài qua **10 chương lịch sử** (xáo thứ tự trùm mỗi lượt, sức mạnh tăng dần theo thứ tự gặp) cùng **3 Đại Yêu Truyền Thuyết (Tam Yêu)** ngẫu nhiên trấn giữ màn giữa chương (`40%`, ô tím trên bản đồ nhỏ).
+
+### 🌊 4 Cơ Chế Địa Hình Chiến Trường
+- **Sông nước & Bạch Đằng**: *Vùng nước* làm chậm giặc (Ngô Quyền miễn chậm) + *Cọc Bạch Đằng* chặn đạn địch và gây sát thương liên tục cho giặc chạm phải.
+- **Rừng núi Yên Thế**: *Bụi rậm ẩn thân* tăng chí mạng & giảm tầm phát hiện của giặc + *Đá lở núi cao* báo vùng đỏ trước khi rơi gây choáng.
+- **Thành quách & Tết Đống Đa**: *Lò lửa hồng* châm lửa rực cháy cho mọi viên đạn phe ta bay ngang qua.
+- **Chiến hào Điện Biên**: *Hầm hào* giúp né tránh đạn tầm xa + *Pháo sáng / Pháo cối* trút hỏa lực diện rộng.
+
+### 👹 13 Đại Trùm & Hiện Nguyên Hình Giai Đoạn 2
+Khi còn **50% máu**, toàn bộ đại trùm gầm vang, xóa đạn sân và **Hiện nguyên hình Ma Tướng** kích thước lớn hơn, tung bộ chiêu giai đoạn 2 cùng cơn cuồng nộ!
+
+<div align="center">
+
+| Bộ Trùm 24 Khung Chuyển Động | Hiện Nguyên Hình Ma Tướng | Tam Yêu Truyền Thuyết |
+| :---: | :---: | :---: |
+| <img src="docs/v17-boss-showcase.png" width="280" alt="Trùm 24 khung"/> | <img src="docs/hien-nguyen-hinh.png" width="280" alt="Trùm hiện nguyên hình"/> | <img src="docs/tam-yeu.png" width="280" alt="Tam Yêu"/> |
+
+</div>
+
+<details>
+<summary>🗺️ <strong>Danh sách 10 Chương Lịch Sử & Tam Yêu Truyền Thuyết</strong></summary>
+
+| # | Chương | Quân địch | Trùm gốc | Hình Ma Tướng (Giai đoạn 2) |
 |---|---|---|---|---|
-| 1 | Mê Linh, năm 40 | Đông Hán | **Tô Định** | Cắt tóc cạo râu, trà trộn bỏ chạy |
-| 2 | Núi Nưa, năm 248 | Đông Ngô | **Lục Dận** | Bày trận khiên |
-| 3 | Bạch Đằng, năm 938 | Nam Hán | **Hoằng Tháo** | Gọi Thủy quái Ngư Tinh |
-| 4 | Như Nguyệt, năm 1077 | Tống | **Quách Quỳ** | Mưa tên |
-| 5 | Thăng Long, năm 1285 | Nguyên Mông (có kỵ binh) | **Thoát Hoan** | Chui vào ống đồng |
-| 6 | Chi Lăng, năm 1427 | Minh | **Liễu Thăng** | Sa lầy ải Chi Lăng |
-| 7 | Đống Đa, năm 1789 | Thanh | **Tôn Sĩ Nghị** | Bỏ cả ấn tín mà chạy |
-| 8 | Nhật Tảo, năm 1861 | Thủy quân Pháp | **Tàu chiến Hy Vọng** | Bốc cháy |
-| 9 | Yên Thế, năm 1890 | Quân viễn chinh Pháp | **Đồn trưởng Nhã Nam** | Gọi pháo kích |
-| 10 | Điện Biên Phủ, năm 1954 | Tập đoàn cứ điểm (có xe tăng) | **Đờ Cát** | Rút vào hầm chỉ huy |
+| 1 | Mê Linh, năm 40 | Đông Hán | **Tô Định** | *Quỷ Tham Tàn* |
+| 2 | Núi Nưa, năm 248 | Đông Ngô | **Lục Dận** | *Quỷ Gai Đông Ngô* |
+| 3 | Bạch Đằng, năm 938 | Nam Hán | **Hoằng Tháo** | *Thủy Quỷ Nam Hán* |
+| 4 | Như Nguyệt, năm 1077 | Tống | **Quách Quỳ** | *Ưng Quỷ Tống Triều* |
+| 5 | Thăng Long, năm 1285 | Nguyên Mông *(kỵ binh)* | **Thoát Hoan** | *Lang Quỷ Thảo Nguyên* |
+| 6 | Chi Lăng, năm 1427 | Minh | **Liễu Thăng** | *Quỷ Rừng Sa Lầy* |
+| 7 | Đống Đa, năm 1789 | Thanh | **Tôn Sĩ Nghị** | *Ngưu Quỷ Lưỡng Quảng* |
+| 8 | Nhật Tảo, năm 1861 | Thủy quân Pháp | **Tàu Hy Vọng** | *Tàu Ma Lửa Xanh* |
+| 9 | Yên Thế, năm 1890 | Viễn chinh Pháp | **Đồn trưởng Nhã Nam** | *Quỷ Gai Đồn Bốt* |
+| 10 | Điện Biên Phủ, năm 1954 | Tập đoàn cứ điểm *(xe tăng)* | **Đờ Cát** | *Ngưu Quỷ Hầm Ngầm* |
+| 🐉 | Màn giữa chương *(40%)* | Tam Yêu Truyền Thuyết | **Hồ Tinh / Mộc Tinh / Ngư Tinh** | *Cửu Vĩ Hồ Ly / Thần Mộc Xương Cuồng / Ngư Tinh Hắc Hải* |
 
-### Trùm ngẫu nhiên, sức mạnh tăng dần
+</details>
 
-- **Thứ tự ngẫu nhiên**: mỗi lượt chơi xáo cả 10 trùm. Trùm cuối màn 3, 6, 9… là con nào cũng được, và không gặp lại cho tới khi đã đánh đủ 10 con. Sang vòng 2 thì xáo lại, và không gặp lại ngay con vừa đánh.
-- **Sức mạnh theo thứ tự gặp, không theo từng con**: trùm thứ nhất luôn yếu nhất, trùm thứ mười mạnh nhất, dù là Tô Định hay Đờ Cát.
+---
 
-  | Trùm thứ | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
-  |---|---|---|---|---|---|---|---|---|---|---|
-  | Máu | 300 | 426 | 552 | 678 | 804 | 930 | 1056 | 1182 | 1308 | 1434 |
+## 🏆 Chế Độ Thử Thách: Ác Mộng, Boss Rush, LAN Co-op & 8 Biến Số
 
-  Mỗi bậc còn tăng thêm:
-  - Ra chiêu nhanh hơn 6%, tối đa khoảng 42%.
-  - Đạn bay nhanh hơn 3,5%.
-  - Cứ 4 bậc gọi thêm 1 lính.
-  - Cứ 5 bậc đánh cận thân mạnh thêm 1.
-- Mỗi trùm vẫn giữ **bộ chiêu, chiêu đặc biệt và quân riêng của mình**. Ví dụ Đờ Cát xuất hiện ở chương Mê Linh thì vẫn gọi xe tăng Pháp.
-- Khi vào phòng trùm, dòng thông báo ghi rõ "Trùm thứ N".
+Mở **Thử thách & Chế độ chiến đấu** để tự do phối hợp thử thách:
+- **Ác Mộng (Badass Mode)**: Giặc đông hơn, nhanh hơn, hung hãn hơn và rớt xu/thần binh hậu hĩnh hơn.
+- **Boss Rush (12 Trùm Liên Hoàn)**: Bước thẳng vào chuỗi 12 đấu trường Trùm liên tiếp; hạ hết để tiến vào **Sảnh Khải Hoàn (tầng 13)**.
+- **Thử thách Hôm Nay (`NGAY-YYYYMMDD`)**: Hạt giống + bộ **2–3 Biến số ngẫu nhiên cố định theo ngày** để mọi người chơi đua điểm công bằng.
+- **Chơi LAN Co-op**: Tạo phòng Host hoặc nhập IP nội bộ để cùng bạn bè lập tổ đội tướng vượt ải.
+- **8 Biến Số Chiến Trường (`Mutators`)**:
+  - `Đạn Khổng Lồ` *(đạn ta & giặc to ×1,5)*
+  - `Song Trùm Xuất Trận` *(mỗi phòng Trùm gọi thêm 1 Đại Tướng phụ)*
+  - `Xúc Xắc Binh Khí` *(qua màn tự đổi ngẫu nhiên vũ khí)*
+  - `Nhịp Độ Siêu Thanh` *(tốc chạy & tốc đạn toàn sân +35%)*
+  - `Bầy Tinh Anh` *(45% giặc Tinh Anh, rớt +35% xu)*
+  - `Pháo Thủy Tinh` *(gây ×2 sát thương, giảm nửa máu tối đa)*
+  - `Linh Khí Vô Tận` *(bắn mọi vũ khí 0 năng lượng)*
+  - `Bậc Thầy Cận Chiến` *(cận chiến +60% ST & +30% tốc đánh; bắn xa -30% ST)*
 
-### Trùm hiện nguyên hình (2 giai đoạn)
+---
 
-Khi còn nửa máu, trùm đứng khựng lại và bất khả xâm phạm 1,4 giây. Đạn trên sân bị xóa, khói tà khí cuộn lên, rồi trùm **hiện nguyên hình** thành ma tướng. Đây là phần hư cấu: giặc dùng tà thuật.
+## 🎨 Sách Tranh Pixel Art & Dành Cho Nhà Phát Triển
 
-- To gấp đôi, có sừng, tai, vây hoặc gai riêng, mắt rực, nanh nhọn và hào quang tà khí.
-- Đổi sang **bộ chiêu giai đoạn 2** và mở bộ chiêu nổi giận (chướng khí, hỏa tiễn).
-- Các hình này được tạo tự động từ hình gốc của từng trùm bằng `tools/sprites/art_demons.py`: phóng to Scale2x, đổi da, mọc sừng, thêm hào quang.
+Toàn bộ hơn **1.100 tệp pixel art** trong game được sinh tự động bằng mã nguồn Python trong `tools/sprites/` với kỹ thuật *selective outline* và tô bóng thủ công từng điểm ảnh. Xem bản phóng to 5 trang sách tranh tại `docs/artbook/`:
+- [`1-tuong.png`](docs/artbook/1-tuong.png) • [`2-quan-dich.png`](docs/artbook/2-quan-dich.png) • [`3-trum.png`](docs/artbook/3-trum.png) • [`4-vu-khi.png`](docs/artbook/4-vu-khi.png) • [`5-hieu-ung.png`](docs/artbook/5-hieu-ung.png)
 
-| Trùm | Hình ma tướng |
-|---|---|
-| Tô Định | Quỷ Tham Tàn (sừng trâu) |
-| Lục Dận | Quỷ Gai Đông Ngô (gai nhọn) |
-| Hoằng Tháo | Thủy Quỷ Nam Hán (vây cá) |
-| Quách Quỳ | Ưng Quỷ Tống Triều (mào ưng) |
-| Thoát Hoan | Lang Quỷ Thảo Nguyên (tai sói) |
-| Liễu Thăng | Quỷ Rừng Sa Lầy (gạc cành mục) |
-| Tôn Sĩ Nghị | Ngưu Quỷ Lưỡng Quảng |
-| Tàu Hy Vọng | Tàu Ma Lửa Xanh |
-| Đồn trưởng Nhã Nam | Quỷ Gai Đồn Bốt |
-| Đờ Cát | Ngưu Quỷ Hầm Ngầm |
+<details>
+<summary>🛠️ <strong>Hướng dẫn mở bằng Godot 4.7.2, Build Sprite, Cấu trúc Dự án & Chạy Kiểm Thử</strong></summary>
 
-![Hiện nguyên hình](docs/hien-nguyen-hinh.png)
+#### 1. Chạy từ mã nguồn
+1. Cài **Godot 4.7.2** (bản Standard) từ [godotengine.org](https://godotengine.org/).
+2. Mở Godot → **Import** → chọn `project.godot` → bấm **F5**.
 
-### Tam Yêu: trùm truyền thuyết giữa chương
-
-Theo truyền thuyết, Lạc Long Quân đã diệt ba yêu quái Ngư Tinh, Hồ Tinh và Mộc Tinh. Ở màn giữa mỗi chương (màn 2, 5, 8…), phòng cổng ra có **40%** bị một trong Tam Yêu canh giữ (ô tím trên bản đồ nhỏ). Yêu được chọn ngẫu nhiên và không gặp lại ngay con vừa gặp.
-
-- Máu tăng theo thứ tự gặp như trùm chính (từ 260).
-- Diệt xong được cổng ra, 1 vũ khí xịn và nhiều xu.
-
-| Yêu | Chiêu | Chiêu đặc biệt | Hiện nguyên hình |
-|---|---|---|---|
-| **Hồ Tinh**, cáo chín đuôi đầm Xác Cáo | Quạt lửa hồ ly theo số đuôi, phân thân thành bầy cáo ảo | Xòe chín đuôi, lửa xoáy ngập trời | Từ 3 đuôi lửa cam thành **Cửu Vĩ Hồ Ly** 9 đuôi lửa xanh |
-| **Mộc Tinh**, cây chiên đàn nghìn năm | Rễ cây trồi thành hàng về phía người chơi, gọi Mộc tinh con | Hút linh khí rừng già: hồi 12% máu, gọi 3 cây con | Tán lá đỏ rực, lửa trên tán, mắt đỏ, mỗi lần mọc 2 hàng rễ |
-| **Ngư Tinh**, thủy quái Biển Đông | Lặn xuống (không trúng đòn) rồi trồi lên dưới chân người chơi tung vòng nước, tường nước có khe hở | Sóng thần: 3 bức tường nước | **Ngư Tinh Hắc Hải** vảy tím, vây đỏ, sóng dày hơn |
-
-![Tam Yêu](docs/tam-yeu.png)
-
-- **Thời phong kiến**: bộ binh, cung thủ, khiên binh (đỡ đòn phía trước), pháp sư (gọi yêu quái).
-- **Thời cận đại**: lính lưỡi lê, lính súng trường, xạ thủ súng máy (bắn loạt), pháo cối (vòng đỏ báo trước rồi nổ), xe tăng.
-- **Yêu quái**: Tiểu yêu, Hồ tinh, Mộc tinh, Chằn tinh (dậm đất tung vòng đạn), Đại bàng tinh (lao bổ nhào), Ma trơi (lao vào rồi nổ).
-- Có 7 kiểu gạch nền: đất làng, rừng rêu, sàn gỗ, gạch đỏ Thăng Long, đá Đống Đa, đồn Pháp, chiến hào bao cát.
-- Sau chương 10, game quay lại chương 1 với giặc mạnh hơn.
-- Game chưa có kháng chiến chống Mỹ: giai đoạn này còn quá gần và nhạy cảm khi phát hành quốc tế. Chương Điện Biên dùng hình tượng chung "Chiến sĩ Điện Biên" thay vì một nhân vật có thật.
-
-![4 trùm](docs/4-trum.png)
-
-## 67 vũ khí (10 cơ bản + 57 nhặt trong trận), 5 cấp
-
-Màu cấp: **Thường** (xám), **Tốt** (xanh lá), **Hiếm** (xanh dương), **Sử thi** (tím, hình có viền tím), **Huyền thoại** (vàng cam, hình có viền vàng phát sáng). Vũ khí rơi trên đất có cột sáng màu theo cấp. Màn càng sâu, rương và trùm càng dễ ra đồ xịn.
-
-- **Cận chiến**: Gậy tre, Dao găm, Rìu đá, Lưỡi liềm, Giáo, Gươm, Mã tấu, Mác, Chùy đồng, Côn nhị khúc, Đại đao, Kích, Trường thương, Rìu chiến, Song kiếm, Quạt thép, Kiếm Rồng Tiên, Gươm Thuận Thiên, Roi sắt Thánh Gióng, Kiếm tia sáng
-- **Bắn xa thời xưa**: Ná, Cung tên, Nỏ, Phi tiêu, Cung dài, Hỏa hổ, Hỏa tiễn, Súng thần cơ, Pháo đồng, Cung Lạc Long, Nỏ thần Liên Châu, Đại bác thần công, Trống đồng thần, Súng hỏa mai
-- **Cận đại và hiện đại**: Súng kíp, Súng ngắn, Súng lục ổ quay, Súng săn, Súng trường, Súng hai nòng, Tiểu liên, Súng trường tấn công, Súng bắn tỉa, Súng máy, Súng phóng lựu, Súng phóng tên lửa, Súng phun lửa, Súng plasma, Súng laze, Súng điện từ
-- **Truyền kỳ Việt Nam**:
-  - Rìu Thạch Sanh: ném ra rồi bay vòng về
-  - Đàn thần Thạch Sanh: làm giặc choáng
-  - Cung vàng Thạch Sanh: tên tự đuổi mục tiêu
-  - Gậy thần Sơn Tinh: dâng gai đá
-  - Đinh ba Thủy Tinh: sóng nước
-  - Búa Thiên Lôi: sét lan 5 kẻ địch
-  - Cây tre trăm đốt: roi dài
-
-Cơ chế vũ khí: vung, đâm, xoay, sóng kiếm, nổ lan, xuyên, đuổi mục tiêu, bay về tay, tia laze, sóng âm làm choáng, gai đá, sét lan.
-
-![57 vũ khí](docs/57-vu-khi.png)
-
-## Doanh trại Anh Hùng (sảnh chính)
-
-![Doanh trại](docs/sanh-chinh.png)
-
-Cảnh vật trong doanh trại:
-
-- Hàng cột đình sơn son và thảm đỏ viền vàng dẫn tới cổng.
-- Lư hương tỏa khói, hai trống đồng trên giá, mặt trống đồng giữa sân.
-- Đôi nghê đá canh cổng.
-- Ao có lá sen, hoa sen, cá koi bơi và đom đóm.
-- Cây đào, bonsai, khóm tre.
-- Lính tuần tra đi lại, gà con chạy nhặt thóc, cánh hoa đào rơi.
-
-Từ màn hình chính bấm **Vào doanh trại**. Đây là căn phòng đi lại tự do như sảnh của Soul Knight. Đến gần một điểm rồi bấm **E** (hoặc nút **Dùng** trên điện thoại):
-
-| Điểm | Chức năng |
-|---|---|
-| 10 vị tướng | Xem thông tin, đổi tướng, mở khóa bằng xu |
-| Lò rèn | Nâng cấp vĩnh viễn: máu, giáp, năng lượng, Lễ xuất quân (khởi đầu với 1 phúc lành), Thuốc hồi sinh (hồi sinh miễn phí 1 lần mỗi lượt) |
-| Giá binh khí | Bộ sưu tập 67 vũ khí; vũ khí chưa nhặt được hiện bóng đen |
-| Hình nhân rơm | Đánh thử vũ khí và chiêu, có hiện sát thương mỗi giây |
-| Bia ghi công | Số lượt chơi, giặc đã hạ, trùm đã đánh bại, màn cao nhất |
-| Cổng xuất trận | Bước vào để bắt đầu lượt chơi |
-
-## Phúc lành (tăng sức mạnh mỗi màn)
-
-Qua mỗi màn được chọn **1 trong 3 phúc lành**, cộng dồn suốt lượt chơi và hiện thành biểu tượng dưới thanh máu. Có 16 loại: Bánh chưng (+máu), Giáp đồng, Rượu thuốc (+sát thương), Ngựa ô (+tốc độ), Bùa hộ mệnh (né đòn), Đá mài gươm, Hỏa dược (nổ to hơn), Trà tim sen (hồi chiêu nhanh), Mắt thần (chí mạng), Linh khí, Huyết sâm (hút máu), Bội thu (+xu), Giày cỏ (đánh nhanh), Mũi tên đôi (+1 viên), Khiên chấn động, Ngọc bích (hồi năng lượng).
-
-## Nhặt vũ khí
-
-- Vũ khí rơi trên đất có **cột sáng màu theo cấp** và **mũi tên chỉ**. Đứng gần sẽ hiện tên, mô tả và chỉ số (sát thương, tốc độ, năng lượng).
-- Bấm **E** hoặc nút **Nhặt** (nút nhấp nháy vàng khi có vũ khí dưới chân) để nhặt. Mang tối đa 2 vũ khí; nhặt thêm thì vũ khí đang cầm rơi xuống đất.
-- Nguồn vũ khí:
-  - Phòng đầu ở màn 1 luôn có sẵn 1 vũ khí.
-  - Rương sơn mài sau mỗi phòng đánh (15%).
-  - Kệ hàng của gánh hàng rong (mua bằng xu).
-  - Rương ở phòng kho báu.
-  - Giặc tinh nhuệ rơi 45%.
-  - Trùm luôn rơi.
-- **Giặc tinh nhuệ** to hơn, phát sáng vàng, trâu gấp 2,4 lần, rơi gấp 3 xu và dễ rơi vũ khí. Càng vào sâu càng gặp nhiều.
-
-## Rương, chợ, hồ lô và trạng thái
-
-![Gánh hàng rong](docs/ganh-hang-rong.png)
-
-Phần này học ý tưởng từ bản làm lại Soul Knight bằng C++ (CalvinWan0101/soul-knight). Chỉ lấy ý tưởng, không dùng mã hay hình của họ. Tất cả đã đổi sang chất Việt:
-
-- **Rương sơn mài**: hiện ra sau mỗi phòng đánh đã dọn sạch. Đứng gần bấm **E** để mở.
-  - 58%: xu và linh khí.
-  - 27%: hồ lô thuốc.
-  - 15%: vũ khí.
-- **Gánh hàng rong**: từ màn 2, 65% mỗi màn có một phòng chợ (ô xanh lá trên bản đồ nhỏ). Bà hàng đội nón lá, gánh hai thúng, bày 3 kệ tre:
-  - 1 vũ khí.
-  - 1 hồ lô (lớn hoặc linh khí).
-  - 1 lá bùa phúc lành.
-
-  Trả bằng xu nhặt trong lượt chơi.
-- **Hồ lô**:
-  - Hồ lô nhỏ: +2 máu.
-  - Hồ lô lớn: +5 máu.
-  - Hồ lô linh khí: +80 năng lượng.
-
-  Hồ lô máu cũng giải độc và dập lửa.
-- **Trạng thái**: có biểu tượng trên đầu, gây sát thương theo nhịp và trừ giáp trước.
-  - **Cháy**: do cầu lửa và biển lửa Hỏa hồng. Vũ khí lửa của ta cũng đốt được giặc.
-  - **Trúng độc**: do đạn tà thuật của pháp sư và đám **chướng khí**.
-![Rương sơn mài và chướng khí](docs/ruong-chuong-khi.png)
-
-- **Trùm nổi giận**: khi còn nửa máu, trùm viền đỏ, gầm lên và mở thêm một bộ chiêu chạy song song với chiêu thường. Bộ chiêu này luân phiên giữa thả chướng khí dưới chân người chơi và quạt 5 quả hỏa tiễn.
-
-## Cấu trúc thư mục
-
-```
-assets/sprites/      Toàn bộ đồ họa pixel (PNG). Có thể mở và sửa bằng Aseprite.
-assets/fonts/        Font VT323 (hỗ trợ tiếng Việt, giấy phép OFL)
-tools/sprites/       Công cụ Python vẽ ra toàn bộ đồ họa (xem bên dưới)
-scenes/              Màn hình: main_menu, hero_select, game
-scripts/
-  data/heroes.gd       Danh sách tướng
-  data/weapons.gd      57 vũ khí: chỉ số, cấp, cơ chế
-  data/enemies.gd      Quân địch, trùm, 4 chương
-  art/art.gd           Nạp ảnh, hoạt ảnh, font, hiệu ứng nháy trắng, ánh sáng
-  entities/            Người chơi, địch, đạn, vật phẩm, cọc, binh sĩ, cửa, cổng
-  effects/             Hiệu ứng: hạt, nổ, tia laze, sóng, gai đá, sét, ấn trống đồng
-  game/                Màn chơi, sinh hầm ngục, phòng, đồ trang trí
-  ui/                  Giao diện, nút cảm ứng, menu
-tests/               Kiểm thử tự động
-```
-
-## Sách tranh pixel art
-
-Toàn bộ đồ họa được vẽ tay từng pixel bằng code, có thể xem phóng to trong `docs/artbook/`:
-
-| Trang | Nội dung |
-|---|---|
-| `1-tuong.png` | 10 vị tướng, khung 32x32, đủ 9 khung hoạt ảnh, vũ khí cơ bản và biểu tượng chiêu |
-| `2-quan-dich.png` | 10 đạo quân, kỵ binh, xe tăng, 7 loại yêu quái |
-| `3-trum.png` | 10 trùm (kể cả Tàu chiến Hy Vọng) và Thủy quái Ngư Tinh |
-| `4-vu-khi.png` | 67 vũ khí xếp theo 5 cấp |
-| `5-hieu-ung.png` | Hiệu ứng chiêu thức: cọc, voi, trống đồng, hào quang, nổ, cổng… |
-
-Kỹ thuật vẽ: tướng 32x32 với 3–4 tông màu cho mỗi chất liệu. Viền màu theo vật thể (selective outline) thay cho viền đen. Vũ khí Sử thi có viền tím, Huyền thoại có viền vàng phát sáng.
-
-Vẽ lại sách tranh:
-
+#### 2. Sinh lại toàn bộ Pixel Art & Artbook
 ```bash
+pip install pillow
+python3 tools/sprites/build_all.py
 python3 tools/sprites/artbook.py
 ```
 
-## Sửa và thêm đồ họa
-
-Tướng, lính, yêu quái và trùm đều qua bước hoàn thiện `polish()` trong `tools/sprites/px.py`. Bước này học kỹ thuật chung của pixel art chibi khi tham khảo thư mục Resources của bản Soul Knight C++ (chỉ học cách vẽ, không sao chép hình):
-
-- Viền ngoài gần đen.
-- Mỗi mảng màu có mép sáng ở trên, mép tối ở dưới, và nét chia vùng ở chỗ hai màu tương phản gặp nhau.
-- Ánh sáng từ góc trên trái; nửa dưới thân tối dần.
-- Mảng màu lớn được rắc vân nhẹ.
-
-Mọi hình đều là tệp PNG trong `assets/sprites/`, có thể sửa trực tiếp bằng Aseprite hoặc LibreSprite. Muốn vẽ lại toàn bộ bằng công cụ (ví dụ sau khi sửa lưới pixel của tướng trong `tools/sprites/art_heroes.py`), chạy:
-
+#### 3. Kiểm thử tự động
 ```bash
-pip install pillow
-```
+# Kiểm tra cú pháp toàn bộ script
+godot --headless --path . res://tests/check_scripts.tscn --quit
 
-```bash
-python3 tools/sprites/build_all.py
-```
+# Kiểm thử tổng lực v2.0.0 (Vũ khí Đỏ, Hợp nhất, Chiêu 2, Thú cưỡi, Sự kiện, Boss Rush, Mutators)
+godot --headless --path . res://tests/v20_mega_update_test.tscn
 
-Tướng được vẽ tay từng pixel bằng lưới ký tự (mỗi ký tự là một màu). Bạn có thể sửa trực tiếp lưới đó để đổi trang phục, mũ, râu…
-
-## Thêm nội dung
-
-- **Vũ khí mới**: thêm một mục vào `scripts/data/weapons.gd`, vẽ hình tại `assets/sprites/weapons/<mã>.png`, rồi chạy lại `build_all.py` để cập nhật điểm cầm (grips.json). Cách khác là thêm một dòng vào `PROC` trong `tools/sprites/art_weapons.py`.
-- **Tướng mới**: thêm vào `scripts/data/heroes.gd` và một lưới pixel trong `art_heroes.py`. Kỹ năng mới viết trong `_use_skill()` ở `scripts/entities/player.gd`.
-- **Chương hoặc trùm mới**: thêm vào `CHAPTERS` và `BOSSES` trong `scripts/data/enemies.gd`.
-
-## Kiểm thử tự động
-
-```bash
-godot --headless --path . res://tests/check_scripts.tscn
-```
-
-```bash
+# Kiểm thử luồng chơi dài (30 màn, Tam Yêu, Hiện nguyên hình)
 godot --headless --path . --fixed-fps 60 res://tests/smoke_test.tscn
 ```
 
-Lệnh đầu kiểm tra mọi script biên dịch được. Lệnh sau chơi thử: thử chiêu của cả 10 tướng, dùng cả 67 vũ khí, đi hết 30 màn (10 trùm xáo ngẫu nhiên, kiểm tra không trùng và máu tăng dần, kiểm tra 20 lần hiện nguyên hình của 10 trùm và Tam Yêu, kích hoạt chiêu đặc biệt và cơn nổi giận của từng trùm), mở rương sau mỗi phòng, mua hết hàng ở mọi gánh hàng rong, thử trúng độc và chướng khí, chết rồi hồi sinh. Kết quả in `SMOKE TEST OK` nếu không có lỗi.
+#### 4. Cấu trúc thư mục chính
+```text
+assets/
+  sprites/             Toàn bộ đồ họa pixel (PNG) & grips.json
+  fonts/               Font VT323 hỗ trợ đầy đủ tiếng Việt (OFL)
+tools/sprites/         Công cụ Python sinh đồ họa (art_heroes, art_weapons_ext, art_demons, artbook...)
+scenes/                Các màn hình & thực thể (.tscn)
+scripts/
+  autoload/            Global, Net (LAN), Updater (Hotpatch), HotpatchSync, Music, Sfx
+  data/                heroes, hero_skills_ext, weapons, weapon_evolutions, buffs, run_modes, enemies, materials...
+  entities/            player, enemy, bullet, pickup, event_altar, mount_pickup, battlefield_hazard, ally...
+  effects/             fx, projectile visuals, bronze drum, lightning, aura...
+  game/                game, dungeon, room, lobby, props...
+  ui/                  main_menu, lobby_ui, hud, challenge_menu, touch_controls, update_dialog...
+tests/                 Bộ kiểm thử tự động & hồi quy
+```
 
-## Bước tiếp theo
+</details>
 
-1. **Âm thanh**: tiếng chém, bắn, nổ, trống đồng; nhạc nền theo từng chương.
-2. **Hoạt ảnh tấn công riêng** cho từng tướng và trùm.
-3. **Cân bằng độ khó**: hiện chỉ mới kiểm tra là game chạy đúng, chưa chơi thử bằng tay để chỉnh độ khó.
-4. **Xuất bản Android** và gắn AdMob vào hàm `show_rewarded_ad()` trong `scripts/autoload/global.gd`.
+---
 
-## Lưu ý về nội dung lịch sử
+## 🕊️ Lưu Ý Nội Dung Lịch Sử & Ghi Công
 
-- Các vị tướng được thể hiện kiểu chibi đáng yêu nhưng trang trọng.
-- Kẻ địch là các đạo quân xâm lược thời phong kiến, gắn với các trận đánh có thật. Game không chế giễu dân tộc nào.
-- Nếu định phát hành ở thị trường nước ngoài, nên xem lại quy định nội dung của từng nơi.
+- Các danh tướng Việt Nam được khắc họa theo phong cách chibi trang trọng, tôn vinh tinh thần giữ nước qua các thời đại.
+- Địch thủ đại diện cho các đạo quân xâm lược thời phong kiến & thực dân gắn với diễn biến lịch sử, kết hợp yếu tố yêu quái dân gian nhằm tăng tính giả tưởng trò chơi, không nhằm chế giễu bất kỳ dân tộc nào.
+- Xem chi tiết nguồn cảm hứng, font chữ và công cụ sử dụng tại [**CREDITS.md**](CREDITS.md).
