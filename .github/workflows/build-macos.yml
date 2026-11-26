@@ -75,27 +75,39 @@ jobs:
             fi
             mv "$APP_PATH" "$TARGET_APP"
           fi
-          find "$TARGET_APP" -name '._*' -delete
-          chmod +x "$TARGET_APP/Contents/MacOS/"*
-          xattr -cr "$TARGET_APP"
-          # Ký ad-hoc built-in của Godot thường đã hợp lệ; chỉ fallback sang codesign thủ công (tránh --deep dễ gây SIGBUS trên macOS) nếu verify chưa đạt.
-          if ! codesign --verify --deep --strict --verbose=2 "$TARGET_APP"; then
-            rm -rf "$TARGET_APP/Contents/_CodeSignature"
-            for bin in "$TARGET_APP/Contents/MacOS/"*; do
-              cp "$bin" "${bin}.tmp"
-              mv -f "${bin}.tmp" "$bin"
-              chmod +x "$bin"
-              codesign --remove-signature "$bin" >/dev/null 2>&1 || true
-              codesign --force --sign - "$bin"
-            done
-            if [ -d "$TARGET_APP/Contents/Frameworks" ]; then
-              find "$TARGET_APP/Contents/Frameworks" \( -name "*.dylib" -o -name "*.framework" \) -print0 | while IFS= read -r -d '' fw; do
-                codesign --force --sign - "$fw"
-              done
-            fi
-            codesign --force --sign - "$TARGET_APP"
-            codesign --verify --deep --strict --verbose=2 "$TARGET_APP"
+          # Chuẩn hóa tên file thực thi và .pck sang ASCII thuần (giữ tên hiển thị tiếng Việt trong CFBundleName/CFBundleDisplayName)
+          # để tránh xung đột NFC/NFD giữa Info.plist và APFS khiến Apple codesign lỗi hoặc crash SIGBUS.
+          MACOS_DIR="$TARGET_APP/Contents/MacOS"
+          RES_DIR="$TARGET_APP/Contents/Resources"
+          EXEC_PATH="$(find "$MACOS_DIR" -maxdepth 1 -type f | head -n 1)"
+          if [ -z "$EXEC_PATH" ]; then
+            echo "ERROR: No executable found in $MACOS_DIR"
+            exit 1
           fi
+          cp "$EXEC_PATH" "$MACOS_DIR/AnhHungDatViet.tmp"
+          rm -f "$EXEC_PATH"
+          mv "$MACOS_DIR/AnhHungDatViet.tmp" "$MACOS_DIR/AnhHungDatViet"
+          PCK_PATH="$(find "$RES_DIR" -maxdepth 1 -name "*.pck" | head -n 1)"
+          if [ -n "$PCK_PATH" ] && [ "$PCK_PATH" != "$RES_DIR/AnhHungDatViet.pck" ]; then
+            mv "$PCK_PATH" "$RES_DIR/AnhHungDatViet.pck"
+          fi
+          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable AnhHungDatViet" "$TARGET_APP/Contents/Info.plist"
+
+          find "$TARGET_APP" -name '._*' -delete
+          rm -rf "$TARGET_APP/Contents/_CodeSignature"
+          chmod +x "$MACOS_DIR/AnhHungDatViet"
+          xattr -cr "$TARGET_APP"
+          codesign --remove-signature "$MACOS_DIR/AnhHungDatViet" >/dev/null 2>&1 || true
+
+          if [ -d "$TARGET_APP/Contents/Frameworks" ]; then
+            find "$TARGET_APP/Contents/Frameworks" \( -name "*.dylib" -o -name "*.framework" \) -print0 | while IFS= read -r -d '' fw; do
+              codesign --force --sign - "$fw"
+            done
+          fi
+          codesign --force --sign - "$MACOS_DIR/AnhHungDatViet"
+          codesign --force --sign - "$TARGET_APP"
+          codesign --verify --deep --strict --verbose=2 "$TARGET_APP"
+          "$MACOS_DIR/AnhHungDatViet" --headless --quit
 
       - name: Package signed .zip and .dmg
         run: |
