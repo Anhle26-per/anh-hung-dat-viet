@@ -471,9 +471,19 @@ func try_upgrade(id: String) -> bool:
 	return true
 
 
-func discover(weapon_id: String) -> void:
-	if weapon_id != "" and not discovered.has(weapon_id):
+func discover(weapon_id: String, persist: bool = true) -> void:
+	if weapon_id == "":
+		return
+	var changed: bool = false
+	if not discovered.has(weapon_id):
 		discovered.append(weapon_id)
+		changed = true
+	if MaterialData.can_forge_weapon(weapon_id) and not MaterialData.is_achievement_blueprint(weapon_id):
+		if not blueprints.has(weapon_id):
+			blueprints.append(weapon_id)
+			changed = true
+	if changed and persist:
+		save_game()
 
 
 func add_stat(key: String, n := 1) -> void:
@@ -539,7 +549,7 @@ func forgeable_weapons() -> Array:
 	var out: Array = []
 	for wid in discovered:
 		var w: String = str(wid)
-		if MaterialData.can_forge_weapon(w) and not out.has(w):
+		if MaterialData.can_forge_weapon(w) and not MaterialData.is_achievement_blueprint(w) and not out.has(w):
 			out.append(w)
 	for wid in blueprints:
 		var w2: String = str(wid)
@@ -574,13 +584,16 @@ func _spend_cost(coins_need: int, mats: Dictionary) -> void:
 			materials.erase(k)
 
 
+func owns_blueprint(wid: String) -> bool:
+	if has_blueprint(wid):
+		return true
+	return MaterialData.can_forge_weapon(wid) and not MaterialData.is_achievement_blueprint(wid) and discovered.has(wid)
+
+
 func can_craft(wid: String) -> bool:
 	if forged != "" or not MaterialData.can_forge_weapon(wid):
 		return false
-	if MaterialData.requires_blueprint(wid):
-		if not has_blueprint(wid):
-			return false
-	elif not discovered.has(wid):
+	if not owns_blueprint(wid):
 		return false
 	var rec: Dictionary = MaterialData.recipe_for(wid)
 	if rec.is_empty():
@@ -594,7 +607,7 @@ func try_craft(wid: String) -> bool:
 	var rec: Dictionary = MaterialData.recipe_for(wid)
 	_spend_cost(int(rec.coins), rec.mats)
 	forged = wid
-	discover(wid)
+	discover(wid, false)
 	add_stat("crafted")
 	save_game()
 	return true
@@ -604,6 +617,41 @@ func try_craft(wid: String) -> bool:
 
 func has_blueprint(wid: String) -> bool:
 	return blueprints.has(wid)
+
+
+func owned_blueprint_count() -> int:
+	var cnt: int = 0
+	for wid_v in MaterialData.all_blueprint_weapons():
+		if owns_blueprint(str(wid_v)):
+			cnt += 1
+	return cnt
+
+
+func roll_boss_blueprint(mythic: bool = false) -> String:
+	var candidates: Array = []
+	var weights: Array[float] = []
+	var tier_weights: Dictionary = {1: 4.0, 2: 10.0, 3: 24.0, 4: 34.0, 5: 28.0} if mythic else {1: 30.0, 2: 32.0, 3: 24.0, 4: 11.0, 5: 3.0}
+	var total: float = 0.0
+	for wid_v in MaterialData.all_blueprint_weapons():
+		var wid: String = str(wid_v)
+		if MaterialData.is_achievement_blueprint(wid) or owns_blueprint(wid):
+			continue
+		var tier: int = int(WeaponData.DATA.get(wid, {}).get("tier", 1))
+		var w: float = float(tier_weights.get(tier, 10.0))
+		candidates.append(wid)
+		weights.append(w)
+		total += w
+	if candidates.is_empty():
+		return ""
+	var r: float = randf() * total
+	var chosen: String = str(candidates[0])
+	for i in candidates.size():
+		r -= weights[i]
+		if r <= 0.0:
+			chosen = str(candidates[i])
+			break
+	unlock_blueprint(chosen)
+	return chosen
 
 
 func unlock_blueprint(wid: String) -> bool:
@@ -1293,7 +1341,7 @@ func load_game() -> void:
 		for k in up:
 			upgrades[k] = int(up[k])
 	for wid in data.get("discovered", []):
-		discover(str(wid))
+		discover(str(wid), false)
 	var st: Variant = data.get("stats", {})
 	if typeof(st) == TYPE_DICTIONARY:
 		var std: Dictionary = st

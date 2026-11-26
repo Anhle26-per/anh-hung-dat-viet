@@ -26,10 +26,11 @@ const MODERN_POOL: Array = ["sat", "hoa_duoc"]
 const FIREARM_PROJS: Array = ["bullet", "pellet", "rocket", "grenade", "cannonball", "plasma"]
 
 const RECIPES: Dictionary = {
-	2: {"coins": 50, "mats": {"dong": 3, "sat": 2}},
-	3: {"coins": 120, "mats": {"sat": 4, "yeu_hon": 1}},
-	4: {"coins": 250, "mats": {"sat": 5, "dong": 4, "yeu_hon": 2, "ngoc_than": 1}},
-	5: {"coins": 400, "mats": {"sat": 6, "yeu_hon": 3, "ngoc_than": 3}},
+	1: {"coins": 25, "mats": {"dong": 2}},
+	2: {"coins": 55, "mats": {"dong": 3, "sat": 2}},
+	3: {"coins": 130, "mats": {"sat": 4, "yeu_hon": 1}},
+	4: {"coins": 320, "mats": {"sat": 6, "dong": 5, "yeu_hon": 3, "ngoc_than": 2}},
+	5: {"coins": 850, "mats": {"sat": 12, "dong": 10, "yeu_hon": 8, "ngoc_than": 6}},
 }
 
 
@@ -40,16 +41,57 @@ static func can_forge_weapon(wid: String) -> bool:
 	if bool(w.get("basic", false)):
 		return false
 	var tier: int = int(w.get("tier", 1))
-	return tier >= 2 and RECIPES.has(tier)
+	return tier >= 1 and RECIPES.has(tier)
+
+
+static func all_blueprint_weapons() -> Array:
+	var out: Array = []
+	for wid_v in WeaponData.DATA.keys():
+		var wid: String = str(wid_v)
+		if can_forge_weapon(wid):
+			out.append(wid)
+	out.sort_custom(func(a: String, b: String) -> bool:
+		var ta: int = int(WeaponData.DATA[a].get("tier", 1))
+		var tb: int = int(WeaponData.DATA[b].get("tier", 1))
+		if ta != tb:
+			return ta < tb
+		return str(WeaponData.DATA[a].get("name", a)) < str(WeaponData.DATA[b].get("name", b)))
+	return out
+
+
+static func is_achievement_blueprint(wid: String) -> bool:
+	return bool(WeaponData.DATA.get(wid, {}).get("blueprint", false))
 
 
 static func requires_blueprint(wid: String) -> bool:
-	return bool(WeaponData.DATA.get(wid, {}).get("blueprint", false))
+	return is_achievement_blueprint(wid)
 
 
 static func blueprint_grade(wid: String) -> String:
 	var tier: int = int(WeaponData.DATA.get(wid, {}).get("tier", 1))
 	return "Nâng cao" if tier >= 4 else "Cơ bản"
+
+
+static func blueprint_tier_label(wid: String) -> String:
+	var tier: int = int(WeaponData.DATA.get(wid, {}).get("tier", 1))
+	if tier >= 5:
+		return "★ Huyền thoại"
+	if tier == 4:
+		return "Nâng cao"
+	if tier == 3:
+		return "Trung cấp"
+	return "Cơ bản"
+
+
+static func _is_fire_or_gun(w: Dictionary) -> bool:
+	var proj: String = str(w.get("proj", ""))
+	return (proj in FIREARM_PROJS) or bool(w.get("fire", false)) or str(w.get("status", "")) == "burn"
+
+
+static func _is_arcane_or_spirit(w: Dictionary) -> bool:
+	var t: String = str(w.get("type", ""))
+	var proj: String = str(w.get("proj", ""))
+	return (t in ["wave", "beam", "spikes"]) or proj.begins_with("orb_") or (proj in ["soul_bolt", "talisman", "card", "bubble"]) or int(w.get("chain", 0)) > 0
 
 
 static func recipe_for(wid: String) -> Dictionary:
@@ -59,12 +101,47 @@ static func recipe_for(wid: String) -> Dictionary:
 	var tier: int = int(w.get("tier", 1))
 	var base: Dictionary = RECIPES[tier]
 	var mats: Dictionary = (base.mats as Dictionary).duplicate()
-	if tier == 3:
-		var proj: String = str(w.get("proj", ""))
-		if proj in FIREARM_PROJS:
-			mats["hoa_duoc"] = 3
-		else:
-			mats["go_lim"] = 3
+	var is_fire_gun: bool = _is_fire_or_gun(w)
+	var is_arcane: bool = _is_arcane_or_spirit(w)
+	match tier:
+		1:
+			if is_fire_gun:
+				mats["hoa_duoc"] = 1
+			elif is_arcane:
+				mats["sat"] = 1
+			else:
+				mats["go_lim"] = 1
+		2:
+			if is_fire_gun:
+				mats["hoa_duoc"] = 2
+			elif is_arcane:
+				mats["yeu_hon"] = 1
+			else:
+				mats["go_lim"] = 2
+		3:
+			if is_fire_gun:
+				mats["hoa_duoc"] = 3
+			elif is_arcane:
+				mats["yeu_hon"] = 3
+				mats["go_lim"] = 2
+			else:
+				mats["go_lim"] = 3
+		4:
+			if is_fire_gun:
+				mats["hoa_duoc"] = 4
+			elif is_arcane:
+				mats["yeu_hon"] = 5
+				mats["ngoc_than"] = 3
+			else:
+				mats["go_lim"] = 4
+		5:
+			if is_fire_gun:
+				mats["hoa_duoc"] = 8
+			elif is_arcane:
+				mats["yeu_hon"] = 10
+				mats["ngoc_than"] = 7
+			else:
+				mats["go_lim"] = 8
 	return {"coins": int(base.coins), "mats": mats}
 
 

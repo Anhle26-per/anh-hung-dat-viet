@@ -713,8 +713,7 @@ func _twin_offset() -> Vector2:
 
 func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> void:
 	if offset == Vector2.ZERO:
-		var proj_kind: String = str(w.get("proj", "bullet"))
-		Sfx.play("arrow" if proj_kind in ["arrow", "stone", "dart", "axe", "chakram", "talisman", "card"] else "shoot")
+		Sfx.play_weapon(str(weapons[slot]), w)
 	var count: int = w.get("count", 1) + buff("ten_doi")
 	var spread := deg_to_rad(w.get("spread", 0.0))
 	if buff("ten_doi") > 0 and spread == 0.0:
@@ -810,6 +809,7 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 			"ay": aim_dir.y,
 			"recoil": _recoil,
 			"sfx": "arrow" if str(w.get("proj", "bullet")) in ["arrow", "stone", "dart", "axe"] else "shoot",
+			"wid": str(weapons[slot]),
 			"silent": offset != Vector2.ZERO,
 		})
 	match w.get("muzzle", ""):
@@ -824,7 +824,7 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 
 func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> void:
 	if offset == Vector2.ZERO:
-		Sfx.play("slash")
+		Sfx.play_weapon(str(weapons[slot]), w)
 	var reach: float = w.reach * (1.0 + 0.2 * buff("da_mai"))
 	var arc := deg_to_rad(w.arc)
 	var dmg: int = int(w.damage * (1.0 + 0.15 * buff("da_mai")))
@@ -978,6 +978,7 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			"ox": 0.0, "oy": 0.0, "ax": aim_dir.x, "ay": aim_dir.y,
 			"reach": reach, "arc": arc, "style": style, "col": slash_col.to_html(true),
 			"fire": bool(w.get("fire", false)), "waves": net_waves, "lpts": lpts_ser,
+			"wid": str(weapons[slot]),
 		})
 
 
@@ -1038,7 +1039,7 @@ func _chain_lightning(start, count: int, dmg: int) -> Array:
 
 
 func _beam(w: Dictionary) -> void:
-	Sfx.play("shoot")
+	Sfx.play_weapon(str(weapons[slot]), w)
 	var start := _muzzle_pos()
 	var length: float = w.length
 	var end := start + aim_dir * length
@@ -1099,12 +1100,12 @@ func _beam(w: Dictionary) -> void:
 	if is_local and Net != null and Net.is_online():
 		Net.send_player_action("beam", {
 			"sx": start.x, "sy": start.y, "ex": end.x, "ey": end.y,
-			"width": width, "col": fx.color.to_html(true),
+			"width": width, "col": fx.color.to_html(true), "wid": str(weapons[slot]),
 		})
 
 
 func _wave(w: Dictionary) -> void:
-	Sfx.play("skill")
+	Sfx.play_weapon(str(weapons[slot]), w)
 	var r := WaveRing.new()
 	r.position = global_position
 	r.radius = w.get("radius", 110.0)
@@ -1131,11 +1132,12 @@ func _wave(w: Dictionary) -> void:
 		Net.send_player_action("wave", {
 			"x": global_position.x, "y": global_position.y,
 			"radius": r.radius, "col": r.color.to_html(true), "notes": r.notes,
+			"wid": str(weapons[slot]),
 		})
 
 
 func _spikes(w: Dictionary) -> void:
-	Sfx.play("explode")
+	Sfx.play_weapon(str(weapons[slot]), w)
 	var count: int = w.get("count", 6)
 	var spacing: float = w.get("spacing", 18.0)
 	var dir := aim_dir
@@ -1166,7 +1168,7 @@ func _spikes(w: Dictionary) -> void:
 			s.damage = dmg
 			par.add_child(s))
 	if is_local and Net != null and Net.is_online() and not net_pts.is_empty():
-		Net.send_player_action("spikes", {"pts": net_pts})
+		Net.send_player_action("spikes", {"pts": net_pts, "wid": str(weapons[slot])})
 
 
 func _in_arc(pos: Vector2, max_dist: float, arc: float, size: float) -> bool:
@@ -1193,7 +1195,7 @@ func _use_skill() -> void:
 		Global.run_syn_counts[syn] = int(Global.run_syn_counts[syn]) + 1
 	var hb: Dictionary = ProgressionData.hero_bonuses(Global.eff_hero_level(hero_id))
 	skill_timer = hero.skill_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult)
-	Sfx.play("skill")
+	Sfx.play_skill(hero_id)
 	if body != null and not dead:
 		_anim_lock_t = 0.28
 		body.play("skill")
@@ -1364,6 +1366,7 @@ func _use_skill() -> void:
 	if is_local and Net != null and Net.is_online():
 		Net.send_player_action("skill", {
 			"skill": str(hero.skill),
+			"hero_id": hero_id,
 			"syn": syn,
 			"fam": fam,
 			"x": global_position.x,
@@ -2034,6 +2037,15 @@ func apply_remote_state(st: Dictionary) -> void:
 			body.play("idle")
 
 
+func _play_remote_weapon_sfx(data: Dictionary, fallback_sfx: String = "shoot") -> void:
+	var cur_wid: String = str(weapons[slot]) if slot >= 0 and slot < weapons.size() else ""
+	var r_wid: String = str(data.get("wid", cur_wid))
+	if r_wid != "":
+		Sfx.play_weapon(r_wid, WeaponData.get_data(r_wid))
+	else:
+		Sfx.play(str(data.get("sfx", fallback_sfx)))
+
+
 func play_remote_action(kind: String, data: Dictionary) -> void:
 	if is_local or get_parent() == null:
 		return
@@ -2041,7 +2053,7 @@ func play_remote_action(kind: String, data: Dictionary) -> void:
 	match kind:
 		"shoot":
 			if not bool(data.get("silent", false)):
-				Sfx.play(str(data.get("sfx", "shoot")))
+				_play_remote_weapon_sfx(data, "shoot")
 			if body != null and not dead and not downed:
 				_anim_lock_t = 0.18
 				body.play("attack")
@@ -2089,7 +2101,7 @@ func play_remote_action(kind: String, data: Dictionary) -> void:
 			var style: String = str(data.get("style", "swing"))
 			var col: Color = Color.html(str(data.get("col", "ffffffff")))
 			if off == Vector2.ZERO:
-				Sfx.play("slash")
+				_play_remote_weapon_sfx(data, "slash")
 				if body != null and not dead and not downed:
 					_anim_lock_t = 0.18
 					body.play("attack")
@@ -2143,7 +2155,7 @@ func play_remote_action(kind: String, data: Dictionary) -> void:
 					ln.points = pts
 					parent.add_child(ln)
 		"beam":
-			Sfx.play("shoot")
+			_play_remote_weapon_sfx(data, "shoot")
 			var bstart := Vector2(float(data.get("sx", global_position.x)), float(data.get("sy", global_position.y)))
 			var bend := Vector2(float(data.get("ex", global_position.x)), float(data.get("ey", global_position.y)))
 			var bfx := Beam.new()
@@ -2155,7 +2167,7 @@ func play_remote_action(kind: String, data: Dictionary) -> void:
 			Fx.anim(parent, bend, "fx/spark.png", 15, 15, 24.0, 1.3, 0.0, bfx.color, true)
 			_recoil = 3.0
 		"wave":
-			Sfx.play("skill")
+			_play_remote_weapon_sfx(data, "skill")
 			var rw := _RemoteWaveFx.new()
 			rw.position = Vector2(float(data.get("x", global_position.x)), float(data.get("y", global_position.y)))
 			rw.radius = float(data.get("radius", 110.0))
@@ -2163,7 +2175,7 @@ func play_remote_action(kind: String, data: Dictionary) -> void:
 			rw.notes = bool(data.get("notes", false))
 			parent.add_child(rw)
 		"spikes":
-			Sfx.play("explode")
+			_play_remote_weapon_sfx(data, "explode")
 			var spts_v: Variant = data.get("pts", [])
 			if typeof(spts_v) == TYPE_ARRAY:
 				var wr_par: WeakRef = weakref(parent)
@@ -2198,7 +2210,7 @@ func _play_remote_skill(data: Dictionary) -> void:
 	else:
 		dir = dir.normalized()
 	aim_dir = dir
-	Sfx.play("skill")
+	Sfx.play_skill(str(data.get("hero_id", hero_id)))
 	if body != null and not dead and not downed:
 		_anim_lock_t = 0.28
 		body.play("skill")

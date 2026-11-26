@@ -37,6 +37,7 @@ func _reset_all() -> void:
 	Global.run_materials = {}
 	Global.forged = ""
 	Global.discovered = []
+	Global.blueprints = []
 	Global.upgrades = {}
 	Global.resume_data = {}
 	Global.selected_hero = "ngo_quyen"
@@ -162,7 +163,7 @@ func _run() -> void:
 	_check(Global.materials.is_empty(), "tệp cũ không đặt materials về rỗng")
 	_check(Global.forged == "", "tệp cũ không đặt forged về rỗng")
 
-	print("== 6. Vũ khí cơ bản, cấp 1, và chưa sưu tầm không rèn được")
+	print("== 6. Vũ khí cơ bản & chưa mở bản vẽ không rèn được; cấp 1 'gay_tre' rèn được khi có bản vẽ")
 	_reset_all()
 	Global.coins = 9999
 	for mid in MaterialData.ORDER:
@@ -170,48 +171,64 @@ func _run() -> void:
 	Global.discovered = ["kiem_dong", "gay_tre", "kiem"]
 	var forgeables: Array = Global.forgeable_weapons()
 	_check(not forgeables.has("kiem_dong") and not Global.try_craft("kiem_dong"), "vũ khí cơ bản rèn được")
-	_check(not forgeables.has("gay_tre") and not Global.try_craft("gay_tre"), "vũ khí cấp 1 rèn được")
+	_check(forgeables.has("gay_tre") and Global.can_craft("gay_tre"), "vũ khí cấp 1 gay_tre phải rèn được trong v1.4.0")
 	_check(not forgeables.has("ma_tau") and not Global.try_craft("ma_tau"), "vũ khí chưa sưu tầm rèn được")
 	_check(forgeables.has("kiem"), "vũ khí cấp 2 đã sưu tầm thiếu trong danh sách rèn")
+	var r_t1: Dictionary = MaterialData.recipe_for("gay_tre")
+	_check(int(r_t1.get("coins", 0)) == 25 and int(r_t1.get("mats", {}).get("dong", 0)) == 2 and int(r_t1.get("mats", {}).get("go_lim", 0)) == 1,
+		"công thức cấp 1 gay_tre sai: %s" % str(r_t1))
+	_check(Global.try_craft("gay_tre") and Global.forged == "gay_tre", "rèn cấp 1 gay_tre thất bại")
+	_check(Global.coins == 9999 - 25 and Global.material_count("dong") == 97 and Global.material_count("go_lim") == 98,
+		"trừ xu/nguyên liệu gay_tre sai")
+	Global.forged = ""
 
-	print("== 7. Giá cấp 3 phân biệt súng/thuốc nổ (hỏa dược) và vũ khí khác (gỗ lim)")
+	print("== 7. Công thức cấp 2-5 phân biệt hỏa khí (hỏa dược), phép/thần (yêu hồn/ngọc thần) và cận chiến (gỗ lim)")
+	var r_t2: Dictionary = MaterialData.recipe_for("kiem")
+	_check(int(r_t2.get("coins", 0)) == 55 and int(r_t2.get("mats", {}).get("dong", 0)) == 3 and int(r_t2.get("mats", {}).get("sat", 0)) == 2 and int(r_t2.get("mats", {}).get("go_lim", 0)) == 2,
+		"công thức cấp 2 kiem sai: %s" % str(r_t2))
 	var r_gun: Dictionary = MaterialData.recipe_for("tieu_lien")
 	var r_blade: Dictionary = MaterialData.recipe_for("dao")
-	_check(int(r_gun.mats.get("hoa_duoc", 0)) == 3 and not r_gun.mats.has("go_lim"),
+	_check(int(r_gun.get("coins", 0)) == 130 and int(r_gun.mats.get("hoa_duoc", 0)) == 3 and int(r_gun.mats.get("sat", 0)) == 4 and not r_gun.mats.has("go_lim"),
 		"công thức tiểu liên sai: %s" % str(r_gun))
-	_check(int(r_blade.mats.get("go_lim", 0)) == 3 and not r_blade.mats.has("hoa_duoc"),
+	_check(int(r_blade.get("coins", 0)) == 130 and int(r_blade.mats.get("go_lim", 0)) == 3 and int(r_blade.mats.get("sat", 0)) == 4 and not r_blade.mats.has("hoa_duoc"),
 		"công thức đại đao sai: %s" % str(r_blade))
+	var r_t4: Dictionary = MaterialData.recipe_for("sung_tesla")
+	_check(int(r_t4.get("coins", 0)) == 320 and int(r_t4.mats.get("sat", 0)) == 6 and int(r_t4.mats.get("dong", 0)) == 5 and int(r_t4.mats.get("yeu_hon", 0)) >= 3 and int(r_t4.mats.get("ngoc_than", 0)) >= 2,
+		"công thức cấp 4 sung_tesla sai: %s" % str(r_t4))
+	var r_t5: Dictionary = MaterialData.recipe_for("kiem_thoi_khong")
+	_check(int(r_t5.get("coins", 0)) == 850 and int(r_t5.mats.get("sat", 0)) >= 12 and int(r_t5.mats.get("dong", 0)) >= 10 and int(r_t5.mats.get("yeu_hon", 0)) >= 8 and int(r_t5.mats.get("ngoc_than", 0)) >= 6,
+		"công thức cấp 5 kiem_thoi_khong sai: %s" % str(r_t5))
 
 	print("== 8. Thiếu nguyên liệu hoặc xu thì không rèn được và không trừ")
 	_reset_all()
 	Global.discovered = ["kiem", "ma_tau"]
-	Global.coins = 49
-	Global.materials = {"dong": 3, "sat": 2}
+	Global.coins = 54
+	Global.materials = {"dong": 3, "sat": 2, "go_lim": 2}
 	_check(not Global.can_craft("kiem") and not Global.try_craft("kiem"), "rèn được khi thiếu xu")
-	_check(Global.coins == 49 and Global.material_count("dong") == 3, "bị trừ nhầm khi thiếu xu")
+	_check(Global.coins == 54 and Global.material_count("dong") == 3 and Global.material_count("go_lim") == 2, "bị trừ nhầm khi thiếu xu")
 	Global.coins = 100
-	Global.materials = {"dong": 2, "sat": 2}
+	Global.materials = {"dong": 2, "sat": 2, "go_lim": 2}
 	_check(not Global.can_craft("kiem") and not Global.try_craft("kiem"), "rèn được khi thiếu nguyên liệu")
 	_check(Global.coins == 100 and Global.material_count("dong") == 2 and Global.forged == "", "bị trừ nhầm khi thiếu nguyên liệu")
 
 	print("== 9. Đủ đồ rèn thành công, trừ kho + xu, lưu forged")
 	Global.coins = 100
-	Global.materials = {"dong": 4, "sat": 3}
+	Global.materials = {"dong": 4, "sat": 3, "go_lim": 3}
 	_check(Global.try_craft("kiem"), "rèn kiem thất bại dù đủ đồ")
-	_check(Global.coins == 50, "trừ xu sai sau rèn: %d" % Global.coins)
-	_check(Global.material_count("dong") == 1 and Global.material_count("sat") == 1,
+	_check(Global.coins == 45, "trừ xu sai sau rèn: %d" % Global.coins)
+	_check(Global.material_count("dong") == 1 and Global.material_count("sat") == 1 and Global.material_count("go_lim") == 1,
 		"trừ nguyên liệu sai sau rèn: %s" % str(Global.materials))
 	_check(Global.forged == "kiem", "Global.forged không phải kiem")
 	Global.coins = 0
 	Global.materials = {}
 	Global.forged = ""
 	Global.load_game()
-	_check(Global.coins == 50 and Global.material_count("dong") == 1 and Global.forged == "kiem",
+	_check(Global.coins == 45 and Global.material_count("dong") == 1 and Global.material_count("go_lim") == 1 and Global.forged == "kiem",
 		"save_game/load_game không giữ trạng thái sau rèn")
 
 	print("== 10. Đang có binh khí chờ ra trận thì không rèn thêm được")
 	Global.coins = 500
-	Global.materials = {"dong": 10, "sat": 10}
+	Global.materials = {"dong": 10, "sat": 10, "go_lim": 10}
 	_check(not Global.can_craft("ma_tau") and not Global.try_craft("ma_tau"),
 		"rèn thêm được khi đã có forged")
 	_check(Global.coins == 500 and Global.forged == "kiem", "đổi forged khi đang bị khóa")

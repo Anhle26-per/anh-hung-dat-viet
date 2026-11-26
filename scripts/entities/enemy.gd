@@ -1632,6 +1632,12 @@ func _drop_loot(spawn_shared_loot: bool = true) -> void:
 	var mythic: bool = EnemyData.is_mythic_level(level)
 	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern, mythic):
 		_spawn_material(str(mid))
+	if is_boss() and spawn_shared_loot and Global.has_method("roll_boss_blueprint"):
+		var bp_id: String = str(Global.roll_boss_blueprint(mythic))
+		if bp_id != "":
+			var w_res := preload("res://scripts/data/weapons.gd")
+			var wname: String = str(w_res.get_data(bp_id).get("name", bp_id))
+			Fx.float_text(get_parent(), global_position + Vector2(0, -28), "📜 Bản vẽ mới: %s!" % wname, Color(1.0, 0.88, 0.35), 16)
 
 
 func _spawn_shared_pickup(k: String, amount: int) -> void:

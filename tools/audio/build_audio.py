@@ -443,7 +443,481 @@ def gen_sfx() -> dict[str, list[float]]:
     add_tone_seq(buf, [(0.22, 0.10, "tri", PENTA["G5"]), (0.30, 0.24, "sq25", PENTA["C6"])], 0.36)
     out["forge"] = normalize(buf, 0.84)
 
+    # 29. portal: dịch chuyển qua cổng (tầng hầm / cổng màn)
+    rng = random.Random(129)
+    n = int(0.46 * SAMPLE_RATE)
+    buf = [0.0] * n
+    ph = 0.0
+    ph2 = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 260.0 + 540.0 * (t / 0.46) ** 1.3
+        ph += f / SAMPLE_RATE
+        ph2 += (f * 1.5) / SAMPLE_RATE
+        lp = lp * 0.7 + rng.uniform(-1.0, 1.0) * 0.3
+        e = env_asr(t, 0.46, 0.04, 0.14)
+        buf[i] += (0.5 * math.sin(2.0 * math.pi * ph) + 0.28 * triangle(ph2) + 0.22 * lp) * e
+    add_tone_seq(buf, [(0.04, 0.12, "tri", PENTA["E5"]), (0.14, 0.16, "tri", PENTA["A5"]), (0.24, 0.20, "sin", PENTA["E6"])], 0.32)
+    out["portal"] = normalize(buf, 0.8)
+
+    # 30. pickup: nhặt vật phẩm / tưới vườn / lộc nhẹ
+    buf = [0.0] * int(0.16 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.06, "tri", PENTA["D5"]), (0.045, 0.11, "sin", PENTA["A5"])], 0.55)
+    out["pickup"] = normalize(buf, 0.74)
+
+    # 31. pickup_coin: nhặt xu / hồi sinh đồng đội
+    buf = [0.0] * int(0.22 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.055, "sq25", PENTA["A5"]), (0.045, 0.06, "sq25", PENTA["C6"]), (0.095, 0.12, "sq25", PENTA["E6"])], 0.52)
+    out["pickup_coin"] = normalize(buf, 0.76)
+
+    # ------------------------------------------------------------------ 11 Kỹ năng tướng riêng biệt
+    out.update(_gen_hero_skills())
+
+    # ------------------------------------------------------------------ 32 Âm thanh nhóm vũ khí (w_*)
+    out.update(_gen_weapon_archetypes())
+
     return out
+
+
+def _sweep_buf(
+    dur: float,
+    f0: float,
+    f1: float,
+    seed: int,
+    wave_kind: str = "tri",
+    noise_mix: float = 0.25,
+    noise_lp: float = 0.6,
+    attack: float = 0.003,
+    exp: float = 1.7,
+    sweep_pow: float = 1.0,
+    sub_ratio: float = 0.0,
+) -> list[float]:
+    """Bộ tổng hợp quét tần số + nhiễu lọc thông thấp dùng chung cho SFX."""
+    rng = random.Random(seed)
+    n = int(dur * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    ph_sub = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        u = min(1.0, t / max(dur, 1e-6)) ** sweep_pow
+        f = f0 + (f1 - f0) * u
+        ph += f / SAMPLE_RATE
+        ph_sub += (f * 0.5) / SAMPLE_RATE
+        if wave_kind == "sq":
+            w = square(ph, 0.5)
+        elif wave_kind == "sq25":
+            w = square(ph, 0.25)
+        elif wave_kind == "sin":
+            w = math.sin(2.0 * math.pi * ph)
+        elif wave_kind == "saw":
+            w = 2.0 * (ph % 1.0) - 1.0
+        else:
+            w = triangle(ph)
+        if sub_ratio > 0.0:
+            w = (1.0 - sub_ratio) * w + sub_ratio * math.sin(2.0 * math.pi * ph_sub)
+        lp = lp * noise_lp + rng.uniform(-1.0, 1.0) * (1.0 - noise_lp)
+        e = env_ad(t, dur, attack, exp)
+        buf.append(((1.0 - noise_mix) * w + noise_mix * lp) * e)
+    return buf
+
+
+def _add_bell(buf: list[float], start_s: float, dur: float, base_hz: float, partials: list[tuple[float, float]], vol: float = 0.45) -> None:
+    i0 = int(start_s * SAMPLE_RATE)
+    n = int(dur * SAMPLE_RATE)
+    for j in range(n):
+        idx = i0 + j
+        if idx >= len(buf):
+            break
+        t = j / SAMPLE_RATE
+        s = 0.0
+        for ratio, amp in partials:
+            s += amp * math.sin(2.0 * math.pi * base_hz * ratio * t) * math.exp(-t * (2.5 + ratio * 1.4))
+        buf[idx] += s * env_ad(t, dur, 0.002, 1.3) * vol
+
+
+def _gen_hero_skills() -> dict[str, list[float]]:
+    skills: dict[str, list[float]] = {}
+
+    # 1. Hai Bà Trưng (Song Trưng): song kiếm hòa tấu + song thanh vang đôi
+    buf = [0.0] * int(0.48 * SAMPLE_RATE)
+    add_tone_seq(
+        buf,
+        [
+            (0.00, 0.14, "sq25", PENTA["C5"]),
+            (0.04, 0.14, "tri", PENTA["G5"]),
+            (0.10, 0.16, "sq25", PENTA["E5"]),
+            (0.14, 0.28, "tri", PENTA["C6"]),
+            (0.18, 0.26, "sq25", PENTA["G5"]),
+        ],
+        0.42,
+    )
+    sw = _sweep_buf(0.20, 1280.0, 420.0, 301, "tri", 0.45, 0.4, 0.002, 1.8)
+    for i, x in enumerate(sw):
+        buf[i] += x * 0.45
+    skills["skill_hai_ba_trung"] = normalize(buf, 0.84)
+
+    # 2. Bà Triệu (Voi chiến): tiếng voi rống + bước dậm rung đất
+    rng = random.Random(302)
+    n = int(0.56 * SAMPLE_RATE)
+    buf = [0.0] * n
+    ph = 0.0
+    for i in range(int(0.38 * SAMPLE_RATE)):
+        t = i / SAMPLE_RATE
+        vib = 1.0 + 0.04 * math.sin(2.0 * math.pi * 22.0 * t)
+        f = (260.0 + 380.0 * math.sin(math.pi * min(1.0, t / 0.34))) * vib
+        ph += f / SAMPLE_RATE
+        w = 0.55 * (2.0 * (ph % 1.0) - 1.0) + 0.45 * square(ph * 0.5, 0.35)
+        buf[i] += w * env_asr(t, 0.38, 0.03, 0.10) * 0.6
+    for stomp_t in (0.14, 0.32):
+        st = _sweep_buf(0.18, 130.0, 36.0, 3020 + int(stomp_t * 100), "sin", 0.35, 0.78, 0.003, 1.7)
+        i0 = int(stomp_t * SAMPLE_RATE)
+        for j, x in enumerate(st):
+            if i0 + j < n:
+                buf[i0 + j] += x * 0.65
+    skills["skill_ba_trieu"] = normalize(buf, 0.85)
+
+    # 3. Ngô Quyền (Cọc Bạch Đằng): sóng nước cuồn cuộn + loạt cọc nhọn bật lên
+    rng = random.Random(303)
+    n = int(0.54 * SAMPLE_RATE)
+    buf = [0.0] * n
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        lp = lp * 0.72 + rng.uniform(-1.0, 1.0) * 0.28
+        buf[i] += lp * env_asr(t, 0.54, 0.06, 0.18) * 0.55
+    for k, stake_t in enumerate((0.03, 0.10, 0.17, 0.24, 0.31)):
+        st = _sweep_buf(0.11, 210.0 + k * 45.0, 95.0, 3030 + k, "tri", 0.30, 0.5, 0.002, 2.0)
+        i0 = int(stake_t * SAMPLE_RATE)
+        for j, x in enumerate(st):
+            if i0 + j < n:
+                buf[i0 + j] += x * 0.58
+    skills["skill_ngo_quyen"] = normalize(buf, 0.84)
+
+    # 4. Lý Thường Kiệt (Nam quốc sơn hà): chuông chùa trầm hùng + hào quang hộ thể
+    n = int(0.60 * SAMPLE_RATE)
+    buf = [0.0] * n
+    _add_bell(buf, 0.0, 0.58, 392.0, [(1.0, 0.55), (1.5, 0.32), (2.4, 0.25), (3.1, 0.18)], 0.75)
+    add_tone_seq(buf, [(0.06, 0.18, "sin", PENTA["G4"]), (0.14, 0.36, "tri", PENTA["D5"])], 0.35)
+    skills["skill_ly_thuong_kiet"] = normalize(buf, 0.84)
+
+    # 5. Trần Hưng Đạo (Hịch tướng sĩ): 3 hồi trống đồng dồn dập + kèn hiệu xuất quân
+    n = int(0.58 * SAMPLE_RATE)
+    buf = [0.0] * n
+    for k, dt in enumerate((0.0, 0.12, 0.24)):
+        dr = _sweep_buf(0.16, 155.0 + k * 10.0, 46.0, 3050 + k, "sin", 0.32, 0.75, 0.002, 1.8)
+        i0 = int(dt * SAMPLE_RATE)
+        for j, x in enumerate(dr):
+            if i0 + j < n:
+                buf[i0 + j] += x * 0.7
+    add_tone_seq(buf, [(0.16, 0.11, "sq", PENTA["G4"]), (0.26, 0.12, "sq", PENTA["C5"]), (0.36, 0.20, "sq", PENTA["G5"])], 0.38)
+    skills["skill_tran_hung_dao"] = normalize(buf, 0.85)
+
+    # 6. Lê Lợi (Gươm Thuận Thiên): rút thần kiếm sáng lòa + vòng kiếm ngân vang
+    n = int(0.52 * SAMPLE_RATE)
+    buf = _sweep_buf(0.32, 520.0, 1780.0, 306, "tri", 0.28, 0.45, 0.01, 1.3, 1.2) + [0.0] * int(0.20 * SAMPLE_RATE)
+    _add_bell(buf, 0.08, 0.42, 880.0, [(1.0, 0.5), (1.98, 0.35), (2.95, 0.22)], 0.55)
+    add_tone_seq(buf, [(0.12, 0.14, "sq25", PENTA["A5"]), (0.22, 0.24, "sq25", PENTA["E6"])], 0.30)
+    skills["skill_le_loi"] = normalize(buf, 0.84)
+
+    # 7. Quang Trung (Thần tốc): cuồng phong bứt tốc + ngũ cung dồn dập + tia lửa
+    n = int(0.46 * SAMPLE_RATE)
+    buf = _sweep_buf(0.44, 240.0, 1180.0, 307, "tri", 0.52, 0.42, 0.01, 1.4, 1.4)
+    add_tone_seq(
+        buf,
+        [
+            (0.00, 0.07, "sq25", PENTA["C5"]),
+            (0.055, 0.07, "sq25", PENTA["D5"]),
+            (0.11, 0.07, "sq25", PENTA["E5"]),
+            (0.165, 0.07, "sq25", PENTA["G5"]),
+            (0.22, 0.08, "sq25", PENTA["A5"]),
+            (0.28, 0.16, "sq25", PENTA["C6"]),
+        ],
+        0.42,
+    )
+    skills["skill_quang_trung"] = normalize(buf, 0.84)
+
+    # 8. Nguyễn Trung Trực (Hỏa hồng Nhật Tảo): vỡ bầu rượu + biển lửa bùng cháy
+    n = int(0.54 * SAMPLE_RATE)
+    buf = _sweep_buf(0.54, 420.0, 90.0, 308, "saw", 0.72, 0.55, 0.004, 1.35, 0.8)
+    _add_bell(buf, 0.0, 0.12, 1320.0, [(1.0, 0.5), (1.72, 0.4)], 0.45)
+    skills["skill_nguyen_trung_truc"] = normalize(buf, 0.85)
+
+    # 9. Hoàng Hoa Thám (Hùm thiêng Yên Thế): tiếng hổ gầm rền vang
+    rng = random.Random(309)
+    n = int(0.56 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        growl = 1.0 + 0.18 * math.sin(2.0 * math.pi * 34.0 * t)
+        f = (205.0 - 115.0 * (t / 0.56) ** 0.8) * growl
+        ph += f / SAMPLE_RATE
+        lp = lp * 0.62 + rng.uniform(-1.0, 1.0) * 0.38
+        w = 0.52 * (2.0 * (ph % 1.0) - 1.0) + 0.25 * square(ph * 0.5, 0.4) + 0.45 * lp
+        buf.append(w * env_asr(t, 0.56, 0.035, 0.18))
+    skills["skill_hoang_hoa_tham"] = normalize(buf, 0.86)
+
+    # 10. Chiến sĩ Điện Biên (Kéo pháo vào trận): tiếng tời cóc kéo pháo + đặt bệ nòng nặng
+    n = int(0.56 * SAMPLE_RATE)
+    buf = [0.0] * n
+    for k, ct in enumerate((0.0, 0.09, 0.18, 0.27)):
+        cl = _sweep_buf(0.055, 980.0 + k * 70.0, 420.0, 3100 + k, "sq25", 0.45, 0.3, 0.001, 2.2)
+        i0 = int(ct * SAMPLE_RATE)
+        for j, x in enumerate(cl):
+            if i0 + j < n:
+                buf[i0 + j] += x * 0.55
+    thud = _sweep_buf(0.22, 165.0, 42.0, 3109, "sin", 0.48, 0.78, 0.003, 1.7)
+    i_thud = int(0.32 * SAMPLE_RATE)
+    for j, x in enumerate(thud):
+        if i_thud + j < n:
+            buf[i_thud + j] += x * 0.85
+    skills["skill_chien_si_dien_bien"] = normalize(buf, 0.85)
+
+    # 11. Thánh Gióng (Ngựa sắt phun lửa): ngựa sắt hí vang + vó sắt + luồng lửa rồng
+    rng = random.Random(311)
+    n = int(0.58 * SAMPLE_RATE)
+    buf = [0.0] * n
+    ph = 0.0
+    for i in range(int(0.28 * SAMPLE_RATE)):
+        t = i / SAMPLE_RATE
+        vib = 1.0 + 0.09 * math.sin(2.0 * math.pi * 26.0 * t)
+        f = (680.0 + 420.0 * math.sin(math.pi * t / 0.25) - 220.0 * (t / 0.28)) * vib
+        ph += f / SAMPLE_RATE
+        buf[i] += (0.65 * square(ph, 0.35) + 0.35 * triangle(ph * 1.5)) * env_asr(t, 0.28, 0.02, 0.08) * 0.65
+    lp = 0.0
+    for i in range(int(0.20 * SAMPLE_RATE), n):
+        t = (i - int(0.20 * SAMPLE_RATE)) / SAMPLE_RATE
+        lp = lp * 0.58 + rng.uniform(-1.0, 1.0) * 0.42
+        buf[i] += lp * env_asr(t, 0.38, 0.03, 0.14) * 0.7
+    _add_bell(buf, 0.04, 0.16, 1180.0, [(1.0, 0.4), (1.6, 0.3)], 0.35)
+    skills["skill_thanh_giong"] = normalize(buf, 0.86)
+
+    return skills
+
+
+def _gen_weapon_archetypes() -> dict[str, list[float]]:
+    w: dict[str, list[float]] = {}
+
+    # 1. w_bamboo: gậy tre, côn gỗ (tiếng đập gỗ tre rỗng + vút gió)
+    w["w_bamboo"] = normalize(_sweep_buf(0.14, 380.0, 150.0, 401, "sin", 0.38, 0.55, 0.002, 2.1), 0.8)
+
+    # 2. w_dagger: dao găm, liềm (vút ngắn, sắc, nhanh)
+    w["w_dagger"] = normalize(_sweep_buf(0.09, 1450.0, 460.0, 402, "tri", 0.45, 0.35, 0.001, 2.2), 0.78)
+
+    # 3. w_sword: kiếm, gươm, mã tấu (chém kim khí gọn sắc)
+    buf = _sweep_buf(0.14, 920.0, 260.0, 403, "tri", 0.50, 0.42, 0.002, 1.8)
+    _add_bell(buf, 0.01, 0.12, 1520.0, [(1.0, 0.35), (1.42, 0.2)], 0.35)
+    w["w_sword"] = normalize(buf, 0.8)
+
+    # 4. w_greatsword: đại đao, thần kiếm (chém nặng rộng + ngân vang trầm)
+    buf = _sweep_buf(0.24, 520.0, 115.0, 404, "saw", 0.55, 0.60, 0.004, 1.6, 1.0, 0.3)
+    _add_bell(buf, 0.02, 0.20, 740.0, [(1.0, 0.35), (1.55, 0.22)], 0.36)
+    w["w_greatsword"] = normalize(buf, 0.82)
+
+    # 5. w_spear: giáo, thương, kích, đinh ba (đâm vút gió thẳng)
+    w["w_spear"] = normalize(_sweep_buf(0.13, 1220.0, 310.0, 405, "sin", 0.52, 0.38, 0.002, 1.9, 1.3), 0.78)
+
+    # 6. w_axe: rìu đá, rìu chiến (bổ nặng + giòn)
+    w["w_axe"] = normalize(_sweep_buf(0.19, 320.0, 72.0, 406, "sq", 0.48, 0.65, 0.003, 1.8, 1.0, 0.35), 0.82)
+
+    # 7. w_hammer: chùy đồng, búa thiên lôi (nện ầm + rung kim loại)
+    buf = _sweep_buf(0.28, 195.0, 40.0, 407, "sin", 0.42, 0.78, 0.002, 1.6, 1.0, 0.45)
+    _add_bell(buf, 0.0, 0.22, 620.0, [(1.0, 0.4), (1.7, 0.25)], 0.42)
+    w["w_hammer"] = normalize(buf, 0.85)
+
+    # 8. w_scythe: lưỡi hái (quét âm u lượn rít)
+    rng = random.Random(408)
+    n = int(0.22 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 640.0 - 460.0 * (t / 0.22) + 60.0 * math.sin(2.0 * math.pi * 24.0 * t)
+        ph += f / SAMPLE_RATE
+        lp = lp * 0.52 + rng.uniform(-1.0, 1.0) * 0.48
+        buf.append((0.45 * triangle(ph) + 0.55 * lp) * env_ad(t, 0.22, 0.006, 1.5))
+    w["w_scythe"] = normalize(buf, 0.8)
+
+    # 9. w_spin: côn nhị khúc, cưa máy (xoay nhịp liên hoàn)
+    n = int(0.16 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        lfo = 0.55 + 0.45 * math.sin(2.0 * math.pi * 38.0 * t)
+        f = 340.0 + 180.0 * math.sin(2.0 * math.pi * 18.0 * t)
+        ph += f / SAMPLE_RATE
+        buf.append((0.6 * (2.0 * (ph % 1.0) - 1.0) + 0.4 * square(ph, 0.3)) * lfo * env_ad(t, 0.16, 0.005, 1.3))
+    w["w_spin"] = normalize(buf, 0.78)
+
+    # 10. w_fan: quạt thép, quạt ba tiêu (bật nan quạt + luồng gió mạnh)
+    buf = _sweep_buf(0.17, 780.0, 220.0, 410, "tri", 0.68, 0.45, 0.002, 1.5)
+    add_tone_seq(buf, [(0.0, 0.035, "sq25", 980.0)], 0.35)
+    w["w_fan"] = normalize(buf, 0.78)
+
+    # 11. w_whip: roi sắt Thánh Gióng (quất gió rồi nổ tách giòn)
+    rng = random.Random(411)
+    n = int(0.18 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 400.0 + 1400.0 * (t / 0.07) if t < 0.07 else 1600.0 * (0.25 ** ((t - 0.07) / 0.11))
+        ph += f / SAMPLE_RATE
+        crack = rng.uniform(-1.0, 1.0) * (1.0 if 0.055 <= t <= 0.095 else 0.25)
+        e = env_ad(t, 0.18, 0.012, 1.8)
+        buf.append((0.45 * triangle(ph) + 0.55 * crack) * e)
+    w["w_whip"] = normalize(buf, 0.82)
+
+    # 12. w_bow: cung tên (bật dây cung + tên xé gió)
+    buf = _sweep_buf(0.16, 880.0, 320.0, 412, "tri", 0.35, 0.40, 0.002, 2.0)
+    add_tone_seq(buf, [(0.0, 0.07, "tri", 240.0)], 0.45)
+    w["w_bow"] = normalize(buf, 0.78)
+
+    # 13. w_crossbow: nỏ (lẫy cò bật sắc + mũi tên lao nhanh)
+    buf = _sweep_buf(0.12, 1280.0, 460.0, 413, "sq25", 0.30, 0.35, 0.001, 2.3)
+    add_tone_seq(buf, [(0.0, 0.025, "sq", 1600.0)], 0.35)
+    w["w_crossbow"] = normalize(buf, 0.78)
+
+    # 14. w_dart: phi tiêu, lá bài, đinh, ná (phóng cực gọn)
+    w["w_dart"] = normalize(_sweep_buf(0.085, 1650.0, 720.0, 414, "tri", 0.35, 0.3, 0.001, 2.4), 0.75)
+
+    # 15. w_boomerang: nón lá bay, chong chóng, luân hồi bàn (rung nhịp vòng xoáy)
+    rng = random.Random(415)
+    n = int(0.24 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        wob = 0.6 + 0.4 * math.sin(2.0 * math.pi * 20.0 * t)
+        f = 540.0 + 180.0 * math.sin(2.0 * math.pi * 12.0 * t)
+        ph += f / SAMPLE_RATE
+        lp = lp * 0.55 + rng.uniform(-1.0, 1.0) * 0.45
+        buf.append((0.55 * triangle(ph) + 0.45 * lp) * wob * env_asr(t, 0.24, 0.015, 0.06))
+    w["w_boomerang"] = normalize(buf, 0.78)
+
+    # 16. w_pistol: súng ngắn, súng lục (nổ gọn đanh)
+    w["w_pistol"] = normalize(_sweep_buf(0.13, 820.0, 105.0, 416, "sq25", 0.48, 0.45, 0.001, 2.1), 0.82)
+
+    # 17. w_rifle: súng trường, tiểu liên (tiếng nổ đạn xuyên sắc nét)
+    w["w_rifle"] = normalize(_sweep_buf(0.15, 1050.0, 120.0, 417, "sq", 0.54, 0.40, 0.001, 2.0), 0.82)
+
+    # 18. w_shotgun: súng săn, hai nòng (nổ chùm dày trầm mạnh)
+    w["w_shotgun"] = normalize(_sweep_buf(0.26, 420.0, 58.0, 418, "sq", 0.72, 0.62, 0.002, 1.7, 1.0, 0.4), 0.85)
+
+    # 19. w_musket: súng hỏa mai, súng thần cơ (xì thuốc súng + nổ trầm)
+    buf = _sweep_buf(0.27, 360.0, 65.0, 419, "sq", 0.65, 0.65, 0.018, 1.6, 1.0, 0.35)
+    w["w_musket"] = normalize(buf, 0.84)
+
+    # 20. w_cannon: pháo đồng, đại bác (ầm rung sâu)
+    w["w_cannon"] = normalize(_sweep_buf(0.40, 155.0, 32.0, 420, "sin", 0.58, 0.80, 0.003, 1.5, 1.0, 0.5), 0.88)
+
+    # 21. w_rocket: hỏa tiễn, pháo hoa (rít lửa phóng lên)
+    w["w_rocket"] = normalize(_sweep_buf(0.28, 320.0, 960.0, 421, "saw", 0.68, 0.50, 0.015, 1.3, 1.1), 0.8)
+
+    # 22. w_grenade: phóng lựu, hồ lô (tiếng "bụp" ống phóng rỗng)
+    w["w_grenade"] = normalize(_sweep_buf(0.18, 300.0, 88.0, 422, "sin", 0.30, 0.68, 0.004, 1.9), 0.82)
+
+    # 23. w_fire: lửa, hỏa hổ, bùa cháy (phụt lửa rực cháy)
+    rng = random.Random(423)
+    n = int(0.22 * SAMPLE_RATE)
+    buf = _sweep_buf(0.22, 340.0, 110.0, 423, "saw", 0.76, 0.58, 0.01, 1.4)
+    for _ in range(6):
+        idx = rng.randint(0, n - 40)
+        buf[idx] += rng.choice((-0.8, 0.8))
+    w["w_fire"] = normalize(buf, 0.8)
+
+    # 24. w_ice: băng giá, sương mù (tinh thể băng ngân trong trẻo)
+    buf = _sweep_buf(0.16, 1800.0, 950.0, 424, "sin", 0.25, 0.30, 0.003, 1.8) + [0.0] * int(0.05 * SAMPLE_RATE)
+    _add_bell(buf, 0.0, 0.20, 1568.0, [(1.0, 0.45), (1.49, 0.35), (2.12, 0.25)], 0.55)
+    w["w_ice"] = normalize(buf, 0.78)
+
+    # 25. w_lightning: sấm sét, Tesla (tia điện giật tách tách)
+    rng = random.Random(425)
+    n = int(0.17 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = (1400.0 if (i // 140) % 2 == 0 else 580.0) * (0.45 ** (t / 0.17))
+        ph += f / SAMPLE_RATE
+        snap = rng.uniform(-1.0, 1.0) if (i % 19 < 4) else 0.2 * rng.uniform(-1.0, 1.0)
+        buf.append((0.55 * square(ph, 0.2) + 0.45 * snap) * env_ad(t, 0.17, 0.001, 1.9))
+    w["w_lightning"] = normalize(buf, 0.82)
+
+    # 26. w_poison: độc tố, axit (sủi bọt xì hơi độc)
+    n = int(0.20 * SAMPLE_RATE)
+    buf = _sweep_buf(0.20, 290.0, 520.0, 426, "sin", 0.55, 0.52, 0.008, 1.4)
+    add_tone_seq(buf, [(0.02, 0.045, "sin", 480.0), (0.075, 0.045, "sin", 640.0), (0.125, 0.05, "sin", 790.0)], 0.42)
+    w["w_poison"] = normalize(buf, 0.78)
+
+    # 27. w_jade: nước, ngọc, bong bóng (giọt ngọc thủy luân thanh mát)
+    buf = [0.0] * int(0.19 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.07, "sin", PENTA["G5"]), (0.045, 0.13, "sin", PENTA["D6"])], 0.55)
+    sw = _sweep_buf(0.14, 460.0, 920.0, 427, "sin", 0.22, 0.55, 0.004, 1.8)
+    for i, x in enumerate(sw):
+        buf[i] += x * 0.45
+    w["w_jade"] = normalize(buf, 0.76)
+
+    # 28. w_void: hư không, trọng lực, linh hồn (âm trầm xoáy huyền bí)
+    n = int(0.25 * SAMPLE_RATE)
+    buf = []
+    ph1 = 0.0
+    ph2 = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 220.0 * (0.35 ** (t / 0.25)) + 52.0
+        ph1 += f / SAMPLE_RATE
+        ph2 += (f * 1.498) / SAMPLE_RATE
+        buf.append((0.55 * triangle(ph1) + 0.45 * math.sin(2.0 * math.pi * ph2)) * env_asr(t, 0.25, 0.02, 0.08))
+    w["w_void"] = normalize(buf, 0.8)
+
+    # 29. w_magic_orb: phép thuật, sao băng, ngân hà (chuỗi sao lấp lánh)
+    buf = [0.0] * int(0.20 * SAMPLE_RATE)
+    add_tone_seq(
+        buf,
+        [(0.0, 0.055, "tri", PENTA["E5"]), (0.045, 0.055, "tri", PENTA["G5"]), (0.09, 0.10, "sq25", PENTA["C6"])],
+        0.48,
+    )
+    w["w_magic_orb"] = normalize(buf, 0.76)
+
+    # 30. w_laser: laze, plasma, railgun (tia năng lượng quét nhanh)
+    n = int(0.19 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        f = 1520.0 * (0.20 ** (t / 0.19)) + 160.0
+        ph += f / SAMPLE_RATE
+        fm = math.sin(2.0 * math.pi * ph + 1.4 * math.sin(2.0 * math.pi * ph * 2.0))
+        buf.append((0.6 * fm + 0.4 * square(ph, 0.25)) * env_ad(t, 0.19, 0.002, 1.7))
+    w["w_laser"] = normalize(buf, 0.8)
+
+    # 31. w_drum: trống đồng, trống cơm, chấn địa (trống đồng ngân trầm)
+    buf = _sweep_buf(0.34, 150.0, 44.0, 431, "sin", 0.34, 0.78, 0.002, 1.5, 1.0, 0.4)
+    _add_bell(buf, 0.0, 0.30, 261.63, [(1.0, 0.35), (1.5, 0.22)], 0.38)
+    w["w_drum"] = normalize(buf, 0.85)
+
+    # 32. w_flute: sáo trúc, đàn thần, chuông (âm nhạc cụ dân gian vang ngân)
+    n = int(0.30 * SAMPLE_RATE)
+    buf = [0.0] * n
+    ph = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        vib = 1.0 + 0.015 * math.sin(2.0 * math.pi * 6.0 * t)
+        ph += (PENTA["G5"] * vib) / SAMPLE_RATE
+        ang = 2.0 * math.pi * ph
+        buf[i] += (0.75 * math.sin(ang) + 0.2 * math.sin(2.0 * ang)) * env_asr(t, 0.30, 0.025, 0.09) * 0.65
+    _add_bell(buf, 0.02, 0.26, PENTA["C5"], [(1.0, 0.35), (2.0, 0.2)], 0.35)
+    w["w_flute"] = normalize(buf, 0.8)
+
+    return w
 
 
 # ------------------------------------------------------------------ Nhạc nền ngũ cung Việt
