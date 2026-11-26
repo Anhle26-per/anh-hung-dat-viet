@@ -61,27 +61,41 @@ jobs:
           set -euo pipefail
           mkdir -p build/macos_stage build/dmg_root
           GODOT_BIN="$(find /tmp/godot-cache/Godot.app/Contents/MacOS -maxdepth 1 -type f | head -n 1)"
-          "$GODOT_BIN" --headless --path . --export-release "macOS" "build/AnhHungDatViet-raw.zip"
+          "$GODOT_BIN" --headless --path . --export-release "macOS" "build/macos_stage/AnhHungDatViet.app"
 
-      - name: Unpack, Ad-hoc Sign & Verify .app
+      - name: Ad-hoc Sign & Verify .app
         run: |
           set -euo pipefail
-          ditto -x -k build/AnhHungDatViet-raw.zip build/macos_stage
-          APP_PATH="$(find build/macos_stage -maxdepth 2 -name "*.app" | head -n 1)"
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: Exported .app bundle not found in build/macos_stage"
-            exit 1
-          fi
           TARGET_APP="build/macos_stage/AnhHungDatViet.app"
-          if [ "$APP_PATH" != "$TARGET_APP" ]; then
+          if [ ! -d "$TARGET_APP" ]; then
+            APP_PATH="$(find build/macos_stage -maxdepth 2 -name "*.app" | head -n 1)"
+            if [ -z "$APP_PATH" ]; then
+              echo "ERROR: Exported .app bundle not found in build/macos_stage"
+              exit 1
+            fi
             mv "$APP_PATH" "$TARGET_APP"
           fi
+          find "$TARGET_APP" -name '._*' -delete
           chmod +x "$TARGET_APP/Contents/MacOS/"*
           xattr -cr "$TARGET_APP"
-          # Ký ad-hoc miễn phí trên macOS giúp bỏ lỗi "damaged" và không cần gõ xattr/codesign trên Terminal.
-          # (Tuỳ chọn về sau: nếu có tài khoản Apple Developer $99/năm, thay "-" bằng Developer ID cert + chạy xcrun notarytool submit & stapler staple)
-          codesign --force --deep --sign - "$TARGET_APP"
-          codesign --verify --deep --strict --verbose=2 "$TARGET_APP"
+          # Ký ad-hoc built-in của Godot thường đã hợp lệ; chỉ fallback sang codesign thủ công (tránh --deep dễ gây SIGBUS trên macOS) nếu verify chưa đạt.
+          if ! codesign --verify --deep --strict --verbose=2 "$TARGET_APP"; then
+            rm -rf "$TARGET_APP/Contents/_CodeSignature"
+            for bin in "$TARGET_APP/Contents/MacOS/"*; do
+              cp "$bin" "${bin}.tmp"
+              mv -f "${bin}.tmp" "$bin"
+              chmod +x "$bin"
+              codesign --remove-signature "$bin" >/dev/null 2>&1 || true
+              codesign --force --sign - "$bin"
+            done
+            if [ -d "$TARGET_APP/Contents/Frameworks" ]; then
+              find "$TARGET_APP/Contents/Frameworks" \( -name "*.dylib" -o -name "*.framework" \) -print0 | while IFS= read -r -d '' fw; do
+                codesign --force --sign - "$fw"
+              done
+            fi
+            codesign --force --sign - "$TARGET_APP"
+            codesign --verify --deep --strict --verbose=2 "$TARGET_APP"
+          fi
 
       - name: Package signed .zip and .dmg
         run: |
