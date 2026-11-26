@@ -335,123 +335,198 @@ def boss_frames(cfg):
     for f in range(7):   # đi(4) + vung vũ khí(1) + nổi giận(1) + đặc biệt(1)
         img, d = canvas(48, 48)
         t = f % 4
-        bob = [0, -1, 0, -1][t] if f < 4 else 0
-        step = [(0, 0), (2, -2), (0, 0), (-2, 2)][t] if f < 4 else (0, 0)
-        # áo choàng phía sau
-        d.polygon([(12, 20 + bob), (30, 20 + bob), (34, 42), (8, 42)], fill=cape)
+        if f < 4:
+            bob = [0, -2, 0, -2][t]
+            lean = [0, 1, 0, -1][t]
+            cape_sway = [0, -3, -1, 2][t]
+            cape_flare = 0
+            leg_l = [(0, 0), (4, -3), (0, 0), (-4, -1)][t]
+            leg_r = [(0, 0), (-4, -1), (0, 0), (4, -3)][t]
+            arm_l = [(0, 0), (-3, -1), (0, 0), (3, 1)][t]
+            arm_r = [(0, 0), (3, -2), (0, 0), (-3, 1)][t]
+        elif f == 4:
+            bob = 1
+            lean = 3
+            cape_sway = -6
+            cape_flare = 2
+            leg_l = (-5, 0)
+            leg_r = (5, -1)
+            arm_l = (-5, -2)
+            arm_r = (4, -3)
+        elif f == 5:
+            bob = -1
+            lean = 0
+            cape_sway = 0
+            cape_flare = 3
+            leg_l = (-2, 0)
+            leg_r = (2, 0)
+            arm_l = (-4, -4)
+            arm_r = (2, -3)
+        else:
+            bob = 0
+            lean = 0
+            cape_sway = 0
+            cape_flare = 0
+            leg_l = (0, 0)
+            leg_r = (0, 0)
+            arm_l = (0, 0)
+            arm_r = (0, 0)
+
+        # áo choàng phía sau (bay theo bước chạy & lao tới)
+        c_top_l = 12 + lean
+        c_top_r = 30 + lean
+        c_bot_l = max(1, 7 + cape_sway - cape_flare)
+        c_bot_r = min(46, 35 + cape_sway + cape_flare)
+        d.polygon([(c_top_l, 20 + bob), (c_top_r, 20 + bob), (c_bot_r, 41 + bob // 2), (c_bot_l, 42 + bob // 2)], fill=cape)
         auto_shade(img, cape, cape_l, cape_d)
-        # chân
-        for x, s in ((16, step[0]), (24, step[1])):
-            d.rectangle([x + s, 36, x + 5 + s, 42], fill=hexc("3a3040"))
-            d.rectangle([x - 1 + s, 42, x + 6 + s, 44], fill=hexc("2a1e18"))
+
+        # chân + ủng chuyển động xen kẽ
+        for bx, (ldx, ldy) in ((16, leg_l), (25, leg_r)):
+            hip_x = bx + lean
+            hip_y = 35 + bob
+            knee_x = bx + ldx // 2
+            foot_x = bx + ldx
+            foot_y = 43 + ldy
+            d.line([(hip_x + 2, hip_y), (knee_x + 2, foot_y - 3)], fill=hexc("3a3040"), width=5)
+            d.rectangle([foot_x, foot_y - 4, foot_x + 5, foot_y - 3], fill=trim)
+            d.rectangle([foot_x - 1, foot_y - 2, foot_x + 6, foot_y + 1], fill=hexc("2a1e18"))
+
+        # tay trái (vung ngược chiều tay vũ khí)
+        lx0, ly0 = 12 + lean, 23 + bob
+        lhx = clamp_x = max(2, min(45, 9 + lean + arm_l[0]))
+        lhy = max(6, min(44, 30 + bob + arm_l[1]))
+        d.line([(lx0, ly0), (lhx, lhy)], fill=body_d, width=4)
+        d.ellipse([lhx - 2, lhy - 2, lhx + 2, lhy + 2], fill=trim)
+        d.ellipse([lhx - 1, lhy, lhx + 2, lhy + 3], fill=skin)
+
         # thân giáp
-        d.rectangle([13, 22 + bob, 33, 38 + bob], fill=body)
+        bx0 = 13 + lean
+        bx1 = 33 + lean
+        d.rectangle([bx0, 22 + bob, bx1, 37 + bob], fill=body)
         auto_shade(img, body, body_l, body_d)
-        for y in range(25 + bob, 37 + bob, 3):
-            for x in range(15, 32, 4):
+        for y in range(25 + bob, 36 + bob, 3):
+            for x in range(bx0 + 2, bx1 - 1, 4):
                 d.line([x, y, x + 2, y], fill=body_d)
-        d.rectangle([13, 31 + bob, 33, 33 + bob], fill=trim)              # đai lưng
-        d.rectangle([21, 31 + bob, 25, 33 + bob], fill=gold)
-        d.ellipse([20, 24 + bob, 26, 29 + bob], fill=trim)                # hộ tâm kính
-        d.point([22, 25 + bob], fill=hexc("ffffff"))
+        d.rectangle([bx0, 31 + bob, bx1, 33 + bob], fill=trim)              # đai lưng
+        d.rectangle([21 + lean, 31 + bob, 25 + lean, 33 + bob], fill=gold)
+        d.ellipse([20 + lean, 24 + bob, 26 + lean, 29 + bob], fill=trim)    # hộ tâm kính
+        d.point([22 + lean, 25 + bob], fill=hexc("ffffff"))
         # vai giáp
-        d.ellipse([9, 20 + bob, 17, 26 + bob], fill=trim)
-        d.ellipse([29, 20 + bob, 37, 26 + bob], fill=trim)
+        d.ellipse([9 + lean, 20 + bob, 17 + lean, 26 + bob], fill=trim)
+        d.ellipse([29 + lean, 20 + bob, 37 + lean, 26 + bob], fill=trim)
         # đầu
-        d.ellipse([15, 7 + bob, 31, 23 + bob], fill=skin)
-        d.chord([15, 7 + bob, 31, 23 + bob], 90, 180, fill=skin_d)
-        ex = 25
+        d.ellipse([15 + lean, 7 + bob, 31 + lean, 23 + bob], fill=skin)
+        d.chord([15 + lean, 7 + bob, 31 + lean, 23 + bob], 90, 180, fill=skin_d)
+        ex = 25 + lean
         eye = hexc("e8202a") if f == 5 else dark
         d.rectangle([ex - 4, 14 + bob, ex - 3, 16 + bob], fill=eye)
         d.rectangle([ex + 1, 14 + bob, ex + 2, 16 + bob], fill=eye)
         d.line([ex - 6, 12 + bob, ex - 2, 13 + bob], fill=dark)        # lông mày giận
         d.line([ex + 4, 12 + bob, ex, 13 + bob], fill=dark)
         if cfg["beard"]:
-            d.polygon([(19, 19 + bob), (29, 19 + bob), (27, 26 + bob), (24, 28 + bob), (21, 26 + bob)], fill=dark)
+            d.polygon([(19 + lean, 19 + bob), (29 + lean, 19 + bob), (27 + lean, 26 + bob), (24 + lean, 28 + bob), (21 + lean, 26 + bob)], fill=dark)
             d.line([ex - 4, 19 + bob, ex + 3, 19 + bob], fill=hexc("4b3d58"))
         else:
             d.line([ex - 3, 20 + bob, ex + 1, 20 + bob], fill=skin_d)
         # mũ
         hat = cfg["hat"]
         if hat == "helmet":
-            d.chord([14, 4 + bob, 32, 18 + bob], 180, 360, fill=hexc("c4803e"))
-            d.rectangle([13, 10 + bob, 33, 12 + bob], fill=gold_d)
-            d.polygon([(22, 0 + bob), (24, 0 + bob), (23, 5 + bob)], fill=gold)
-            d.line([23, -1 + bob, 20, -4 + bob], fill=hexc("d83a3a"), width=2)
+            d.chord([14 + lean, 4 + bob, 32 + lean, 18 + bob], 180, 360, fill=hexc("c4803e"))
+            d.rectangle([13 + lean, 10 + bob, 33 + lean, 12 + bob], fill=gold_d)
+            d.polygon([(22 + lean, 0 + bob), (24 + lean, 0 + bob), (23 + lean, 5 + bob)], fill=gold)
+            d.line([23 + lean, -1 + bob, 20 + lean + cape_sway // 2, -4 + bob], fill=hexc("d83a3a"), width=2)
         elif hat == "crown":
-            d.rectangle([15, 6 + bob, 31, 10 + bob], fill=gold)
+            d.rectangle([15 + lean, 6 + bob, 31 + lean, 10 + bob], fill=gold)
             for x in (15, 19, 23, 27, 31):
-                d.polygon([(x - 2, 6 + bob), (x, 1 + bob), (x + 2, 6 + bob)], fill=gold)
-            d.point([23, 8 + bob], fill=hexc("4ad6a0"))
-            d.point([19, 8 + bob], fill=hexc("d83a3a"))
-            d.point([27, 8 + bob], fill=hexc("d83a3a"))
+                d.polygon([(x - 2 + lean, 6 + bob), (x + lean, 1 + bob), (x + 2 + lean, 6 + bob)], fill=gold)
+            d.point([23 + lean, 8 + bob], fill=hexc("4ad6a0"))
+            d.point([19 + lean, 8 + bob], fill=hexc("d83a3a"))
+            d.point([27 + lean, 8 + bob], fill=hexc("d83a3a"))
         elif hat == "fur":
-            d.ellipse([12, 4 + bob, 34, 14 + bob], fill=hexc("6a4a3a"))
-            d.chord([15, 0 + bob, 31, 12 + bob], 180, 360, fill=hexc("c43c3c"))
-            d.ellipse([21, -2 + bob, 25, 2 + bob], fill=gold)
+            d.ellipse([12 + lean, 4 + bob, 34 + lean, 14 + bob], fill=hexc("6a4a3a"))
+            d.chord([15 + lean, 0 + bob, 31 + lean, 12 + bob], 180, 360, fill=hexc("c43c3c"))
+            d.ellipse([21 + lean, -2 + bob, 25 + lean, 2 + bob], fill=gold)
             for x in range(13, 34, 2):
-                d.point([x, 11 + bob], fill=hexc("a88a6a"))
+                d.point([x + lean, 11 + bob], fill=hexc("a88a6a"))
         elif hat == "han_official":
-            d.rectangle([16, 1 + bob, 30, 11 + bob], fill=hexc("2b2230"))
-            d.rectangle([14, 9 + bob, 32, 11 + bob], fill=hexc("1a1420"))
-            d.line([18, 3 + bob, 28, 3 + bob], fill=hexc("4b3d58"))
-            d.rectangle([22, 5 + bob, 24, 7 + bob], fill=gold)
+            d.rectangle([16 + lean, 1 + bob, 30 + lean, 11 + bob], fill=hexc("2b2230"))
+            d.rectangle([14 + lean, 9 + bob, 32 + lean, 11 + bob], fill=hexc("1a1420"))
+            d.line([18 + lean, 3 + bob, 28 + lean, 3 + bob], fill=hexc("4b3d58"))
+            d.rectangle([22 + lean, 5 + bob, 24 + lean, 7 + bob], fill=gold)
         elif hat == "steel_helmet":
-            d.chord([14, 3 + bob, 32, 17 + bob], 180, 360, fill=hexc("8a92ac"))
-            d.rectangle([13, 10 + bob, 33, 12 + bob], fill=hexc("565c74"))
-            d.line([23, 3 + bob, 23, -2 + bob], fill=hexc("d83a3a"), width=2)
-            d.point([19, 6 + bob], fill=hexc("ffffff"))
+            d.chord([14 + lean, 3 + bob, 32 + lean, 17 + bob], 180, 360, fill=hexc("8a92ac"))
+            d.rectangle([13 + lean, 10 + bob, 33 + lean, 12 + bob], fill=hexc("565c74"))
+            d.line([23 + lean, 3 + bob, 23 + lean + cape_sway // 2, -2 + bob], fill=hexc("d83a3a"), width=2)
+            d.point([19 + lean, 6 + bob], fill=hexc("ffffff"))
         elif hat == "ming_helmet":
-            d.chord([14, 2 + bob, 32, 18 + bob], 180, 360, fill=hexc("3a3448"))
-            d.rectangle([13, 10 + bob, 33, 12 + bob], fill=gold_d)
-            d.ellipse([21, -1 + bob, 25, 3 + bob], fill=hexc("d83a3a"))
-            d.line([16, 7 + bob, 30, 7 + bob], fill=gold)
+            d.chord([14 + lean, 2 + bob, 32 + lean, 18 + bob], 180, 360, fill=hexc("3a3448"))
+            d.rectangle([13 + lean, 10 + bob, 33 + lean, 12 + bob], fill=gold_d)
+            d.ellipse([21 + lean, -1 + bob, 25 + lean, 3 + bob], fill=hexc("d83a3a"))
+            d.line([16 + lean, 7 + bob, 30 + lean, 7 + bob], fill=gold)
         elif hat == "pith":
-            d.chord([13, 2 + bob, 33, 20 + bob], 180, 360, fill=hexc("f0ece0"))
-            d.rectangle([11, 10 + bob, 35, 12 + bob], fill=hexc("c8c4b4"))
-            d.line([15, 9 + bob, 31, 9 + bob], fill=hexc("6a4028"))
-            d.point([18, 5 + bob], fill=hexc("ffffff"))
+            d.chord([13 + lean, 2 + bob, 33 + lean, 20 + bob], 180, 360, fill=hexc("f0ece0"))
+            d.rectangle([11 + lean, 10 + bob, 35 + lean, 12 + bob], fill=hexc("c8c4b4"))
+            d.line([15 + lean, 9 + bob, 31 + lean, 9 + bob], fill=hexc("6a4028"))
+            d.point([18 + lean, 5 + bob], fill=hexc("ffffff"))
         elif hat == "kepi":
-            d.rectangle([16, 3 + bob, 30, 10 + bob], fill=hexc("c83a32"))
-            d.rectangle([15, 10 + bob, 31, 12 + bob], fill=hexc("2b2230"))
-            d.line([17, 5 + bob, 29, 5 + bob], fill=gold)
-            d.rectangle([28, 12 + bob, 33, 13 + bob], fill=hexc("1a1420"))
+            d.rectangle([16 + lean, 3 + bob, 30 + lean, 10 + bob], fill=hexc("c83a32"))
+            d.rectangle([15 + lean, 10 + bob, 31 + lean, 12 + bob], fill=hexc("2b2230"))
+            d.line([17 + lean, 5 + bob, 29 + lean, 5 + bob], fill=gold)
+            d.rectangle([28 + lean, 12 + bob, 33 + lean, 13 + bob], fill=hexc("1a1420"))
         elif hat == "official":
-            d.chord([14, 3 + bob, 32, 15 + bob], 180, 360, fill=hexc("2b2230"))
-            d.rectangle([12, 9 + bob, 34, 10 + bob], fill=hexc("2b2230"))
-            d.ellipse([21, 0 + bob, 25, 4 + bob], fill=hexc("d83a3a"))
-            d.line([(14, 6 + bob), (6, 12 + bob)], fill=hexc("3a8a5a"), width=2)  # lông công
-            d.point([6, 12 + bob], fill=hexc("4ad6ff"))
-        # vũ khí
+            d.chord([14 + lean, 3 + bob, 32 + lean, 15 + bob], 180, 360, fill=hexc("2b2230"))
+            d.rectangle([12 + lean, 9 + bob, 34 + lean, 10 + bob], fill=hexc("2b2230"))
+            d.ellipse([21 + lean, 0 + bob, 25 + lean, 4 + bob], fill=hexc("d83a3a"))
+            d.line([(14 + lean, 6 + bob), (6 + lean + cape_sway // 2, 12 + bob)], fill=hexc("3a8a5a"), width=2)  # lông công
+            d.point([6 + lean + cape_sway // 2, 12 + bob], fill=hexc("4ad6ff"))
+
+        # tay vũ khí & cánh tay nối từ vai
         swing = f == 4
         w = cfg["weapon"]
-        hx, hy = 36, 30 + bob
+        rx0, ry0 = 33 + lean, 23 + bob
+        hx = 40 if swing else 35 + lean + arm_r[0]
+        hy = 27 + bob if swing else 30 + bob + arm_r[1]
+        d.line([(rx0, ry0), (hx, hy)], fill=body, width=4)
+        d.ellipse([hx - 2, hy - 2, hx + 2, hy + 2], fill=trim)
         if w == "halberd":
-            top = (44, 2) if not swing else (47, 30)
+            top = (47, 26) if swing else (min(46, hx + 8), max(1, hy - 26))
             d.line([(hx - 4, hy + 10), top], fill=hexc("6a4028"), width=2)
             d.polygon([(top[0] - 3, top[1]), (top[0] + 1, top[1] - 1), (top[0] + 1, top[1] + 6), (top[0] - 4, top[1] + 4)], fill=steel)
+            if swing:
+                d.arc([34, 8, 47, 36], -65, 35, fill=hexc("ffffff"), width=1)
         elif w == "trident":
-            top = (40, 0) if not swing else (47, 22)
-            d.line([(hx, hy + 10), top], fill=gold_d, width=2)
+            top = (47, 22) if swing else (min(46, hx + 4), max(1, hy - 28))
+            d.line([(hx - 2, hy + 8), top], fill=gold_d, width=2)
             for dx in (-3, 0, 3):
-                d.line([(top[0] + dx, top[1] + 4), (top[0] + dx, top[1])], fill=gold)
-            d.line([(top[0] - 3, top[1] + 4), (top[0] + 3, top[1] + 4)], fill=gold)
+                d.line([(min(47, top[0] + dx), top[1] + 4), (min(47, top[0] + dx), top[1])], fill=gold)
+            d.line([(top[0] - 3, top[1] + 4), (min(47, top[0] + 3), top[1] + 4)], fill=gold)
+            if swing:
+                d.line([(hx + 2, hy - 4), (47, hy - 7)], fill=hexc("a8f0ff"))
         elif w == "saber":
             if swing:
-                d.line([(hx, hy), (47, hy - 2)], fill=steel, width=2)
+                d.line([(hx, hy), (47, hy - 3)], fill=steel, width=2)
+                d.arc([32, hy - 14, 47, hy + 8], -75, 25, fill=hexc("ffffff"), width=1)
             else:
-                d.line([(hx, hy), (44, hy - 14)], fill=steel, width=2)
-                d.point([45, hy - 16], fill=steel)
+                tip_x = min(46, hx + 8 + arm_r[0])
+                tip_y = max(2, hy - 14)
+                d.line([(hx, hy), (tip_x, tip_y)], fill=steel, width=2)
+                d.point([tip_x, tip_y - 1], fill=steel)
             d.line([(hx - 2, hy + 1), (hx + 2, hy - 1)], fill=gold)
         elif w == "pistol":
-            d.rectangle([hx, hy - 3, hx + (8 if swing else 6), hy - 1], fill=hexc("3a3448"))
+            d.rectangle([hx, hy - 3, min(47, hx + (7 if swing else 6)), hy - 1], fill=hexc("3a3448"))
             d.rectangle([hx, hy - 1, hx + 2, hy + 2], fill=hexc("6a4028"))
+            if swing:
+                d.polygon([(46, hy - 4), (47, hy - 2), (46, hy), (44, hy - 2)], fill=hexc("ffe86a"))
         elif w == "cane":
-            d.line([(hx, hy), (hx + 3, hy + 14)] if not swing else [(hx, hy), (hx + 12, hy - 4)], fill=hexc("6a4028"), width=2)
+            d.line([(hx, hy), (min(47, hx + 7), hy - 5)] if swing else [(hx, hy), (min(46, hx + 3), min(46, hy + 13))], fill=hexc("6a4028"), width=2)
             d.point([hx, hy - 1], fill=gold)
+            if swing:
+                d.arc([hx - 2, hy - 12, 47, hy + 6], -50, 30, fill=hexc("ffe88a"), width=1)
         elif w == "fan":
-            d.pieslice([hx - 8, hy - 12, hx + 10, hy + 6], -100 if not swing else -40, -20 if not swing else 40, fill=hexc("ece8f4"))
-            d.line([(hx, hy - 3), (hx + 7, hy - 9)], fill=gold)
+            d.pieslice([hx - 8, hy - 12, min(47, hx + 8), hy + 6], -100 if not swing else -40, -20 if not swing else 40, fill=hexc("ece8f4"))
+            d.line([(hx, hy - 3), (min(47, hx + 7), hy - 9)], fill=gold)
+            if swing:
+                d.arc([hx - 4, hy - 14, 47, hy + 8], -55, 35, fill=hexc("d8f0ff"), width=1)
         d.ellipse([hx - 2, hy - 2, hx + 2, hy + 2], fill=skin)
         if f == 6 and cfg["hat"] == "kepi":
             img, d = canvas(48, 48)
@@ -561,13 +636,21 @@ def ma_troi_frames():
 
 
 def ship_frames():
-    """Tàu chiến Hy Vọng: thân gỗ, buồm, ống khói, đại bác. 7 khung."""
+    """Tàu chiến Hy Vọng: thân gỗ, buồm phồng, sóng rẽ nước, ống khói, đại bác. 7 khung."""
     hull, hl, hd = hexc("5a3a22"), hexc("8a5a34"), hexc("3a2214")
     fr = []
     for f in range(7):
         img, d = canvas(64, 44)
-        bob = [0, 1, 0, -1][f % 4]
+        w = f % 4
+        bob = [0, 1, 0, -1][w] if f < 4 else (1 if f == 4 else 0)
+        sail_bulge = [0, 3, 1, -1][w] if f < 4 else 4
+        wake = [0, 2, 4, 1][w]
         d.ellipse([0, 34 + bob, 63, 43 + bob], fill=hexc("2a6aa8", 160))
+        d.arc([2 + wake, 35 + bob, 61, 42 + bob], 10, 170, fill=hexc("9ee0ff"), width=1)
+        if f == 4:
+            # Sóng rẽ mũi tàu khi húc tới
+            d.line([(56, 33 + bob), (63, 30 + bob)], fill=hexc("ffffff"), width=2)
+            d.line([(54, 37 + bob), (63, 36 + bob)], fill=hexc("bce8ff"), width=1)
         d.polygon([(2, 26 + bob), (62, 26 + bob), (56, 38 + bob), (8, 38 + bob)], fill=hull)
         auto_shade(img, hull, hl, hd)
         d.line([(4, 27 + bob), (60, 27 + bob)], fill=hexc("e8e4f0"))
@@ -576,10 +659,11 @@ def ship_frames():
             if f == 4:
                 d.ellipse([x - 2, 33 + bob, x + 6, 39 + bob], fill=hexc("ffd84a"))
         d.line([(24, 26 + bob), (24, 2 + bob)], fill=hexc("3a2214"), width=2)
-        d.polygon([(25, 4 + bob), (40, 8 + bob), (40, 22 + bob), (25, 24 + bob)], fill=hexc("e8e4d8"))
-        d.line([(25, 14 + bob), (40, 15 + bob)], fill=hexc("c8c4b4"))
+        d.polygon([(25, 4 + bob), (40 + sail_bulge, 8 + bob), (40 + sail_bulge, 22 + bob), (25, 24 + bob)], fill=hexc("e8e4d8"))
+        d.line([(25, 14 + bob), (40 + sail_bulge, 15 + bob)], fill=hexc("c8c4b4"))
         d.rectangle([44, 14 + bob, 48, 26 + bob], fill=hexc("2a2420"))
-        d.ellipse([42, 8 + bob, 50, 14 + bob], fill=hexc("6a6070", 180))
+        sx = 42 - (w * 2 if f < 4 else 4)
+        d.ellipse([sx, 8 + bob - (f % 2), sx + 8, 14 + bob - (f % 2)], fill=hexc("6a6070", 180))
         d.rectangle([22, 2 + bob, 30, 6 + bob], fill=hexc("2a3a8a"))
         d.rectangle([24, 2 + bob, 26, 6 + bob], fill=hexc("ffffff"))
         d.rectangle([28, 2 + bob, 30, 6 + bob], fill=hexc("c83a32"))

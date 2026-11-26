@@ -295,6 +295,75 @@ func _run() -> void:
 	_check(boss_hb._boss_color().a > 0.0, "_boss_color lỗi")
 	boss_hb.queue_free()
 
+	# Kiểm tra mọi Boss đều có chiêu lao tới / nhảy đập / lặn tập kích + kiểm tra cơ chế dash & leap_slam
+	var mob_moves := ["charge", "leap_slam", "dive"]
+	for bid in EnemyData.BOSSES:
+		var bc: Dictionary = EnemyData.BOSSES[bid]
+		var has1: bool = false
+		var has2: bool = false
+		for pm in mob_moves:
+			if pm in bc.patterns:
+				has1 = true
+			if pm in bc.patterns2:
+				has2 = true
+		_check(has1 and has2, "Boss %s thiếu chiêu lao tới ở giai đoạn 1 hoặc 2" % str(bid))
+	for lid in EnemyData.LEGENDS:
+		var lc: Dictionary = EnemyData.LEGENDS[lid]
+		var lh1: bool = false
+		var lh2: bool = false
+		for pm in mob_moves:
+			if pm in lc.patterns:
+				lh1 = true
+			if pm in lc.patterns2:
+				lh2 = true
+		_check(lh1 and lh2, "Tam Yêu %s thiếu chiêu lao tới" % str(lid))
+	for mid in EnemyData.MYTHIC_BOSSES:
+		var mc: Dictionary = EnemyData.MYTHIC_BOSSES[mid]
+		var mh1: bool = false
+		var mh2: bool = false
+		for pm in mob_moves:
+			if pm in mc.patterns:
+				mh1 = true
+			if pm in mc.patterns2:
+				mh2 = true
+		_check(mh1 and mh2, "Boss Thần Thoại %s thiếu chiêu lao tới" % str(mid))
+
+	var b_dash = load("res://scripts/entities/enemy.gd").new()
+	b_dash.setup("boss", 21, game.player)
+	b_dash._spawn_t = 0.0
+	b_dash.position = Vector2(340, 260)
+	game.world.add_child(b_dash)
+	await _frames(1)
+	b_dash._charge_state = ""
+	b_dash._charge_ai(0.016, Vector2.RIGHT, 120.0, 5.5)
+	_check(b_dash._charge_state == "windup", "Boss phải vào windup trước khi lao")
+	b_dash._charge_t = 0.01
+	var dash_vel: Vector2 = b_dash._charge_ai(0.05, Vector2.RIGHT, 120.0, 5.5)
+	_check(b_dash._charge_state == "dash", "Boss phải chuyển sang dash sau windup")
+	dash_vel = b_dash._charge_ai(0.05, Vector2.RIGHT, 120.0, 5.5)
+	_check(dash_vel.length() >= 230.0, "Tốc độ lao của Boss phải đủ mạnh (%s)" % str(dash_vel.length()))
+	_check(b_dash._anim_scale.x > b_dash._base_scale.x, "Boss phải kéo giãn hình thể khi lao")
+	b_dash.queue_free()
+
+	var b_leap = load("res://scripts/entities/enemy.gd").new()
+	b_leap.setup("boss", 26, game.player)
+	b_leap._spawn_t = 0.0
+	b_leap.position = Vector2(360, 260)
+	game.world.add_child(b_leap)
+	await _frames(1)
+	b_leap._leap_state = ""
+	b_leap._leap_slam_ai(0.016, Vector2.RIGHT, 90.0)
+	_check(b_leap._leap_state == "windup", "leap_slam phải bắt đầu bằng windup")
+	b_leap._leap_t = 0.01
+	b_leap._leap_slam_ai(0.05, Vector2.RIGHT, 90.0)
+	_check(b_leap._leap_state == "air", "leap_slam phải nhảy lên không")
+	b_leap._leap_slam_ai(0.20, Vector2.RIGHT, 90.0)
+	_check(b_leap._leap_z > 10.0, "Boss phải nhấc cao khỏi mặt đất khi nhảy (%s)" % str(b_leap._leap_z))
+	b_leap._leap_t = 0.01
+	b_leap._leap_slam_ai(0.05, Vector2.RIGHT, 90.0)
+	_check(b_leap._leap_state == "land" and is_zero_approx(b_leap._leap_z), "Boss phải đáp đất an toàn sau leap_slam")
+	b_leap.queue_free()
+
 	# Tách đàn & né vật cản không sinh NaN
 	var sep_a = load("res://scripts/entities/enemy.gd").new()
 	var sep_b = load("res://scripts/entities/enemy.gd").new()

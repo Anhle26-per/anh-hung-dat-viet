@@ -87,6 +87,18 @@ var _steer_t: float = 0.0
 var _flank_sign: float = 1.0
 var _boss_t: float = 0.0
 var _boss_fx_t: float = 0.0
+var _base_scale: Vector2 = Vector2.ONE
+var _base_spr_y: float = 0.0
+var _anim_scale: Vector2 = Vector2.ONE
+var _step_t: float = 0.0
+var _step_dust_t: float = 0.0
+var _leap_state: String = ""
+var _leap_t: float = 0.0
+var _leap_z: float = 0.0
+var _leap_start: Vector2 = Vector2.ZERO
+var _leap_target: Vector2 = Vector2.ZERO
+var _dash_hit_wall: bool = false
+var _windup_glint_done: bool = false
 
 
 func setup(k: String, lvl: int, target) -> void:
@@ -201,6 +213,9 @@ func _ready() -> void:
 		_mat.set_shader_parameter("flash_color", Color(1.0, 0.8, 0.25))
 		var glow := Art.light(Color(1.0, 0.75, 0.3), 0.8, 0.7)
 		add_child(glow)
+	_base_scale = spr.scale
+	_anim_scale = _base_scale
+	_base_spr_y = spr.position.y
 	Fx.anim(get_parent(), position, "fx/poof.png", 28, 28, 16.0, radius / 8.0, 0.0, Color(1, 0.6, 0.6) if not is_boss() else Color(1, 0.4, 0.4))
 	status = StatusFx.new()
 	status.unit = self
@@ -209,6 +224,20 @@ func _ready() -> void:
 	_sync_hurtbox(size)
 	if _net_pos == Vector2.ZERO:
 		_net_pos = global_position
+
+
+func _reset_motion_fx() -> void:
+	_leap_state = ""
+	_leap_t = 0.0
+	_leap_z = 0.0
+	_dash_hit_wall = false
+	_windup_glint_done = false
+	_anim_scale = _base_scale
+	if spr != null:
+		spr.scale = _base_scale
+		spr.position = Vector2(0.0, _base_spr_y)
+	if _shadow != null:
+		_shadow.scale = Vector2(radius / 7.0, radius / 7.0)
 
 
 func _sync_hurtbox(cur_size: Vector2i) -> void:
@@ -292,7 +321,7 @@ func _physics_process(delta: float) -> void:
 	if _hp_bar_t > 0.0:
 		_hp_bar_t = maxf(_hp_bar_t - delta, 0.0)
 		queue_redraw()
-	if is_boss() or _charge_state == "windup" or _submerged:
+	if is_boss() or _charge_state != "" or _leap_state != "" or _submerged:
 		queue_redraw()
 	_flash = maxf(_flash - delta * 8.0, 0.0)
 	var base_glow := 0.18 + 0.1 * sin(Time.get_ticks_msec() / 150.0) if elite else 0.0
@@ -455,7 +484,7 @@ func _physics_process(delta: float) -> void:
 			"boss":
 				desired = _boss(delta, dir, dist)
 		_contact_t -= delta
-		if not _submerged:
+		if not _submerged and _leap_state != "air":
 			if Net.is_online():
 				var lp: Node = Global.local_player()
 				if lp != null and is_instance_valid(lp) and not bool(lp.get("dead")) and not bool(lp.get("downed")) and _touches_player((lp as Node2D).global_position) and _contact_t <= 0.0:
@@ -470,19 +499,24 @@ func _physics_process(delta: float) -> void:
 	_update_burst(delta)
 	_knock = _knock.move_toward(Vector2.ZERO, 900.0 * delta)
 	var is_dashing: bool = (_charge_state == "dash" or _special == "ong_dong")
-	if _stun_t <= 0.0 and not is_dashing and not _submerged:
+	if _stun_t <= 0.0 and not is_dashing and not _submerged and _leap_state != "air":
 		desired += _separation_vec()
 		desired = _avoid_obstacles(desired, delta)
 	var accel: float = 1200.0 if is_dashing else (360.0 if (is_boss() or data.ai in ["tank", "tank_elite"]) else 540.0)
 	velocity = velocity.move_toward(desired + _knock, accel * delta)
-	move_and_slide()
+	if _leap_state != "air":
+		move_and_slide()
 	_update_anim(delta)
 
 
 func _update_anim(delta: float = 0.016) -> void:
 	spr.flip_h = _face < 0.0
+	_anim_scale = _anim_scale.lerp(_base_scale, clampf(delta * 11.0, 0.0, 1.0))
+	spr.scale = _anim_scale
 	if _special in ["ong_dong", "ham_chi_huy", "boc_chay", "cuu_vi", "rung_gia", "song_than"] and _special_t > 0.0 and spr.sprite_frames.has_animation("special"):
 		spr.play("special")
+	elif (_charge_state == "dash" or _leap_state == "air") and is_boss() and spr.sprite_frames.has_animation("attack"):
+		spr.play("attack")
 	elif _attack_anim_t > 0.0 and spr.sprite_frames.has_animation("attack"):
 		spr.play("attack")
 	elif hp < max_hp / 2 and is_boss() and spr.sprite_frames.has_animation("rage") and _attack_anim_t > -0.4:
@@ -490,8 +524,35 @@ func _update_anim(delta: float = 0.016) -> void:
 	else:
 		spr.play("walk")
 		spr.speed_scale = clampf(velocity.length() / maxf(speed, 1.0), 0.3, 2.0)
+
+	if is_boss():
+		if _morph_t <= 0.0 and _stun_t <= 0.0 and not _submerged:
+			var bob_y: float = 0.0
+			if _leap_state == "air":
+				spr.position.y = _base_spr_y - _leap_z
+				if _shadow != null:
+					_shadow.scale = Vector2(radius / 7.0, radius / 7.0) * clampf(1.0 - _leap_z / 75.0, 0.45, 1.0)
+			else:
+				if _shadow != null:
+					_shadow.scale = Vector2(radius / 7.0, radius / 7.0)
+				var spd_r: float = clampf(velocity.length() / maxf(speed, 1.0), 0.0, 2.4)
+				if spd_r > 0.15 and _charge_state != "windup":
+					_step_t += delta * (7.5 + 3.5 * spd_r)
+					bob_y = -absf(sin(_step_t)) * (2.6 if _charge_state != "dash" else 1.0)
+					_step_dust_t -= delta
+					if spd_r > 0.25 and _step_dust_t <= 0.0 and _charge_state != "dash":
+						_step_dust_t = 0.28
+						Fx.anim(get_parent(), global_position + Vector2(randf_range(-6.0, 6.0), radius * 0.85), "fx/dust.png", 10, 10, 14.0, 1.15)
+						if transformed or enraged:
+							Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.7), _boss_color(), 2, 28.0, 0.3, -18.0, 1.6)
+				spr.position.y = _base_spr_y + bob_y
+	elif _morph_t <= 0.0:
+		spr.position.y = _base_spr_y
+
 	var target_tilt: float = 0.0
-	if _stun_t <= 0.0 and _morph_t <= 0.0 and not _submerged and velocity.length() > 8.0:
+	if _charge_state == "dash" and is_boss() and _charge_dir.length_squared() > 0.01:
+		target_tilt = clampf(_charge_dir.x * 0.14, -0.16, 0.16)
+	elif _stun_t <= 0.0 and _morph_t <= 0.0 and not _submerged and velocity.length() > 8.0:
 		target_tilt = clampf(velocity.x / maxf(speed, 45.0) * 0.065, -0.08, 0.08)
 	spr.rotation = lerpf(spr.rotation, target_tilt, clampf(delta * 10.0, 0.0, 1.0))
 
@@ -585,25 +646,68 @@ func _wander_vec(delta: float) -> Vector2:
 
 
 func _charge_ai(delta: float, dir: Vector2, dist: float, mult: float) -> Vector2:
+	var boss := is_boss()
 	match _charge_state:
 		"windup":
 			_charge_t -= delta
 			_flash = 0.35 + 0.35 * sin(_charge_t * 40.0)
+			if boss:
+				if not _windup_glint_done:
+					_windup_glint_done = true
+					Fx.burst(get_parent(), hurtbox_center() + _charge_dir * 8.0, Color(1.0, 0.92, 0.45), 22.0, 0.28)
+					Sfx.play("hit_metal")
+				if _charge_t > 0.16 and dir.length_squared() > 0.01:
+					_charge_dir = _charge_dir.lerp(dir, clampf(delta * 10.0, 0.0, 1.0)).normalized()
+				_anim_scale = _anim_scale.lerp(Vector2(_base_scale.x * 1.16, _base_scale.y * 0.84), clampf(delta * 14.0, 0.0, 1.0))
+				if int(_boss_t * 30.0) % 2 == 0:
+					Fx.particles(get_parent(), global_position + _charge_dir.rotated(randf_range(-1.2, 1.2)) * 22.0, _boss_color(), 2, 42.0, 0.25, 0.0, 1.6, 25.0, -_charge_dir)
+			else:
+				_charge_dir = dir
 			if _charge_t <= 0.0:
 				_charge_state = "dash"
-				_charge_t = 0.5
-			_charge_dir = dir
+				_charge_t = 0.46 if boss else 0.5
+				_dash_hit_wall = false
+				if boss:
+					_attack_anim_t = 0.50
+					_anim_scale = Vector2(_base_scale.x * 1.24, _base_scale.y * 0.80)
+					Fx.burst(get_parent(), global_position, _boss_color(), 42.0, 0.30)
+					Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.7), Color(0.9, 0.85, 0.75), 10, 95.0, 0.35, 0.0, 2.2, 65.0, -_charge_dir)
+					Fx.shake(get_tree(), 2.5)
+			if boss and _charge_t > 0.30:
+				return -_charge_dir * 12.0
 			return Vector2.ZERO
 		"dash":
 			_charge_t -= delta
+			if boss:
+				_attack_anim_t = maxf(_attack_anim_t, 0.12)
+				_anim_scale = _anim_scale.lerp(Vector2(_base_scale.x * 1.22, _base_scale.y * 0.82), clampf(delta * 14.0, 0.0, 1.0))
+				if int(_boss_t * 45.0) % 2 == 0:
+					Fx.afterimage(get_parent(), spr, global_position, Color(_boss_color(), 0.65), 0.30)
+				if int(_boss_t * 40.0) % 2 == 0:
+					Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.4), _boss_color(), 2, 70.0, 0.32, 0.0, 2.0, 35.0, -_charge_dir)
+				if not _dash_hit_wall and get_slide_collision_count() > 0:
+					_dash_hit_wall = true
+					_charge_t = 0.0
+					Fx.shake(get_tree(), 5.5)
+					Fx.burst(get_parent(), global_position, Color(1.0, 0.85, 0.5), 52.0, 0.35)
+					Fx.particles(get_parent(), global_position, Color(0.85, 0.78, 0.68), 16, 130.0, 0.45, 160.0, 2.4)
+			elif int(_boss_t * 30.0) % 3 == 0:
+				Fx.afterimage(get_parent(), spr, global_position, Color(_boss_color(), 0.55), 0.28)
+			if int(_charge_t * 30.0) % 2 == 0:
+				Fx.anim(get_parent(), global_position + Vector2(0, radius), "fx/dust.png", 10, 10, 14.0, 1.25 if boss else 1.2)
 			if _charge_t <= 0.0:
 				_charge_state = "rest"
-				_charge_t = 1.2
-			if int(_charge_t * 30.0) % 2 == 0:
-				Fx.anim(get_parent(), global_position + Vector2(0, radius), "fx/dust.png", 10, 10, 14.0, 1.2)
-			if int(_boss_t * 30.0) % 3 == 0:
-				Fx.afterimage(get_parent(), spr, global_position, Color(_boss_color(), 0.55), 0.28)
-			return _charge_dir * speed * mult
+				_charge_t = 0.85 if boss else 1.2
+				if boss:
+					_anim_scale = Vector2(_base_scale.x * 1.18, _base_scale.y * 0.85)
+					Fx.burst(get_parent(), global_position + _charge_dir * radius, _boss_color(), 48.0, 0.32)
+					Fx.slash(get_parent(), hurtbox_center() + _charge_dir * (radius * 0.7), _charge_dir, maxf(radius * 2.2, 34.0), deg_to_rad(130.0), _boss_color(), "swing")
+					Fx.shake(get_tree(), 3.6)
+					if enraged or transformed:
+						for fi in 5:
+							_fire(_charge_dir.angle() + deg_to_rad(lerpf(-36.0, 36.0, float(fi) / 4.0)), 145.0, "orb_pink")
+			var dash_spd: float = clampf(speed * mult, 240.0, 305.0) if boss else speed * mult
+			return _charge_dir * dash_spd
 		"rest":
 			_charge_t -= delta
 			if _charge_t <= 0.0:
@@ -611,8 +715,77 @@ func _charge_ai(delta: float, dir: Vector2, dist: float, mult: float) -> Vector2
 			return dir * speed * 0.4
 	if dist < 150.0:
 		_charge_state = "windup"
-		_charge_t = 0.45
+		_charge_t = 0.58 if boss else 0.45
+		_charge_dir = dir if dir.length_squared() > 0.01 else Vector2.RIGHT
+		_windup_glint_done = false
+		_dash_hit_wall = false
 	return (dir + _wander_vec(delta) * 0.3).normalized() * speed
+
+
+func _leap_slam_ai(delta: float, dir: Vector2, _dist: float) -> Vector2:
+	match _leap_state:
+		"":
+			_leap_state = "windup"
+			_leap_t = 0.45
+			_leap_z = 0.0
+			_leap_start = global_position
+			var tgt: Vector2 = player.global_position if (player != null and is_instance_valid(player)) else (global_position + dir * 70.0)
+			if room != null:
+				var rr: Rect2 = room.rect.grow(-28.0)
+				tgt = Vector2(clampf(tgt.x, rr.position.x, rr.end.x), clampf(tgt.y, rr.position.y, rr.end.y))
+			_leap_target = tgt
+			_anim_scale = Vector2(_base_scale.x * 1.22, _base_scale.y * 0.76)
+			Fx.burst(get_parent(), global_position, _boss_color(), 30.0, 0.28)
+			return Vector2.ZERO
+		"windup":
+			_leap_t -= delta
+			_flash = 0.25 + 0.25 * sin(_leap_t * 36.0)
+			if _leap_t > 0.20 and player != null and is_instance_valid(player):
+				var tgt2: Vector2 = _leap_target.lerp(player.global_position, clampf(delta * 8.0, 0.0, 1.0))
+				if room != null:
+					var rr2: Rect2 = room.rect.grow(-28.0)
+					tgt2 = Vector2(clampf(tgt2.x, rr2.position.x, rr2.end.x), clampf(tgt2.y, rr2.position.y, rr2.end.y))
+				_leap_target = tgt2
+			_anim_scale = _anim_scale.lerp(Vector2(_base_scale.x * 1.22, _base_scale.y * 0.76), clampf(delta * 14.0, 0.0, 1.0))
+			if _leap_t <= 0.0:
+				_leap_state = "air"
+				_leap_t = 0.48
+				_leap_start = global_position
+				_attack_anim_t = 0.55
+				_anim_scale = Vector2(_base_scale.x * 0.82, _base_scale.y * 1.26)
+				Fx.anim(get_parent(), global_position + Vector2(0.0, radius * 0.8), "fx/dust.png", 10, 10, 14.0, 1.6)
+				Fx.burst(get_parent(), global_position, Color(0.9, 0.85, 0.7), 34.0, 0.25)
+			return Vector2.ZERO
+		"air":
+			_leap_t -= delta
+			var p: float = clampf(1.0 - _leap_t / 0.48, 0.0, 1.0)
+			_leap_z = sin(p * PI) * 44.0
+			global_position = _leap_start.lerp(_leap_target, p)
+			if int(_boss_t * 36.0) % 3 == 0:
+				Fx.afterimage(get_parent(), spr, global_position + Vector2(0.0, -_leap_z), Color(_boss_color(), 0.55), 0.24)
+			if _leap_t <= 0.0:
+				_leap_state = "land"
+				_leap_t = 0.65
+				_leap_z = 0.0
+				spr.position.y = _base_spr_y
+				if _shadow != null:
+					_shadow.scale = Vector2(radius / 7.0, radius / 7.0)
+				_anim_scale = Vector2(_base_scale.x * 1.32, _base_scale.y * 0.72)
+				Fx.shake(get_tree(), 5.8)
+				Fx.burst(get_parent(), global_position, _boss_color(), 72.0, 0.42)
+				Fx.burst(get_parent(), global_position, Color(1.0, 0.92, 0.65), 42.0, 0.28)
+				Fx.particles(get_parent(), global_position + Vector2(0.0, radius * 0.6), _boss_color(), 20, 145.0, 0.55, 160.0, 2.5)
+				Sfx.play("explode")
+				_fire_ring(16 if (enraged or transformed) else 12, randf() * TAU, 115.0, "orb_pink")
+				if player != null and is_instance_valid(player) and not player.dead and player.global_position.distance_to(global_position) < 48.0:
+					player.take_damage(2 + int(power() / 5.0))
+			return Vector2.ZERO
+		"land":
+			_leap_t -= delta
+			if _leap_t <= 0.0:
+				_leap_state = "done"
+			return Vector2.ZERO
+	return _boss_strafe(delta, dir, _dist, 0.55)
 
 
 func _start_burst(n: int, spread_deg: float) -> void:
@@ -845,6 +1018,7 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		_shoot_t = 0.4
 		_volleys = 0
 		_charge_state = ""
+		_reset_motion_fx()
 	_shoot_t -= delta
 	var cd_mult := 0.65 if rage else 0.9
 	if bool(data.get("mythic", false)) or EnemyData.is_mythic_level(level):
@@ -886,6 +1060,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 			return _boss_strafe(delta, dir, dist, 0.55)
 		"charge":
 			return _charge_ai(delta, dir, 0.0, 5.5)
+		"leap_slam":
+			return _leap_slam_ai(delta, dir, dist)
 		"ring":
 			if _shoot_t <= 0.0:
 				_shoot_t = 0.8 * cd_mult
@@ -979,29 +1155,34 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 						if Net.is_online() and Net.is_host():
 							Net.send_enemy_event("mortar", {"x": m.position.x, "y": m.position.y, "delay": m.delay, "root": true, "radius": 12.0}, false)
 			return -dir * speed * 0.35 if dist < 80.0 else Vector2.ZERO
-		"dive":    # Ngư Tinh: lặn xuống, trồi lên dưới chân người chơi tung vòng nước
+		"dive":    # Ngư Tinh: lặn xuống tạo sóng ngầm rồi phóng vọt lên phun cột nước
 			match _charge_state:
 				"":
 					_charge_state = "under"
 					_charge_t = 1.3
 					_submerged = true
 					spr.modulate.a = 0.25
-					Fx.particles(get_parent(), global_position, Color(0.5, 0.8, 1.0), 18, 100.0, 0.5, 140.0, 2.5)
+					Fx.burst(get_parent(), global_position, Color(0.35, 0.85, 1.0), 42.0, 0.35)
+					Fx.particles(get_parent(), global_position, Color(0.5, 0.85, 1.0), 20, 110.0, 0.5, 140.0, 2.5)
 				"under":
 					_charge_t -= delta
 					spr.modulate.a = 0.25
-					if randf() < 0.3:
-						Fx.particles(get_parent(), global_position + Vector2(randf_range(-14, 14), 6), Color(0.5, 0.8, 1.0), 2, 30.0, 0.4, -40.0, 2.0)
+					if int(_boss_t * 30.0) % 2 == 0:
+						Fx.particles(get_parent(), global_position + Vector2(randf_range(-10, 10), 6), Color(0.55, 0.9, 1.0), 3, 55.0, 0.35, -35.0, 2.2)
+						Fx.particles(get_parent(), global_position + Vector2(randf_range(-6, 6), 8), Color.WHITE, 1, 30.0, 0.25, -20.0, 1.5)
 					if _charge_t <= 0.0:
 						_charge_state = "rest"
 						_charge_t = 0.9
 						_submerged = false
 						spr.modulate.a = 1.0
 						_attack_anim_t = 0.5
+						_anim_scale = Vector2(_base_scale.x * 0.84, _base_scale.y * 1.24)
 						_fire_ring(18 if transformed else 14, randf() * TAU, 110.0, "orb_water")
-						Fx.particles(get_parent(), global_position, Color(0.5, 0.8, 1.0), 24, 140.0, 0.6, 160.0, 2.5)
-						Fx.shake(get_tree(), 3.0)
-					return dir * speed * 2.4
+						Fx.burst(get_parent(), global_position, Color(0.35, 0.85, 1.0), 68.0, 0.42)
+						Fx.burst(get_parent(), global_position, Color.WHITE, 38.0, 0.28)
+						Fx.particles(get_parent(), global_position, Color(0.55, 0.9, 1.0), 26, 175.0, 0.65, 220.0, 2.6, 38.0, Vector2.UP)
+						Fx.shake(get_tree(), 4.8)
+					return dir * speed * 2.75
 				"rest":
 					_charge_t -= delta
 					if _charge_t <= 0.0:
@@ -1034,6 +1215,7 @@ func _start_morph() -> void:
 	_charge_state = ""
 	_submerged = false
 	spr.modulate.a = 1.0
+	_reset_motion_fx()
 	_mat.set_shader_parameter("flash_color", Color(0.7, 0.3, 1.0))
 	var what := "Tà thuật trỗi dậy" if not data.get("legend", false) else "Yêu khí bùng lên"
 	get_tree().call_group("hud", "show_banner", "%s! %s đang hiện nguyên hình..." % [what, data.name])
@@ -1094,6 +1276,9 @@ func _finish_morph() -> void:
 	radius = float(data.get("radius2", radius))
 	_shape.radius = radius * 0.72
 	spr.position = Vector2(0, radius - size2.y / 2.0)
+	_base_scale = spr.scale
+	_base_spr_y = spr.position.y
+	_reset_motion_fx()
 	_shadow.position = Vector2(0, radius * 0.9)
 	_shadow.scale = Vector2(radius / 7.0, radius / 7.0)
 	_sync_hurtbox(size2)
@@ -1187,6 +1372,7 @@ func _start_special(sp: String) -> void:
 	_submerged = false
 	spr.modulate.a = 1.0
 	_charge_state = ""
+	_reset_motion_fx()
 	_special = sp
 	match sp:
 		"cuu_vi":
@@ -1270,6 +1456,7 @@ func apply_stun(t: float) -> void:
 		t *= 0.35
 	_stun_t = maxf(_stun_t, t)
 	_charge_state = ""
+	_reset_motion_fx()
 
 
 func take_damage(amount: int, knock := Vector2.ZERO) -> void:
@@ -1520,19 +1707,24 @@ func _draw_charge_lane(lane_len: float) -> void:
 	if _charge_dir.length_squared() < 0.01:
 		return
 	var ang: float = _charge_dir.angle()
-	var half_w: float = maxf(8.0, radius * 0.8)
+	var half_w: float = maxf(8.0, radius * 0.85)
 	var pulse: float = 0.5 + 0.5 * sin(_boss_t * 18.0)
 	draw_set_transform(Vector2(0.0, 2.0), ang, Vector2.ONE)
-	draw_rect(Rect2(0.0, -half_w, lane_len, half_w * 2.0), Color(1.0, 0.2, 0.18, 0.18 + 0.10 * pulse))
-	draw_line(Vector2(0.0, -half_w), Vector2(lane_len, -half_w), Color(1.0, 0.35, 0.28, 0.78), 1.4)
-	draw_line(Vector2(0.0, half_w), Vector2(lane_len, half_w), Color(1.0, 0.35, 0.28, 0.78), 1.4)
+	draw_rect(Rect2(0.0, -half_w, lane_len, half_w * 2.0), Color(1.0, 0.2, 0.18, 0.20 + 0.12 * pulse))
+	draw_line(Vector2(0.0, -half_w), Vector2(lane_len, -half_w), Color(1.0, 0.42, 0.30, 0.88), 1.6)
+	draw_line(Vector2(0.0, half_w), Vector2(lane_len, half_w), Color(1.0, 0.42, 0.30, 0.88), 1.6)
+	draw_polyline(PackedVector2Array([
+		Vector2(lane_len - 8.0, -half_w),
+		Vector2(lane_len + 6.0, 0.0),
+		Vector2(lane_len - 8.0, half_w),
+	]), Color(1.0, 0.85, 0.45, 0.90), 1.8)
 	for ci in 3:
-		var cx: float = lane_len * (0.28 + 0.28 * float(ci))
+		var cx: float = fmod(_boss_t * 95.0 + float(ci) * (lane_len * 0.32), lane_len * 0.85) + 12.0
 		draw_polyline(PackedVector2Array([
-			Vector2(cx - 5.0, -half_w * 0.6),
-			Vector2(cx + 4.0, 0.0),
-			Vector2(cx - 5.0, half_w * 0.6),
-		]), Color(1.0, 0.75, 0.45, 0.75 * pulse), 1.4)
+			Vector2(cx - 5.0, -half_w * 0.62),
+			Vector2(cx + 5.0, 0.0),
+			Vector2(cx - 5.0, half_w * 0.62),
+		]), Color(1.0, 0.85, 0.50, 0.55 + 0.35 * pulse), 1.6)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -1562,7 +1754,36 @@ func _draw_boss_fx() -> void:
 		draw_line(p1, p2, Color(bcol.r, bcol.g, bcol.b, 0.72), 1.6)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if _charge_state == "windup":
-		_draw_charge_lane(160.0)
+		_draw_charge_lane(175.0)
+	elif _charge_state == "dash" and _charge_dir.length_squared() > 0.01:
+		var nose: float = maxf(_hb_size.x, _hb_size.y) * 0.42
+		draw_set_transform(_hb_offset, _charge_dir.angle(), Vector2.ONE)
+		draw_polyline(PackedVector2Array([
+			Vector2(nose - 26.0, -20.0),
+			Vector2(nose + 12.0, 0.0),
+			Vector2(nose - 26.0, 20.0),
+		]), Color(bcol.r, bcol.g, bcol.b, 0.90), 2.4)
+		draw_polyline(PackedVector2Array([
+			Vector2(nose - 16.0, -13.0),
+			Vector2(nose + 16.0, 0.0),
+			Vector2(nose - 16.0, 13.0),
+		]), Color(1.0, 0.95, 0.78, 0.92), 1.6)
+		for si in 5:
+			var sy: float = (float(si) - 2.0) * 7.5
+			var sx: float = -nose * 0.7 - float((si * 7) % 12)
+			draw_line(Vector2(sx, sy), Vector2(sx - 24.0 - float((si % 2) * 10), sy), Color(bcol.r, bcol.g, bcol.b, 0.75), 1.4)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if _leap_state in ["windup", "air"]:
+		var tgt_local: Vector2 = _leap_target - global_position
+		var lp_t: float = clampf(1.0 - _leap_t / (0.45 if _leap_state == "windup" else 0.48), 0.0, 1.0)
+		var l_col := Color(1.0, 0.82, 0.35, 0.88) if _leap_state == "air" else Color(1.0, 0.35, 0.25, 0.82)
+		draw_set_transform(tgt_local, 0.0, Vector2(1.0, 0.62))
+		draw_circle(Vector2.ZERO, 46.0, Color(l_col.r, l_col.g, l_col.b, 0.14 + 0.08 * pulse))
+		draw_arc(Vector2.ZERO, 46.0, 0.0, TAU, 36, l_col, 2.0)
+		draw_arc(Vector2.ZERO, lerpf(42.0, 10.0, lp_t), 0.0, TAU, 28, Color(1.0, 0.95, 0.70, 0.92), 1.6)
+		draw_line(Vector2(-10.0, 0.0), Vector2(10.0, 0.0), l_col, 1.4)
+		draw_line(Vector2(0.0, -10.0), Vector2(0.0, 10.0), l_col, 1.4)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if _morph_t > 0.0:
 		var m_r: float = lerpf(64.0, 18.0, clampf(1.0 - _morph_t / 1.4, 0.0, 1.0))
 		draw_rect(Rect2(-10.0, -110.0, 20.0, 118.0), Color(0.75, 0.35, 1.0, 0.18 + 0.12 * pulse))
