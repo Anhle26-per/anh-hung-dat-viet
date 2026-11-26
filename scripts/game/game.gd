@@ -46,7 +46,7 @@ var _combat_room_music_seq: int = 0
 
 
 func _ready() -> void:
-	if HotpatchSync.ensure_clean_patch_boot(get_tree()):
+	if HotpatchSync.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/game.tscn"):
 		return
 	add_to_group("game")
 	get_tree().paused = false

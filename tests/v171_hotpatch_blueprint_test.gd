@@ -1,9 +1,10 @@
 extends Node
-## Kiểm thử v1.7.1: đồng bộ hotpatch (--main-pack / CACHE_MODE_REPLACE), idempotency InputMap,
-## và tương tác bấm E ở Bàn Bản Vẽ, Bia Thành Tựu, Bảo Tàng Binh Khí trong Tầng Hầm Chiến Tích.
+## Kiểm thử v1.7.2: đồng bộ hotpatch in-place (needs_autoload_sync / ensure_autoloads_synced), idempotency InputMap,
+## khởi tạo MainMenu/Lobby không tự thoát, và tương tác bấm E ở Bàn Bản Vẽ, Bia Thành Tựu, Bảo Tàng Binh Khí.
 ## Chạy: godot --headless --path . res://tests/v171_hotpatch_blueprint_test.tscn -> "V171 HOTPATCH BLUEPRINT TEST OK"
 
 const HotpatchSync = preload("res://scripts/autoload/hotpatch_sync.gd")
+const MainMenuScene = preload("res://scenes/main_menu.tscn")
 const LobbyScene = preload("res://scenes/lobby.tscn")
 
 var _fail: int = 0
@@ -37,25 +38,32 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra HotpatchSync.is_booted_from_main_pack & needs_autoload_sync")
-	var gpath: String = ProjectSettings.globalize_path("user://patch.pck")
-	var win_path: String = gpath.replace("/", "\\")
-	_check(HotpatchSync.is_booted_from_main_pack("user://patch.pck", PackedStringArray(["--main-pack", gpath])), "phải nhận diện đường dẫn POSIX")
-	_check(HotpatchSync.is_booted_from_main_pack("user://patch.pck", PackedStringArray(["--main-pack", win_path])), "phải nhận diện đường dẫn Windows")
-	_check(not HotpatchSync.is_booted_from_main_pack("user://patch.pck", PackedStringArray(["--main-pack", "other.pck"])), "không được nhận nhầm gói khác")
-	_check(not HotpatchSync.is_booted_from_main_pack("user://patch.pck", PackedStringArray([])), "rỗng phải trả về false")
+	print("== 1. Kiểm tra HotpatchSync.needs_autoload_sync & ensure_autoloads_synced")
 	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "phiên bản hiện tại không được cần đồng bộ lại autoload")
+	_check(not HotpatchSync.ensure_autoloads_synced(get_tree()), "ensure_autoloads_synced() phải trả về false khi đã đồng bộ sẵn")
 
 	print("== 2. Kiểm tra _setup_inputs() chạy lại không trùng sự kiện")
-	var before_n: int = InputMap.action_get_events("interact").size()
+	var before_interact: int = InputMap.action_get_events("interact").size()
+	var before_sprint: int = InputMap.action_get_events("sprint").size()
 	Global._setup_inputs()
-	var after_n: int = InputMap.action_get_events("interact").size()
-	_check(before_n == after_n and before_n > 0, "InputMap.action_get_events('interact') bị trùng sau _setup_inputs (%d -> %d)" % [before_n, after_n])
+	var after_interact: int = InputMap.action_get_events("interact").size()
+	var after_sprint: int = InputMap.action_get_events("sprint").size()
+	_check(before_interact == after_interact and before_interact > 0, "InputMap.action_get_events('interact') bị trùng sau _setup_inputs (%d -> %d)" % [before_interact, after_interact])
+	_check(before_sprint == after_sprint and before_sprint > 0, "InputMap.action_get_events('sprint') bị trùng sau _setup_inputs (%d -> %d)" % [before_sprint, after_sprint])
 
-	print("== 3. Kiểm tra vào Tầng Hầm và bấm E tại Bàn Bản Vẽ + 6 tab, Bia Thành Tựu, Bảo Tàng")
+	print("== 3. Kiểm tra MainMenu khởi tạo và sống ổn định")
+	var menu = MainMenuScene.instantiate()
+	add_child(menu)
+	await _frames(5)
+	_check(is_instance_valid(menu) and not menu.is_queued_for_deletion(), "MainMenu phải giữ nguyên trạng thái sống sau khi khởi tạo")
+	menu.queue_free()
+	await _frames(2)
+
+	print("== 4. Kiểm tra vào Tầng Hầm và bấm E tại Bàn Bản Vẽ + 6 tab, Bia Thành Tựu, Bảo Tàng")
 	var lobby = LobbyScene.instantiate()
 	add_child(lobby)
 	await _frames(3)
+	_check(is_instance_valid(lobby) and not lobby.is_queued_for_deletion(), "Lobby phải giữ nguyên trạng thái sống sau khi khởi tạo")
 	await lobby.enter_basement(true)
 	await _frames(2)
 	_check(lobby.in_basement, "phải vào được Tầng Hầm")

@@ -5,6 +5,7 @@ extends Node
 const Bullet = preload("res://scripts/entities/bullet.gd")
 const Cover = preload("res://scripts/entities/cover.gd")
 const Dungeon = preload("res://scripts/game/dungeon.gd")
+const EnemyData = preload("res://scripts/data/enemies.gd")
 const Player = preload("res://scripts/entities/player.gd")
 
 var _fail: int = 0
@@ -184,9 +185,16 @@ func _run() -> void:
 	a2.queue_free()
 	await _frames(2)
 
-	print("== 5. Sinh hầm ngục 20 hạt giống (màn 1, 3, 25): đủ vật cản theo thời kỳ, không chặn cửa/giữa/phòng đầu/trùm")
-	var levels: Array[int] = [1, 3, 25]
+	print("== 5. Sinh hầm ngục 28 hạt giống (màn 1, 3, 13, 25): đủ vật cản theo thời kỳ, không chặn cửa/giữa/phòng đầu")
+	var levels: Array[int] = [1, 3, 13, 25]
+	var tactical_covers := ["wall_h", "wall_v", "pillar", "barrel_boom"]
+	var saw_ancient_era: bool = false
+	var saw_modern_era: bool = false
+	var saw_tactical: bool = false
 	for lv in levels:
+		var ch: Dictionary = EnemyData.chapter(lv)
+		var is_modern: bool = bool(ch.get("modern", false))
+		var ch_decor: Array = ch.get("decor", [])
 		for s in range(7):
 			seed(1000 + lv * 50 + s)
 			var d := Dungeon.new()
@@ -195,18 +203,30 @@ func _run() -> void:
 			await _frames(2)
 			for cell in d.rooms:
 				var r = d.rooms[cell]
-				if r.kind == "start" or r.kind == "boss":
+				if r.kind == "start":
 					_check(r.covers.is_empty(), "phòng %s màn %d vẫn có vật cản (%d)" % [r.kind, lv, r.covers.size()])
-				elif r.kind == "combat":
-					_check(r.covers.size() >= 4, "phòng combat màn %d có quá ít vật cản (%d)" % [lv, r.covers.size()])
+				elif r.kind in ["combat", "boss", "legend"]:
+					if r.kind == "combat":
+						_check(r.covers.size() >= 4, "phòng combat màn %d có quá ít vật cản (%d)" % [lv, r.covers.size()])
+					else:
+						_check(not r.covers.is_empty(), "phòng %s màn %d phải có vật cản che đạn" % [r.kind, lv])
 					for cv in r.covers:
 						_check(is_instance_valid(cv), "vật cản không hợp lệ")
 						if not is_instance_valid(cv):
 							continue
-						if lv <= 21:
-							_check(cv.kind in ["pot", "stele"], "màn cổ %d lại sinh vật cản hiện đại %s" % [lv, cv.kind])
+						if cv.kind in tactical_covers:
+							saw_tactical = true
+						if not is_modern:
+							if cv.kind in ["pot", "stele"]:
+								saw_ancient_era = true
+							_check(cv.kind in ["pot", "stele"] or cv.kind in tactical_covers,
+								"màn cổ/thần thoại %d lại sinh vật cản hiện đại %s" % [lv, cv.kind])
 						else:
-							_check(cv.kind in ["crate", "sandbag"], "màn hiện đại %d lại sinh vật cản cổ %s" % [lv, cv.kind])
+							if cv.kind in ["crate", "sandbag"]:
+								saw_modern_era = true
+							var allow_pot: bool = cv.kind == "pot" and ch_decor.has("pot")
+							_check(cv.kind in ["crate", "sandbag"] or cv.kind in tactical_covers or allow_pot,
+								"màn hiện đại %d lại sinh vật cản cổ %s" % [lv, cv.kind])
 						_check(cv.global_position.distance_to(r.rect.get_center()) >= 28.0,
 							"vật cản chặn tâm phòng ở màn %d: dist=%.1f" % [lv, cv.global_position.distance_to(r.rect.get_center())])
 						for dr in r.door_rects:
@@ -214,3 +234,6 @@ func _run() -> void:
 								"vật cản nằm quá gần cửa ở màn %d" % lv)
 			d.queue_free()
 			await _frames(1)
+	_check(saw_ancient_era, "chưa thấy vật cản thời cổ (pot/stele)")
+	_check(saw_modern_era, "chưa thấy vật cản thời cận đại (crate/sandbag)")
+	_check(saw_tactical, "chưa thấy vật cản chiến thuật chung (wall_h/wall_v/pillar/barrel_boom)")

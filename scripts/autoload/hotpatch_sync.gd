@@ -12,22 +12,43 @@ const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/data/synergy.gd",
 	"res://scripts/data/progression.gd",
 	"res://scripts/data/weapon_mods.gd",
+	"res://scripts/art/art.gd",
+	"res://scripts/ui/ui.gd",
+	"res://scripts/effects/fx.gd",
+]
+
+const SCENE_SCRIPTS: Array[String] = [
+	"res://scripts/ui/main_menu.gd",
+	"res://scripts/ui/update_popup.gd",
+	"res://scripts/ui/settings_menu.gd",
+	"res://scripts/ui/challenge_menu.gd",
+	"res://scripts/ui/lan_menu.gd",
+	"res://scripts/ui/hero_select.gd",
+	"res://scripts/ui/shop_ui.gd",
+	"res://scripts/ui/touch_controls.gd",
+	"res://scripts/ui/buff_select.gd",
+	"res://scripts/ui/pause_menu.gd",
+	"res://scripts/ui/hud.gd",
+	"res://scripts/ui/lobby_ui.gd",
+	"res://scripts/entities/enemy.gd",
+	"res://scripts/entities/player.gd",
+	"res://scripts/game/room.gd",
+	"res://scripts/game/dungeon.gd",
+	"res://scripts/game/lobby.gd",
+	"res://scripts/game/game.gd",
 ]
 
 
-static func _norm_path(p: String) -> String:
-	return p.replace("\\", "/").strip_edges().to_lower()
-
-
-static func is_booted_from_main_pack(patch_path: String = "user://patch.pck", args: PackedStringArray = OS.get_cmdline_args()) -> bool:
-	var target: String = _norm_path(ProjectSettings.globalize_path(patch_path))
-	var raw_target: String = _norm_path(patch_path)
-	for i in range(args.size() - 1):
-		if str(args[i]) == "--main-pack":
-			var val: String = _norm_path(str(args[i + 1]))
-			if val == target or val == raw_target or val.ends_with("/patch.pck") or val == "patch.pck":
-				return true
-	return false
+static func _reload_script(gd_path: String) -> Script:
+	var gdc_path: String = gd_path.trim_suffix(".gd") + ".gdc"
+	var load_path: String = gdc_path if FileAccess.file_exists(gdc_path) else gd_path
+	if not FileAccess.file_exists(load_path) and not ResourceLoader.exists(load_path):
+		return null
+	var fresh: Script = ResourceLoader.load(load_path, "", ResourceLoader.CACHE_MODE_IGNORE) as Script
+	if fresh != null:
+		fresh.take_over_path(gdc_path)
+		fresh.take_over_path(gd_path)
+	return fresh
 
 
 static func needs_autoload_sync(tree: SceneTree) -> bool:
@@ -53,44 +74,37 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 static func ensure_autoloads_synced(tree: SceneTree) -> bool:
 	if tree == null or not needs_autoload_sync(tree):
 		return false
-	var changed: bool = false
 	for p in DATA_SCRIPTS:
-		if ResourceLoader.exists(p):
-			ResourceLoader.load(p, "", ResourceLoader.CACHE_MODE_REPLACE)
+		_reload_script(p)
 	var g: Node = tree.root.get_node_or_null("Global")
-	if g != null and (not g.has_method("owned_blueprint_count") or not g.has_method("unclaimed_achievement_count") or not g.has_method("roll_boss_blueprint") or not InputMap.has_action("sprint")):
+	if g != null:
 		var saved_path: String = str(g.get("save_path")) if g.get("save_path") != null else "user://save.json"
-		var new_g: Script = ResourceLoader.load("res://scripts/autoload/global.gd", "", ResourceLoader.CACHE_MODE_REPLACE) as Script
-		if new_g != null:
-			g.set_script(new_g)
+		var fresh_g: Script = _reload_script("res://scripts/autoload/global.gd")
+		if fresh_g != null:
+			g.set_script(fresh_g)
 			g.save_path = saved_path
 			g._ready()
-			changed = true
 	var s: Node = tree.root.get_node_or_null("Sfx")
-	if s != null and (not s.has_method("play_stage_music") or not s.has_method("play_weapon") or not s.has_method("play_skill")):
-		for ch in s.get_children():
-			if ch is AudioStreamPlayer:
-				(ch as AudioStreamPlayer).stop()
-			s.remove_child(ch)
-			ch.queue_free()
-		var new_s: Script = ResourceLoader.load("res://scripts/audio/sfx.gd", "", ResourceLoader.CACHE_MODE_REPLACE) as Script
-		if new_s != null:
-			s.set_script(new_s)
+	if s != null:
+		var fresh_s: Script = _reload_script("res://scripts/audio/sfx.gd")
+		if fresh_s != null:
+			for ch in s.get_children():
+				if ch is AudioStreamPlayer:
+					(ch as AudioStreamPlayer).stop()
+				s.remove_child(ch)
+				ch.queue_free()
+			s.set_script(fresh_s)
 			s._ready()
-			changed = true
-	return changed
+	for sp in SCENE_SCRIPTS:
+		_reload_script(sp)
+	for scn in ["res://scenes/lobby.tscn", "res://scenes/game.tscn", "res://scenes/main_menu.tscn"]:
+		if ResourceLoader.exists(scn):
+			ResourceLoader.load(scn, "", ResourceLoader.CACHE_MODE_REPLACE)
+	return true
 
 
-static func ensure_clean_patch_boot(tree: SceneTree) -> bool:
-	if tree == null or not needs_autoload_sync(tree):
-		return false
-	if DisplayServer.get_name() != "headless" and not OS.has_feature("editor") and not OS.has_feature("mobile"):
-		var u: Node = tree.root.get_node_or_null("Updater")
-		if u != null and bool(u.get("patch_loaded")):
-			var pp: String = str(u.get("patch_path"))
-			if pp != "" and FileAccess.file_exists(pp) and not is_booted_from_main_pack(pp):
-				OS.set_restart_on_exit(true, PackedStringArray(["--main-pack", ProjectSettings.globalize_path(pp)]))
-				tree.quit(0)
-				return true
-	ensure_autoloads_synced(tree)
+static func sync_and_reload_scene_if_needed(tree: SceneTree, scene_path: String) -> bool:
+	if ensure_autoloads_synced(tree):
+		tree.change_scene_to_file.call_deferred(scene_path)
+		return true
 	return false

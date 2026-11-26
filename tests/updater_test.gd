@@ -166,8 +166,8 @@ func _run() -> void:
 	_routes["/version.json"] = {
 		"ctype": "application/json",
 		"body": JSON.stringify({
-			"version": "1.3.0",
-			"build": 130,
+			"version": "9.9.0",
+			"build": 999,
 			"min_engine": "4.7.2",
 			"size_bytes": payload.size(),
 			"sha256": good_sha,
@@ -187,7 +187,7 @@ func _run() -> void:
 	var t0: int = Time.get_ticks_msec()
 	while not chk_done[0] and Time.get_ticks_msec() - t0 < 5000:
 		await _frames(1)
-	_check(bool(chk_done[0]) and bool(chk_done[1]), "check_for_updates phải phát hiện v1.3.0 (err=%s)" % str(chk_done[2]))
+	_check(bool(chk_done[0]) and bool(chk_done[1]), "check_for_updates phải phát hiện v9.9.0 (err=%s)" % str(chk_done[2]))
 	_check(Updater.state == "available", "state phải là available (nhận %s)" % Updater.state)
 
 	# Mở UpdatePopup xem hộp thoại
@@ -242,8 +242,8 @@ func _run() -> void:
 	_routes["/version_old_eng.json"] = {
 		"ctype": "application/json",
 		"body": JSON.stringify({
-			"version": "2.0.0",
-			"build": 200,
+			"version": "9.9.1",
+			"build": 1000,
 			"min_engine": "9.9.9",
 			"pck_url": base_url + "/AnhHungDatViet.pck",
 			"notes": "Cần Godot mới.",

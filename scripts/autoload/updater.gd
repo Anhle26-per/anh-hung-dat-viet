@@ -65,11 +65,6 @@ func _read_meta() -> Dictionary:
 
 
 func try_mount_saved_patch() -> bool:
-	if HotpatchSync.is_booted_from_main_pack(patch_path):
-		patch_loaded = true
-		current_version = base_version
-		current_build = base_build
-		return true
 	if not FileAccess.file_exists(patch_path) or not FileAccess.file_exists(patch_meta_path):
 		return false
 	var meta: Dictionary = _read_meta()
@@ -100,6 +95,7 @@ func try_mount_saved_patch() -> bool:
 		current_version = p_ver
 		current_build = p_build if p_build > 0 else base_build
 		Art.clear_cache()
+		HotpatchSync.ensure_autoloads_synced.call_deferred(get_tree())
 		return true
 	clear_saved_patch()
 	return false
@@ -351,8 +347,5 @@ func restart_to_apply() -> void:
 		HotpatchSync.ensure_autoloads_synced(get_tree())
 		get_tree().reload_current_scene()
 		return
-	if FileAccess.file_exists(patch_path):
-		OS.set_restart_on_exit(true, PackedStringArray(["--main-pack", ProjectSettings.globalize_path(patch_path)]))
-	else:
-		OS.set_restart_on_exit(true)
+	OS.set_restart_on_exit(true)
 	get_tree().quit()

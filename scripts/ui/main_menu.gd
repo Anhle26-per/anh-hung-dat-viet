@@ -61,7 +61,7 @@ class Backdrop extends Control:
 
 
 func _ready() -> void:
-	if HotpatchSync.ensure_clean_patch_boot(get_tree()):
+	if HotpatchSync.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/main_menu.tscn"):
 		return
 	theme = UI.make_theme()
 	get_tree().paused = false

@@ -75,7 +75,7 @@ var _mat_shop_pos := Vector2(1204, 452)
 
 
 func _ready() -> void:
-	if HotpatchSync.ensure_clean_patch_boot(get_tree()):
+	if HotpatchSync.sync_and_reload_scene_if_needed(get_tree(), "res://scenes/lobby.tscn"):
 		return
 	add_to_group("lobby")
 	get_tree().paused = false
