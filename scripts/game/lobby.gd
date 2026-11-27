@@ -942,10 +942,23 @@ func _process(delta: float) -> void:
 	player.interact_target = best if hero_confirmed else null
 
 
+func _mark_input_handled() -> void:
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
+
+
+func _change_scene_deferred(scene_path: String) -> void:
+	if is_inside_tree():
+		get_tree().change_scene_to_file.call_deferred(scene_path)
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if _leaving or not is_inside_tree():
+		return
 	if event.is_action_pressed("pause") and (ui == null or not ui.is_open()) and not _transitioning:
+		_mark_input_handled()
 		_back_to_menu()
-		get_viewport().set_input_as_handled()
 		return
 	if _transitioning or (ui != null and ui.is_open()) or in_basement:
 		return
@@ -955,7 +968,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cursor_hero_idx = maxi(0, HeroData.ORDER.find(hit_m))
 			_hovered_hero_id = hit_m
 			ui.open_hero(hit_m)
-			get_viewport().set_input_as_handled()
+			_mark_input_handled()
 			return
 	elif event is InputEventScreenTouch and event.pressed:
 		var wpos_t: Vector2 = get_canvas_transform().affine_inverse() * event.position
@@ -964,21 +977,21 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cursor_hero_idx = maxi(0, HeroData.ORDER.find(hit_t))
 			_hovered_hero_id = hit_t
 			ui.open_hero(hit_t)
-			get_viewport().set_input_as_handled()
+			_mark_input_handled()
 			return
 	if not hero_confirmed:
 		if event.is_action_pressed("move_left") or event.is_action_pressed("ui_left"):
 			_cursor_hero_idx = posmod(_cursor_hero_idx - 1, HeroData.ORDER.size())
 			_hovered_hero_id = HeroData.ORDER[_cursor_hero_idx]
-			get_viewport().set_input_as_handled()
+			_mark_input_handled()
 		elif event.is_action_pressed("move_right") or event.is_action_pressed("ui_right"):
 			_cursor_hero_idx = posmod(_cursor_hero_idx + 1, HeroData.ORDER.size())
 			_hovered_hero_id = HeroData.ORDER[_cursor_hero_idx]
-			get_viewport().set_input_as_handled()
+			_mark_input_handled()
 		elif event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER)):
 			var pick_id: String = _hovered_hero_id if _hovered_hero_id != "" else HeroData.ORDER[_cursor_hero_idx]
 			ui.open_hero(pick_id)
-			get_viewport().set_input_as_handled()
+			_mark_input_handled()
 
 
 func _on_station(s) -> void:
@@ -1108,6 +1121,11 @@ func _transition_basement(entering: bool, dest: Vector2, banner: String, instant
 	var tw_out := create_tween()
 	tw_out.tween_property(fade, "color:a", 1.0, 0.18)
 	await tw_out.finished
+	if not is_inside_tree() or _leaving:
+		if is_instance_valid(layer):
+			layer.queue_free()
+		_transitioning = false
+		return
 	_apply_basement_state(entering, dest)
 	_play_zone_music(entering)
 	Sfx.play("portal")
@@ -1119,6 +1137,9 @@ func _transition_basement(entering: bool, dest: Vector2, banner: String, instant
 	await tw_in.finished
 	if is_instance_valid(layer):
 		layer.queue_free()
+	if not is_inside_tree() or _leaving:
+		_transitioning = false
+		return
 	set_player_active(true)
 	_transitioning = false
 
@@ -1325,11 +1346,12 @@ func start_run_with_code(code: String) -> void:
 		Net.host_start_match()
 		return
 	_leaving = true
+	set_process_unhandled_input(false)
 	Sfx.play("level_clear")
 	Global.pending_challenge_code = ""
 	Global.save_game()
 	Global.start_run(code)
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	_change_scene_deferred("res://scenes/game.tscn")
 
 
 func _start_run() -> void:
@@ -1337,11 +1359,17 @@ func _start_run() -> void:
 
 
 func _back_to_menu() -> void:
+	if _leaving:
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	if ui != null and is_instance_valid(ui) and ui.is_open():
+		ui.close()
 	if Net != null and Net.is_online():
 		Net.leave_room()
 	else:
 		Global.save_game()
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	_change_scene_deferred("res://scenes/main_menu.tscn")
 
 
 # ------------------------------------------------------------------ Đồng bộ LAN trong Doanh Trại
@@ -1454,14 +1482,21 @@ func _on_net_lobby_updated() -> void:
 
 
 func _on_net_match_started(_seed_val: int, _level: int) -> void:
-	if is_inside_tree():
-		get_tree().change_scene_to_file("res://scenes/game.tscn")
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	_change_scene_deferred("res://scenes/game.tscn")
 
 
 func _on_net_host_left(_reason: String) -> void:
-	Net.leave_room()
-	if is_inside_tree():
-		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if _leaving:
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	if Net != null:
+		Net.leave_room()
+	_change_scene_deferred("res://scenes/main_menu.tscn")
 
 
 func _on_net_player_state(peer_id: int, state: Dictionary) -> void:

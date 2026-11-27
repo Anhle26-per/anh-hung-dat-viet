@@ -7,30 +7,39 @@ const WeaponData = preload("res://scripts/data/weapons.gd")
 
 var shop: Node2D = null
 var _root: Control = null
+var _closing: bool = false
 
 
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("shop_ui_open")
-	if not Net.is_online():
+	if Net == null or not Net.is_online():
 		get_tree().paused = true
 	_rebuild()
 
 
 func _exit_tree() -> void:
-	if not Net.is_online() and is_inside_tree() and get_tree() != null:
+	if (Net == null or not Net.is_online()) and is_inside_tree() and get_tree() != null:
 		get_tree().paused = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _closing or not is_inside_tree():
+		return
 	if event.is_action_pressed("pause"):
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
 		close()
-		get_viewport().set_input_as_handled()
 
 
 func close() -> void:
-	if not Net.is_online() and is_inside_tree() and get_tree() != null:
+	if _closing:
+		return
+	_closing = true
+	set_process_unhandled_input(false)
+	if (Net == null or not Net.is_online()) and is_inside_tree() and get_tree() != null:
 		get_tree().paused = false
 	queue_free()
 

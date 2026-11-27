@@ -23,6 +23,7 @@ var _players_list: VBoxContainer = null
 var _heroes_grid: GridContainer = null
 var _ready_btn: Button = null
 var _start_btn: Button = null
+var _leaving: bool = false
 
 
 class LanBackdrop extends Control:
@@ -337,6 +338,11 @@ func _make_line_edit(placeholder: String, initial: String, width: float) -> Line
 	var focus_st := normal_st.duplicate() as StyleBoxFlat
 	focus_st.border_color = Color(1.0, 0.84, 0.38)
 	le.add_theme_stylebox_override("focus", focus_st)
+	le.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev.is_action_pressed("pause") or ev.is_action_pressed("ui_cancel"):
+			le.release_focus()
+			le.accept_event()
+	)
 	return le
 
 
@@ -543,12 +549,37 @@ func _on_leave_room() -> void:
 	_refresh_view()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if _leaving or not is_inside_tree():
+		return
+	if event.is_action_pressed("pause"):
+		for le in [_name_input, _room_name_input, _ip_input]:
+			if le != null and is_instance_valid(le) and le.has_focus():
+				le.release_focus()
+				var vp := get_viewport()
+				if vp != null:
+					vp.set_input_as_handled()
+				return
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_back()
+
+
 func _on_back() -> void:
-	Net.leave_room()
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if _leaving:
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	if Net != null:
+		Net.leave_room()
+	if is_inside_tree():
+		get_tree().change_scene_to_file.call_deferred("res://scenes/main_menu.tscn")
 
 
 func _on_lobby_updated() -> void:
+	if _leaving:
+		return
 	if Net.is_online() and Net.in_lobby and not Net.in_match:
 		_on_entered_lan_lobby()
 		return
@@ -558,12 +589,19 @@ func _on_lobby_updated() -> void:
 
 
 func _on_entered_lan_lobby() -> void:
-	if is_inside_tree():
-		get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	get_tree().change_scene_to_file.call_deferred("res://scenes/lobby.tscn")
 
 
 func _on_match_started(_seed_val: int, _level: int) -> void:
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	get_tree().change_scene_to_file.call_deferred("res://scenes/game.tscn")
 
 
 func _on_host_left(reason: String) -> void:

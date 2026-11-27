@@ -53,6 +53,7 @@ var _buff_done_peers: Dictionary = {}
 var _portal_triggered: bool = false
 var _team_wiped: bool = false
 var _combat_room_music_seq: int = 0
+var _leaving: bool = false
 
 
 func _ready() -> void:
@@ -133,7 +134,9 @@ func _ready() -> void:
 	touch = TouchControls.new()
 	add_child(touch)
 	touch.player = player
-	touch.pause_pressed.connect(func(): pause_menu.open())
+	touch.pause_pressed.connect(func():
+		if pause_menu != null and is_instance_valid(pause_menu) and not _leaving:
+			pause_menu.open())
 
 	buff_ui = BuffSelect.new()
 	add_child(buff_ui)
@@ -150,7 +153,10 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_leaving = true
 	_disconnect_net_signals()
+	if get_tree() != null:
+		get_tree().paused = false
 
 
 func apply_camera_zoom() -> void:
@@ -185,6 +191,8 @@ func _connect_net_signals() -> void:
 
 
 func _disconnect_net_signals() -> void:
+	if Net == null:
+		return
 	if Net.player_state_received.is_connected(_on_net_player_state):
 		Net.player_state_received.disconnect(_on_net_player_state)
 	if Net.player_action_received.is_connected(_on_net_player_action):
@@ -471,7 +479,15 @@ func _advance_to(lvl: int) -> void:
 
 
 func can_pause() -> bool:
-	return not player.dead and _game_over == null and _victory_ui == null and not buff_ui.visible and get_tree().get_nodes_in_group("shop_ui_open").is_empty()
+	if _leaving or not is_inside_tree():
+		return false
+	if player == null or not is_instance_valid(player) or player.dead:
+		return false
+	if _game_over != null or _victory_ui != null:
+		return false
+	if buff_ui != null and is_instance_valid(buff_ui) and buff_ui.visible:
+		return false
+	return get_tree().get_nodes_in_group("shop_ui_open").is_empty()
 
 
 # ------------------------------------------------------------------ Mạng LAN
@@ -750,19 +766,29 @@ func _check_team_wipe() -> void:
 
 
 func _trigger_team_wipe() -> void:
-	if _team_wiped:
+	if _team_wiped or _leaving:
 		return
 	_team_wiped = true
 	await get_tree().create_timer(1.0).timeout
+	if _leaving or not is_inside_tree():
+		return
 	_show_game_over()
 
 
 func _on_net_host_left(_reason: String) -> void:
-	if Net.is_host():
-		Global.end_run("bo_luot")
-	Net.leave_room()
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if _leaving:
+		return
+	_leaving = true
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu._leaving = true
+		pause_menu.set_process_unhandled_input(false)
+	if Net != null:
+		if Net.is_host():
+			Global.end_run("bo_luot")
+		Net.leave_room()
+	if is_inside_tree():
+		get_tree().paused = false
+		get_tree().change_scene_to_file.call_deferred("res://scenes/main_menu.tscn")
 
 
 func _on_net_player_disconnected(peer_id: int, pname: String) -> void:
@@ -809,10 +835,12 @@ func _on_net_player_reconnected(peer_id: int, info: Dictionary) -> void:
 # ------------------------------------------------------------------ Thua cuộc
 
 func _on_player_died() -> void:
-	if Net.is_online() and Net.player_count() > 1:
+	if Net != null and Net.is_online() and Net.player_count() > 1:
 		_check_team_wipe()
 		return
 	await get_tree().create_timer(1.0).timeout
+	if _leaving or not is_inside_tree():
+		return
 	_show_game_over()
 
 
@@ -870,9 +898,16 @@ func show_victory(mythic: bool = false) -> void:
 
 
 func _on_victory_lobby() -> void:
+	if _leaving:
+		return
+	_leaving = true
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu._leaving = true
+		pause_menu.set_process_unhandled_input(false)
 	Global.end_run("thang")
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+	if is_inside_tree():
+		get_tree().paused = false
+		get_tree().change_scene_to_file.call_deferred("res://scenes/lobby.tscn")
 
 
 func _on_victory_continue() -> void:
@@ -957,6 +992,12 @@ func _do_revive() -> void:
 
 
 func _on_restart() -> void:
+	if _leaving:
+		return
+	_leaving = true
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu._leaving = true
+		pause_menu.set_process_unhandled_input(false)
 	var keep_code: String = Global.challenge_code
 	var keep_mode: String = Global.run_mode
 	var keep_muts: Array = Global.active_mutators.duplicate()
@@ -964,17 +1005,27 @@ func _on_restart() -> void:
 	Global.pending_run_mode = keep_mode
 	Global.pending_mutators = keep_muts
 	Global.start_run(keep_code)
-	get_tree().reload_current_scene()
+	if is_inside_tree():
+		get_tree().paused = false
+		get_tree().reload_current_scene.call_deferred()
 
 
 func _on_menu() -> void:
-	if Net.is_online():
+	if _leaving:
+		return
+	_leaving = true
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu._leaving = true
+		pause_menu.set_process_unhandled_input(false)
+	if Net != null and Net.is_online():
 		if Net.is_host():
 			Global.end_run("" if (_team_wiped or (player != null and is_instance_valid(player) and player.dead)) else "bo_luot")
 		Net.leave_room()
-		get_tree().paused = false
-		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+		if is_inside_tree():
+			get_tree().paused = false
+			get_tree().change_scene_to_file.call_deferred("res://scenes/main_menu.tscn")
 		return
 	Global.end_run("" if (player != null and is_instance_valid(player) and player.dead) else "bo_luot")
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+	if is_inside_tree():
+		get_tree().paused = false
+		get_tree().change_scene_to_file.call_deferred("res://scenes/lobby.tscn")

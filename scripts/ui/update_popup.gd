@@ -33,8 +33,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not visible or Updater.state == "downloading":
 		return
 	if event.is_action_pressed("pause"):
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
 		close()
-		get_viewport().set_input_as_handled()
 
 
 func open(info: Dictionary = {}) -> void:

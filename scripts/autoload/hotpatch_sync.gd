@@ -98,7 +98,7 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 				return true
 	var n: Node = tree.root.get_node_or_null("Net")
 	if n != null:
-		if n.get("in_lobby") == null:
+		if n.get("in_lobby") == null or n.get("_exiting") == null:
 			return true
 		for nm in ["host_enter_lobby", "request_set_pet"]:
 			if not n.has_method(nm):

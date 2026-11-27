@@ -13,6 +13,7 @@ var _cards := {}
 var _coin_label: Label
 var _msg_label: Label
 var _scroll: ScrollContainer
+var _leaving: bool = false
 
 
 class Portrait extends Control:
@@ -172,12 +173,30 @@ func _on_card_pressed(id: String) -> void:
 	_refresh()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if _leaving or not is_inside_tree():
+		return
+	if event.is_action_pressed("pause"):
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_back()
+
+
 func _on_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
+	get_tree().change_scene_to_file.call_deferred("res://scenes/main_menu.tscn")
 
 
 func _on_start() -> void:
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
 	Global.selected_hero = _selected
 	Global.save_game()
 	Global.start_run()
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	get_tree().change_scene_to_file.call_deferred("res://scenes/game.tscn")

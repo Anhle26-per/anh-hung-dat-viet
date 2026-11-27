@@ -18,6 +18,7 @@ var _list_box: VBoxContainer = null
 var _copy_btn: Button = null
 var _selected_idx: int = 0
 var _row_btns: Array = []
+var _leaving: bool = false
 
 
 func _ready() -> void:
@@ -100,17 +101,21 @@ func _make_columns_row(vals: Array, col: Color, font_sz: int) -> HBoxContainer:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or _leaving or not is_inside_tree():
 		return
 	if event is InputEventKey:
 		var ke: InputEventKey = event
-		if ke.pressed and ke.physical_keycode == KEY_ESCAPE:
+		if ke.pressed and not ke.echo and ke.physical_keycode == KEY_ESCAPE:
+			var vp := get_viewport()
+			if vp != null:
+				vp.set_input_as_handled()
 			close()
-			get_viewport().set_input_as_handled()
 			return
 	if event.is_action_pressed("pause") and (_code_input == null or not _code_input.has_focus()):
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
 		close()
-		get_viewport().set_input_as_handled()
 
 
 func open() -> void:
@@ -352,23 +357,36 @@ func _on_clear_mutators() -> void:
 	refresh()
 
 
+func _go_game() -> void:
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	get_tree().change_scene_to_file.call_deferred("res://scenes/game.tscn")
+
+
 func _on_start_boss_rush() -> void:
+	if _leaving:
+		return
 	Global.pending_run_mode = "boss_rush"
 	Global.start_run("")
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	_go_game()
 
 
 func _on_start_daily() -> void:
+	if _leaving:
+		return
 	Global.pending_run_mode = "normal"
 	Global.pending_mutators = RunModes.daily_mutators()
 	Global.start_run(RunModes.daily_seed_code())
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	_go_game()
 
 
 func _on_start_mutated_normal() -> void:
+	if _leaving:
+		return
 	Global.pending_run_mode = "normal"
 	Global.start_run("")
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	_go_game()
 
 
 func _update_selection_visuals() -> void:
@@ -397,9 +415,11 @@ func _on_start_challenge() -> void:
 		if _code_input != null:
 			_code_input.grab_focus()
 		return
+	if _leaving:
+		return
 	Global.pending_run_mode = "normal"
 	Global.start_run(code)
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	_go_game()
 
 
 func _on_copy_selected() -> void:

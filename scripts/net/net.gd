@@ -46,6 +46,7 @@ var _discovery: Node = null
 var _ping_timer: float = 0.0
 var _game_port: int = DEFAULT_PORT
 var _leaving: bool = false
+var _exiting: bool = false
 
 
 func _ready() -> void:
@@ -60,6 +61,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_exiting = true
 	leave_room()
 
 
@@ -186,7 +188,7 @@ func join_room(ip: String, pname: String, port: int = DEFAULT_PORT) -> int:
 
 func leave_room() -> void:
 	_leaving = true
-	if _discovery != null:
+	if _discovery != null and is_instance_valid(_discovery):
 		_discovery.stop()
 	if multiplayer.multiplayer_peer != null and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
 		multiplayer.multiplayer_peer.close()
@@ -201,7 +203,8 @@ func leave_room() -> void:
 	ping_ms = 0
 	_ping_timer = 0.0
 	_leaving = false
-	lobby_updated.emit()
+	if not _exiting and is_inside_tree():
+		lobby_updated.emit()
 
 
 # ------------------------------------------------------------------ Sảnh chờ & Bắt đầu trận

@@ -24,6 +24,7 @@ var _challenge: CanvasLayer = null
 var _update_popup: CanvasLayer = null
 var _update_badge: Button = null
 var _ver_label: Label = null
+var _leaving: bool = false
 
 
 class Backdrop extends Control:
@@ -127,7 +128,7 @@ func _ready() -> void:
 	var show_quit: bool = not OS.has_feature("mobile") and not OS.has_feature("web")
 	bottom_row.add_child(UI.button("Cài đặt", _on_settings, 18, 116.0 if show_quit else 240.0))
 	if show_quit:
-		bottom_row.add_child(UI.button("Thoát", func(): get_tree().quit(), 18, 116.0))
+		bottom_row.add_child(UI.button("Thoát", _on_quit, 18, 116.0))
 	box.add_child(bottom_row)
 	box.add_child(UI.label("Xu: %d   -   Màn cao nhất: %d" % [Global.coins, Global.best_level], 16, Color(1, 0.88, 0.5)))
 	_settings = SettingsMenu.new()
@@ -194,24 +195,47 @@ func _on_open_update() -> void:
 		_update_popup.open(Updater.latest_info)
 
 
+func _go_scene(scene_path: String) -> void:
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	get_tree().change_scene_to_file.call_deferred(scene_path)
+
+
+func _on_quit() -> void:
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
+	Global.save_on_exit()
+	Sfx.cleanup()
+	get_tree().quit.call_deferred()
+
+
 func _on_continue() -> void:
+	if _leaving:
+		return
 	if Global.load_run():
-		get_tree().change_scene_to_file("res://scenes/game.tscn")
+		_go_scene("res://scenes/game.tscn")
 	else:
-		get_tree().reload_current_scene()
+		_leaving = true
+		if is_inside_tree():
+			get_tree().reload_current_scene.call_deferred()
 
 
 func _on_abandon() -> void:
+	if _leaving or not is_inside_tree():
+		return
+	_leaving = true
 	Global.abandon_run()
-	get_tree().reload_current_scene()
+	get_tree().reload_current_scene.call_deferred()
 
 
 func _on_play() -> void:
-	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+	_go_scene("res://scenes/lobby.tscn")
 
 
 func _on_lan() -> void:
-	get_tree().change_scene_to_file("res://scenes/lan_lobby.tscn")
+	_go_scene("res://scenes/lan_lobby.tscn")
 
 
 func _on_settings() -> void:

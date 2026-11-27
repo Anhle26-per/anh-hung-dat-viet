@@ -524,8 +524,10 @@ func is_open() -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _panel != null and event.is_action_pressed("pause"):
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
 		close()
-		get_viewport().set_input_as_handled()
 
 
 func _begin(title: String) -> VBoxContainer:
@@ -560,7 +562,7 @@ func close() -> void:
 	if _panel != null:
 		_panel.queue_free()
 		_panel = null
-	if lobby != null:
+	if lobby != null and is_instance_valid(lobby):
 		lobby.set_player_active(true)
 
 

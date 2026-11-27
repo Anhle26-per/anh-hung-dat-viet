@@ -7,6 +7,7 @@ const SettingsMenu = preload("res://scripts/ui/settings_menu.gd")
 var game = null
 var _settings: CanvasLayer = null
 var _menu_btn: Button = null
+var _leaving: bool = false
 
 
 func _ready() -> void:
@@ -24,18 +25,27 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _leaving or not is_inside_tree():
+		return
 	if _settings != null and _settings.visible:
 		return
 	if event.is_action_pressed("pause"):
 		if visible:
+			var vp := get_viewport()
+			if vp != null:
+				vp.set_input_as_handled()
 			close()
-		elif game != null and game.can_pause():
+		elif game != null and is_instance_valid(game) and game.can_pause():
+			var vp := get_viewport()
+			if vp != null:
+				vp.set_input_as_handled()
 			open()
-		get_viewport().set_input_as_handled()
 
 
 func open() -> void:
-	if game != null and not game.can_pause():
+	if _leaving or not is_inside_tree():
+		return
+	if game != null and (not is_instance_valid(game) or not game.can_pause()):
 		return
 	var online: bool = Net != null and Net.is_online()
 	if _menu_btn != null:
@@ -47,21 +57,33 @@ func open() -> void:
 
 func close() -> void:
 	visible = false
-	get_tree().paused = false
+	if is_inside_tree() and get_tree() != null:
+		get_tree().paused = false
 
 
 func _on_settings() -> void:
+	if _leaving:
+		return
 	if _settings != null:
 		_settings.open()
 
 
 func _on_menu() -> void:
+	if _leaving:
+		return
+	_leaving = true
+	set_process_unhandled_input(false)
 	close()
 	if Net != null and Net.is_online():
 		if Net.is_host():
 			Global.end_run("bo_luot")
 		Net.leave_room()
-		get_tree().paused = false
-		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+		if is_inside_tree():
+			get_tree().paused = false
+			get_tree().change_scene_to_file.call_deferred("res://scenes/main_menu.tscn")
 		return
-	game._on_menu()
+	if game != null and is_instance_valid(game):
+		game._on_menu()
+	elif is_inside_tree():
+		get_tree().paused = false
+		get_tree().change_scene_to_file.call_deferred("res://scenes/main_menu.tscn")
