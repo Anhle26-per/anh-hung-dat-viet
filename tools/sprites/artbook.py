@@ -26,7 +26,9 @@ def img(rel):
 def frames(rel, fw, fh=None):
     s = img(rel)
     fh = fh or s.height
-    return [s.crop((i * fw, 0, i * fw + fw, fh)) for i in range(s.width // fw)]
+    cols = max(1, s.width // fw)
+    rows = max(1, s.height // fh)
+    return [s.crop(((i % cols) * fw, (i // cols) * fh, (i % cols) * fw + fw, (i // cols) * fh + fh)) for i in range(cols * rows)]
 
 
 def up(im, k):
@@ -75,22 +77,23 @@ HEROES = [
     ("nguyen_trung_truc", "Nguyễn Trung Trực", "Năm 1861 - Nhật Tảo", "Dao rựa", "Hỏa hồng Nhật Tảo", "hoa_hong"),
     ("hoang_hoa_tham", "Hoàng Hoa Thám", "Năm 1890 - Yên Thế", "Súng hỏa mai Yên Thế", "Hùm thiêng Yên Thế", "hum_thieng"),
     ("chien_si_dien_bien", "Chiến sĩ Điện Biên", "Năm 1954 - Điện Biên Phủ", "Súng trường bộ binh", "Kéo pháo vào trận", "keo_phao"),
+    ("thanh_giong", "Thánh Gióng", "Truyền thuyết - Phù Đổng", "Gậy tre", "Ngựa sắt phun lửa", "ngua_sat"),
 ]
 
 
 def page_heroes():
-    p = Page("10 VỊ TƯỚNG", "Khung 32x32 - thở 4 khung, đi 4 khung, trúng đòn 1 khung - vũ khí cơ bản riêng", 2300)
+    p = Page("11 VỊ TƯỚNG", "Khung 32x32 - 28 khung mượt: thở 6f, đi 8f, đánh 4f, chiêu 4f, lướt 2f, gục 3f", 2650)
     for hid, name, era, wpn, skill, sk in HEROES:
-        fr = frames(f"heroes/{hid}.png", 32)
+        fr = frames(f"heroes/{hid}.png", 32, 32)
         p.paste(up(fr[0], 6), 40, p.y - 20)
         p.text((260, p.y - 6), name, 40, GOLD)
         p.text((260, p.y + 36), f"{era}   |   Vũ khí cơ bản: {wpn}   |   Chiêu: {skill}", 24, (150, 210, 255))
         for i, f in enumerate(fr):
-            p.paste(up(f, 3), 260 + i * 104, p.y + 66)
+            p.paste(up(f, 2), 260 + (i % 14) * 68, p.y + 66 + (i // 14) * 68)
         w = img(f"weapons/{_basic(hid)}.png")
-        p.paste(up(w, 3), 1230, p.y + 90)
+        p.paste(up(w, 3), 1240, p.y + 90)
         p.paste(up(img(f"ui/skill_{sk}.png"), 4), 1470, p.y)
-        p.y += 205
+        p.y += 218
     p.save("1-tuong.png")
 
 
@@ -111,7 +114,7 @@ def page_enemies():
               ("phap_vien_chinh", "Quân viễn chinh Pháp (năm 1890)"), ("phap_1954", "Tập đoàn cứ điểm (năm 1954)")]
     old = [("bo_binh", "Bộ binh"), ("cung_thu", "Cung thủ"), ("khien_binh", "Khiên binh"), ("phap_su", "Pháp sư")]
     new = [("bo_binh", "Lính lưỡi lê"), ("linh_sung", "Lính súng trường"), ("xa_thu", "Xạ thủ súng máy"), ("phao_binh", "Pháo cối")]
-    p = Page("QUÂN XÂM LƯỢC", "10 đạo quân (khung 24x26: đi + tấn công) - kỵ binh, xe tăng, yêu quái", 3400)
+    p = Page("QUÂN XÂM LƯỢC", "10 đạo quân (24 khung 24x26: đi 8f, lấy đà 4f, đánh 6f, thở 4f) - kỵ binh, xe tăng, yêu quái", 3400)
     for aid, aname in armies:
         p.text((60, p.y), aname, 32, GOLD)
         kinds = new if aid.startswith("phap") else old
@@ -150,23 +153,23 @@ def page_bosses():
               ("ton_si_nghi", "Tôn Sĩ Nghị", "Tổng đốc Lưỡng Quảng", "Bỏ cả ấn tín mà chạy"),
               ("don_truong", "Đồn trưởng Nhã Nam", "Chỉ huy quân viễn chinh", "Gọi pháo kích"),
               ("do_cat", "Đờ Cát", "Chỉ huy tập đoàn cứ điểm", "Rút vào hầm chỉ huy")]
-    p = Page("10 TRÙM", "Mỗi chương một kẻ cầm đầu, mỗi trùm một chiêu đặc biệt", 3200)
+    p = Page("10 TRÙM", "Mỗi chương một kẻ cầm đầu (48 khung 12x4), mỗi trùm một chiêu đặc biệt", 3200)
     for bid, name, title, special in bosses:
-        fr = frames(f"enemies/boss_{bid}.png", 48)
+        fr = frames(f"enemies/boss_{bid}.png", 48, 48)
         p.paste(up(fr[0], 4), 50, p.y - 10)
         p.text((280, p.y), name, 40, GOLD)
         p.text((280, p.y + 42), f"{title}  -  Chiêu: {special}", 24, CREAM)
-        for i, f in enumerate([fr[2], fr[9], fr[12], fr[15], fr[18], fr[22]]):
+        for i, f in enumerate([fr[0], fr[8], fr[16], fr[22], fr[36], fr[46]]):
             p.paste(up(f, 2), 280 + i * 110, p.y + 76)
         p.y += 200
-    ship = frames("enemies/boss_tau_hy_vong.png", 64)
+    ship = frames("enemies/boss_tau_hy_vong.png", 64, 44)
     p.text((60, p.y), "Tàu chiến Hy Vọng - Chiến thuyền thủy quân Pháp - Chiêu: Bốc cháy", 32, GOLD)
-    for i, f in enumerate([ship[0], ship[12], ship[22]]):
+    for i, f in enumerate([ship[0], ship[22], ship[46]]):
         p.paste(up(f, 4), 60 + i * 300, p.y + 46)
     p.y += 240
-    ngu = frames("enemies/ngu_tinh.png", 60)
+    ngu = frames("enemies/ngu_tinh.png", 60, 46)
     p.text((60, p.y), "Thủy quái Ngư Tinh (do Hoằng Tháo gọi ra)", 32, GOLD)
-    for i, f in enumerate(ngu[:2] + [ngu[9], ngu[11], ngu[13]]):
+    for i, f in enumerate(ngu[:2] + [ngu[11], ngu[18], ngu[20]]):
         p.paste(up(f, 4), 60 + i * 300, p.y + 46)
     p.y += 240
     p.save("3-trum.png")

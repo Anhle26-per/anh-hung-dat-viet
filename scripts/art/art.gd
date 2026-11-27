@@ -37,13 +37,15 @@ static func preload_all() -> void:
 				tex(dir + "/" + f.trim_suffix(".import"))
 
 
-## Tạo SpriteFrames từ dải ảnh ngang.
+## Tạo SpriteFrames từ dải ảnh ngang hoặc lưới nhiều hàng.
 ## anims = {"walk": [[0, 1, 2, 3], 10.0, true], ...}  (khung, tốc độ, lặp)
 static func frames(rel: String, fw: int, fh: int, anims: Dictionary) -> SpriteFrames:
 	var key := "%s|%d|%d|%s" % [rel, fw, fh, str(anims)]
 	if _frames.has(key):
 		return _frames[key]
 	var t := tex(rel)
+	@warning_ignore("integer_division")
+	var cols: int = maxi(1, int(t.get_width()) / fw)
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
 	for name in anims:
@@ -51,19 +53,25 @@ static func frames(rel: String, fw: int, fh: int, anims: Dictionary) -> SpriteFr
 		sf.add_animation(name)
 		sf.set_animation_speed(name, a[1])
 		sf.set_animation_loop(name, a[2])
-		for i in a[0]:
+		for raw_i in a[0]:
+			var i: int = int(raw_i)
 			var at := AtlasTexture.new()
 			at.atlas = t
-			at.region = Rect2(i * fw, 0, fw, fh)
+			@warning_ignore("integer_division")
+			at.region = Rect2((i % cols) * fw, (i / cols) * fh, fw, fh)
 			sf.add_frame(name, at)
 	_frames[key] = sf
 	return sf
 
 
-## Hoạt ảnh 1 chiều đơn giản: tất cả khung trong dải ảnh
+## Hoạt ảnh 1 chiều đơn giản: tất cả khung trong dải ảnh hoặc lưới nhiều hàng
 static func strip(rel: String, fw: int, fh: int, fps := 12.0, loop := false) -> SpriteFrames:
 	var t := tex(rel)
-	var n := int(t.get_width() / fw)
+	@warning_ignore("integer_division")
+	var cols: int = maxi(1, int(t.get_width()) / fw)
+	@warning_ignore("integer_division")
+	var rows: int = maxi(1, int(t.get_height()) / fh)
+	var n := cols * rows
 	var idx: Array = []
 	for i in n:
 		idx.append(i)

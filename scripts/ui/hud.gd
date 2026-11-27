@@ -527,23 +527,83 @@ func _draw_teammates(ci: Control, start_y: float) -> void:
 
 
 func _draw_cutin(ci: Control, w: float, h: float) -> void:
+	if not HeroData.DATA.has(_cutin_hero):
+		return
 	var hero: Dictionary = HeroData.DATA[_cutin_hero]
-	var t := 0.9 - _cutin_t
-	var slide := clampf(t / 0.15, 0.0, 1.0)
-	var a := clampf(_cutin_t / 0.15, 0.0, 1.0)
-	var y := h - 112.0
-	var bw := 300.0
-	var x := lerpf(-bw, 0.0, slide)
-	var col: Color = hero.color
-	ci.draw_colored_polygon(PackedVector2Array([Vector2(x, y), Vector2(x + bw, y - 6), Vector2(x + bw - 20, y + 34), Vector2(x, y + 38)]), Color(col.darkened(0.55), 0.88 * a))
-	ci.draw_line(Vector2(x, y), Vector2(x + bw, y - 6), Color(1, 0.85, 0.4, a), 2.0)
-	ci.draw_line(Vector2(x, y + 38), Vector2(x + bw - 20, y + 34), Color(1, 0.85, 0.4, a), 2.0)
+	var sk_idx: int = Global.active_skill_index(_cutin_hero)
+	var sk_info: Dictionary = HeroData.skill_info(_cutin_hero, sk_idx)
+	var sk_id: String = str(sk_info.get("skill", hero.get("skill", "")))
+	var sk_name: String = str(sk_info.get("skill_name", hero.get("skill_name", "")))
+
+	var t: float = 0.9 - _cutin_t
+	var enter: float = clampf(t / 0.16, 0.0, 1.0)
+	var slide: float = 1.0 - pow(1.0 - enter, 3.0)
+	var a: float = clampf(_cutin_t / 0.18, 0.0, 1.0)
+	var y: float = h - 116.0
+	var bw: float = minf(336.0, w * 0.58)
+	var x: float = lerpf(-bw - 20.0, 0.0, slide)
+	var col: Color = hero.get("color", Color(0.75, 0.25, 0.25)) as Color
+	var accent: Color = hero.get("accent", Color(1.0, 0.85, 0.4)) as Color
+
+	# Nền băng chuyển sắc nhiều lớp theo màu bản mệnh tướng
+	ci.draw_colored_polygon(PackedVector2Array([
+		Vector2(x, y - 2.0),
+		Vector2(x + bw + 14.0, y - 8.0),
+		Vector2(x + bw - 14.0, y + 42.0),
+		Vector2(x, y + 44.0),
+	]), Color(col.darkened(0.68), 0.88 * a))
+	ci.draw_colored_polygon(PackedVector2Array([
+		Vector2(x, y),
+		Vector2(x + bw * 0.68, y - 5.0),
+		Vector2(x + bw * 0.56, y + 38.0),
+		Vector2(x, y + 40.0),
+	]), Color(col.darkened(0.32), 0.72 * a))
+	ci.draw_colored_polygon(PackedVector2Array([
+		Vector2(x, y + 4.0),
+		Vector2(x + 92.0, y + 2.0),
+		Vector2(x + 74.0, y + 36.0),
+		Vector2(x, y + 36.0),
+	]), Color(accent.r, accent.g, accent.b, 0.22 * a))
+
+	# Vệt tốc độ động lực học lướt ngang băng chân dung
+	for li in 7:
+		var spd: float = 2.6 + float(li % 3) * 0.9
+		var prog: float = fmod(t * spd + float(li) * 0.17, 1.0)
+		var lx0: float = x + 16.0 + prog * (bw - 70.0)
+		var len_l: float = 28.0 + float((li * 13) % 26)
+		var ly: float = y + 3.0 + float(li) * 5.2
+		var l_col := Color(1.0, 0.96, 0.78, (0.42 - prog * 0.28) * a) if li % 2 == 0 else Color(accent.r, accent.g, accent.b, (0.48 - prog * 0.3) * a)
+		ci.draw_line(Vector2(lx0, ly), Vector2(minf(x + bw - 10.0, lx0 + len_l), ly - 1.5), l_col, 1.6 if li % 2 == 0 else 1.1)
+
+	# Viền vàng kép trên & dưới
+	ci.draw_line(Vector2(x, y - 2.0), Vector2(x + bw + 14.0, y - 8.0), Color(accent.r, accent.g, accent.b, 0.95 * a), 2.0)
+	ci.draw_line(Vector2(x, y + 44.0), Vector2(x + bw - 14.0, y + 42.0), Color(accent.r, accent.g, accent.b, 0.95 * a), 2.0)
+	ci.draw_line(Vector2(x, y + 2.0), Vector2(x + bw, y - 4.0), Color(1.0, 0.95, 0.78, 0.35 * a), 1.0)
+
+	# Khung chân dung tướng ở khung "skill" (frame 12 khi dải >= 13*32, dự phòng frame 0)
 	var tex := Art.tex("heroes/%s.png" % _cutin_hero)
-	ci.draw_texture_rect_region(tex, Rect2(x + 8, y - 14, 48, 48), Rect2(0, 0, 32, 32), Color(1, 1, 1, a))
-	var icon := Art.tex("ui/skill_%s.png" % hero.skill)
-	ci.draw_texture_rect(icon, Rect2(x + 60, y + 8, 22, 22), false, Color(1, 1, 1, a))
-	Art.draw_text(ci, Vector2(x + 88, y + 20), hero.skill_name.to_upper(), 24, Color(1, 0.9, 0.5, a), false)
-	Art.draw_text(ci, Vector2(x + 90, y + 33), hero.name, 13, Color(1, 1, 1, a), false)
+	var port_c := Vector2(x + 32.0, y + 14.0)
+	ci.draw_circle(port_c, 22.0, Color(accent.r, accent.g, accent.b, 0.28 * a))
+	ci.draw_circle(port_c, 15.0, Color(1.0, 0.96, 0.85, 0.16 * a))
+	if tex != null:
+		var frame_idx: int = 12 if tex.get_width() >= 13 * 32 else 0
+		var cols: int = maxi(1, int(tex.get_width()) / 32)
+		var src := Rect2((frame_idx % cols) * 32, (int(frame_idx) / cols) * 32, 32, 32)
+		ci.draw_texture_rect_region(tex, Rect2(x + 6.0, y - 14.0, 52.0, 52.0), src, Color(1.0, 1.0, 1.0, a))
+
+	# Biểu tượng chiêu & tên chiêu sắc nét
+	var icon := Art.tex("ui/skill_%s.png" % sk_id)
+	if icon == null:
+		icon = Art.tex("ui/skill_%s.png" % str(hero.get("skill", "")))
+	if icon != null:
+		ci.draw_rect(Rect2(x + 61.0, y + 7.0, 24.0, 24.0), Color(0.05, 0.02, 0.05, 0.75 * a))
+		ci.draw_rect(Rect2(x + 61.0, y + 7.0, 24.0, 24.0), Color(accent.r, accent.g, accent.b, 0.85 * a), false, 1.0)
+		ci.draw_texture_rect(icon, Rect2(x + 63.0, y + 9.0, 20.0, 20.0), false, Color(1.0, 1.0, 1.0, a))
+
+	var title_up: String = sk_name.to_upper()
+	var title_sz: int = 23 if Art.text_width(title_up, 23) <= (bw - 102.0) else 19
+	Art.draw_text(ci, Vector2(x + 92.0, y + 21.0), title_up, title_sz, Color(1.0, 0.94, 0.56, a), false)
+	Art.draw_text(ci, Vector2(x + 93.0, y + 36.0), "%s  •  Chiêu %d" % [str(hero.get("name", "")), sk_idx], 13, Color(0.96, 0.94, 0.92, 0.95 * a), false)
 
 
 func _draw_minimap(ci: Control, origin: Vector2, area: Vector2) -> void:

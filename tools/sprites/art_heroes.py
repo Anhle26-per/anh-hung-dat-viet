@@ -8,13 +8,18 @@ Bảng ký tự:
   g/G/y  vàng đồng (gốc/tối/sáng)      m/M/n  thép (gốc/tối/sáng)
   c/C/x  áo choàng (gốc/tối/rất tối)   r/R  tua đỏ    k/K  râu/lông bạc
   p/P    quần      q/Q  ủng
-Xuất ra 1 dải 16 khung (512x32):
-  0..3:  thở (idle, 4 khung)
-  4..7:  đi (walk, 4 khung)
-  8:     trúng đòn (hurt, 1 khung)
-  9..10: tấn công (attack, 2 khung)
-  11..12: tung kỹ năng (skill, 2 khung)
+Xuất ra 1 dải 28 khung (896x32):
+  0..3:   thở (idle, 4 khung gốc)
+  4..7:   đi (walk, 4 khung gốc)
+  8:      trúng đòn (hurt, 1 khung)
+  9..10:  tấn công (attack 1-2)
+  11..12: tung kỹ năng (skill 1-2)
   13..15: gục ngã (down, 3 khung: loạng choạng -> khuỵu gối -> ngã nằm)
+  16..17: chuyển tiếp thở (idle 6 khung: [0, 1, 16, 2, 17, 3])
+  18..21: bước trung gian (walk 8 khung: [4, 18, 5, 19, 6, 20, 7, 21])
+  22..23: vung tiếp & thu thế (attack 4 khung: [9, 10, 22, 23])
+  24..25: tụ lực & bùng nổ hào quang (skill 4 khung: [24, 11, 12, 25])
+  26..27: lướt né (dash 2 khung: [26, 27])
 """
 from px import hexc, outline, polish, sheet, save, Image
 
@@ -94,6 +99,13 @@ def chibi_face(expr="normal", flap="h", side="hh", brow=None, lashes=False,
         e4 = "iwi" if lashes else "iie"
         l_ext = "e" if lashes else "s"
         r_ext = "e" if lashes else "s"
+    elif expr == "shimmer":
+        e1 = "wwe"
+        e2 = "eye"
+        e3 = "iwe"
+        e4 = "iwi" if lashes else "iwe"
+        l_ext = "e" if lashes else "s"
+        r_ext = "e" if lashes else "s"
     elif expr == "fierce":
         e1 = "eee"
         e2 = "wee"
@@ -106,6 +118,13 @@ def chibi_face(expr="normal", flap="h", side="hh", brow=None, lashes=False,
         e2 = "ywy"
         e3 = "yyy"
         e4 = "iwi"
+        l_ext = "s"
+        r_ext = "s"
+    elif expr == "skill_climax":
+        e1 = "wyw"
+        e2 = "ywy"
+        e3 = "ywy"
+        e4 = "wiy"
         l_ext = "s"
         r_ext = "s"
     elif expr == "blink":
@@ -149,7 +168,7 @@ def chibi_face(expr="normal", flap="h", side="hh", brow=None, lashes=False,
         r10 = f + sd + "sssssssssssssS"
 
     # Hàng má hồng + miệng / ria (y=15, 14 cột da mặt, tâm miệng ở chỉ số 6 = x=16)
-    if expr in ("hurt", "skill", "fierce"):
+    if expr in ("hurt", "skill", "skill_climax", "fierce"):
         mouth_seg = "sbbsssoosssbbS"
     elif expr == "down":
         mouth_seg = "ssssssossssssS"
@@ -213,6 +232,12 @@ LEGS_WALK = [
     [R(11, "PPPPppppp"), R(10, "PPPp...pppP"), R(9, "QqqQ.....qqqQ"), R(8, "qqqQ......qqqqQ")],
     [R(11, "pppppPPPP"), R(12, "PPpppP"), R(12, "QqQqqQ"), R(11, "qqqqQ")],
 ]
+LEGS_WALK_MID = [
+    [R(11, "pppppPPPP"), R(11, "ppPP..ppPP"), R(10, "qqqQ..qqqQ"), R(10, "qqqqQ.qqqQ")],
+    [R(11, "pppppPPPP"), R(11, "PPpp..ppPP"), R(10, "QqqQ...qqqQ"), R(9, "qqqQ....qqqqQ")],
+    [R(11, "PPPPppppp"), R(11, "PPpp..ppPP"), R(11, "QqqQ..qqqQ"), R(11, "qqqQ..qqqqQ")],
+    [R(11, "pppppPPPP"), R(10, "ppPP..ppPP"), R(10, "qqqQ...qqqQ"), R(9, "qqqqQ...qqqqQ")],
+]
 LEGS_ATTACK_1 = [
     R(11, "pppppPPPP"),
     R(10, "ppPP..ppPP"),
@@ -225,11 +250,41 @@ LEGS_ATTACK_2 = [
     R(8, "qqqQ.....qqqQ"),
     R(7, "qqqqQ.....qqqqQ"),
 ]
+LEGS_ATTACK_3 = [
+    R(10, "pppppPPPPP"),
+    R(9, "ppPP.....ppPP"),
+    R(8, "qqqQ......qqqQ"),
+    R(7, "qqqqQ......qqqqQ"),
+]
+LEGS_ATTACK_4 = [
+    R(11, "pppppPPPP"),
+    R(10, "ppPP.ppPP"),
+    R(10, "qqqQ.qqqQ"),
+    R(9, "qqqqQqqqqQ"),
+]
 LEGS_SKILL = [
     R(10, "pppppPPPPP"),
     R(10, "ppPP...ppPP"),
     R(9, "qqqQ....qqqQ"),
     R(9, "qqqqQ...qqqqQ"),
+]
+LEGS_SKILL_WINDUP = [
+    R(11, "pppppPPPP"),
+    R(10, "ppPP.ppPP"),
+    R(10, "qqqQ.qqqQ"),
+    R(10, "qqqqQqqqqQ"),
+]
+LEGS_DASH_1 = [
+    R(10, "pppppPPPP"),
+    R(9, "ppPP..ppPP"),
+    R(7, "qqqQ....qqqQ"),
+    R(6, "qqqqQ....qqqqQ"),
+]
+LEGS_DASH_2 = [
+    R(10, "pppppPPPP"),
+    R(8, "ppPP...ppPP"),
+    R(6, "qqqQ.....qqqQ"),
+    R(5, "qqqqQ.....qqqqQ"),
 ]
 LEGS_STAGGER = [
     R(10, "pppppPPPP"),
@@ -274,11 +329,27 @@ def arms_rows(pose="idle", sleeve="1", cuff="3", hand="s", shoulder=None):
             [R(8, hand), R(22, hand)],
             None, None,
         ]
+    if pose == "walk_mid_a":
+        return [
+            None,
+            [R(9, sh), R(21, sh)],
+            [R(8, sleeve), R(21, sleeve)],
+            [R(9, hand), R(21, hand)],
+            None, None,
+        ]
     if pose == "walk_b":
         return [
             None,
             [R(9, sh), R(21, sh)],
             [R(10, sleeve), R(20, sleeve)],
+            [R(10, hand), R(20, hand)],
+            None, None,
+        ]
+    if pose == "walk_mid_b":
+        return [
+            None,
+            [R(9, sh), R(21, sh)],
+            [R(10, sleeve), R(21, sleeve)],
             [R(10, hand), R(20, hand)],
             None, None,
         ]
@@ -302,6 +373,29 @@ def arms_rows(pose="idle", sleeve="1", cuff="3", hand="s", shoulder=None):
             [R(24, hand)],
             None, None, None,
         ]
+    if pose == "attack_3":
+        return [
+            [R(8, sleeve), R(21, sh + sleeve)],
+            [R(7, hand), R(21, sleeve + cuff)],
+            [R(22, hand + hand)],
+            None, None, None,
+        ]
+    if pose == "attack_4":
+        return [
+            None,
+            [R(9, sh), R(21, sh + sleeve)],
+            [R(9, sleeve), R(21, cuff + hand)],
+            [R(9, hand)],
+            None, None,
+        ]
+    if pose == "skill_windup":
+        return [
+            None,
+            [R(9, sh), R(21, sh)],
+            [R(10, sleeve + cuff), R(20, cuff + sleeve)],
+            [R(11, hand), R(19, hand)],
+            None, None,
+        ]
     if pose == "skill_1":
         return [
             [R(7, hand), R(23, hand)],
@@ -315,6 +409,27 @@ def arms_rows(pose="idle", sleeve="1", cuff="3", hand="s", shoulder=None):
             [R(7, cuff + sleeve), R(22, sleeve + cuff)],
             [R(9, sh), R(20, sh)],
             None, None, None,
+        ]
+    if pose == "skill_climax":
+        return [
+            [R(5, hand + cuff), R(24, cuff + hand)],
+            [R(7, cuff + sleeve), R(22, sleeve + cuff)],
+            [R(9, sh), R(20, sh)],
+            None, None, None,
+        ]
+    if pose == "dash_1":
+        return [
+            None,
+            [R(8, sh + sleeve), R(21, sh)],
+            [R(7, hand + sleeve), R(20, sleeve)],
+            [R(6, hand), R(19, hand)],
+            None, None,
+        ]
+    if pose == "dash_2":
+        return [
+            [R(7, hand + sleeve), R(20, sh)],
+            [R(6, hand), R(19, sleeve + hand)],
+            None, None, None, None,
         ]
     if pose == "stagger":
         return [
@@ -777,7 +892,7 @@ def _draw_attack_fx(img, spec, stage):
             for x, y in ((25, 13), (26, 14), (27, 15)):
                 _put(img, x, y, cm)
             _put(img, 26, 13, ch)
-        else:
+        elif stage == 2:
             arc = [(26, 12), (28, 14), (29, 17), (29, 20), (28, 23), (26, 25)]
             for x, y in arc:
                 _put(img, x, y, ch)
@@ -785,12 +900,26 @@ def _draw_attack_fx(img, spec, stage):
                 _put(img, x - 2, y, cg)
             for x, y in ((27, 13), (28, 16), (28, 19), (27, 22)):
                 _put(img, x, y, ch)
+        elif stage == 3:
+            smear = [(24, 9), (27, 11), (29, 14), (30, 18), (30, 22), (28, 25), (25, 27)]
+            for x, y in smear:
+                _put(img, x, y, ch)
+                _put(img, x - 1, y, cm)
+                _put(img, x - 2, y, cg)
+                _put(img, x - 3, y, cg)
+            for x, y in ((28, 13), (30, 16), (31, 19), (29, 23), (26, 26)):
+                _put(img, x, y, (255, 255, 255, 245))
+        else:
+            for x, y in ((26, 24), (24, 26), (22, 27)):
+                _put(img, x, y, cg)
+            for x, y in ((25, 25), (23, 21)):
+                _put(img, x, y, ch)
     elif kind == "thrust":
         if stage == 1:
             for x in (25, 26, 27):
                 _put(img, x, 20, cm)
             _put(img, 27, 20, ch)
-        else:
+        elif stage == 2:
             for x in range(24, 31):
                 _put(img, x, 20, ch)
                 _put(img, x, 19, cm)
@@ -799,12 +928,28 @@ def _draw_attack_fx(img, spec, stage):
                 _put(img, x, 18, cg)
                 _put(img, x, 22, cg)
             _put(img, 30, 20, (255, 255, 255, 255))
+        elif stage == 3:
+            for x in range(23, 32):
+                _put(img, x, 20, ch)
+                _put(img, x, 19, cm)
+                _put(img, x, 21, cm)
+            for x in (24, 26, 28):
+                _put(img, x, 18, cm)
+                _put(img, x, 22, cm)
+            for x, y in ((25, 17), (26, 17), (25, 23), (26, 23)):
+                _put(img, x, y, cg)
+            _put(img, 31, 20, (255, 255, 255, 255))
+            _put(img, 30, 20, (255, 255, 255, 240))
+        else:
+            for x, y in ((27, 19), (27, 21), (29, 20)):
+                _put(img, x, y, cg)
+            _put(img, 28, 20, ch)
     else:  # shot
         if stage == 1:
             for x, y in ((26, 20), (27, 19), (27, 21)):
                 _put(img, x, y, cm)
             _put(img, 27, 20, ch)
-        else:
+        elif stage == 2:
             for x, y in ((26, 20), (27, 20), (28, 20), (29, 20), (30, 20),
                          (28, 18), (28, 19), (28, 21), (28, 22),
                          (27, 19), (29, 19), (27, 21), (29, 21)):
@@ -812,6 +957,16 @@ def _draw_attack_fx(img, spec, stage):
             for x, y in ((27, 20), (28, 20), (29, 20), (28, 19), (28, 21)):
                 _put(img, x, y, ch)
             _put(img, 28, 20, (255, 255, 255, 255))
+        elif stage == 3:
+            for x in range(25, 32):
+                _put(img, x, 20, ch if x >= 28 else cm)
+            for x, y in ((26, 18), (27, 17), (26, 22), (27, 23), (29, 18), (29, 22), (30, 19), (30, 21)):
+                _put(img, x, y, cg if x < 28 else cm)
+            _put(img, 31, 20, (255, 255, 255, 255))
+        else:
+            for x, y in ((27, 18), (29, 19), (28, 21)):
+                _put(img, x, y, cg)
+            _put(img, 26, 20, cm)
 
 
 def _draw_skill_fx(img, spec, stage):
@@ -820,63 +975,110 @@ def _draw_skill_fx(img, spec, stage):
     ch = hexc(c_hi_h, 245)
     cg = hexc(c_main_h, 115)
 
+    if stage == 0:
+        for x in range(8, 24):
+            _put(img, x, 29, cm if x % 3 == 0 else cg)
+        for x in (9, 15, 16, 22):
+            _put(img, x, 28, ch)
+        for x, y in ((8, 23), (23, 23), (10, 20), (21, 20)):
+            _put(img, x, y, cm)
+            _put(img, x, y - 1, ch)
+        return
+
     ring_y = 29 if stage == 1 else 28
-    span = range(6, 26) if stage == 1 else range(4, 28)
+    span = range(6, 26) if stage == 1 else (range(4, 28) if stage == 2 else range(3, 29))
     for x in span:
         if (x + stage) % 2 == 0:
             _put(img, x, ring_y, cm)
         else:
             _put(img, x, ring_y, cg)
-    if stage == 2:
+    if stage >= 2:
         for x in (6, 11, 20, 25):
             _put(img, x, ring_y, ch)
+    if stage == 3:
+        for x in range(5, 27, 2):
+            _put(img, x, 30, cm)
+        for x in (3, 9, 15, 16, 22, 28):
+            _put(img, x, 27, ch)
+            _put(img, x, 28, (255, 255, 255, 235))
+        for x in (13, 15, 16, 18):
+            _put(img, x, 1, ch)
+        _put(img, 15, 0, (255, 255, 255, 240))
 
     if kind == "lightning":
-        bolts = (
-            [(4, 10), (5, 11), (4, 12), (5, 13), (27, 11), (26, 12), (27, 13)]
-            if stage == 1 else
-            [(3, 7), (4, 8), (3, 9), (4, 10), (3, 11), (28, 7), (27, 8), (28, 9), (27, 10), (28, 11),
-             (5, 22), (4, 23), (27, 21), (28, 22)]
-        )
+        if stage == 1:
+            bolts = [(4, 10), (5, 11), (4, 12), (5, 13), (27, 11), (26, 12), (27, 13)]
+        elif stage == 2:
+            bolts = [(3, 7), (4, 8), (3, 9), (4, 10), (3, 11), (28, 7), (27, 8), (28, 9), (27, 10), (28, 11),
+                     (5, 22), (4, 23), (27, 21), (28, 22)]
+        else:
+            bolts = [(2, 5), (3, 6), (2, 7), (3, 8), (2, 9), (4, 15), (3, 16), (4, 17),
+                     (29, 5), (28, 6), (29, 7), (28, 8), (29, 9), (27, 15), (28, 16), (27, 17),
+                     (6, 24), (25, 24)]
         for x, y in bolts:
             _put(img, x, y, ch)
             _put(img, x + 1, y, cg)
     elif kind == "wave":
-        pts = [(4, 24), (5, 22), (6, 20), (26, 24), (25, 22), (24, 20)] if stage == 1 else \
-              [(3, 25), (4, 22), (5, 19), (4, 16), (28, 25), (27, 22), (26, 19), (27, 16)]
+        if stage == 1:
+            pts = [(4, 24), (5, 22), (6, 20), (26, 24), (25, 22), (24, 20)]
+        elif stage == 2:
+            pts = [(3, 25), (4, 22), (5, 19), (4, 16), (28, 25), (27, 22), (26, 19), (27, 16)]
+        else:
+            pts = [(2, 26), (3, 23), (4, 20), (5, 17), (3, 14), (29, 26), (28, 23), (27, 20), (26, 17), (28, 14)]
         for x, y in pts:
             _put(img, x, y, cm)
             _put(img, x, y - 1, ch)
     elif kind == "fire":
-        flames = [(4, 23), (5, 21), (5, 19), (26, 23), (25, 21), (25, 19)] if stage == 1 else \
-                 [(3, 24), (4, 21), (4, 18), (5, 15), (28, 24), (27, 21), (27, 18), (26, 15), (15, 1)]
+        if stage == 1:
+            flames = [(4, 23), (5, 21), (5, 19), (26, 23), (25, 21), (25, 19)]
+        elif stage == 2:
+            flames = [(3, 24), (4, 21), (4, 18), (5, 15), (28, 24), (27, 21), (27, 18), (26, 15), (15, 1)]
+        else:
+            flames = [(2, 25), (3, 22), (3, 19), (4, 16), (5, 12), (29, 25), (28, 22), (28, 19), (27, 16), (26, 12), (14, 2), (17, 2)]
         for x, y in flames:
             _put(img, x, y, cm)
             _put(img, x, y - 1, ch)
             _put(img, x, y + 1, cg)
     elif kind == "drum":
-        rays = [(4, 14), (27, 14), (6, 8), (25, 8), (6, 22), (25, 22)] if stage == 1 else \
-               [(2, 14), (3, 14), (28, 14), (29, 14), (5, 5), (26, 5), (5, 23), (26, 23), (15, 1), (16, 1)]
+        if stage == 1:
+            rays = [(4, 14), (27, 14), (6, 8), (25, 8), (6, 22), (25, 22)]
+        elif stage == 2:
+            rays = [(2, 14), (3, 14), (28, 14), (29, 14), (5, 5), (26, 5), (5, 23), (26, 23), (15, 1), (16, 1)]
+        else:
+            rays = [(1, 14), (2, 14), (29, 14), (30, 14), (4, 5), (5, 6), (27, 5), (26, 6),
+                    (4, 23), (27, 23), (9, 2), (22, 2)]
         for x, y in rays:
             _put(img, x, y, ch)
             _put(img, x, y + 1, cm)
     elif kind == "sword":
-        cols = [(5, 19), (5, 16), (26, 19), (26, 16)] if stage == 1 else \
-               [(4, 22), (4, 18), (4, 14), (4, 10), (27, 22), (27, 18), (27, 14), (27, 10), (15, 1), (16, 1)]
+        if stage == 1:
+            cols = [(5, 19), (5, 16), (26, 19), (26, 16)]
+        elif stage == 2:
+            cols = [(4, 22), (4, 18), (4, 14), (4, 10), (27, 22), (27, 18), (27, 14), (27, 10), (15, 1), (16, 1)]
+        else:
+            cols = [(3, 23), (3, 19), (3, 15), (3, 11), (3, 7), (28, 23), (28, 19), (28, 15), (28, 11), (28, 7), (15, 2), (16, 2)]
         for x, y in cols:
             _put(img, x, y, ch)
             _put(img, x, y + 1, cm)
             _put(img, x, y + 2, cg)
     elif kind in ("twin", "poem"):
-        stars = [(5, 12), (26, 14), (6, 22), (25, 20)] if stage == 1 else \
-                [(4, 9), (27, 10), (3, 18), (28, 18), (6, 24), (25, 24), (15, 1)]
+        if stage == 1:
+            stars = [(5, 12), (26, 14), (6, 22), (25, 20)]
+        elif stage == 2:
+            stars = [(4, 9), (27, 10), (3, 18), (28, 18), (6, 24), (25, 24), (15, 1)]
+        else:
+            stars = [(3, 7), (28, 7), (2, 16), (29, 16), (5, 24), (26, 24), (11, 2), (20, 2)]
         for x, y in stars:
             _put(img, x, y, ch)
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 _put(img, x + dx, y + dy, cg)
     else:  # roar, tiger, rally
-        sparks = [(5, 16), (6, 12), (26, 16), (25, 12)] if stage == 1 else \
-                 [(3, 15), (4, 11), (6, 7), (28, 15), (27, 11), (25, 7), (4, 22), (27, 22)]
+        if stage == 1:
+            sparks = [(5, 16), (6, 12), (26, 16), (25, 12)]
+        elif stage == 2:
+            sparks = [(3, 15), (4, 11), (6, 7), (28, 15), (27, 11), (25, 7), (4, 22), (27, 22)]
+        else:
+            sparks = [(2, 15), (3, 10), (5, 5), (29, 15), (28, 10), (26, 5), (3, 22), (28, 22), (10, 2), (21, 2)]
         for x, y in sparks:
             _put(img, x, y, ch)
             _put(img, x, y + 1, cm)
@@ -884,15 +1086,20 @@ def _draw_skill_fx(img, spec, stage):
 
 # ---------------------------------------------------------------- Ghép 1 khung hình đứng/động
 def _render_raw(spec, legs, bob=0, breathe=0, dx=0, expr="normal",
-                arm_pose="idle", back_dx=0, head_dy=0, head_dx=0, torso_dy=0,
-                with_legs=True):
+                arm_pose="idle", back_dx=0, back_dy=0, back_ripple=0,
+                head_dy=0, head_dx=0, torso_dy=0, with_legs=True):
     p = spec["pal"]
     img = Image.new("RGBA", (W, W), (0, 0, 0, 0))
 
     # 1. Lớp sau (tóc dài, áo choàng, ba lô, dải khăn) di chuyển đồng bộ với thân
-    if spec.get("head_back"):
+    hb = spec.get("head_back")
+    if hb:
         back = Image.new("RGBA", (W, W), (0, 0, 0, 0))
-        draw_rows(back, spec["head_back"], p, y0=torso_dy, dx=dx + back_dx)
+        if back_ripple and len(hb) >= 24 and any(hb[23:]):
+            draw_rows(back, hb[:20], p, y0=torso_dy + back_dy, dx=dx + back_dx)
+            draw_rows(back, hb[20:], p, y0=20 + torso_dy + back_dy, dx=dx + back_dx + back_ripple)
+        else:
+            draw_rows(back, hb, p, y0=torso_dy + back_dy, dx=dx + back_dx)
         img.alpha_composite(back, (0, bob))
 
     # 2. Chân
@@ -958,6 +1165,22 @@ def _draw_idle_glint(img, spec, stage):
         _put(img, 23, 21, ch)
 
 
+def _draw_armor_highlight(img, spec, stage):
+    _, c_main_h, c_hi_h = spec["attack_fx"]
+    hi = hexc(c_hi_h, 210)
+    sh = (255, 255, 255, 185)
+    px = img.load()
+    spots = {
+        0: [(14, 19), (15, 19), (12, 6)],
+        1: [(15, 20), (16, 20), (10, 20), (20, 20)],
+        2: [(16, 21), (17, 21), (14, 5), (15, 5)],
+        3: [(13, 20), (14, 21), (15, 22), (16, 6)],
+    }
+    for x, y in spots.get(stage % 4, []):
+        if 0 <= x < W and 0 <= y < W and px[x, y][3] > 200 and px[x, y][:3] != (16, 10, 20):
+            _put(img, x, y, sh if (x + y) % 2 == 0 else hi)
+
+
 def _draw_walk_dust(img, idx):
     dust_a = (225, 215, 195, 165)
     dust_b = (205, 192, 172, 110)
@@ -975,9 +1198,31 @@ def _draw_hurt_fx(img):
         _put(img, x, y, sp2)
 
 
+def _draw_dash_fx(img, spec, stage):
+    _, c_main_h, c_hi_h = spec["attack_fx"]
+    cm = hexc(c_main_h, 195)
+    ch = hexc(c_hi_h, 235)
+    cg = hexc(c_main_h, 105)
+    wind_hi = (235, 248, 255, 225)
+    if stage == 1:
+        streaks = [(10, (2, 7)), (15, (1, 6)), (20, (0, 6)), (25, (2, 7))]
+        for y, (x0, x1) in streaks:
+            for x in range(x0, x1 + 1):
+                _put(img, x, y, wind_hi if x >= x1 - 1 else (ch if x >= x1 - 3 else cg))
+        for x, y in ((4, 29), (5, 29), (6, 28), (7, 29)):
+            _put(img, x, y, cm)
+    else:
+        streaks = [(8, (1, 8)), (12, (0, 7)), (17, (0, 8)), (22, (1, 8)), (27, (2, 9))]
+        for y, (x0, x1) in streaks:
+            for x in range(x0, x1 + 1):
+                _put(img, x, y, wind_hi if x >= x1 - 1 else (cm if x >= x1 - 3 else cg))
+        for x, y in ((4, 14), (3, 19), (5, 24)):
+            _put(img, x, y, ch)
+
+
 def build_hero_frames(spec):
     frames = []
-    # 0..3: idle (4 khung — thở nhẹ, chớp mắt, phất áo choàng/tóc, lấp lánh vũ khí/trang sức)
+    # 0..3: idle (4 khung gốc — thở nhẹ, chớp mắt, phất áo choàng/tóc, lấp lánh vũ khí/trang sức)
     f0 = compose_frame(spec, LEGS_IDLE, breathe=0, back_dx=0, expr="normal", arm_pose="idle")
     frames.append(f0)
 
@@ -992,7 +1237,7 @@ def build_hero_frames(spec):
     _draw_idle_glint(f3, spec, 3)
     frames.append(f3)
 
-    # 4..7: walk (4 khung — chạy chibi nảy người + tung bụi bước chân + áo choàng bay)
+    # 4..7: walk (4 khung gốc — chạy chibi nảy người + tung bụi bước chân + áo choàng bay)
     walk_arms = ["walk_a", "idle_b", "walk_b", "idle"]
     walk_back = [-1, -2, -1, -2]
     for i in range(4):
@@ -1001,13 +1246,13 @@ def build_hero_frames(spec):
         _draw_walk_dust(fw, i)
         frames.append(fw)
 
-    # 8: hurt (1 khung — giật lùi, mắt > < + tia va chạm)
+    # 8: hurt (1 khung gốc — giật lùi, mắt > < + tia va chạm)
     f8 = compose_frame(spec, LEGS_IDLE, dx=-1, expr="hurt",
                        arm_pose="hurt", back_dx=-1)
     _draw_hurt_fx(f8)
     frames.append(f8)
 
-    # 9..10: attack (2 khung — lao tới vung đòn + tia sáng đặc trưng từng tướng)
+    # 9..10: attack (2 khung gốc — lao tới vung đòn + tia sáng đặc trưng từng tướng)
     f9 = compose_frame(spec, LEGS_ATTACK_1, dx=1, expr="fierce",
                        arm_pose="attack_1", back_dx=-1)
     _draw_attack_fx(f9, spec, 1)
@@ -1018,7 +1263,7 @@ def build_hero_frames(spec):
     _draw_attack_fx(f10, spec, 2)
     frames.append(f10)
 
-    # 11..12: skill (2 khung — giơ tay tụ lực / tung chiêu + hào quang riêng từng tướng)
+    # 11..12: skill (2 khung gốc — giơ tay tụ lực / tung chiêu + hào quang riêng từng tướng)
     f11 = compose_frame(spec, LEGS_SKILL, dx=0, bob=0, expr="skill",
                         arm_pose="skill_1", back_dx=-1)
     _draw_skill_fx(f11, spec, 1)
@@ -1029,12 +1274,79 @@ def build_hero_frames(spec):
     _draw_skill_fx(f12, spec, 2)
     frames.append(f12)
 
-    # 13..15: down (3 khung — loạng choạng -> khuỵu gối -> ngã nằm ngang)
+    # 13..15: down (3 khung gốc — loạng choạng -> khuỵu gối -> ngã nằm ngang)
     frames.append(compose_frame(spec, LEGS_STAGGER, dx=-2, head_dy=-1,
                                 expr="hurt", arm_pose="stagger", back_dx=-1))
     frames.append(compose_frame(spec, LEGS_KNEEL, dx=0, bob=0, head_dy=3, head_dx=1,
                                 torso_dy=2, expr="down", arm_pose="kneel", back_dx=0))
     frames.append(compose_fallen(spec))
+
+    # 16..17: 2 khung chuyển tiếp thở (idle 6 khung: [0, 1, 16, 2, 17, 3])
+    f16 = compose_frame(spec, LEGS_IDLE, breathe=0, torso_dy=1, back_dx=-2, back_ripple=-1,
+                        expr="shimmer", arm_pose="idle_b")
+    _draw_armor_highlight(f16, spec, 0)
+    frames.append(f16)
+
+    f17 = compose_frame(spec, LEGS_IDLE, breathe=0, torso_dy=1, back_dx=-1, back_ripple=1,
+                        expr="shimmer", arm_pose="idle")
+    _draw_idle_glint(f17, spec, 1)
+    _draw_armor_highlight(f17, spec, 2)
+    frames.append(f17)
+
+    # 18..21: 4 khung bước trung gian (walk 8 khung: [4, 18, 5, 19, 6, 20, 7, 21])
+    mid_specs = [
+        (0, 0, 1, 0, "walk_mid_a", -2, -1, True, 1),
+        (1, -1, 0, 1, "walk_mid_b", -2, 1, False, 2),
+        (2, 0, 1, 0, "walk_mid_b", -2, -1, True, 3),
+        (3, -1, 0, 1, "walk_mid_a", -1, 1, False, 0),
+    ]
+    for idx, bob, hdx, hdy, apose, bdx, brip, dust, hi_st in mid_specs:
+        fm = compose_frame(spec, LEGS_WALK_MID[idx], bob=bob, head_dx=hdx, head_dy=hdy,
+                           arm_pose=apose, back_dx=bdx, back_ripple=brip)
+        if dust:
+            _draw_walk_dust(fm, idx)
+        _draw_armor_highlight(fm, spec, hi_st)
+        frames.append(fm)
+
+    # 22..23: 2 khung vung tiếp & thu thế (attack 4 khung: [9, 10, 22, 23])
+    f22 = compose_frame(spec, LEGS_ATTACK_3, dx=2, bob=0, torso_dy=1, head_dy=1, head_dx=1,
+                        expr="fierce", arm_pose="attack_3", back_dx=-2, back_ripple=-1)
+    _draw_armor_highlight(f22, spec, 2)
+    _draw_attack_fx(f22, spec, 3)
+    frames.append(f22)
+
+    f23 = compose_frame(spec, LEGS_ATTACK_4, dx=1, bob=0, torso_dy=0, head_dy=0, head_dx=0,
+                        expr="fierce", arm_pose="attack_4", back_dx=-1)
+    _draw_armor_highlight(f23, spec, 0)
+    _draw_attack_fx(f23, spec, 4)
+    frames.append(f23)
+
+    # 24..25: 2 khung tụ lực & bùng nổ hào quang (skill 4 khung: [24, 11, 12, 25])
+    f24 = compose_frame(spec, LEGS_SKILL_WINDUP, dx=0, bob=0, torso_dy=1, head_dy=1,
+                        expr="shimmer", arm_pose="skill_windup", back_dx=-1, back_ripple=-1)
+    _draw_armor_highlight(f24, spec, 1)
+    _draw_skill_fx(f24, spec, 0)
+    frames.append(f24)
+
+    f25 = compose_frame(spec, LEGS_SKILL, dx=0, bob=-1, head_dy=-1,
+                        expr="skill_climax", arm_pose="skill_climax", back_dx=-3, back_ripple=-1)
+    _draw_armor_highlight(f25, spec, 3)
+    _draw_skill_fx(f25, spec, 3)
+    frames.append(f25)
+
+    # 26..27: 2 khung lướt né (dash 2 khung: [26, 27])
+    f26 = compose_frame(spec, LEGS_DASH_1, dx=1, bob=0, torso_dy=1, head_dx=1, head_dy=1,
+                        expr="fierce", arm_pose="dash_1", back_dx=-1, back_ripple=-1)
+    _draw_armor_highlight(f26, spec, 2)
+    _draw_dash_fx(f26, spec, 1)
+    frames.append(f26)
+
+    f27 = compose_frame(spec, LEGS_DASH_2, dx=1, bob=-1, torso_dy=0, head_dx=1, head_dy=0,
+                        expr="fierce", arm_pose="dash_2", back_dx=-1, back_ripple=-2)
+    _draw_armor_highlight(f27, spec, 3)
+    _draw_dash_fx(f27, spec, 2)
+    frames.append(f27)
+
     return frames
 
 

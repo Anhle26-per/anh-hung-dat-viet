@@ -2,11 +2,11 @@
 
 # ⚔️ ANH HÙNG ĐẤT VIỆT ⚔️
 
-### Phiên bản `v2.2.0` — *Tàng Kinh & Chia Binh*
+### Phiên bản `v2.3.0` — *Tuyệt Kỹ & Hoạt Ảnh Mượt*
 
 *Game hành động Roguelike bắn quái góc nhìn từ trên xuống (Top-Down Bullet-Hell) lấy cảm hứng từ Soul Knight — Tái hiện hào khí 2.000 năm lịch sử & truyền thuyết Việt Nam bằng đồ họa Pixel Art.*
 
-[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.2.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
+[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.3.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
 [![Godot](https://img.shields.io/badge/Godot-4.7.2-478cbf?style=for-the-badge&logo=godot-engine&logoColor=white)](https://godotengine.org/)
 [![Binh khí](https://img.shields.io/badge/Kho_Binh_Khí-217_Món-f59f00?style=for-the-badge)](#%EF%B8%8F-217-binh-khí-hợp-nhất--13-thần-binh-đỏ)
 [![Danh tướng](https://img.shields.io/badge/Danh_Tướng-11_Tướng_•_22_Chiêu-7950f2?style=for-the-badge)](#-11-danh-tướng--nội-tại-chiêu-1--chiêu-2)
@@ -44,12 +44,13 @@ Tất cả bản dựng chính thức được phát hành tại trang [**GitHub
 
 ---
 
-## 🔥 Điểm Nhấn Phiên Bản `v2.2.0 — Tàng Kinh & Chia Binh`
+## 🔥 Điểm Nhấn Phiên Bản `v2.3.0 — Tuyệt Kỹ & Hoạt Ảnh Mượt`
 
-- **Vứt & Chia Sẻ Vũ Khí Trong LAN (`Phím G` / Nút `Vứt`)**: Khi cầm từ 2 vũ khí trở lên, bấm **`G`** (hoặc nút **Vứt** trên màn hình cảm ứng, `D-Pad Xuống` trên tay cầm) để thả vũ khí đang cầm xuống sàn chia sẻ cho đồng đội; cơ chế nhặt & đổi vũ khí đầy ô qua Chủ phòng đồng bộ chặt chẽ, chống nhặt trùng tuyệt đối.
-- **Rương Chiến Lợi Phẩm Hậu Hĩnh Hơn (Ưu Tiên Cấp 3–5 & Nổ Hũ Thần Binh)**: Rương sơn mài có **35%** (`42%` ở Ác Mộng) rơi vũ khí theo trọng số ưu tiên **Cấp 3–5** (>45% rương thường, >75% rương báu) và cơ hội **nổ hũ Thần Binh Đỏ (`boss_motif`)**, tỏa cột sáng hào quang phân biệt bậc hiếm ngay trên sàn.
-- **Mảnh Bản Vẽ & Ghép Bản Vẽ (`Bàn Bản Vẽ` & `Lò Rèn`)**: Để rèn binh khí tại Lò Rèn nay bắt buộc phải sở hữu **Bản vẽ**. Thu thập **Mảnh Bản Vẽ** riêng từng người chơi từ Rương ải (`35%` / `45%` Ác Mộng), Rương báu, Tinh nhuệ (`22%`), Tam Yêu (`65%` / `100%` Thần thoại) và Trùm (`100%`): Cấp 1–2 cần `1` mảnh, Cấp 3 cần `2`, Cấp 4 cần `3`, Cấp 5 thường cần `4`, Thần Binh Đỏ & Hợp nhất cần `5` mảnh — ghép ngay tại **Bàn Bản Vẽ** (kèm lọc tab **🧩 Mảnh ghép** và nút **Ghép tất cả**) hoặc trực tiếp trong **Lò Rèn**.
-- **Nền Tảng `v2.1.0` & `v2.0.0`**: Giữ trọn **13 Đại Trùm 36 khung hành động**, **Vạn Binh Khởi Trận (`8–22` giặc/đợt)**, **LAN Lobby chung chọn trùng tướng**, **Linh Thú đồng hành từ Sảnh**, **11 Tướng • 22 Chiêu**, **217 Binh Khí**, **39 Phúc lành**, **6 Phòng `[!]`**, **3 Thú Cưỡi**, **Ác Mộng** & **Boss Rush 13 tầng**.
+- **22 Tuyệt Kỹ Anh Hùng Có Hiệu Ứng Riêng (`SkillCastFx`)**: Toàn bộ **22 kỹ năng (11 Chiêu 1 + 11 Chiêu 2)** được thiết kế hiệu ứng thi triển đa tầng riêng biệt (hào quang cộng sáng `_GlowLayer`, xung ánh sáng `PointLight2D`, hạt năng lượng & hình thái đặc trưng từng vị tướng), đồng bộ qua LAN Co-op, xem trước trực tiếp trong **Sảnh** (`C1`/`C2`) và bùng nổ cùng băng chân dung **Cut-in** nâng cấp trên HUD.
+- **11 Danh Tướng Nâng Cấp 28 Khung Hình (`896×32`)**: Bổ sung khung chuyển tiếp mượt cho toàn bộ động tác (*thở `6f` · đi `8f` · chém/bắn `4f` · tung chiêu `4f` · lướt né `2f` · gục `3f` · trúng đòn `1f`*), đồng bộ từ trận đấu tới Doanh trại, Menu chính & Bảng chọn tướng.
+- **49 Đạo Binh & Yêu Quái 24 Khung + 26 Trùm 48 Khung (`12×4`)**: Mở rộng toàn bộ **49 quái nhỏ** lên **24 khung** (thêm tư thế đứng thở `4f`, lấy đà `4f`, tấn công `6f`), và toàn bộ **26 bộ Đại Trùm** (13 Trùm Pha 1 & Hiện nguyên hình Pha 2) lên **48 khung** đóng gói lưới `12×4` (`width ≤ 1728px`), giúp mọi pha vung đao, bắn tên, gọi đệ, húc lướt, nhảy đập & cuồng nộ mượt mà rõ nét.
+- **Đại Sảnh Sạch Đẹp, Không Che Khuất Tướng**: Dời băng nhắc chọn tướng (`_select_banner`) xuống thanh đáy gọn gàng phía trên dòng phím tắt, bổ sung mũi tên vàng nhịp nhàng trên các bục mở khóa và vầng sáng định vị chân tướng khi rê chuột.
+- **Nền Tảng `v2.2.0` – `v2.0.0`**: Giữ trọn **Chia sẻ vũ khí LAN (`G`)**, **Rương ưu tiên Cấp 3–5 & Thần Binh Đỏ**, **Mảnh Bản Vẽ & Ghép Bản Vẽ**, **11 Tướng • 22 Chiêu**, **217 Binh Khí**, **39 Phúc lành**, **6 Phòng `[!]`**, **3 Thú Cưỡi**, **Ác Mộng** & **Boss Rush 13 tầng**.
 
 ---
 
@@ -236,7 +237,7 @@ Khi còn **50% máu**, toàn bộ đại trùm gầm vang, xóa đạn sân và 
 
 <div align="center">
 
-| Bộ Trùm 24 Khung Chuyển Động | Hiện Nguyên Hình Ma Tướng | Tam Yêu Truyền Thuyết |
+| Bộ Trùm 48 Khung Chuyển Động | Hiện Nguyên Hình Ma Tướng | Tam Yêu Truyền Thuyết |
 | :---: | :---: | :---: |
 | <img src="docs/v17-boss-showcase.png" width="280" alt="Trùm 24 khung"/> | <img src="docs/hien-nguyen-hinh.png" width="280" alt="Trùm hiện nguyên hình"/> | <img src="docs/tam-yeu.png" width="280" alt="Tam Yêu"/> |
 
@@ -324,7 +325,7 @@ scripts/
   autoload/            Global, Net (LAN), Updater (Hotpatch), HotpatchSync, Music, Sfx
   data/                heroes, hero_skills_ext, weapons, weapon_evolutions, buffs, run_modes, enemies, materials...
   entities/            player, enemy, bullet, pickup, event_altar, mount_pickup, battlefield_hazard, ally...
-  effects/             fx, projectile visuals, bronze drum, lightning, aura...
+  effects/             fx, skill_fx (22 hiệu ứng chiêu thức), projectile visuals, bronze drum, lightning, aura...
   game/                game, dungeon, room, lobby, props...
   ui/                  main_menu, lobby_ui, hud, challenge_menu, touch_controls, update_dialog...
 tests/                 Bộ kiểm thử tự động & hồi quy

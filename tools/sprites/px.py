@@ -114,6 +114,22 @@ def sheet(frames):
     return s
 
 
+def sheet_grid(frames, cols=12):
+    """Ghép các khung hình cùng kích thước thành lưới nhiều hàng (tối đa `cols` cột)."""
+    if not frames:
+        raise ValueError("frames không được rỗng")
+    cols = max(1, int(cols))
+    w, h = frames[0].size
+    actual_cols = min(cols, len(frames))
+    rows = (len(frames) + actual_cols - 1) // actual_cols
+    s = Image.new("RGBA", (w * actual_cols, h * rows), (0, 0, 0, 0))
+    for i, f in enumerate(frames):
+        col = i % actual_cols
+        row = i // actual_cols
+        s.alpha_composite(f, (col * w, row * h))
+    return s
+
+
 def save(img, rel):
     path = os.path.join(OUT, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)

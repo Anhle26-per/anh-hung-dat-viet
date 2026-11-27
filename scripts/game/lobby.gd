@@ -106,23 +106,58 @@ class HeroRingOverlay extends Node2D:
 			var pos: Vector2 = st.position + Vector2(0, 8)
 			var is_hov: bool = (str(id) == hovered)
 			var unl: bool = lobby._is_hero_unlocked(str(id))
+			var pulse: float = 0.72 + 0.28 * sin(t * 7.5)
+			var hcol := Color(0.45, 0.96, 1.0, pulse) if unl else Color(1.0, 0.72, 0.35, pulse)
+
+			if is_hov:
+				# Cột sáng mềm phía sau vị tướng đang trỏ
+				draw_colored_polygon(PackedVector2Array([
+					pos + Vector2(-11.0, 2.0),
+					pos + Vector2(11.0, 2.0),
+					pos + Vector2(6.5, -40.0),
+					pos + Vector2(-6.5, -40.0),
+				]), Color(hcol.r, hcol.g, hcol.b, 0.13 * pulse))
+				draw_colored_polygon(PackedVector2Array([
+					pos + Vector2(-6.0, 1.0),
+					pos + Vector2(6.0, 1.0),
+					pos + Vector2(3.5, -34.0),
+					pos + Vector2(-3.5, -34.0),
+				]), Color(1.0, 0.96, 0.78, 0.10 * pulse))
+
 			var base_a: float = (0.45 if unl else 0.22) if not confirmed else 0.18
 			var base_col := Color(1.0, 0.86, 0.38, base_a) if unl else Color(0.65, 0.65, 0.7, base_a)
 			draw_set_transform(pos, 0.0, Vector2(1.0, 0.42))
+			if is_hov:
+				draw_circle(Vector2.ZERO, 19.0 + sin(t * 6.0) * 1.0, Color(hcol.r, hcol.g, hcol.b, 0.18 * pulse))
 			draw_arc(Vector2.ZERO, 13.0 + sin(t * 3.0) * 0.8, 0.0, TAU, 24, base_col, 1.4)
 			if is_hov:
-				var pulse: float = 0.72 + 0.28 * sin(t * 7.5)
-				var hcol := Color(0.45, 0.96, 1.0, pulse) if unl else Color(1.0, 0.72, 0.35, pulse)
 				draw_arc(Vector2.ZERO, 17.5 + sin(t * 6.0) * 1.2, 0.0, TAU, 28, hcol, 2.2)
+				draw_arc(Vector2.ZERO, 14.0, 0.0, TAU, 24, Color(1.0, 0.95, 0.75, 0.55 * pulse), 1.0)
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-			if is_hov:
-				var bob: float = sin(t * 6.5) * 2.0
+
+			# Mũi tên vàng nhấp nháy nhẹ trên đầu các tướng đã mở khi chưa xác nhận
+			if (not confirmed and unl) or is_hov:
+				var bob: float = sin((t * 6.5 if is_hov else t * 4.2) + st.position.x * 0.03) * (2.0 if is_hov else 1.4)
 				var tip: Vector2 = st.position + Vector2(0, -24.0 + bob)
+				var hw: float = 4.2 if is_hov else 2.8
+				var hh: float = 5.0 if is_hov else 3.4
+				var c_a: float = 0.96 if is_hov else (0.58 + 0.28 * sin(t * 4.0 + st.position.x * 0.02))
+				var c_col := Color(1.0, 0.92, 0.42, c_a) if unl else Color(1.0, 0.74, 0.36, c_a)
 				draw_colored_polygon(PackedVector2Array([
-					tip + Vector2(-4.0, -5.0),
-					tip + Vector2(4.0, -5.0),
+					tip + Vector2(-hw, -hh),
+					tip + Vector2(hw, -hh),
 					tip,
-				]), Color(1.0, 0.92, 0.42, 0.95))
+				]), c_col)
+
+			# Nhãn gọn dưới chân khi hover để không che mặt hay tướng bên cạnh
+			if is_hov:
+				var tag_pos: Vector2 = pos + Vector2(0, 12.0)
+				var tag_txt: String = "Nhấp chọn" if unl else "Mở khóa"
+				var tag_col: Color = Color(0.60, 0.98, 1.0, 0.98) if unl else Color(1.0, 0.82, 0.40, 0.98)
+				var tw: float = Art.text_width(tag_txt, 10) + 8.0
+				draw_rect(Rect2(tag_pos.x - tw * 0.5, tag_pos.y - 8.5, tw, 11.0), Color(0.06, 0.03, 0.08, 0.84))
+				draw_rect(Rect2(tag_pos.x - tw * 0.5, tag_pos.y - 8.5, tw, 11.0), Color(tag_col.r, tag_col.g, tag_col.b, 0.65), false, 1.0)
+				Art.draw_text(self, tag_pos, tag_txt, 10, tag_col)
 var _forged_icon: Sprite2D
 var _garden_sprites: Array[Sprite2D] = []
 var _garden_sparkles: Array[CPUParticles2D] = []
@@ -579,7 +614,11 @@ func _build_stations() -> void:
 		var id: String = HeroData.ORDER[i]
 		var h: Dictionary = HeroData.DATA[id]
 		var a := AnimatedSprite2D.new()
-		a.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [[0, 1, 2, 3], 3.0 + i * 0.2, true]})
+		var htex: Texture2D = Art.tex("heroes/%s.png" % id)
+		var fcount: int = (maxi(1, int(htex.get_width()) / 32) * maxi(1, int(htex.get_height()) / 32)) if htex != null else 4
+		var idle_seq: Array = [0, 1, 16, 2, 17, 3] if fcount >= 28 else [0, 1, 2, 3]
+		var idle_fps: float = (4.8 if fcount >= 28 else 3.0) + float(i) * 0.18
+		a.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [idle_seq, idle_fps, true]})
 		a.play("idle")
 		a.position = Vector2(0, -10)
 		var spot: Vector2 = HERO_SPOTS[i] if i < HERO_SPOTS.size() else SPAWN_POS

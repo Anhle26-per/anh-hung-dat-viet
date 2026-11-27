@@ -30,6 +30,7 @@ const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const WeaponEvolutions = preload("res://scripts/data/weapon_evolutions.gd")
 const HeroSkillsExt = preload("res://scripts/data/hero_skills_ext.gd")
 const SpiritBlade = preload("res://scripts/effects/spirit_blade.gd")
+const SkillCastFx = preload("res://scripts/effects/skill_fx.gd")
 
 const RADIUS := 7.0
 const AUTO_AIM_RANGE := 230.0
@@ -113,6 +114,8 @@ var _fx_t := 0.0
 var _swing_sign := 1.0
 var _htk_cd: float = 0.0
 var _anim_lock_t: float = 0.0
+var _cast_pulse_t: float = 0.0
+var _cast_pulse_col: Color = Color(1.0, 0.88, 0.7)
 var _kinetic_charge: float = 0.0
 var _frenzy_timer: float = 0.0
 var _lightning_cd: float = 0.0
@@ -248,15 +251,28 @@ func _ready() -> void:
 	_mat = Art.flash_material()
 	body = AnimatedSprite2D.new()
 	var hero_tex: Texture2D = Art.tex("heroes/%s.png" % hero_id)
-	var frame_count: int = int(hero_tex.get_width() / 32) if hero_tex != null else 9
-	var anims: Dictionary = {
-		"idle": [[0, 1, 2, 3], 3.0, true],
-		"walk": [[4, 5, 6, 7], 10.0, true],
-		"hurt": [[8], 1.0, false],
-		"attack": [[9, 10] if frame_count >= 11 else [4, 5], 14.0, false],
-		"skill": [[11, 12] if frame_count >= 13 else [0, 1], 10.0, false],
-		"down": [[13, 14, 15] if frame_count >= 16 else [8], 8.0, false],
-	}
+	var frame_count: int = int(float(hero_tex.get_width()) / 32.0) if hero_tex != null else 9
+	var anims: Dictionary
+	if frame_count >= 28:
+		anims = {
+			"idle": [[0, 1, 16, 2, 17, 3], 5.0, true],
+			"walk": [[4, 18, 5, 19, 6, 20, 7, 21], 13.5, true],
+			"hurt": [[8], 1.0, false],
+			"attack": [[9, 10, 22, 23], 16.0, false],
+			"skill": [[24, 11, 12, 25], 11.0, false],
+			"dash": [[26, 27], 16.0, false],
+			"down": [[13, 14, 15], 8.0, false],
+		}
+	else:
+		anims = {
+			"idle": [[0, 1, 2, 3], 3.0, true],
+			"walk": [[4, 5, 6, 7], 10.0, true],
+			"hurt": [[8], 1.0, false],
+			"attack": [[9, 10] if frame_count >= 11 else [4, 5], 14.0, false],
+			"skill": [[11, 12] if frame_count >= 13 else [0, 1], 10.0, false],
+			"dash": [[4, 5], 14.0, false],
+			"down": [[13, 14, 15] if frame_count >= 16 else [8], 8.0, false],
+		}
 	body.sprite_frames = Art.frames("heroes/%s.png" % hero_id, 32, 32, anims)
 	body.position = Vector2(0, -6)
 	body.material = _mat
@@ -633,6 +649,10 @@ func _start_dodge_dash(move: Vector2) -> void:
 	_invuln = maxf(_invuln, DODGE_DASH_IFRAME)
 	dash_cd_left = DODGE_DASH_CD
 	_dodge_afterimage_t = 0.0
+	_anim_lock_t = 0.0
+	if body != null and not dead:
+		body.play("dash")
+		body.frame = 0
 	if hero_id == "quang_trung":
 		_post_dash_boost = true
 	Sfx.play("slash")
@@ -679,6 +699,7 @@ func _process(delta: float) -> void:
 		return
 
 	_anim_lock_t = maxf(_anim_lock_t - delta, 0.0)
+	_cast_pulse_t = maxf(_cast_pulse_t - delta, 0.0)
 	var face_left := aim_dir.x < 0.0
 	body.flip_h = face_left
 	elephant.flip_h = face_left
@@ -693,8 +714,13 @@ func _process(delta: float) -> void:
 	else:
 		moving = velocity.length() > 5.0
 		if _anim_lock_t <= 0.0 and (body.animation != "hurt" or _flash <= 0.1):
-			body.play("walk" if moving else "idle")
-			body.speed_scale = 1.45 if (sprinting and moving) else 1.0
+			if _dodge_dash_t > 0.0:
+				if body.animation != "dash":
+					body.play("dash")
+				body.speed_scale = 1.0
+			else:
+				body.play("walk" if moving else "idle")
+				body.speed_scale = 1.45 if (sprinting and moving) else 1.0
 
 	# Co giãn & nhịp thở / bước chạy sinh động cho nhân vật & vũ khí
 	var breath: float = sin(_lively_t * 3.6)
@@ -702,10 +728,23 @@ func _process(delta: float) -> void:
 	var body_bob_y: float = 0.0
 	var b_sx: float = 1.0
 	var b_sy: float = 1.0
-	if _anim_lock_t > 0.0:
+	if _cast_pulse_t > 0.0:
+		var cp: float = 1.0 - clampf(_cast_pulse_t / 0.44, 0.0, 1.0)
+		if cp < 0.28:
+			var k: float = sin((cp / 0.28) * PI * 0.5)
+			b_sx = 1.0 + 0.14 * k
+			b_sy = 1.0 - 0.12 * k
+		else:
+			var k2: float = sin(((cp - 0.28) / 0.72) * PI)
+			b_sx = 1.0 - 0.10 * k2
+			b_sy = 1.0 + 0.15 * k2
+	elif _anim_lock_t > 0.0:
 		var punch: float = clampf(_anim_lock_t * 3.5, 0.0, 1.0)
 		b_sx = 1.0 + 0.10 * punch
 		b_sy = 1.0 - 0.09 * punch
+	elif _dodge_dash_t > 0.0:
+		b_sx = 1.12
+		b_sy = 0.90
 	elif moving and _dash_time <= 0.0 and _horse_time <= 0.0:
 		body_bob_y = -step_wave * (2.6 if sprinting else 1.6)
 		var amp: float = 0.065 if sprinting else 0.042
@@ -716,6 +755,16 @@ func _process(delta: float) -> void:
 		b_sy = 1.0 + breath * 0.032
 		body_bob_y = breath * 0.4
 	body.scale = Vector2(b_sx, b_sy)
+	if light != null:
+		if _cast_pulse_t > 0.0:
+			var lp: float = sin(clampf(_cast_pulse_t / 0.44, 0.0, 1.0) * PI)
+			light.energy = lerpf(0.85, 1.45, lp)
+			light.texture_scale = lerpf(2.8, 3.6, lp)
+			light.color = Color(1.0, 0.88, 0.7).lerp(_cast_pulse_col, lp * 0.65)
+		else:
+			light.energy = 0.85
+			light.texture_scale = 2.8
+			light.color = Color(1.0, 0.88, 0.7)
 
 	# vũ khí xoay theo hướng ngắm + nhịp vung nhẹ khi đứng/chạy
 	var w := current_weapon()
@@ -1623,10 +1672,13 @@ func _use_skill() -> void:
 	skill_timer = base_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult) * (0.85 if mentor_up else 1.0)
 	Sfx.play_skill(hero_id)
 	if body != null and not dead:
-		_anim_lock_t = 0.28
+		_anim_lock_t = 0.44
 		body.play("skill")
 		body.frame = 0
+	_cast_pulse_t = 0.44
+	_cast_pulse_col = (hero.get("color", Color(1.0, 0.88, 0.7)) as Color).lightened(0.35)
 	var parent := get_parent()
+	SkillCastFx.spawn(parent, global_position, aim_dir, sk_id, Color(0, 0, 0, 0), syn)
 	var wr: WeakRef = weakref(parent)
 	var ally_passive_mult: float = 1.0
 	match sk_id:
@@ -3339,9 +3391,12 @@ func _play_remote_skill(data: Dictionary) -> void:
 	aim_dir = dir
 	Sfx.play_skill(str(data.get("hero_id", hero_id)))
 	if body != null and not dead and not downed:
-		_anim_lock_t = 0.28
+		_anim_lock_t = 0.44
 		body.play("skill")
 		body.frame = 0
+	_cast_pulse_t = 0.44
+	_cast_pulse_col = (hero.get("color", Color(1.0, 0.88, 0.7)) as Color).lightened(0.35)
+	SkillCastFx.spawn(parent, pos, dir, sk, Color(0, 0, 0, 0), syn)
 	var wr: WeakRef = weakref(parent)
 	match sk:
 		"coc_bach_dang":

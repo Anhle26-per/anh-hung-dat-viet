@@ -570,6 +570,19 @@ func _physics_process(delta: float) -> void:
 
 func _build_anims(n: int) -> Dictionary:
 	var anims := {"walk": [[0, 1, 2, 3], 9.0 if n == 8 else 8.0, true]}
+	if n >= 48:
+		anims["idle"] = [[0, 1, 2, 3, 4, 5], 6.5, true]
+		anims["walk"] = [[6, 7, 8, 9, 10, 11, 12, 13], 13.0, true]
+		anims["windup"] = [[14, 15, 16, 17, 18, 19], 13.0, false]
+		anims["melee_sweep"] = [[20, 21, 22, 23, 24, 25], 16.0, false]
+		anims["attack"] = [[20, 21, 22, 23, 24, 25], 16.0, false]
+		anims["ranged_shot"] = [[26, 27, 28, 29, 30, 31], 15.0, false]
+		anims["cast_summon"] = [[32, 33, 34, 35], 11.0, false]
+		anims["dash"] = [[36, 37, 38, 39], 16.0, true]
+		anims["leap"] = [[40, 41, 42, 43], 12.0, false]
+		anims["rage"] = [[44, 45], 9.0, true]
+		anims["special"] = [[46, 47], 9.0, true]
+		return anims
 	if n >= 36:
 		anims["idle"] = [[0, 1, 2, 3], 6.0, true]
 		anims["walk"] = [[4, 5, 6, 7, 8, 9, 10, 11], 13.0, true]
@@ -584,13 +597,11 @@ func _build_anims(n: int) -> Dictionary:
 		anims["special"] = [[34, 35], 8.0, true]
 		return anims
 	if n >= 24:
+		anims["idle"] = [[20, 21, 22, 23], 6.0, true]
 		anims["walk"] = [[0, 1, 2, 3, 4, 5, 6, 7], 13.0, true]
-		anims["windup"] = [[8, 9, 10], 11.0, false]
-		anims["attack"] = [[11, 12, 13, 14], 14.0, false]
-		anims["dash"] = [[15, 16], 12.0, true]
-		anims["leap"] = [[17, 18, 19], 10.0, false]
-		anims["rage"] = [[20, 21], 7.0, true]
-		anims["special"] = [[22, 23], 8.0, true]
+		anims["windup"] = [[8, 16, 9, 17], 13.0, false]
+		anims["attack"] = [[10, 11, 18, 12, 19, 13], 16.0, false]
+		anims["hurt"] = [[14, 15], 10.0, false]
 		return anims
 	if n == 16:
 		anims["walk"] = [[0, 1, 2, 3, 4, 5, 6, 7], 13.0, true]
@@ -752,6 +763,10 @@ func _update_anim(delta: float = 0.016) -> void:
 		elif _attack_anim_t > 0.0 and spr.sprite_frames.has_animation("attack"):
 			if spr.animation != "attack":
 				spr.play("attack")
+			spr.speed_scale = 1.0
+		elif velocity.length() < 8.0 and spr.sprite_frames.has_animation("idle"):
+			if spr.animation != "idle":
+				spr.play("idle")
 			spr.speed_scale = 1.0
 		else:
 			if spr.animation != "walk":
@@ -1537,7 +1552,7 @@ func _finish_morph() -> void:
 	transformed = true
 	spr.position.x = 0.0
 	var size2: Vector2i = data.get("size2", data.size)
-	var anims := _build_anims(int(data.get("frames", 36 if is_boss() else 24)))
+	var anims := _build_anims(int(data.get("frames", 48 if is_boss() else 24)))
 	spr.sprite_frames = Art.frames(data.sheet2, size2.x, size2.y, anims)
 	radius = float(data.get("radius2", radius))
 	_shape.radius = radius * 0.72

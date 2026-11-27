@@ -40,7 +40,10 @@ class Portrait extends Control:
 		queue_redraw()
 
 	func _draw() -> void:
-		var f := int(t * 3.0) % 4
+		var wide: bool = tex != null and tex.get_width() >= 896
+		var idle_seq: Array = [0, 1, 16, 2, 17, 3] if wide else [0, 1, 2, 3]
+		var fps: float = 5.0 if wide else 3.0
+		var f: int = int(idle_seq[int(t * fps) % idle_seq.size()])
 		var c := size / 2.0
 		var mod := Color(0.25, 0.22, 0.28) if locked else Color.WHITE
 		draw_set_transform(c + Vector2(0, 18), 0.0, Vector2(2.6, 1.0))

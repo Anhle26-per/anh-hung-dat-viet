@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/v23_ui_skills_anims_test.gd" id="1"]
+
+[node name="V23UiSkillsAnimsTest" type="Node"]
+script = ExtResource("1")

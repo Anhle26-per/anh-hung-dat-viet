@@ -11,66 +11,66 @@ const ARCHETYPES := {
 	"khien_binh": {"name": "Khiên binh", "hp": 30, "speed": 42.0, "radius": 8.0, "ai": "tank", "coins": 2},
 	"phap_su": {"name": "Pháp sư", "hp": 19, "speed": 50.0, "radius": 7.0, "ai": "caster", "shoot_cd": 2.2, "coins": 2},
 	"ky_binh": {"name": "Kỵ binh", "hp": 24, "speed": 78.0, "radius": 10.0, "ai": "charge", "coins": 2,
-		"sheet": "enemies/nguyen_mong_ky_binh.png", "size": Vector2i(34, 30), "frames": 16},
+		"sheet": "enemies/nguyen_mong_ky_binh.png", "size": Vector2i(34, 30), "frames": 24},
 	# thời cận đại
 	"linh_sung": {"name": "Lính súng trường", "hp": 16, "speed": 60.0, "radius": 7.0, "ai": "rifle", "shoot_cd": 1.2, "coins": 1},
 	"xa_thu": {"name": "Xạ thủ súng máy", "hp": 22, "speed": 46.0, "radius": 7.0, "ai": "mg", "shoot_cd": 2.1, "coins": 2},
 	"phao_binh": {"name": "Pháo cối", "hp": 17, "speed": 44.0, "radius": 7.0, "ai": "mortar", "shoot_cd": 2.5, "coins": 2},
 	"xe_tang": {"name": "Xe tăng", "hp": 95, "speed": 30.0, "radius": 14.0, "ai": "tank_elite", "shoot_cd": 2.0, "coins": 6,
-		"sheet": "enemies/xe_tang.png", "size": Vector2i(40, 30), "frames": 16},
+		"sheet": "enemies/xe_tang.png", "size": Vector2i(40, 30), "frames": 24},
 }
 
 # Yêu quái do tà thuật gọi ra
 const FOLK := {
 	"tieu_yeu": {"name": "Tiểu yêu", "hp": 12, "speed": 82.0, "radius": 7.0, "ai": "chase", "coins": 1,
-		"sheet": "enemies/tieu_yeu.png", "size": Vector2i(16, 17), "frames": 16},
+		"sheet": "enemies/tieu_yeu.png", "size": Vector2i(16, 17), "frames": 24},
 	"ho_tinh": {"name": "Hồ tinh", "hp": 13, "speed": 66.0, "radius": 7.0, "ai": "shoot", "shoot_cd": 1.3, "coins": 1,
-		"sheet": "enemies/ho_tinh.png", "size": Vector2i(22, 16), "proj": "orb_pink", "frames": 16},
+		"sheet": "enemies/ho_tinh.png", "size": Vector2i(22, 16), "proj": "orb_pink", "frames": 24},
 	"moc_tinh": {"name": "Mộc tinh", "hp": 30, "speed": 32.0, "radius": 10.0, "ai": "ring", "shoot_cd": 2.2, "coins": 2,
-		"sheet": "enemies/moc_tinh.png", "size": Vector2i(26, 28), "frames": 16},
+		"sheet": "enemies/moc_tinh.png", "size": Vector2i(26, 28), "frames": 24},
 	"chan_tinh": {"name": "Chằn tinh", "hp": 52, "speed": 40.0, "radius": 11.0, "ai": "slam", "shoot_cd": 2.7, "coins": 3,
-		"sheet": "enemies/chan_tinh.png", "size": Vector2i(30, 32), "frames": 16},
+		"sheet": "enemies/chan_tinh.png", "size": Vector2i(30, 32), "frames": 24},
 	"dai_bang": {"name": "Đại bàng tinh", "hp": 18, "speed": 88.0, "radius": 9.0, "ai": "charge", "coins": 2,
-		"sheet": "enemies/dai_bang.png", "size": Vector2i(36, 26), "frames": 16},
+		"sheet": "enemies/dai_bang.png", "size": Vector2i(36, 26), "frames": 24},
 	"ma_troi": {"name": "Ma trơi", "hp": 7, "speed": 74.0, "radius": 6.0, "ai": "kamikaze", "coins": 1,
-		"sheet": "enemies/ma_troi.png", "size": Vector2i(14, 18), "frames": 16},
+		"sheet": "enemies/ma_troi.png", "size": Vector2i(14, 18), "frames": 24},
 	"ngu_tinh": {"name": "Thủy quái Ngư Tinh", "hp": 150, "speed": 50.0, "radius": 18.0, "ai": "ngu", "coins": 6,
-		"sheet": "enemies/ngu_tinh.png", "size": Vector2i(60, 46), "frames": 16},
+		"sheet": "enemies/ngu_tinh.png", "size": Vector2i(60, 46), "frames": 24},
 }
 
 # Trùm: mỗi chương một kẻ cầm đầu từng bị đánh bại
 const BOSSES := {
 	"to_dinh": {"name": "Tô Định", "title": "Thái thú Giao Chỉ", "hp": 260, "speed": 50.0,
 		"intro": "Thái thú tàn bạo — vung đao lao tới, cùng đường sẽ giả trang bỏ chạy!",
-		"patterns": ["sweep", "ring", "charge", "summon"], "summon": "bo_binh", "special": "tron_chay", "patterns2": ["ring", "charge", "spiral", "summon"], "form2": "Quỷ Tham Tàn", "frames": 36},
+		"patterns": ["sweep", "ring", "charge", "summon"], "summon": "bo_binh", "special": "tron_chay", "patterns2": ["ring", "charge", "spiral", "summon"], "form2": "Quỷ Tham Tàn", "frames": 48},
 	"luc_dan": {"name": "Lục Dận", "title": "Tướng nhà Đông Ngô", "hp": 300, "speed": 50.0,
 		"intro": "Danh tướng Đông Ngô — múa kích càn lướt, dựng trận khiên cố thủ!",
-		"patterns": ["sweep", "charge", "ring", "summon"], "summon": "bo_binh", "special": "tran_khien", "patterns2": ["sweep", "fan", "charge", "ring"], "form2": "Quỷ Gai Đông Ngô", "frames": 36},
+		"patterns": ["sweep", "charge", "ring", "summon"], "summon": "bo_binh", "special": "tran_khien", "patterns2": ["sweep", "fan", "charge", "ring"], "form2": "Quỷ Gai Đông Ngô", "frames": 48},
 	"hoang_thao": {"name": "Hoằng Tháo", "title": "Thái tử Nam Hán", "hp": 340, "speed": 48.0,
 		"intro": "Thái tử Nam Hán — đâm đinh ba xé sóng, gọi Thủy Quái trợ chiến!",
-		"patterns": ["spiral", "charge", "ring", "summon"], "summon": "cung_thu", "special": "thuy_quai", "patterns2": ["spiral", "charge", "fan", "volley"], "form2": "Thủy Quỷ Nam Hán", "frames": 36},
+		"patterns": ["spiral", "charge", "ring", "summon"], "summon": "cung_thu", "special": "thuy_quai", "patterns2": ["spiral", "charge", "fan", "volley"], "form2": "Thủy Quỷ Nam Hán", "frames": 48},
 	"quach_quy": {"name": "Quách Quỳ", "title": "Tướng nhà Tống", "hp": 360, "speed": 48.0,
 		"intro": "Thống soái quân Tống — bắn mưa tên phủ kín trận địa và xung phong!",
-		"patterns": ["volley", "charge", "sweep", "summon"], "summon": "khien_binh", "special": "mua_ten", "patterns2": ["volley", "charge", "spiral", "fan"], "form2": "Ưng Quỷ Tống Triều", "frames": 36},
+		"patterns": ["volley", "charge", "sweep", "summon"], "summon": "khien_binh", "special": "mua_ten", "patterns2": ["volley", "charge", "spiral", "fan"], "form2": "Ưng Quỷ Tống Triều", "frames": 48},
 	"thoat_hoan": {"name": "Thoát Hoan", "title": "Trấn Nam Vương nhà Nguyên", "hp": 380, "speed": 52.0,
 		"intro": "Trấn Nam Vương — gọi kỵ binh càn quét, nguy cấp chui ống đồng lăn tới!",
-		"patterns": ["volley", "charge", "sweep", "summon"], "summon": "ky_binh", "special": "ong_dong", "patterns2": ["charge", "volley", "ring", "charge"], "form2": "Lang Quỷ Thảo Nguyên", "frames": 36},
+		"patterns": ["volley", "charge", "sweep", "summon"], "summon": "ky_binh", "special": "ong_dong", "patterns2": ["charge", "volley", "ring", "charge"], "form2": "Lang Quỷ Thảo Nguyên", "frames": 48},
 	"lieu_thang": {"name": "Liễu Thăng", "title": "Tổng binh nhà Minh", "hp": 400, "speed": 54.0,
 		"intro": "Tổng binh nhà Minh — vung đao lao chém dữ dội, biến hình nhảy đập đất!",
-		"patterns": ["charge", "sweep", "volley", "summon"], "summon": "bo_binh", "special": "sa_lay", "patterns2": ["leap_slam", "charge", "spiral", "sweep"], "form2": "Quỷ Rừng Sa Lầy", "frames": 36},
+		"patterns": ["charge", "sweep", "volley", "summon"], "summon": "bo_binh", "special": "sa_lay", "patterns2": ["leap_slam", "charge", "spiral", "sweep"], "form2": "Quỷ Rừng Sa Lầy", "frames": 48},
 	"ton_si_nghi": {"name": "Tôn Sĩ Nghị", "title": "Tổng đốc Lưỡng Quảng", "hp": 420, "speed": 46.0,
 		"intro": "Tổng đốc Lưỡng Quảng — nã đại bác liên hồi, quạt gió đẩy lùi đối thủ!",
-		"patterns": ["cannon", "charge", "ring", "summon"], "summon": "phap_su", "special": "bo_chay", "patterns2": ["cannon", "charge", "spiral", "fan"], "form2": "Ngưu Quỷ Lưỡng Quảng", "frames": 36},
+		"patterns": ["cannon", "charge", "ring", "summon"], "summon": "phap_su", "special": "bo_chay", "patterns2": ["cannon", "charge", "spiral", "fan"], "form2": "Ngưu Quỷ Lưỡng Quảng", "frames": 48},
 	"tau_hy_vong": {"name": "Tàu chiến Hy Vọng", "title": "Chiến thuyền thủy quân Pháp", "hp": 460, "speed": 30.0,
 		"intro": "Chiến hạm Pháp — giương buồm húc thẳng, nã loạt đại bác mạn tàu!",
 		"patterns": ["broadside", "charge", "ring", "summon"], "summon": "linh_sung", "special": "boc_chay", "patterns2": ["broadside", "charge", "cannon", "ring"], "form2": "Tàu Ma Lửa Xanh",
-		"sheet": "enemies/boss_tau_hy_vong.png", "size": Vector2i(64, 44), "frames": 36, "radius": 20.0},
+		"sheet": "enemies/boss_tau_hy_vong.png", "size": Vector2i(64, 44), "frames": 48, "radius": 20.0},
 	"don_truong": {"name": "Đồn trưởng Nhã Nam", "title": "Chỉ huy quân viễn chinh", "hp": 480, "speed": 50.0,
 		"intro": "Chỉ huy đồn bốt — xả súng liên thanh kết hợp gọi pháo kích diện rộng!",
-		"patterns": ["burst", "charge", "mortar", "summon"], "summon": "xa_thu", "special": "phao_kich", "patterns2": ["burst", "charge", "mortar", "spiral"], "form2": "Quỷ Gai Đồn Bốt", "frames": 36},
+		"patterns": ["burst", "charge", "mortar", "summon"], "summon": "xa_thu", "special": "phao_kich", "patterns2": ["burst", "charge", "mortar", "spiral"], "form2": "Quỷ Gai Đồn Bốt", "frames": 48},
 	"do_cat": {"name": "Đờ Cát", "title": "Chỉ huy tập đoàn cứ điểm Điện Biên Phủ", "hp": 520, "speed": 46.0,
 		"intro": "Chỉ huy Điện Biên Phủ — gọi xe tăng và pháo cối, cố thủ hầm chỉ huy!",
-		"patterns": ["burst", "mortar", "charge", "summon"], "summon": "xe_tang", "special": "ham_chi_huy", "patterns2": ["burst", "leap_slam", "mortar", "cannon"], "form2": "Ngưu Quỷ Hầm Ngầm", "frames": 36},
+		"patterns": ["burst", "mortar", "charge", "summon"], "summon": "xe_tang", "special": "ham_chi_huy", "patterns2": ["burst", "leap_slam", "mortar", "cannon"], "form2": "Ngưu Quỷ Hầm Ngầm", "frames": 48},
 }
 
 
@@ -81,17 +81,17 @@ const LEGENDS := {
 		"intro": "Yêu cáo nghìn năm — phi nước đại tung lửa hồ ly và phân thân ảo ảnh!",
 		"patterns": ["tails", "clone", "sweep", "charge"], "patterns2": ["tails", "clone", "spiral", "charge"],
 		"summon": "ho_tinh", "special": "cuu_vi", "form2": "Cửu Vĩ Hồ Ly",
-		"size": Vector2i(84, 60), "size2": Vector2i(84, 60), "frames": 36},
+		"size": Vector2i(84, 60), "size2": Vector2i(84, 60), "frames": 48},
 	"moc_tinh_vuong": {"name": "Mộc Tinh", "title": "Cây chiên đàn nghìn năm", "speed": 24.0, "radius": 18.0,
 		"intro": "Cổ thụ thành tinh — nhảy đập rung chuyển mặt đất, trồi rễ cây vây hãm!",
 		"patterns": ["roots", "leap_slam", "ring", "summon"], "patterns2": ["roots", "leap_slam", "spiral", "roots"],
 		"summon": "moc_tinh", "special": "rung_gia", "form2": "Mộc Tinh Lửa Đỏ",
-		"size": Vector2i(72, 72), "size2": Vector2i(72, 72), "frames": 36},
+		"size": Vector2i(72, 72), "size2": Vector2i(72, 72), "frames": 48},
 	"ngu_tinh_vuong": {"name": "Ngư Tinh", "title": "Thủy quái Biển Đông", "speed": 46.0, "radius": 18.0,
 		"intro": "Thủy quái Biển Đông — lặn ngầm tập kích dưới chân, dâng sóng thần!",
 		"patterns": ["dive", "spiral", "fan", "summon"], "patterns2": ["dive", "charge", "tidal", "spiral"],
 		"summon": "tieu_yeu", "special": "song_than", "form2": "Ngư Tinh Hắc Hải",
-		"size": Vector2i(84, 60), "size2": Vector2i(84, 60), "frames": 36},
+		"size": Vector2i(84, 60), "size2": Vector2i(84, 60), "frames": 48},
 }
 const LEGEND_BASE_HP := 260
 
@@ -189,7 +189,7 @@ const MYTHIC_BOSSES := {
 		"sheet2": "enemies/boss_ho_tinh_vuong_2.png",
 		"size": Vector2i(84, 60),
 		"size2": Vector2i(84, 60),
-		"frames": 36,
+		"frames": 48,
 		"mythic": true,
 	},
 	"xuong_cuong": {
@@ -209,7 +209,7 @@ const MYTHIC_BOSSES := {
 		"sheet2": "enemies/boss_moc_tinh_vuong_2.png",
 		"size": Vector2i(72, 72),
 		"size2": Vector2i(72, 72),
-		"frames": 36,
+		"frames": 48,
 		"mythic": true,
 	},
 	"hac_hai_ngu": {
@@ -229,7 +229,7 @@ const MYTHIC_BOSSES := {
 		"sheet2": "enemies/boss_ngu_tinh_vuong_2.png",
 		"size": Vector2i(84, 60),
 		"size2": Vector2i(84, 60),
-		"frames": 36,
+		"frames": 48,
 		"mythic": true,
 	},
 }
@@ -368,7 +368,7 @@ static func info(id: String, level: int) -> Dictionary:
 		d["coins"] = 28 if is_mythic_boss else 16
 		d["sheet"] = b.get("sheet", "enemies/boss_%s.png" % bid)
 		d["size"] = b.get("size", Vector2i(48, 48))
-		d["frames"] = b.get("frames", 36)
+		d["frames"] = b.get("frames", 48)
 		d["army"] = home.army
 		d["summon"] = "%s@%s" % [b.summon, home.army]
 		d["power"] = power
@@ -389,7 +389,7 @@ static func info(id: String, level: int) -> Dictionary:
 		d["legend"] = true
 		d["ai"] = "boss"
 		d["coins"] = 18
-		d["frames"] = LEGENDS[lid].get("frames", 36)
+		d["frames"] = LEGENDS[lid].get("frames", 48)
 		d["sheet"] = "enemies/boss_%s.png" % lid
 		d["sheet2"] = "enemies/boss_%s_2.png" % lid
 		d["radius2"] = d.radius
@@ -408,7 +408,7 @@ static func info(id: String, level: int) -> Dictionary:
 		if not d.has("sheet"):
 			d["sheet"] = "enemies/%s_%s.png" % [army, id]
 			d["size"] = Vector2i(24, 26)
-			d["frames"] = 16
+			d["frames"] = 24
 		d["name"] = "%s (%s)" % [d.name, army_name(army)]
 	# Chỉ số tăng đều theo từng màn & nhảy bậc rõ khi vào Chuyến Du Hành Thần Thoại (4-1+)
 	var depth: float = float(maxi(level - 1, 0)) if level <= 15 else float(14 + maxi(level - 17, 0))

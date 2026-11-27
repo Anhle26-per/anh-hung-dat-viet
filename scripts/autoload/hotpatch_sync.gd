@@ -18,6 +18,7 @@ const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/art/art.gd",
 	"res://scripts/ui/ui.gd",
 	"res://scripts/effects/fx.gd",
+	"res://scripts/effects/skill_fx.gd",
 	"res://scripts/net/discovery.gd",
 	"res://scripts/net/net_sync.gd",
 ]
@@ -77,11 +78,26 @@ static func _reload_script(gd_path: String) -> Script:
 	return fresh
 
 
+static func _version_build_under_230(u: Node) -> bool:
+	var vd_path: String = "res://scripts/data/version.gdc" if FileAccess.file_exists("res://scripts/data/version.gdc") else "res://scripts/data/version.gd"
+	if ResourceLoader.exists(vd_path):
+		var vd: Script = ResourceLoader.load(vd_path) as Script
+		if vd != null and int(vd.get_script_constant_map().get("BUILD", 0)) < 230:
+			return true
+	if u != null and u.get_script() is Script:
+		var u_vd: Variant = (u.get_script() as Script).get_script_constant_map().get("VersionData", null)
+		if u_vd is Script and int((u_vd as Script).get_script_constant_map().get("BUILD", 0)) < 230:
+			return true
+	return false
+
+
 static func needs_autoload_sync(tree: SceneTree) -> bool:
 	if tree == null:
 		return false
 	var u: Node = tree.root.get_node_or_null("Updater")
 	if u != null and not u.has_method("_is_running_from_project_dir"):
+		return true
+	if _version_build_under_230(u):
 		return true
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g == null:
@@ -112,21 +128,31 @@ static func ensure_autoloads_synced(tree: SceneTree) -> bool:
 	for p in DATA_SCRIPTS:
 		_reload_script(p)
 	var u: Node = tree.root.get_node_or_null("Updater")
-	if u != null and not u.has_method("_is_running_from_project_dir"):
+	if u != null and (not u.has_method("_is_running_from_project_dir") or _version_build_under_230(u)):
+		var u_base_ver: String = str(u.get("base_version")) if u.get("base_version") != null else ""
+		var u_base_build: int = int(u.get("base_build")) if u.get("base_build") != null else 0
 		var u_patch_loaded: bool = bool(u.get("patch_loaded"))
 		var u_cur_ver: String = str(u.get("current_version"))
 		var u_cur_build: int = int(u.get("current_build"))
 		var u_latest: Variant = u.get("latest_info")
 		var u_state: String = str(u.get("state"))
+		var u_chk_auto: bool = bool(u.get("_checked_auto"))
+		var u_pop_once: bool = bool(u.get("_popup_shown_once"))
 		var fresh_u: Script = _reload_script("res://scripts/autoload/updater.gd")
 		if fresh_u != null:
 			u.set_script(fresh_u)
+			if u_base_ver != "":
+				u.set("base_version", u_base_ver)
+			if u_base_build > 0:
+				u.set("base_build", u_base_build)
 			u.set("patch_loaded", u_patch_loaded)
 			u.set("current_version", u_cur_ver)
 			u.set("current_build", u_cur_build)
 			if u_latest is Dictionary:
 				u.set("latest_info", u_latest)
 			u.set("state", u_state)
+			u.set("_checked_auto", u_chk_auto)
+			u.set("_popup_shown_once", u_pop_once)
 			u._ready()
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g != null:

@@ -1,5 +1,5 @@
 extends Node
-## Kiểm thử thẻ G10: 11 tờ ảnh tướng 512x32 (16 khung) và hoạt ảnh attack/skill/down trên Player.
+## Kiểm thử thẻ G10 (cập nhật v2.3.0): 11 tờ ảnh tướng 896x32 (28 khung) và hoạt ảnh idle/walk/attack/skill/dash/down trên Player.
 ## Chạy: godot --headless --path . res://tests/hero_anim_test.tscn -> in "HERO ANIM TEST OK"
 
 const HeroData = preload("res://scripts/data/heroes.gd")
@@ -38,20 +38,20 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra 11 tờ ảnh tướng đều 512x32 (16 khung 32x32)")
+	print("== 1. Kiểm tra 11 tờ ảnh tướng đều 896x32 (28 khung 32x32)")
 	_check(HeroData.ORDER.size() == 11, "số tướng phải là 11")
 	for hid_v in HeroData.ORDER:
 		var hid: String = str(hid_v)
 		var rel: String = "heroes/%s.png" % hid
 		var abs_path: String = ProjectSettings.globalize_path("res://assets/sprites/" + rel)
 		var img: Image = Image.load_from_file(abs_path)
-		_check(img != null and img.get_width() == 512 and img.get_height() == 32,
-			"%s phải 512x32 (thực tế %s)" % [hid, "null" if img == null else "%dx%d" % [img.get_width(), img.get_height()]])
+		_check(img != null and img.get_width() == 896 and img.get_height() == 32,
+			"%s phải 896x32 (thực tế %s)" % [hid, "null" if img == null else "%dx%d" % [img.get_width(), img.get_height()]])
 		var tex: Texture2D = Art.tex(rel)
-		_check(tex != null and tex.get_width() == 512 and tex.get_height() == 32,
-			"Art.tex(%s) phải 512x32" % rel)
+		_check(tex != null and tex.get_width() == 896 and tex.get_height() == 32,
+			"Art.tex(%s) phải 896x32" % rel)
 
-	print("== 2. Kiểm tra đủ 6 hoạt ảnh trong player.body.sprite_frames")
+	print("== 2. Kiểm tra đủ 7 hoạt ảnh trong player.body.sprite_frames")
 	var world := Node2D.new()
 	add_child(world)
 	var p := Player.new()
@@ -62,11 +62,12 @@ func _run() -> void:
 	var sf: SpriteFrames = p.body.sprite_frames
 	_check(sf != null, "player.body.sprite_frames bị null")
 	var expected_counts: Dictionary = {
-		"idle": 4,
-		"walk": 4,
+		"idle": 6,
+		"walk": 8,
 		"hurt": 1,
-		"attack": 2,
-		"skill": 2,
+		"attack": 4,
+		"skill": 4,
+		"dash": 2,
 		"down": 3,
 	}
 	for anim_name_v in expected_counts:
@@ -78,6 +79,7 @@ func _run() -> void:
 				"số khung %s = %d (kỳ vọng %d)" % [anim_name, sf.get_frame_count(anim_name), exp_cnt])
 	_check(not sf.get_animation_loop("attack"), "attack không được lặp")
 	_check(not sf.get_animation_loop("skill"), "skill không được lặp")
+	_check(not sf.get_animation_loop("dash"), "dash không được lặp")
 	_check(not sf.get_animation_loop("down"), "down không được lặp")
 
 	print("== 3. Kiểm tra phát hoạt ảnh attack, skill, down và revive -> idle")

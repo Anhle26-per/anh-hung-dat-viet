@@ -108,7 +108,7 @@ func _run() -> void:
 
 
 func _test_boss_36_frames() -> void:
-	print("== 2. Kiểm tra 13 Trùm (Pha 1 + Pha 2 = 26 tờ) đủ 36 khung & 10 trạng thái hành động")
+	print("== 2. Kiểm tra 13 Trùm (Pha 1 + Pha 2 = 26 tờ) đủ 48 khung & 10 trạng thái hành động")
 	var all_boss_ids: Array[String] = []
 	for bid in EnemyData.BOSSES.keys():
 		all_boss_ids.append(str(bid))
@@ -117,16 +117,16 @@ func _test_boss_36_frames() -> void:
 	_check(all_boss_ids.size() == 13, "Tổng số trùm phải là 13 (hiện %d)" % all_boss_ids.size())
 
 	for bid in EnemyData.BOSSES.keys():
-		_check(int(EnemyData.BOSSES[bid].get("frames", 0)) == 36, "BOSSES[%s].frames phải là 36" % str(bid))
+		_check(int(EnemyData.BOSSES[bid].get("frames", 0)) == 48, "BOSSES[%s].frames phải là 48" % str(bid))
 	for lid in EnemyData.LEGENDS.keys():
-		_check(int(EnemyData.LEGENDS[lid].get("frames", 0)) == 36, "LEGENDS[%s].frames phải là 36" % str(lid))
+		_check(int(EnemyData.LEGENDS[lid].get("frames", 0)) == 48, "LEGENDS[%s].frames phải là 48" % str(lid))
 	for mid in EnemyData.MYTHIC_BOSSES.keys():
-		_check(int(EnemyData.MYTHIC_BOSSES[mid].get("frames", 0)) == 36, "MYTHIC_BOSSES[%s].frames phải là 36" % str(mid))
+		_check(int(EnemyData.MYTHIC_BOSSES[mid].get("frames", 0)) == 48, "MYTHIC_BOSSES[%s].frames phải là 48" % str(mid))
 
 	var arena := Node2D.new()
 	add_child(arena)
 	var req_anims: Array[String] = ["idle", "walk", "windup", "melee_sweep", "ranged_shot", "cast_summon", "dash", "leap", "rage", "special"]
-	var expected_counts := {"idle": 4, "walk": 8, "windup": 4, "melee_sweep": 4, "ranged_shot": 4, "cast_summon": 4, "dash": 2, "leap": 3, "rage": 2, "special": 2}
+	var expected_counts := {"idle": 6, "walk": 8, "windup": 6, "melee_sweep": 6, "ranged_shot": 6, "cast_summon": 4, "dash": 4, "leap": 4, "rage": 2, "special": 2}
 
 	# Kiểm tra 10 trùm lịch sử (Pha 1 + Pha 2) & 3 Tam Yêu (Pha 1 + Pha 2)
 	var entries: Array[Dictionary] = []

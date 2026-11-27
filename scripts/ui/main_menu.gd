@@ -89,7 +89,11 @@ func _ready() -> void:
 	for i in hero_cnt:
 		var id: String = HeroData.ORDER[i]
 		var s := AnimatedSprite2D.new()
-		s.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [[0, 1, 2, 3], 3.0 + i * 0.3, true]})
+		var htex := Art.tex("heroes/%s.png" % id)
+		var wide: bool = htex != null and htex.get_width() >= 896
+		var idle_seq: Array = [0, 1, 16, 2, 17, 3] if wide else [0, 1, 2, 3]
+		var idle_fps: float = (4.8 if wide else 3.0) + i * 0.25
+		s.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [idle_seq, idle_fps, true]})
 		s.play("idle")
 		s.scale = Vector2(1.5, 1.5)
 		s.position = Vector2(vw.x * 0.5 + (i - (hero_cnt - 1) * 0.5) * 46.0, vw.y - 32)

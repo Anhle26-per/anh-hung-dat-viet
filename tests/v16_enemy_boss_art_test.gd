@@ -24,10 +24,14 @@ func _frames(n: int) -> void:
 func _frame_signature(img: Image, f_idx: int, fw: int, fh: int) -> String:
 	var h: int = 2166136261
 	var count: int = 0
-	var x0: int = f_idx * fw
+	var cols: int = maxi(1, int(img.get_width() / fw))
+	@warning_ignore("integer_division")
+	var x0: int = (f_idx % cols) * fw
+	@warning_ignore("integer_division")
+	var y0: int = (f_idx / cols) * fh
 	for y in range(fh):
 		for x in range(fw):
-			var c: Color = img.get_pixel(x0 + x, y)
+			var c: Color = img.get_pixel(x0 + x, y0 + y)
 			if c.a > 0.1:
 				count += 1
 				var q: int = (int(round(c.r * 255.0)) << 16) | (int(round(c.g * 255.0)) << 8) | int(round(c.b * 255.0))
@@ -37,10 +41,15 @@ func _frame_signature(img: Image, f_idx: int, fw: int, fh: int) -> String:
 
 func _unique_colors(img: Image, fw: int, fh: int, frames: int) -> int:
 	var seen: Dictionary = {}
+	var cols: int = maxi(1, int(img.get_width() / fw))
 	for f in range(frames):
+		@warning_ignore("integer_division")
+		var x0: int = (f % cols) * fw
+		@warning_ignore("integer_division")
+		var y0: int = (f / cols) * fh
 		for y in range(0, fh, 2):
 			for x in range(0, fw, 2):
-				var c: Color = img.get_pixel(f * fw + x, y)
+				var c: Color = img.get_pixel(x0 + x, y0 + y)
 				if c.a > 0.2:
 					seen[int(round(c.r * 31.0)) * 1024 + int(round(c.g * 31.0)) * 32 + int(round(c.b * 31.0))] = true
 	return seen.size()
@@ -62,7 +71,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra 40 tờ hình lính (10 đạo quân x 4 loại, 24x26 x 16 khung)")
+	print("== 1. Kiểm tra 40 tờ hình lính (10 đạo quân x 4 loại, 24x26 x 24 khung)")
 	var armies: Array[String] = [
 		"dong_han", "dong_ngo", "nam_han", "tong", "nguyen_mong",
 		"minh", "thanh", "phap_thuy", "phap_vien_chinh", "phap_1954",
@@ -77,18 +86,19 @@ func _run() -> void:
 			if tex == null:
 				continue
 			var img: Image = tex.get_image()
-			_check(img.get_width() == 384 and img.get_height() == 26, "%s kích thước %dx%d (cần 384x26)" % [path, img.get_width(), img.get_height()])
+			_check(img.get_width() == 576 and img.get_height() == 26, "%s kích thước %dx%d (cần 576x26)" % [path, img.get_width(), img.get_height()])
 			var sig_w0: String = _frame_signature(img, 0, 24, 26)
 			var sig_wind: String = _frame_signature(img, 9, 24, 26)
 			var sig_atk: String = _frame_signature(img, 11, 24, 26)
 			var sig_rec: String = _frame_signature(img, 13, 24, 26)
 			var sig_hurt: String = _frame_signature(img, 14, 24, 26)
+			var sig_idle: String = _frame_signature(img, 20, 24, 26)
 			_check(sig_w0 != sig_atk and sig_wind != sig_atk and sig_atk != sig_hurt, "các khung hành động của %s bị trùng nhau" % path)
-			_check(sig_w0 != sig_hurt and sig_rec != sig_hurt, "khung trúng đòn của %s chưa tách biệt" % path)
+			_check(sig_w0 != sig_hurt and sig_rec != sig_hurt and sig_idle != sig_atk, "khung trúng đòn/thở của %s chưa tách biệt" % path)
 			checked_soldiers += 1
 	_check(checked_soldiers == 40, "phải kiểm đủ 40 tờ lính (thực tế %d)" % checked_soldiers)
 
-	print("== 2. Kiểm tra kỵ binh, xe tăng và 7 yêu quái đều có 16 khung chi tiết")
+	print("== 2. Kiểm tra kỵ binh, xe tăng và 7 yêu quái đều có 24 khung chi tiết")
 	var mob_specs: Array = [
 		["nguyen_mong_ky_binh", 34, 30],
 		["xe_tang", 40, 30],
@@ -110,14 +120,15 @@ func _run() -> void:
 		if mtex == null:
 			continue
 		var mimg: Image = mtex.get_image()
-		_check(mimg.get_width() == fw * 16 and mimg.get_height() == fh, "%s phải %dx%d (thực tế %dx%d)" % [mpath, fw * 16, fh, mimg.get_width(), mimg.get_height()])
+		_check(mimg.get_width() == fw * 24 and mimg.get_height() == fh, "%s phải %dx%d (thực tế %dx%d)" % [mpath, fw * 24, fh, mimg.get_width(), mimg.get_height()])
 		var s0: String = _frame_signature(mimg, 0, fw, fh)
 		var s9: String = _frame_signature(mimg, 9, fw, fh)
 		var s11: String = _frame_signature(mimg, 11, fw, fh)
 		var s14: String = _frame_signature(mimg, 14, fw, fh)
-		_check(s0 != s9 and s9 != s11 and s11 != s14, "khung hành động của %s bị trùng" % mpath)
+		var s20: String = _frame_signature(mimg, 20, fw, fh)
+		_check(s0 != s9 and s9 != s11 and s11 != s14 and s20 != s11, "khung hành động của %s bị trùng" % mpath)
 
-	print("== 3. Kiểm tra 10 trùm lịch sử + Pha 2 + 3 Tam Yêu (đủ 36 khung & bảng màu phong phú)")
+	print("== 3. Kiểm tra 10 trùm lịch sử + Pha 2 + 3 Tam Yêu (48 khung lưới 12x4 & bảng màu phong phú)")
 	for bid in EnemyData.BOSSES:
 		var is_ship: bool = (bid == "tau_hy_vong")
 		var bfw: int = 64 if is_ship else 48
@@ -129,14 +140,16 @@ func _run() -> void:
 		_check(t1 != null and t2 != null, "thiếu sheet trùm %s" % bid)
 		if t1 != null:
 			var i1: Image = t1.get_image()
-			_check(i1.get_width() == bfw * 36 and i1.get_height() == bfh, "%s sai kích thước %dx%d" % [p1, i1.get_width(), i1.get_height()])
-			_check(_unique_colors(i1, bfw, bfh, 36) >= 18, "trùm %s P1 quá ít sắc độ màu" % bid)
+			_check(i1.get_width() == bfw * 12 and i1.get_height() == bfh * 4, "%s sai kích thước %dx%d (cần %dx%d)" % [p1, i1.get_width(), i1.get_height(), bfw * 12, bfh * 4])
+			_check(i1.get_width() <= 1728, "%s quá rộng (%d)" % [p1, i1.get_width()])
+			_check(_unique_colors(i1, bfw, bfh, 48) >= 18, "trùm %s P1 quá ít sắc độ màu" % bid)
 		if t2 != null:
 			var i2: Image = t2.get_image()
-			var ew2: int = (bfw * 2 + 16) * 36
-			var eh2: int = bfh * 2 + 18
-			_check(i2.get_width() == ew2 and i2.get_height() == eh2, "%s sai kích thước %dx%d" % [p2, i2.get_width(), i2.get_height()])
-			_check(_unique_colors(i2, bfw * 2 + 16, eh2, 36) >= 20, "trùm %s P2 quá ít sắc độ màu" % bid)
+			var ew2: int = (bfw * 2 + 16) * 12
+			var eh2: int = (bfh * 2 + 18) * 4
+			_check(i2.get_width() == ew2 and i2.get_height() == eh2, "%s sai kích thước %dx%d (cần %dx%d)" % [p2, i2.get_width(), i2.get_height(), ew2, eh2])
+			_check(i2.get_width() <= 1728, "%s quá rộng (%d)" % [p2, i2.get_width()])
+			_check(_unique_colors(i2, bfw * 2 + 16, bfh * 2 + 18, 48) >= 20, "trùm %s P2 quá ít sắc độ màu" % bid)
 
 	for lid in EnemyData.LEGENDS:
 		var lg: Dictionary = EnemyData.LEGENDS[lid]
@@ -147,10 +160,11 @@ func _run() -> void:
 			_check(lt != null, "thiếu sheet Tam Yêu " + lp)
 			if lt != null:
 				var li: Image = lt.get_image()
-				_check(li.get_width() == lsz.x * 36 and li.get_height() == lsz.y, "%s sai kích thước %dx%d" % [lp, li.get_width(), li.get_height()])
-				_check(_unique_colors(li, lsz.x, lsz.y, 36) >= 18, "%s quá ít sắc độ màu" % lp)
+				_check(li.get_width() == lsz.x * 12 and li.get_height() == lsz.y * 4, "%s sai kích thước %dx%d (cần %dx%d)" % [lp, li.get_width(), li.get_height(), lsz.x * 12, lsz.y * 4])
+				_check(li.get_width() <= 1728, "%s quá rộng (%d)" % [lp, li.get_width()])
+				_check(_unique_colors(li, lsz.x, lsz.y, 48) >= 18, "%s quá ít sắc độ màu" % lp)
 
-	print("== 4. Kiểm tra SpriteFrames 16/36 khung & chuyển hoạt ảnh trong Enemy")
+	print("== 4. Kiểm tra SpriteFrames 24/48 khung & chuyển hoạt ảnh trong Enemy")
 	var arena := Node2D.new()
 	add_child(arena)
 	var mob = EnemyScript.new()
@@ -159,9 +173,9 @@ func _run() -> void:
 	arena.add_child(mob)
 	await _frames(2)
 	var msf: SpriteFrames = mob.spr.sprite_frames
-	for anim in ["walk", "windup", "attack", "hurt"]:
+	for anim in ["idle", "walk", "windup", "attack", "hurt"]:
 		_check(msf.has_animation(anim), "quái nhỏ thiếu hoạt ảnh '%s'" % anim)
-	_check(msf.get_frame_count("walk") == 8 and msf.get_frame_count("attack") == 4, "số khung walk/attack của quái nhỏ chưa đúng (walk=%d, attack=%d)" % [msf.get_frame_count("walk"), msf.get_frame_count("attack")])
+	_check(msf.get_frame_count("walk") == 8 and msf.get_frame_count("attack") == 6 and msf.get_frame_count("idle") == 4, "số khung walk/attack/idle của quái nhỏ chưa đúng (walk=%d, attack=%d, idle=%d)" % [msf.get_frame_count("walk"), msf.get_frame_count("attack"), msf.get_frame_count("idle")])
 	mob._hurt_anim_t = 0.15
 	mob._update_anim(0.016)
 	_check(mob.spr.animation == "hurt", "quái nhỏ trúng đòn phải chuyển sang 'hurt' (hiện '%s')" % mob.spr.animation)
