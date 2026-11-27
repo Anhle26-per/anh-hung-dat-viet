@@ -1,8 +1,8 @@
 extends Node2D
 ## Sảnh chính "Doanh trại Anh Hùng" 4 phòng kiểu Soul Knight (1360 x 760):
-##   - Đại Sảnh Anh Hùng (giữa): 11 vị tướng, trống đồng, trà đạo, 3 hành lang nối
-##   - Vườn Sen & Chiến Tích (tây): Hồ sen, Bia ghi công, Giếng Ước, Bảng Khiêu Chiến
-##   - Xưởng Rèn & Võ Đường (đông): Lò rèn, Giá binh khí, Bách Khoa Toàn Thư, 3 Hình nhân
+##   - Đại Sảnh Anh Hùng (giữa): 14 vị tướng, trống đồng, trà đạo, đài thiên phú, 3 hành lang nối
+##   - Vườn Sen & Chiến Tích (tây): Hồ sen, Bia ghi công, Giếng Ước, Bảng Khiêu Chiến, Đài Thức Tỉnh
+##   - Xưởng Rèn & Võ Đường (đông): Lò rèn, Giá binh khí, Bách Khoa Toàn Thư, 3 Hình nhân, Võ Đài Tỷ Thí
 ##   - Đại Cổng Xuất Trận (bắc): Cổng thời gian bắt đầu hành trình
 
 const Player = preload("res://scripts/entities/player.gd")
@@ -16,6 +16,9 @@ const Ambience = preload("res://scripts/game/ambience.gd")
 const LobbyUI = preload("res://scripts/ui/lobby_ui.gd")
 const TouchControls = preload("res://scripts/ui/touch_controls.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
+const HeroSkins = preload("res://scripts/data/hero_skins.gd")
+const CampNpcs = preload("res://scripts/data/camp_npcs.gd")
+const SparringArena = preload("res://scripts/entities/sparring_arena.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Art = preload("res://scripts/art/art.gd")
@@ -46,9 +49,12 @@ const ROOMS: Array[Dictionary] = [
 ]
 
 const HERO_SPOTS: Array[Vector2] = [
-	Vector2(502, 338), Vector2(552, 338), Vector2(602, 338), Vector2(548, 394),
-	Vector2(760, 338), Vector2(810, 338), Vector2(860, 338), Vector2(812, 394),
-	Vector2(510, 564), Vector2(772, 578), Vector2(840, 578),
+	Vector2(502, 328), Vector2(552, 328), Vector2(602, 328),
+	Vector2(522, 382), Vector2(582, 382),
+	Vector2(760, 328), Vector2(810, 328), Vector2(860, 328),
+	Vector2(780, 382), Vector2(840, 382),
+	Vector2(504, 534), Vector2(558, 534),
+	Vector2(802, 534), Vector2(856, 534),
 ]
 
 var world: Node2D
@@ -64,6 +70,7 @@ var hero_confirmed: bool = false
 var well_uses: int = 3
 var supply_claimed: bool = false
 var garden_watered: bool = false
+var fortune_rolled: bool = false
 var pet_gifts: Dictionary = {}
 var koi_fed: bool = false
 var merchant_deal: String = ""
@@ -72,6 +79,7 @@ var remote_players: Dictionary = {}
 var remote_pets: Dictionary = {}
 var _hero_npcs := {}
 var _npc_nodes: Dictionary = {}
+var _rescued_npc_nodes: Dictionary = {}
 var _animal_nodes: Dictionary = {}
 var _pet_stations: Array = []
 var _basement_stations: Array = []
@@ -80,6 +88,9 @@ var _basement_up_st: Node2D = null
 var _north_portal: Node2D = null
 var _hero_overlay: Node2D = null
 var _trophy_wall: Node2D = null
+var _trophies_count: int = 0
+var _sparring_arena: Node2D = null
+var _garden_wrap: Node2D = null
 var _hovered_hero_id: String = ""
 var _cursor_hero_idx: int = 0
 var _canvas_mod: CanvasModulate = null
@@ -162,11 +173,13 @@ class HeroRingOverlay extends Node2D:
 
 
 class TrophyWallDisplay extends Node2D:
-	## Kệ Kỷ Vật Hồn Sử Đại Việt treo dọc tường Bắc Đại Sảnh (y = 258, phía trên các bục tướng y = 338)
+	## Kệ Kỷ Vật Hồn Sử Đại Việt treo dọc tường Bắc Đại Sảnh (y = 258, 24 vị trí trên 2 tầng giá)
 	const CHRONICLES_SCRIPT := "res://scripts/data/chronicles.gd"
 	const SLOT_XS: Array[float] = [
-		-206.0, -173.0, -159.0, -145.0, -131.0, -117.0, -103.0, -75.0,
-		75.0, 103.0, 117.0, 131.0, 145.0, 159.0, 173.0, 206.0,
+		-186.0, -166.0, -146.0, -126.0, -106.0, -86.0,
+		86.0, 106.0, 126.0, 146.0, 166.0, 186.0,
+		-186.0, -166.0, -146.0, -126.0, -106.0, -86.0,
+		86.0, 106.0, 126.0, 146.0, 166.0, 186.0,
 	]
 
 	var t: float = 0.0
@@ -224,24 +237,26 @@ class TrophyWallDisplay extends Node2D:
 		}
 
 	func _draw() -> void:
-		# Thanh gỗ sơn son thếp vàng gắn hai bên tường Bắc Đại Sảnh
-		for side in [-1.0, 1.0]:
-			var bx: float = -182.0 if side < 0.0 else 96.0
-			draw_rect(Rect2(bx, -5.0, 86.0, 10.0), Color(0.22, 0.11, 0.07, 0.88))
-			draw_rect(Rect2(bx, -5.0, 86.0, 10.0), Color(0.76, 0.56, 0.22, 0.58), false, 1.0)
-			draw_rect(Rect2(bx + 2.0, -4.0, 82.0, 1.0), Color(1.0, 0.84, 0.42, 0.35))
+		# Thanh gỗ sơn son thếp vàng (2 tầng x 2 bên tường Bắc Đại Sảnh, sức chứa 24 kỷ vật)
+		for row_y in [-6.0, 8.0]:
+			for side in [-1.0, 1.0]:
+				var bx: float = -196.0 if side < 0.0 else 68.0
+				draw_rect(Rect2(bx, row_y - 4.0, 128.0, 8.0), Color(0.22, 0.11, 0.07, 0.88))
+				draw_rect(Rect2(bx, row_y - 4.0, 128.0, 8.0), Color(0.76, 0.56, 0.22, 0.58), false, 1.0)
+				draw_rect(Rect2(bx + 2.0, row_y - 3.0, 124.0, 1.0), Color(1.0, 0.84, 0.42, 0.35))
 
 		var unlocked: Array = _unlocked_list()
 		var order: Array = _ordered_ids()
 		var slot_count: int = SLOT_XS.size()
 		for i in slot_count:
 			var sx: float = SLOT_XS[i]
+			var sy: float = -6.0 if i < 12 else 8.0
 			var cid: String = str(order[i]) if i < order.size() else ""
 			var has_trophy: bool = (cid != "" and unlocked.has(cid))
 			if not has_trophy:
-				draw_rect(Rect2(sx - 4.0, -4.0, 8.0, 8.0), Color(0.14, 0.08, 0.06, 0.72))
-				draw_rect(Rect2(sx - 4.0, -4.0, 8.0, 8.0), Color(0.55, 0.42, 0.22, 0.35), false, 1.0)
-				draw_circle(Vector2(sx, -1.0), 1.0, Color(0.78, 0.62, 0.28, 0.42))
+				draw_rect(Rect2(sx - 3.5, sy - 3.5, 7.0, 7.0), Color(0.14, 0.08, 0.06, 0.72))
+				draw_rect(Rect2(sx - 3.5, sy - 3.5, 7.0, 7.0), Color(0.55, 0.42, 0.22, 0.35), false, 1.0)
+				draw_circle(Vector2(sx, sy - 0.5), 0.9, Color(0.78, 0.62, 0.28, 0.42))
 				continue
 
 			var info: Dictionary = _entry_info(cid)
@@ -251,31 +266,29 @@ class TrophyWallDisplay extends Node2D:
 			var gem: Color = pal.gem
 			var pulse: float = 0.65 + 0.35 * sin(t * 2.8 + float(i) * 0.9)
 
-			# Hào quang nhẹ quanh khiên kỷ vật đã mở khóa
-			draw_circle(Vector2(sx, 0.0), 8.5, Color(rim.r, rim.g, rim.b, 0.14 * pulse))
+			draw_circle(Vector2(sx, sy), 7.5, Color(rim.r, rim.g, rim.b, 0.14 * pulse))
 
 			var outer := PackedVector2Array([
-				Vector2(sx - 5.5, -6.0),
-				Vector2(sx + 5.5, -6.0),
-				Vector2(sx + 5.5, 1.0),
-				Vector2(sx, 6.5),
-				Vector2(sx - 5.5, 1.0),
+				Vector2(sx - 4.8, sy - 5.2),
+				Vector2(sx + 4.8, sy - 5.2),
+				Vector2(sx + 4.8, sy + 0.8),
+				Vector2(sx, sy + 5.6),
+				Vector2(sx - 4.8, sy + 0.8),
 			])
 			var inner := PackedVector2Array([
-				Vector2(sx - 4.0, -4.5),
-				Vector2(sx + 4.0, -4.5),
-				Vector2(sx + 4.0, 0.5),
-				Vector2(sx, 4.8),
-				Vector2(sx - 4.0, 0.5),
+				Vector2(sx - 3.4, sy - 3.8),
+				Vector2(sx + 3.4, sy - 3.8),
+				Vector2(sx + 3.4, sy + 0.4),
+				Vector2(sx, sy + 4.1),
+				Vector2(sx - 3.4, sy + 0.4),
 			])
 			draw_colored_polygon(outer, rim)
 			draw_colored_polygon(inner, fill)
-			# Hoa văn tâm khiên + ánh lóe nhẹ chạy qua theo chu kỳ
-			draw_circle(Vector2(sx, -1.0), 1.6, gem)
+			draw_circle(Vector2(sx, sy - 0.8), 1.4, gem)
 			var gleam: float = maxf(0.0, sin(t * 1.9 - float(i) * 0.55))
 			if gleam > 0.78:
 				var ga: float = (gleam - 0.78) / 0.22
-				draw_line(Vector2(sx - 3.5, -3.5), Vector2(sx + 3.0, 2.0), Color(1.0, 1.0, 0.95, 0.75 * ga), 1.4)
+				draw_line(Vector2(sx - 3.0, sy - 3.0), Vector2(sx + 2.5, sy + 1.8), Color(1.0, 1.0, 0.95, 0.75 * ga), 1.2)
 var _forged_icon: Sprite2D
 var _garden_sprites: Array[Sprite2D] = []
 var _garden_sparkles: Array[CPUParticles2D] = []
@@ -309,6 +322,9 @@ func _ready() -> void:
 		Global.save_game()
 		secret_unlocked = true
 	_build_stations()
+	_refresh_rescued_npcs()
+	if _trophy_wall != null and is_instance_valid(_trophy_wall):
+		_trophies_count = _trophy_wall.trophy_count()
 	_hero_overlay = HeroRingOverlay.new()
 	_hero_overlay.lobby = self
 	_hero_overlay.z_index = 0
@@ -734,7 +750,7 @@ func _add_station(kind: String, data: String, title: String, hint: String, pos: 
 
 
 func _build_stations() -> void:
-	# 11 vị tướng trên 4 bục gỗ trong Đại Sảnh
+	# 14 vị tướng trên các bục gỗ trong Đại Sảnh
 	for i in HeroData.ORDER.size():
 		var id: String = HeroData.ORDER[i]
 		var h: Dictionary = HeroData.DATA[id]
@@ -752,6 +768,13 @@ func _build_stations() -> void:
 		s.radius = 22.0
 		_hero_npcs[id] = s
 	_refresh_heroes()
+
+	# Đại Sảnh (giữa-bắc): Đài Thiên Phú Đại Việt
+	var stree_st := _add_station("skill_tree", "", "Đài Thiên Phú", "Cây Thiên Phú Đại Việt", Vector2(680, 326), _sprite("world/lobby_skill_tree.png", Vector2(0, -16)), -46.0)
+	stree_st.radius = 28.0
+	var stl_tree := Art.light(Color(0.45, 0.95, 0.68), 0.85, 0.65)
+	stl_tree.position = Vector2(680, 316)
+	world.add_child(stl_tree)
 
 	# Xưởng Rèn (phòng Đông - nửa trên)
 	var forge := AnimatedSprite2D.new()
@@ -773,13 +796,13 @@ func _build_stations() -> void:
 	rack.add_child(_forged_icon)
 	refresh_forged_display()
 
-	var codex_st := _add_station("codex", "", "Bách Khoa", "Phúc lành & Tướng địch", Vector2(1252, 345), _sprite("world/lobby_codex.png", Vector2(0, -14)), -44.0)
+	var codex_st := _add_station("codex", "", "Bách Khoa", "Phúc lành, Cổ Vật & Trùm", Vector2(1252, 345), _sprite("world/lobby_codex.png", Vector2(0, -14)), -44.0)
 	codex_st.radius = 28.0
 	var cl := Art.light(Color(1.0, 0.85, 0.52), 0.8, 0.65)
 	cl.position = Vector2(1240, 342)
 	world.add_child(cl)
 
-	# Võ Đường (phòng Đông - nửa dưới): 3 hình nhân rơm đánh thử & Giá Thử Binh Khí
+	# Võ Đường (phòng Đông - nửa dưới): 3 hình nhân rơm đánh thử, Giá Thử Binh Khí & Võ Đài Tỷ Thí
 	var wtest_spr := _sprite("world/weapon_rack.png", Vector2(0, -10))
 	var wtest_st := _add_station("weapon_test", "", "Thử Binh Khí", "Đổi vũ khí tập võ", Vector2(1008, 492), wtest_spr, -32.0)
 	wtest_st.radius = 24.0
@@ -791,6 +814,14 @@ func _build_stations() -> void:
 		var dm := Dummy.new()
 		dm.position = p
 		world.add_child(dm)
+
+	_sparring_arena = SparringArena.new()
+	world.add_child(_sparring_arena)
+	var spar_st := _add_station("sparring", "", "Võ Đài Tỷ Thí", "Bật/Tắt Tỷ Thí", Vector2(1140, 654), _sprite("world/lobby_sparring_banner.png", Vector2(0, -16)), -44.0)
+	spar_st.radius = 28.0
+	var spl := Art.light(Color(1.0, 0.45, 0.32), 0.85, 0.65)
+	spl.position = Vector2(1140, 644)
+	world.add_child(spl)
 
 	# Vườn Sen & Chiến Tích (phòng Tây)
 	var stele_st := _add_station("stele", "", "Bia ghi công", "Xem thành tích", Vector2(135, 345), _sprite("world/lobby_stele.png", Vector2(0, -18)), -50.0)
@@ -863,39 +894,20 @@ func _build_stations() -> void:
 	chl.position = Vector2(492, 608)
 	world.add_child(chl)
 
-	# Vườn Sen (tây): Vườn Thảo Dược 3 luống cập nhật sống theo từng ô trồng
-	var garden_wrap := Node2D.new()
+	# Vườn Sen (tây): Vườn Thảo Dược (3 luống mặc định, 6 luống khi giải cứu Danh Y Tuệ Tĩnh)
+	_garden_wrap = Node2D.new()
 	_garden_sprites.clear()
 	_garden_sparkles.clear()
-	for idx in 3:
-		var ox: float = (-60.0 if idx == 0 else (0.0 if idx == 1 else 60.0))
-		var p_spr := Sprite2D.new()
-		p_spr.position = Vector2(ox, -14)
-		garden_wrap.add_child(p_spr)
-		_garden_sprites.append(p_spr)
-		var g_pt := CPUParticles2D.new()
-		g_pt.position = Vector2(ox, -20)
-		g_pt.amount = 5
-		g_pt.lifetime = 1.4
-		g_pt.direction = Vector2.UP
-		g_pt.spread = 35.0
-		g_pt.gravity = Vector2(0, -12)
-		g_pt.initial_velocity_min = 4.0
-		g_pt.initial_velocity_max = 9.0
-		g_pt.scale_amount_min = 1.0
-		g_pt.scale_amount_max = 1.6
-		var gg := Gradient.new()
-		gg.set_color(0, Color(1.0, 0.94, 0.55, 0.9))
-		gg.set_color(1, Color(1.0, 0.94, 0.55, 0.0))
-		g_pt.color_ramp = gg
-		g_pt.material = Art.additive()
-		g_pt.z_index = 2
-		g_pt.emitting = false
-		garden_wrap.add_child(g_pt)
-		_garden_sparkles.append(g_pt)
-	var garden_st := _add_station("garden", "", "Vườn Thảo Dược", "Trồng & thu hoạch linh thảo", Vector2(154, 446), garden_wrap, -46.0)
-	garden_st.radius = 46.0
+	var garden_st := _add_station("garden", "", "Vườn Thảo Dược", "Trồng & thu hoạch linh thảo", Vector2(154, 446), _garden_wrap, -46.0)
+	garden_st.radius = 48.0
 	refresh_garden_display()
+
+	# Vườn Sen (tây): Đài Thức Tỉnh Thần Thú
+	var pshrine_st := _add_station("pet_shrine", "", "Đài Thức Tỉnh", "Thức tỉnh Thần Thú", Vector2(356, 446), _sprite("world/lobby_pet_shrine.png", Vector2(0, -16)), -44.0)
+	pshrine_st.radius = 28.0
+	var pshl := Art.light(Color(0.42, 0.94, 0.88), 0.85, 0.65)
+	pshl.position = Vector2(356, 436)
+	world.add_child(pshl)
 
 	# Xưởng Rèn (đông): Bàn Phù Phép Binh Khí
 	var enc_spr := AnimatedSprite2D.new()
@@ -1012,6 +1024,31 @@ func _is_hero_unlocked(id: String) -> bool:
 	return Global.unlocked.has(id)
 
 
+func _hero_skin_modulate(id: String) -> Color:
+	var sid: String = HeroSkins.DEFAULT_SKIN
+	if Global.has_method("get_selected_skin"):
+		sid = str(Global.call("get_selected_skin", id))
+	else:
+		var smap: Variant = Global.get("selected_skins")
+		if smap is Dictionary and (smap as Dictionary).has(id):
+			sid = str((smap as Dictionary)[id])
+	var skin: Dictionary = HeroSkins.get_skin(id, sid)
+	var c: Variant = skin.get("modulate", Color.WHITE)
+	return c as Color if c is Color else Color.WHITE
+
+
+func _is_npc_rescued(npc_id: String) -> bool:
+	var arr: Variant = Global.get("rescued_npcs")
+	return arr is Array and (arr as Array).has(npc_id)
+
+
+func refresh_hero_appearance(id: String = "") -> void:
+	_refresh_heroes()
+	if player != null and is_instance_valid(player) and (id == "" or id == Global.selected_hero):
+		if "body" in player and player.body != null and is_instance_valid(player.body):
+			player.body.modulate = _hero_skin_modulate(Global.selected_hero)
+
+
 func _refresh_heroes() -> void:
 	for id in _hero_npcs:
 		var s = _hero_npcs[id]
@@ -1019,6 +1056,7 @@ func _refresh_heroes() -> void:
 		s.visible = true if (not hero_confirmed or (Net != null and Net.is_online())) else (id != Global.selected_hero)
 		var spr: AnimatedSprite2D = s.get_child(0)
 		spr.material = null if unlocked else Art.stone_material()
+		spr.modulate = _hero_skin_modulate(str(id)) if unlocked else Color.WHITE
 		spr.play("idle")
 		s.title_color = Color(1, 0.9, 0.6) if unlocked else Color(0.8, 0.78, 0.75)
 		s.title = HeroData.DATA[id].name if unlocked else "%s - %d xu" % [HeroData.DATA[id].name, HeroData.DATA[id].cost]
@@ -1040,6 +1078,8 @@ func _spawn_player(pos: Vector2, force_pos: bool = false) -> void:
 		if col_v is Color:
 			player.name_color = col_v
 	player.setup(Global.selected_hero)
+	if "body" in player and player.body != null and is_instance_valid(player.body):
+		player.body.modulate = _hero_skin_modulate(Global.selected_hero)
 	if Global.lobby_weapon_mod != "" and player.weapons.size() > 0 and str(player.weapons[0]) != "":
 		Global.set_weapon_mod(str(player.weapons[0]), Global.lobby_weapon_mod)
 	player.position = pos
@@ -1174,11 +1214,28 @@ func _unhandled_input(event: InputEvent) -> void:
 			_mark_input_handled()
 
 
+func toggle_sparring() -> bool:
+	if _sparring_arena != null and is_instance_valid(_sparring_arena) and _sparring_arena.has_method("toggle_sparring"):
+		return bool(_sparring_arena.call("toggle_sparring"))
+	return false
+
+
 func _on_station(s) -> void:
 	touch.reset()
 	match s.kind:
 		"hero":
 			ui.open_hero(s.data)
+		"skill_tree":
+			if ui != null and ui.has_method("open_skill_tree"):
+				ui.open_skill_tree()
+		"pet_shrine":
+			if ui != null and ui.has_method("open_pet_shrine"):
+				ui.open_pet_shrine()
+		"sparring":
+			if ui != null and ui.has_method("open_sparring"):
+				ui.open_sparring()
+			else:
+				toggle_sparring()
 		"forge":
 			ui.open_forge()
 		"rack":
@@ -1402,23 +1459,125 @@ func refresh_forged_display() -> void:
 		_forged_icon.visible = false
 
 
+func _garden_tex_path(pid: String, stg: int) -> String:
+	if pid == "":
+		return "world/garden_plot_empty.png"
+	if stg >= 2 and Global.GARDEN_PLANTS.has(pid):
+		match pid:
+			"linh_chi_vang":
+				return "world/garden_linh_chi.png"
+			"hoa_uu_dam":
+				return "world/garden_uu_dam.png"
+			_:
+				return "world/garden_%s.png" % pid
+	return "world/garden_plot_sprout.png"
+
+
 func refresh_garden_display() -> void:
 	Global.ensure_garden_plots()
+	if _garden_wrap == null or not is_instance_valid(_garden_wrap):
+		return
+	var want_count: int = Global.garden_plots.size()
+	while _garden_sprites.size() > want_count:
+		var old_sp: Sprite2D = _garden_sprites.pop_back()
+		if old_sp != null and is_instance_valid(old_sp):
+			old_sp.queue_free()
+	while _garden_sparkles.size() > want_count:
+		var old_pt: CPUParticles2D = _garden_sparkles.pop_back()
+		if old_pt != null and is_instance_valid(old_pt):
+			old_pt.queue_free()
+	while _garden_sprites.size() < want_count:
+		var idx: int = _garden_sprites.size()
+		var col_i: int = idx % 3
+		var row_i: int = int(idx / 3)
+		var ox: float = -60.0 + float(col_i) * 60.0
+		var oy: float = -14.0 + float(row_i) * 28.0
+		var p_spr := Sprite2D.new()
+		p_spr.position = Vector2(ox, oy)
+		_garden_wrap.add_child(p_spr)
+		_garden_sprites.append(p_spr)
+		var g_pt := CPUParticles2D.new()
+		g_pt.position = Vector2(ox, oy - 6.0)
+		g_pt.amount = 5
+		g_pt.lifetime = 1.4
+		g_pt.direction = Vector2.UP
+		g_pt.spread = 35.0
+		g_pt.gravity = Vector2(0, -12)
+		g_pt.initial_velocity_min = 4.0
+		g_pt.initial_velocity_max = 9.0
+		g_pt.scale_amount_min = 1.0
+		g_pt.scale_amount_max = 1.6
+		var gg := Gradient.new()
+		gg.set_color(0, Color(1.0, 0.94, 0.55, 0.9))
+		gg.set_color(1, Color(1.0, 0.94, 0.55, 0.0))
+		g_pt.color_ramp = gg
+		g_pt.material = Art.additive()
+		g_pt.z_index = 2
+		g_pt.emitting = false
+		_garden_wrap.add_child(g_pt)
+		_garden_sparkles.append(g_pt)
 	for i in mini(_garden_sprites.size(), Global.garden_plots.size()):
 		var sd: Dictionary = Global.garden_plots[i]
 		var pid: String = str(sd.get("plant", ""))
 		var stg: int = int(sd.get("stage", 0))
-		var tex_rel := "world/garden_plot_empty.png"
-		var ripe := false
-		if pid != "":
-			if stg >= 2 and Global.GARDEN_PLANTS.has(pid):
-				tex_rel = "world/garden_%s.png" % pid
-				ripe = true
-			else:
-				tex_rel = "world/garden_plot_sprout.png"
+		var tex_rel: String = _garden_tex_path(pid, stg)
+		var ripe: bool = (pid != "" and stg >= 2 and Global.GARDEN_PLANTS.has(pid))
 		_garden_sprites[i].texture = Art.tex(tex_rel)
 		if i < _garden_sparkles.size():
 			_garden_sparkles[i].emitting = ripe
+
+
+func _refresh_rescued_npcs() -> void:
+	if world == null:
+		return
+	var specs: Dictionary = {
+		"than_y_tue_tinh": {"pos": Vector2(240, 466), "sheet": "world/npc_scholar.png", "fw": 24, "fh": 30},
+		"nghe_nhan_phu_lang": {"pos": Vector2(384, 462), "sheet": "world/npc_blacksmith.png", "fw": 28, "fh": 30},
+		"quan_su_co_loa": {"pos": Vector2(612, 616), "sheet": "world/npc_strategist.png", "fw": 24, "fh": 30},
+		"vo_su_thien_nam": {"pos": Vector2(1184, 654), "sheet": "world/npc_guard.png", "fw": 24, "fh": 30},
+	}
+	for npc_id_v in CampNpcs.NPC_ORDER:
+		var npc_id: String = str(npc_id_v)
+		var unlocked_npc: bool = _is_npc_rescued(npc_id)
+		var existing: Node2D = _rescued_npc_nodes.get(npc_id, null) as Node2D
+		if not unlocked_npc:
+			if existing != null and is_instance_valid(existing):
+				existing.queue_free()
+				_rescued_npc_nodes.erase(npc_id)
+			continue
+		if existing != null and is_instance_valid(existing):
+			existing.visible = true
+			continue
+		var sp: Dictionary = specs.get(npc_id, {})
+		var info: Dictionary = CampNpcs.get_npc(npc_id)
+		var col: Color = info.get("color", Color(1.0, 0.9, 0.5)) as Color
+		var nd := Node2D.new()
+		nd.position = sp.get("pos", SPAWN_POS) as Vector2
+		nd.z_index = 1
+		var sh := Sprite2D.new()
+		sh.texture = Art.tex("fx/shadow.png")
+		sh.position = Vector2(0, 2)
+		sh.z_index = -1
+		nd.add_child(sh)
+		var spr := AnimatedSprite2D.new()
+		spr.sprite_frames = Art.strip(str(sp.get("sheet", "world/npc_scholar.png")), int(sp.get("fw", 24)), int(sp.get("fh", 30)), 4.2, true)
+		spr.position = Vector2(0, -12)
+		spr.modulate = col.lerp(Color.WHITE, 0.55)
+		spr.play("play")
+		nd.add_child(spr)
+		var lb := Label.new()
+		lb.text = CampNpcs.npc_name(npc_id)
+		lb.position = Vector2(-56, -38)
+		lb.size = Vector2(112, 14)
+		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lb.add_theme_font_size_override("font_size", 10)
+		lb.add_theme_color_override("font_color", col.lerp(Color.WHITE, 0.3))
+		lb.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.06, 0.95))
+		lb.add_theme_constant_override("outline_size", 2)
+		nd.add_child(lb)
+		world.add_child(nd)
+		_rescued_npc_nodes[npc_id] = nd
+	refresh_garden_display()
 
 
 func on_forged() -> void:
@@ -1637,6 +1796,11 @@ func _sync_remote_lobby_peers() -> void:
 			if col_v is Color:
 				np.name_color = col_v
 			np.setup(hid)
+			if "body" in np and np.body != null and is_instance_valid(np.body):
+				var rskin: Dictionary = HeroSkins.get_skin(hid, str(info.get("skin", HeroSkins.DEFAULT_SKIN)))
+				var rcol: Variant = rskin.get("modulate", Color.WHITE)
+				if rcol is Color:
+					np.body.modulate = rcol as Color
 			np.position = keep_pos
 			np.set("_remote_pos", keep_pos)
 			np.visible = confirmed
@@ -1646,6 +1810,11 @@ func _sync_remote_lobby_peers() -> void:
 		else:
 			rp.set("display_name", str(info.get("name", "Đồng đội")))
 			rp.visible = confirmed
+			if "body" in rp and rp.body != null and is_instance_valid(rp.body):
+				var rskin2: Dictionary = HeroSkins.get_skin(hid, str(info.get("skin", HeroSkins.DEFAULT_SKIN)))
+				var rcol2: Variant = rskin2.get("modulate", Color.WHITE)
+				if rcol2 is Color:
+					rp.body.modulate = rcol2 as Color
 
 		var pet_id: String = str(info.get("pet", ""))
 		var rpet: Node = remote_pets.get(pid, null)

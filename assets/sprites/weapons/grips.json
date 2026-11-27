@@ -39,6 +39,10 @@
   7,
   10
  ],
+ "bua_tan_vien": [
+  7,
+  10
+ ],
  "bua_thien_loi": [
   7,
   12
@@ -192,6 +196,10 @@
   9
  ],
  "dinh_ba_thuy_tinh": [
+  9,
+  9
+ ],
+ "dinh_ba_thuy_tinh_than": [
   9,
   9
  ],
@@ -363,8 +371,20 @@
   6,
   11
  ],
+ "loi_chuy_thien_de": [
+  7,
+  12
+ ],
  "long_den_ma_troi": [
   6,
+  7
+ ],
+ "long_than_hai_kich": [
+  9,
+  10
+ ],
+ "long_uyen_kiem": [
+  5,
   7
  ],
  "luan_hoi_ban": [
@@ -414,6 +434,10 @@
  "no_bao_lua": [
   7,
   12
+ ],
+ "no_co_loa": [
+  7,
+  9
  ],
  "no_cuu_long": [
   7,
@@ -755,9 +779,17 @@
   6,
   9
  ],
+ "thai_to_thien_kiem": [
+  6,
+  9
+ ],
  "than_co_sang": [
   6,
   6
+ ],
+ "thien_loi_than_cung": [
+  12,
+  16
  ],
  "thuan_thien": [
   6,

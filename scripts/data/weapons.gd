@@ -37,6 +37,12 @@ const DATA := {
 		"desc": "Súng tự chế của nghĩa quân Yên Thế."},
 	"sung_truong_bo_binh": {"name": "Súng trường bộ binh", "tier": 1, "basic": true, "type": "ranged", "proj": "bullet", "damage": 5, "cooldown": 0.45, "energy": 0, "speed": 600.0, "life": 0.8, "recoil": 3.0, "muzzle": "flash",
 		"desc": "Khẩu súng trường theo người chiến sĩ."},
+	"no_co_loa": {"name": "Nỏ Cổ Loa", "tier": 1, "basic": true, "type": "ranged", "proj": "arrow", "damage": 3, "cooldown": 0.34, "energy": 0, "speed": 470.0, "life": 0.82, "count": 2, "spread": 6.0, "pierce": 1, "color": Color("ffd870"),
+		"desc": "Nỏ thần thành Cổ Loa của An Dương Vương, bắn 2 mũi tên xuyên giặc."},
+	"long_uyen_kiem": {"name": "Long Uyên Kiếm", "tier": 1, "basic": true, "type": "melee", "damage": 5, "cooldown": 0.30, "reach": 36.0, "arc": 135.0, "wave": "sword_wave", "color": Color("48c8ff"),
+		"desc": "Thần kiếm Long Uyên của Lạc Long Quân, vung kiếm phóng sóng nước."},
+	"bua_tan_vien": {"name": "Búa Tản Viên", "tier": 1, "basic": true, "type": "melee", "damage": 7, "cooldown": 0.44, "reach": 38.0, "arc": 150.0, "knock": 240.0, "stun": 0.25, "color": Color("c89854"),
+		"desc": "Đại búa đá Tản Viên của Sơn Tinh, nện choáng và hất văng giặc."},
 
 	# ============================================================ CẬN CHIẾN
 	"gay_tre": {"name": "Gậy tre", "tier": 1, "type": "melee", "damage": 4, "cooldown": 0.38, "reach": 40.0, "arc": 140.0, "knock": 220.0,
@@ -445,8 +451,12 @@ const DATA := {
 		"desc": "Thần pháo hợp nhất đồng cổ và tên lửa, nã 3 đầu đạn rồng nổ tan chiến trường."},
 	"luoi_hai_am_duong": {"name": "Lưỡi Hái Âm Dương", "tier": 5, "merged": true, "type": "melee", "damage": 15, "cooldown": 0.38, "reach": 56.0, "arc": 210.0, "hits": 2, "wave": "soul_bolt", "status": "poison", "bounce": 2, "knock": 260.0, "color": Color("c0a0ff"),
 		"desc": "Song nguyệt hái hợp nhất sinh tử, quét vòng rộng và phóng hồn đao truy kích."},
+	"long_than_hai_kich": {"name": "Long Thần Hải Kích", "tier": 5, "merged": true, "type": "melee", "style": "thrust", "damage": 16, "cooldown": 0.36, "reach": 64.0, "arc": 140.0, "hits": 2, "wave": "water_wave", "chain": 3, "knock": 280.0, "slow": 2.5, "color": Color("58f0ff"),
+		"desc": "Thần kích hợp nhất Rồng Biển: đâm đôi tung sóng hải triều kèm sấm sét Bách Việt."},
+	"thien_loi_than_cung": {"name": "Thiên Lôi Thần Cung", "tier": 5, "merged": true, "type": "ranged", "proj": "arrow", "damage": 9, "cooldown": 0.38, "energy": 4, "speed": 580.0, "life": 1.15, "count": 5, "spread": 30.0, "pierce": 2, "chain": 4, "homing": 3.0, "charge_max": 0.85, "color": Color("70f4ff"),
+		"desc": "Thần cung hợp nhất Cổ Loa và Lôi Thần: tụ lực phóng 5 tiễn sét tự đuổi xuyên giặc."},
 
-	# ============================================================ THẦN BINH TRÙM ĐỎ (13)
+	# ============================================================ THẦN BINH TRÙM ĐỎ (16)
 	"huyet_dao_to_dinh": {"name": "Huyết Đao Tô Định", "tier": 5, "boss_motif": true, "type": "melee", "damage": 14, "cooldown": 0.40, "reach": 48.0, "arc": 170.0, "hits": 2, "wave": "sword_wave", "knock": 220.0, "color": Color("ff384c"),
 		"desc": "Thần binh của Thái thú Tô Định: đại đao tham tàn chém hai nhát tung sóng huyết khí."},
 	"kich_luc_dan": {"name": "Thiết Kích Lục Dận", "tier": 5, "boss_motif": true, "type": "melee", "style": "thrust", "damage": 15, "cooldown": 0.38, "reach": 66.0, "arc": 48.0, "knock": 280.0, "stun": 0.5, "wave": "sword_wave", "color": Color("ff5040"),
@@ -473,6 +483,12 @@ const DATA := {
 		"desc": "Thần binh Xương Cuồng Mộc Tinh: triệu hồi hàng 10 rễ cổ thụ độc trồi lên choáng giặc."},
 	"hai_than_hac_hai": {"name": "Hắc Hải Long Kích", "tier": 5, "boss_motif": true, "type": "ranged", "proj": "orb_water", "damage": 10, "cooldown": 0.46, "energy": 4, "speed": 390.0, "life": 1.35, "count": 5, "spread": 42.0, "pierce": 2, "bounce": 2, "knock": 240.0, "slow": 2.8, "status": "slow", "color": Color("28b8ff"),
 		"desc": "Thần binh Hắc Hải Ngư Tinh: phóng 5 luồng sóng thần hắc hải xuyên và nảy đẩy lùi giặc."},
+	"dinh_ba_thuy_tinh_than": {"name": "Đinh Ba Thủy Tinh Thần", "tier": 5, "boss_motif": true, "type": "melee", "style": "thrust", "damage": 15, "cooldown": 0.38, "reach": 66.0, "arc": 56.0, "wave": "water_wave", "knock": 290.0, "slow": 2.8, "status": "slow", "color": Color("38d8ff"),
+		"desc": "Thần binh của Thủy Tinh: đinh ba biển sâu cuốn thủy triều xóa đạn và làm chậm giặc."},
+	"loi_chuy_thien_de": {"name": "Lôi Chùy Thiên Đế", "tier": 5, "boss_motif": true, "type": "melee", "damage": 17, "cooldown": 0.54, "reach": 48.0, "arc": 180.0, "chain": 5, "stun": 0.85, "knock": 310.0, "shake": 3.5, "color": Color("ffe050"),
+		"desc": "Thần binh của Thiên Lôi Ma Vương: giáng chùy sấm sét lan 5 địch và làm choáng diện rộng."},
+	"thai_to_thien_kiem": {"name": "Thái Tổ Thiên Kiếm", "tier": 5, "boss_motif": true, "type": "melee", "damage": 15, "cooldown": 0.34, "reach": 52.0, "arc": 175.0, "hits": 2, "wave": "sword_wave", "chain": 3, "knock": 240.0, "color": Color("ff5868"),
+		"desc": "Thần binh Hỗn Mang Yêu Đế: thiên kiếm chém đôi phóng sóng kiếm và thiên lôi."},
 }
 
 

@@ -29,6 +29,9 @@ const TRAITS: Dictionary = {
 	"hoa_mai_yen_the": {"kind": "gun", "d1": "Đạn xuyên 1 giặc", "d2": "Phát thứ 4 liên tiếp nổ nhỏ bán kính 24"},
 	"sung_truong_bo_binh": {"kind": "gun", "d1": "Đạn xuyên 1 giặc", "d2": "Phát thứ 4 liên tiếp nổ nhỏ bán kính 24"},
 	"gay_tre": {"kind": "melee_fire", "d1": "Tầm với +15%", "d2": "Mỗi nhát thứ 3 phóng sóng lửa gây cháy (60%)"},
+	"no_co_loa": {"kind": "bow", "d1": "Tên xuyên thêm 1 giặc", "d2": "Mỗi phát bắn thêm 1 mũi tên tỏa ±6°"},
+	"long_uyen_kiem": {"kind": "melee", "d1": "Tầm với +15%", "d2": "Mỗi nhát thứ 3 phóng sóng kiếm 60% sát thương"},
+	"bua_tan_vien": {"kind": "melee", "d1": "Tầm với +15%", "d2": "Mỗi nhát thứ 3 phóng sóng kiếm 60% sát thương"},
 }
 
 

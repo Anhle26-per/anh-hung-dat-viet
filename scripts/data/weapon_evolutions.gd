@@ -26,9 +26,11 @@ const MERGE_RECIPES: Array = [
 	{"a": "hoa_mai", "b": "than_co_sang", "result": "dai_bac_than_cong", "name": "Đại Bác Thần Công"},
 	{"a": "quat_thep", "b": "quat_ngoc_luan", "result": "quat_ba_tieu", "name": "Quạt Ba Tiêu"},
 	{"a": "bua_sat", "b": "bua_bang_ha", "result": "bua_thien_loi", "name": "Búa Thiên Lôi"},
+	{"a": "dinh_ba_hoang_thao", "b": "kiem_rong_tien", "result": "long_than_hai_kich", "name": "Long Thần Hải Kích"},
+	{"a": "cung_set", "b": "no_co_loa", "result": "thien_loi_than_cung", "name": "Thiên Lôi Thần Cung"},
 ]
 
-## Ánh xạ 13 Trùm (10 chương lịch sử + 3 trùm Thần Thoại) sang 13 Thần binh Đỏ (tier 5, boss_motif: true)
+## Ánh xạ 16 Trùm (10 chương lịch sử + 3 trùm Thần Thoại + 3 trùm Bí Cảnh/Kết Thúc Thực) sang 16 Thần binh Đỏ (tier 5, boss_motif: true)
 const BOSS_MOTIF_BY_BOSS: Dictionary = {
 	"to_dinh": "huyet_dao_to_dinh",
 	"luc_dan": "kich_luc_dan",
@@ -43,6 +45,9 @@ const BOSS_MOTIF_BY_BOSS: Dictionary = {
 	"cuu_vi_ho": "ho_ly_cuu_vi",
 	"xuong_cuong": "truong_xuong_cuong",
 	"hac_hai_ngu": "hai_than_hac_hai",
+	"thuy_tinh": "dinh_ba_thuy_tinh_than",
+	"thien_loi": "loi_chuy_thien_de",
+	"hon_mang_yeu_de": "thai_to_thien_kiem",
 }
 
 

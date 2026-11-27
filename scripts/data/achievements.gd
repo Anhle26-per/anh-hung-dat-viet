@@ -1,5 +1,5 @@
 extends RefCounted
-## Dữ liệu 24 mốc Thành Tựu tại Tầng Hầm Chiến Tích và phần thưởng Xu / Nguyên liệu / 14 Bản Vẽ binh khí.
+## Dữ liệu 30 mốc Thành Tựu tại Tầng Hầm Chiến Tích và phần thưởng Xu / Nguyên liệu / 14 Bản Vẽ binh khí.
 
 const CATEGORY_ORDER: Array = ["chien_cong", "tram_tuong", "chinh_phuc", "binh_khi", "che_tao"]
 
@@ -82,6 +82,13 @@ const ORDER: Array = [
 	"crafted_5",
 	"coins_500",
 	"chests_10",
+	# Sử Thi & Hậu Chiến (6 - v3.0.0)
+	"coloa_wave_10",
+	"coloa_wave_20",
+	"haokhi_5",
+	"secret_boss_1",
+	"rescued_all",
+	"true_ending_1",
 ]
 
 const DATA: Dictionary = {
@@ -334,6 +341,68 @@ const DATA: Dictionary = {
 		"mats": {"sat": 3, "yeu_hon": 2},
 		"blueprint": "",
 	},
+
+	# --- Sử Thi & Hậu Chiến (v3.0.0) ---
+	"coloa_wave_10": {
+		"name": "Phòng Tuyến Cổ Loa",
+		"desc": "Trụ vững tới đợt 10 trong chế độ Thủ Thành Cổ Loa.",
+		"cat": "chinh_phuc",
+		"stat": "best_co_loa_wave",
+		"target": 10,
+		"coins": 180,
+		"mats": {"go_lim": 4, "sat": 4, "yeu_hon": 1},
+		"blueprint": "",
+	},
+	"coloa_wave_20": {
+		"name": "Nỏ Thần Bất Diệt",
+		"desc": "Trụ vững tới đợt 20 trong chế độ Thủ Thành Cổ Loa.",
+		"cat": "chinh_phuc",
+		"stat": "best_co_loa_wave",
+		"target": 20,
+		"coins": 400,
+		"mats": {"yeu_hon": 4, "ngoc_than": 3},
+		"blueprint": "",
+	},
+	"haokhi_5": {
+		"name": "Lửa Thử Hào Khí",
+		"desc": "Chinh phục thử thách ở mức Hào Khí Bậc 5 trở lên.",
+		"cat": "chinh_phuc",
+		"stat": "hao_khi_level",
+		"target": 5,
+		"coins": 260,
+		"mats": {"hoa_duoc": 4, "yeu_hon": 3, "ngoc_than": 2},
+		"blueprint": "",
+	},
+	"secret_boss_1": {
+		"name": "Khai Phá Bí Cảnh",
+		"desc": "Đánh bại 1 Trùm Bí Cảnh (Thủy Cung Bạch Đằng hoặc Đỉnh Tản Viên).",
+		"cat": "tram_tuong",
+		"stat": "secret_bosses",
+		"target": 1,
+		"coins": 320,
+		"mats": {"yeu_hon": 3, "ngoc_than": 3},
+		"blueprint": "",
+	},
+	"rescued_all": {
+		"name": "Doanh Trại Đồng Lòng",
+		"desc": "Giải cứu đầy đủ 4 danh sĩ trong hầm ngục về Doanh Trại.",
+		"cat": "chinh_phuc",
+		"stat": "rescued_npcs_count",
+		"target": 4,
+		"coins": 300,
+		"mats": {"go_lim": 4, "hoa_duoc": 3, "ngoc_than": 2},
+		"blueprint": "",
+	},
+	"true_ending_1": {
+		"name": "Cửu Trùng Bình Thiên Hạ",
+		"desc": "Đánh bại Hỗn Mang Yêu Đế tại Đỉnh Hồng Lĩnh — Cửu Trùng (Kết Thúc Thực).",
+		"cat": "tram_tuong",
+		"stat": "true_endings",
+		"target": 1,
+		"coins": 650,
+		"mats": {"yeu_hon": 6, "ngoc_than": 6},
+		"blueprint": "",
+	},
 }
 
 
@@ -342,21 +411,45 @@ static func progress_for(aid: String, g: Node) -> int:
 		return 0
 	var info: Dictionary = DATA[aid]
 	var stat_key: String = str(info.get("stat", ""))
+	var st_raw: Variant = g.get("stats")
+	var st: Dictionary = st_raw as Dictionary if typeof(st_raw) == TYPE_DICTIONARY else {}
 	match stat_key:
 		"kills", "bosses", "mythic_bosses", "runs", "crafted", "chests":
-			var st: Variant = g.get("stats")
-			if typeof(st) == TYPE_DICTIONARY:
-				return maxi(0, int((st as Dictionary).get(stat_key, 0)))
-			return 0
+			return maxi(0, int(st.get(stat_key, 0)))
+		"best_co_loa_wave", "secret_bosses", "true_endings":
+			var best_v: int = int(st.get(stat_key, 0))
+			var direct_v: Variant = g.get(stat_key)
+			if direct_v != null:
+				best_v = maxi(best_v, int(direct_v))
+			return maxi(0, best_v)
+		"hao_khi_level":
+			var hk_v: int = int(st.get("best_hao_khi_level", st.get("hao_khi_level", 0)))
+			var raw_hk: Variant = g.get("hao_khi_level")
+			if raw_hk != null:
+				hk_v = maxi(hk_v, int(raw_hk))
+			var raw_best_hk: Variant = g.get("best_hao_khi_level")
+			if raw_best_hk != null:
+				hk_v = maxi(hk_v, int(raw_best_hk))
+			return maxi(0, hk_v)
+		"rescued_npcs_count":
+			var r_arr: Variant = g.get("rescued_npcs")
+			if typeof(r_arr) == TYPE_ARRAY:
+				return (r_arr as Array).size()
+			var r_cnt: Variant = g.get("rescued_npcs_count")
+			if r_cnt != null:
+				return maxi(0, int(r_cnt))
+			return maxi(0, int(st.get("rescued_npcs_count", 0)))
 		"best_level":
-			return maxi(0, int(g.get("best_level")))
+			var bl: Variant = g.get("best_level")
+			return maxi(0, int(bl)) if bl != null else 0
 		"discovered":
 			var disc: Variant = g.get("discovered")
 			if typeof(disc) == TYPE_ARRAY:
 				return (disc as Array).size()
 			return 0
 		"coins":
-			return maxi(0, int(g.get("coins")))
+			var c_val: Variant = g.get("coins")
+			return maxi(0, int(c_val)) if c_val != null else 0
 	return 0
 
 

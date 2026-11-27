@@ -50,11 +50,14 @@ class Portrait extends Control:
 		draw_circle(Vector2.ZERO, 7.0, Color(0, 0, 0, 0.35))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		var g := WeaponData.grip(hero.weapon)
-		draw_set_transform(c + Vector2(6, 4), -0.5, Vector2(2.0, 2.0))
-		draw_texture(wt, -g, mod)
+		if wt != null:
+			draw_set_transform(c + Vector2(6, 4), -0.5, Vector2(2.0, 2.0))
+			draw_texture(wt, -g, mod)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		draw_texture_rect_region(tex, Rect2(c - Vector2(32, 42), Vector2(64, 64)), Rect2(f * 32, 0, 32, 32), mod)
-		draw_texture_rect(icon, Rect2(size.x - 26, 2, 22, 22), false, mod)
+		if tex != null:
+			draw_texture_rect_region(tex, Rect2(c - Vector2(32, 42), Vector2(64, 64)), Rect2(f * 32, 0, 32, 32), mod)
+		if icon != null:
+			draw_texture_rect(icon, Rect2(size.x - 26, 2, 22, 22), false, mod)
 		if locked:
 			Art.draw_text(self, c + Vector2(0, 2), "KHÓA", 22, Color(1, 0.85, 0.5))
 

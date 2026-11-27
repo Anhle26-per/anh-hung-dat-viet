@@ -1,5 +1,5 @@
 extends Node2D
-## Hiệu ứng thi triển chiêu thức riêng cho toàn bộ 22 kỹ năng anh hùng (v2.3.0).
+## Hiệu ứng thi triển chiêu thức riêng cho toàn bộ 28 kỹ năng anh hùng (v3.0.0).
 ## Dùng được cả trong trận (`spawn`) lẫn khung xem trước trong Sảnh (`draw_preview_fx`).
 
 const Art = preload("res://scripts/art/art.gd")
@@ -28,6 +28,12 @@ const SKILL_META: Dictionary = {
 	"boc_pha_nghin_can": {"c1": Color(1.0, 0.54, 0.18), "c2": Color(1.0, 0.90, 0.42), "dur": 0.82, "range": 94.0},
 	"ngua_sat": {"c1": Color(1.0, 0.38, 0.18), "c2": Color(1.0, 0.86, 0.32), "dur": 0.74, "range": 98.0},
 	"nho_tre_danh_giac": {"c1": Color(0.42, 0.96, 0.46), "c2": Color(1.0, 0.90, 0.36), "dur": 0.78, "range": 92.0},
+	"mua_ten_co_loa": {"c1": Color(0.96, 0.78, 0.28), "c2": Color(0.42, 0.96, 0.90), "dur": 0.78, "range": 100.0},
+	"loa_thanh_tran": {"c1": Color(0.92, 0.72, 0.24), "c2": Color(0.46, 0.94, 0.88), "dur": 0.80, "range": 96.0},
+	"thuy_long_trieu": {"c1": Color(0.24, 0.72, 0.98), "c2": Color(1.0, 0.88, 0.36), "dur": 0.82, "range": 92.0},
+	"tram_trung_hao_quang": {"c1": Color(0.32, 0.82, 1.0), "c2": Color(1.0, 0.86, 0.44), "dur": 0.82, "range": 94.0},
+	"doi_non_lap_be": {"c1": Color(0.54, 0.78, 0.36), "c2": Color(0.96, 0.74, 0.34), "dur": 0.80, "range": 98.0},
+	"thach_giap_tan_vien": {"c1": Color(0.76, 0.58, 0.32), "c2": Color(0.56, 0.92, 0.44), "dur": 0.82, "range": 90.0},
 }
 
 var skill_id: String = ""
@@ -56,14 +62,14 @@ static func spawn(parent: Node, pos: Vector2, aim_dir: Vector2, p_skill_id: Stri
 	return fx
 
 
-static func draw_preview_fx(ci: CanvasItem, p_skill_id: String, center: Vector2, target: Vector2, p: float, t: float) -> void:
+static func draw_preview_fx(ci: CanvasItem, p_skill_id: String, center: Vector2, target: Vector2, p: float, t: float, p_color_override: Color = Color(0, 0, 0, 0)) -> void:
 	if ci == null:
 		return
 	var cp: float = clampf(p, 0.0, 1.0)
 	if cp <= 0.001:
 		return
-	_draw_skill_layers(ci, p_skill_id, center, target, cp, t, 2, Color(0, 0, 0, 0), false)
-	_draw_skill_layers(ci, p_skill_id, center, target, cp, t, 2, Color(0, 0, 0, 0), true)
+	_draw_skill_layers(ci, p_skill_id, center, target, cp, t, 2, p_color_override, false)
+	_draw_skill_layers(ci, p_skill_id, center, target, cp, t, 2, p_color_override, true)
 
 
 func _ready() -> void:
@@ -136,6 +142,7 @@ static func _is_directional(sid: String) -> bool:
 		"voi_chien", "thuy_trieu_dang", "tuong_nhu_nguyet", "hoa_cong_bach_dang",
 		"than_toc", "hoa_ho_dai_phao", "nhat_tao_xung_kich", "hum_thieng",
 		"phuc_kich_yen_the", "keo_phao", "boc_pha_nghin_can", "ngua_sat", "nho_tre_danh_giac",
+		"mua_ten_co_loa", "doi_non_lap_be",
 	]
 
 
@@ -265,7 +272,7 @@ static func _draw_bolt(ci: CanvasItem, a: Vector2, b: Vector2, segs: int, jitter
 	ci.draw_polyline(pts, col, w)
 
 
-# ------------------------------------------------------------------ 22 Bespoke Skill Renderers
+# ------------------------------------------------------------------ 28 Bespoke Skill Renderers
 
 static func _draw_skill_layers(ci: CanvasItem, sid: String, center: Vector2, target: Vector2, p: float, t: float, syn: int, ov: Color, glow: bool) -> void:
 	var cols: Array = _resolve_colors(sid, ov)
@@ -743,6 +750,175 @@ static func _draw_skill_layers(ci: CanvasItem, sid: String, center: Vector2, tar
 				if p > 0.28:
 					_draw_bolt(ci, target + Vector2(0, -42.0 * sc), target, 6, 7.0 * sc, t * 2.0, Color(1, 1, 1, 0.85 * env), 1.4)
 					ci.draw_circle(target, 14.0 * sc, Color(c1, 0.45 * env))
+
+		"mua_ten_co_loa":
+			var fan_cnt := 7 + syn * 2
+			var eo := _ease_out_cubic(minf(p * 1.35, 1.0))
+			if not glow:
+				# Nỏ Thần Kim Quy golden bow arc + hexagonal turtle halo
+				ci.draw_arc(center, 22.0 * sc, ang - 1.35, ang + 1.35, 22, Color(c1, 0.92 * env), 2.4)
+				ci.draw_line(center + Vector2.from_angle(ang - 1.35) * (22.0 * sc), center + Vector2.from_angle(ang + 1.35) * (22.0 * sc), Color(c2, 0.72 * env), 1.3)
+				var hex := PackedVector2Array()
+				for hi in 6:
+					var ha := t * 1.8 + TAU * float(hi) / 6.0
+					hex.append(center + Vector2.from_angle(ha) * (16.0 * sc))
+				hex.append(hex[0])
+				ci.draw_polyline(hex, Color(c1, 0.55 * env), 1.4)
+				# Fanning 180-deg volley of Kim Quy arrows
+				for ai in fan_cnt:
+					var frac := float(ai) / float(maxi(fan_cnt - 1, 1))
+					var aa := ang + lerpf(-1.25, 1.25, frac)
+					var adir := Vector2.from_angle(aa)
+					var ap_t := _ease_out_cubic(clampf(p * 1.5 - absf(frac - 0.5) * 0.25, 0.0, 1.0))
+					var apos := (center + adir * (14.0 * sc)).lerp(center + adir * (dist * 1.02), ap_t)
+					ci.draw_line(apos - adir * (15.0 * sc), apos, Color(c1, 0.9 * env), 1.8)
+					_draw_diamond(ci, apos + adir * (3.0 * sc), 4.2 * sc, 1.8 * sc, aa, Color(c2, 0.95 * env))
+			else:
+				_draw_crescent(ci, center + d * (6.0 * sc), 24.0 * sc, ang, 1.3, 4.5 * sc, Color(c1, 0.45 * env), 14)
+				for ai in fan_cnt:
+					var frac := float(ai) / float(maxi(fan_cnt - 1, 1))
+					var aa := ang + lerpf(-1.25, 1.25, frac)
+					var adir := Vector2.from_angle(aa)
+					var ap_t := _ease_out_cubic(clampf(p * 1.5 - absf(frac - 0.5) * 0.25, 0.0, 1.0))
+					var apos := (center + adir * (14.0 * sc)).lerp(center + adir * (dist * 1.02), ap_t)
+					ci.draw_circle(apos, 4.2 * sc * env, Color(c2, 0.6 * env))
+				ci.draw_circle(center, 15.0 * sc * (1.0 - eo * 0.3), Color(c2, 0.24 * env))
+
+		"loa_thanh_tran":
+			var eo := _ease_out_cubic(p)
+			var rise := _ease_out_back(minf(p * 2.1, 1.0))
+			if not glow:
+				# Triple concentric spiral rings of Thành Cổ Loa
+				for ri in 3:
+					var rr := (16.0 + float(ri) * 10.0) * sc
+					var rot_a := t * (2.6 - float(ri) * 0.6) * (1.0 if ri % 2 == 0 else -1.0)
+					ci.draw_arc(center, rr, rot_a, rot_a + PI * 1.55, 24, Color(c1, (0.85 - float(ri) * 0.18) * env), 1.8)
+				# Central Nỏ Liên Châu turret frame
+				var tpos := center + d * (18.0 * sc)
+				ci.draw_circle(tpos, 7.5 * sc * rise, Color(0.54, 0.36, 0.14, env))
+				ci.draw_arc(tpos, 10.5 * sc * rise, ang - 1.0, ang + 1.0, 14, Color(c1, env), 2.2)
+				for bi in 4:
+					var bt := fmod(p * 2.4 + float(bi) * 0.25, 1.0)
+					var ba := ang + sin(float(bi) * 2.1) * 0.24
+					var bdir := Vector2.from_angle(ba)
+					var bpos := (tpos + bdir * (8.0 * sc)).lerp(target + bdir * (10.0 * sc), _ease_out_cubic(bt))
+					ci.draw_line(bpos - bdir * (12.0 * sc), bpos, Color(c2, 0.92 * env), 1.8)
+					_draw_diamond(ci, bpos, 3.6 * sc, 1.6 * sc, ba, Color(1, 1, 1, env))
+			else:
+				ci.draw_circle(center, (20.0 + eo * 18.0) * sc, Color(c1, 0.24 * env))
+				_draw_star(ci, center + d * (18.0 * sc), 12.0 * sc * env, 4.0 * sc, 6, t * 3.5, Color(c2, 0.62 * env))
+
+		"thuy_long_trieu":
+			var orbit_r := (26.0 + sin(p * PI) * 8.0) * sc
+			if not glow:
+				ci.draw_arc(center, orbit_r, 0.0, TAU, 32, Color(c1, 0.52 * env), 2.0)
+				ci.draw_arc(center, orbit_r * 0.68, t * 3.0, t * 3.0 + PI * 1.4, 20, Color(c2, 0.55 * env), 1.5)
+				# Song Long Biển Đông: 2 counter-rotating dragon bodies
+				for di in 2:
+					var base_a := t * 5.2 + float(di) * PI
+					var prev_pt := Vector2.ZERO
+					for si in 6:
+						var sa := base_a - float(si) * 0.34
+						var sr := orbit_r + sin(t * 9.0 + float(si) * 1.1) * 3.2 * sc
+						var sp := center + Vector2(cos(sa) * sr, sin(sa) * sr * 0.78)
+						var rad := (5.4 - float(si) * 0.62) * sc
+						var scol := c1 if di == 0 else c1.lerp(c2, 0.35)
+						ci.draw_circle(sp, rad, Color(scol, 0.88 * env))
+						if si == 0:
+							_draw_diamond(ci, sp, 7.0 * sc, 3.8 * sc, sa + PI * 0.5, Color(c2, 0.95 * env))
+						if si > 0:
+							ci.draw_line(prev_pt, sp, Color(c2, 0.72 * env), 1.6)
+						prev_pt = sp
+			else:
+				ci.draw_circle(center, orbit_r * 1.05, Color(c1, 0.24 * env))
+				for di in 2:
+					var ha := t * 5.2 + float(di) * PI
+					var hp := center + Vector2(cos(ha) * orbit_r, sin(ha) * orbit_r * 0.78)
+					ci.draw_circle(hp, 10.5 * sc, Color(c2, 0.52 * env))
+					_draw_crescent(ci, center, orbit_r, ha - 0.4, 0.7, 5.0 * sc, Color(c1, 0.45 * env), 10)
+
+		"tram_trung_hao_quang":
+			var eo := _ease_out_cubic(p)
+			var halo_r := (16.0 + eo * 26.0) * sc
+			if not glow:
+				ci.draw_circle(center, halo_r, Color(c1, 0.16 * env))
+				ci.draw_arc(center, halo_r, 0.0, TAU, 36, Color(c2, 0.88 * env), 2.2)
+				ci.draw_arc(center, halo_r * 0.72, 0.0, TAU, 28, Color(c1, 0.65 * env), 1.5)
+				# Ring of glowing Trăm Trứng orbs + homing dragon rays
+				var eggs := 6 + syn * 2
+				for ei in eggs:
+					var ea := t * 2.8 + TAU * float(ei) / float(eggs)
+					var epos := center + Vector2(cos(ea) * halo_r * 0.82, sin(ea) * halo_r * 0.68 - sin(p * PI) * 4.0 * sc)
+					_draw_diamond(ci, epos, 3.6 * sc, 4.6 * sc, 0.0, Color(c2, 0.95 * env))
+					ci.draw_circle(epos, 2.2 * sc, Color(1, 1, 1, 0.85 * env))
+					if p > 0.25:
+						var ray_t := _ease_out_cubic(clampf((p - 0.25) / 0.75, 0.0, 1.0))
+						var rdir := Vector2.from_angle(ea)
+						var rpos := epos.lerp(center + rdir * (dist * 0.92), ray_t)
+						ci.draw_line(epos, rpos, Color(c1, 0.55 * env), 1.6)
+						_draw_diamond(ci, rpos, 5.0 * sc, 2.2 * sc, ea, Color(c2, 0.9 * env))
+			else:
+				ci.draw_circle(center, halo_r * 1.1, Color(c2, 0.28 * env))
+				_draw_star(ci, center, 16.0 * sc * env, 5.5 * sc, 6, t * 2.2, Color(c1, 0.55 * env))
+
+		"doi_non_lap_be":
+			if not glow:
+				# Seismic ground fissure line + 3 erupting Tản Viên granite peaks
+				ci.draw_line(center, target, Color(c2, 0.75 * env), 3.0 * sc)
+				var peaks := 3 + syn
+				for mi in peaks:
+					var frac := float(mi + 1) / float(peaks + 1)
+					var delay := float(mi) * 0.11
+					var mp := clampf((p - delay) / 0.34, 0.0, 1.0)
+					if mp <= 0.0:
+						continue
+					var mpos := center.lerp(target, frac)
+					var rise := _ease_out_back(mp) * clampf((1.0 - p) * 3.8, 0.0, 1.0)
+					var mw := (11.0 + float(mi % 2) * 3.0) * sc
+					var mh := (22.0 + float(mi % 2) * 6.0) * sc * rise
+					var peak := PackedVector2Array([
+						mpos + Vector2(-mw, 4.0 * sc),
+						mpos + Vector2(-mw * 0.45, -mh * 0.65),
+						mpos + Vector2(0.0, -mh),
+						mpos + Vector2(mw * 0.45, -mh * 0.55),
+						mpos + Vector2(mw, 4.0 * sc),
+					])
+					ci.draw_colored_polygon(peak, Color(0.42, 0.36, 0.28, 0.92 * env))
+					ci.draw_polyline(peak, Color(c1, 0.9 * env), 1.6)
+					ci.draw_arc(mpos + Vector2(0, 3.0 * sc), mw * 1.25 * mp, 0.0, TAU, 18, Color(c2, (1.0 - mp * 0.5) * env), 1.6)
+			else:
+				for mi in 3 + syn:
+					var frac := float(mi + 1) / float(4 + syn)
+					var mpos := center.lerp(target, frac)
+					ci.draw_circle(mpos, 14.0 * sc * env, Color(c2, 0.35 * env))
+					_draw_star(ci, mpos + Vector2(0, -10.0 * sc), 9.0 * sc * env, 3.2 * sc, 4, float(mi), Color(c1, 0.58 * env))
+
+		"thach_giap_tan_vien":
+			var eo := _ease_out_cubic(p)
+			var sh_r := (22.0 + sin(p * PI) * 5.0) * sc
+			if not glow:
+				# Octagonal Tản Viên stone shield barrier + 3 seismic pulse rings
+				var oct := PackedVector2Array()
+				for oi in 8:
+					var oa := t * 1.2 + TAU * float(oi) / 8.0
+					oct.append(center + Vector2.from_angle(oa) * sh_r)
+				ci.draw_colored_polygon(oct, Color(c1, 0.22 * env))
+				oct.append(oct[0])
+				ci.draw_polyline(oct, Color(c1, 0.92 * env), 2.6)
+				for ri in 3:
+					var rp := clampf(p * 1.4 - float(ri) * 0.2, 0.0, 1.0)
+					if rp <= 0.0:
+						continue
+					var rr := (12.0 + _ease_out_cubic(rp) * 40.0) * sc
+					ci.draw_arc(center, rr, 0.0, TAU, 28, Color(c2, (1.0 - rp) * 0.88), 2.2)
+				# Giant hammer sweep
+				var h_ang := ang - 1.0 + _ease_out_cubic(minf(p * 1.4, 1.0)) * 2.0
+				var hpos := center + Vector2.from_angle(h_ang) * (24.0 * sc)
+				ci.draw_line(center, hpos, Color(0.58, 0.38, 0.20, env), 2.8)
+				_draw_diamond(ci, hpos, 8.5 * sc, 5.5 * sc, h_ang + PI * 0.5, Color(c1, env))
+			else:
+				ci.draw_circle(center, (sh_r + eo * 12.0) * 1.05, Color(c2, 0.28 * env))
+				_draw_star(ci, center, 16.0 * sc * env, 5.0 * sc, 8, t * 2.4, Color(c1, 0.55 * env))
 
 		_:
 			var eo := _ease_out_cubic(p)

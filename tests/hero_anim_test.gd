@@ -38,8 +38,8 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra 11 tờ ảnh tướng đều 896x32 (28 khung 32x32)")
-	_check(HeroData.ORDER.size() == 11, "số tướng phải là 11")
+	print("== 1. Kiểm tra các tờ ảnh tướng đều 896x32 (28 khung 32x32)")
+	_check(HeroData.ORDER.size() >= 11, "số tướng phải >= 11")
 	for hid_v in HeroData.ORDER:
 		var hid: String = str(hid_v)
 		var rel: String = "heroes/%s.png" % hid

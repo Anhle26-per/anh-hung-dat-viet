@@ -7,6 +7,7 @@ signal closed
 const UI = preload("res://scripts/ui/ui.gd")
 const HeroData = preload("res://scripts/data/heroes.gd")
 const RunModes = preload("res://scripts/data/run_modes.gd")
+const HaoKhiData = preload("res://scripts/data/hao_khi_data.gd")
 
 var _tab: String = "modes"
 var _body_box: VBoxContainer = null
@@ -37,11 +38,11 @@ func _ready() -> void:
 	add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(592, 336)
+	panel.custom_minimum_size = Vector2(592, 344)
 	center.add_child(panel)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", 3)
 	panel.add_child(box)
 
 	box.add_child(UI.label("THỬ THÁCH & CHẾ ĐỘ CHIẾN ĐẤU", 22, Color(1.0, 0.85, 0.35)))
@@ -155,44 +156,74 @@ func _build_modes_tab() -> void:
 	if _copy_btn != null:
 		_copy_btn.visible = false
 
-	# Hàng 1: Badass Mode + Boss Rush + Thử thách Hằng ngày
+	# Hàng 1: Badass Mode + Boss Rush + Thử thách Hằng ngày + Thủ Thành Cổ Loa
 	var top_row := HBoxContainer.new()
 	top_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	top_row.add_theme_constant_override("separation", 6)
+	top_row.add_theme_constant_override("separation", 4)
 	_body_box.add_child(top_row)
 
-	var b_badass := UI.button("Ác Mộng (Badass): BẬT" if Global.badass_mode else "Ác Mộng (Badass): TẮT", _on_toggle_badass, 13, 184.0)
-	b_badass.custom_minimum_size = Vector2(184, 28)
+	var b_badass := UI.button("Ác Mộng: BẬT" if Global.badass_mode else "Ác Mộng: TẮT", _on_toggle_badass, 12, 128.0)
+	b_badass.custom_minimum_size = Vector2(128, 30)
 	b_badass.modulate = Color(1.0, 0.38, 0.42) if Global.badass_mode else Color(0.84, 0.84, 0.9)
 	top_row.add_child(b_badass)
 
-	var b_boss := UI.button("Boss Rush (12 Trùm)", _on_start_boss_rush, 13, 178.0)
-	b_boss.custom_minimum_size = Vector2(178, 28)
+	var b_boss := UI.button("Boss Rush (12)", _on_start_boss_rush, 12, 122.0)
+	b_boss.custom_minimum_size = Vector2(122, 30)
 	b_boss.modulate = Color(1.0, 0.68, 0.35)
 	top_row.add_child(b_boss)
 
-	var b_daily := UI.button("Thử thách Hôm Nay", _on_start_daily, 13, 178.0)
-	b_daily.custom_minimum_size = Vector2(178, 28)
+	var b_daily := UI.button("Thử thách Ngày", _on_start_daily, 12, 124.0)
+	b_daily.custom_minimum_size = Vector2(124, 30)
 	b_daily.modulate = Color(0.48, 0.94, 1.0)
 	top_row.add_child(b_daily)
+
+	var best_wave: int = int(Global.stats.get("best_co_loa_wave", 0))
+	var b_coloa := UI.button("Thủ Thành Cổ Loa\nKỷ lục: Đợt %d" % best_wave, _on_start_co_loa, 11, 174.0)
+	b_coloa.custom_minimum_size = Vector2(174, 30)
+	b_coloa.modulate = Color(1.0, 0.86, 0.36)
+	top_row.add_child(b_coloa)
 
 	var daily_ids: Array = RunModes.daily_mutators()
 	var daily_names: PackedStringArray = []
 	for mid in daily_ids:
 		daily_names.append(RunModes.mutator_name(str(mid)))
-	var daily_lbl := UI.label("Hôm nay (%s): %s" % [RunModes.daily_seed_code(), ", ".join(daily_names)], 12, Color(0.72, 0.92, 1.0))
+	var daily_lbl := UI.label("Hôm nay (%s): %s" % [RunModes.daily_seed_code(), ", ".join(daily_names)], 11, Color(0.72, 0.92, 1.0))
 	_body_box.add_child(daily_lbl)
+
+	# Bậc Hào Khí Đại Việt (0..10)
+	var raw_hk: Variant = Global.get("hao_khi_level")
+	var hk_lv: int = clampi(int(raw_hk) if raw_hk != null else 0, 0, HaoKhiData.MAX_LEVEL)
+	var hk_row := HBoxContainer.new()
+	hk_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	hk_row.add_theme_constant_override("separation", 8)
+	_body_box.add_child(hk_row)
+	var hk_dec := UI.button("-", _on_change_hao_khi.bind(-1), 13, 30.0)
+	hk_dec.custom_minimum_size = Vector2(30, 22)
+	hk_dec.disabled = hk_lv <= 0
+	hk_row.add_child(hk_dec)
+	var hk_col: Color = Color(1.0, 0.62, 0.28) if hk_lv > 0 else Color(0.92, 0.90, 0.84)
+	var hk_lbl := UI.label("Bậc Hào Khí Đại Việt: %d / 10" % hk_lv, 13, hk_col)
+	hk_lbl.custom_minimum_size = Vector2(220, 20)
+	hk_row.add_child(hk_lbl)
+	var hk_inc := UI.button("+", _on_change_hao_khi.bind(1), 13, 30.0)
+	hk_inc.custom_minimum_size = Vector2(30, 22)
+	hk_inc.disabled = hk_lv >= HaoKhiData.MAX_LEVEL
+	hk_row.add_child(hk_inc)
+	var hk_sum := UI.label(HaoKhiData.summary_line(hk_lv), 10, Color(0.95, 0.84, 0.62))
+	hk_sum.clip_text = true
+	hk_sum.custom_minimum_size = Vector2(560, 14)
+	_body_box.add_child(hk_sum)
 
 	# Hàng 2: Chọn 8 Biến số (Mutators)
 	var sel_cnt: int = Global.pending_mutators.size()
-	var mut_hdr := UI.label("Chọn Biến Số (%d/8 đã bật):" % sel_cnt, 13, Color(1.0, 0.88, 0.45))
+	var mut_hdr := UI.label("Chọn Biến Số (%d/8 đã bật):" % sel_cnt, 12, Color(1.0, 0.88, 0.45))
 	_body_box.add_child(mut_hdr)
 
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 4)
+	grid.add_theme_constant_override("v_separation", 2)
 	_body_box.add_child(grid)
 
 	for mid_v in RunModes.MUTATOR_ORDER:
@@ -201,7 +232,7 @@ func _build_modes_tab() -> void:
 		var on: bool = Global.pending_mutators.has(mid)
 		var mcol: Color = RunModes.mutator_color(mid)
 		var card := Button.new()
-		card.custom_minimum_size = Vector2(276, 36)
+		card.custom_minimum_size = Vector2(276, 28)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		card.focus_mode = Control.FOCUS_NONE
 		card.pressed.connect(_on_toggle_mutator.bind(mid))
@@ -210,15 +241,15 @@ func _build_modes_tab() -> void:
 		vb.set_anchors_preset(Control.PRESET_FULL_RECT)
 		vb.offset_left = 6
 		vb.offset_right = -6
-		vb.offset_top = 2
-		vb.offset_bottom = -2
+		vb.offset_top = 1
+		vb.offset_bottom = -1
 		vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		vb.add_theme_constant_override("separation", 0)
-		var t_lbl := UI.label(("%s [BẬT]" if on else "%s") % str(minfo.get("name", mid)), 12, mcol if on else Color(0.9, 0.88, 0.84))
+		var t_lbl := UI.label(("%s [BẬT]" if on else "%s") % str(minfo.get("name", mid)), 11, mcol if on else Color(0.9, 0.88, 0.84))
 		t_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		t_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		vb.add_child(t_lbl)
-		var d_lbl := UI.label(str(minfo.get("desc", "")), 10, Color(0.84, 0.84, 0.82))
+		var d_lbl := UI.label(str(minfo.get("desc", "")), 9, Color(0.84, 0.84, 0.82))
 		d_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		d_lbl.clip_text = true
 		d_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -370,6 +401,26 @@ func _on_start_boss_rush() -> void:
 	Global.pending_run_mode = "boss_rush"
 	Global.start_run("")
 	_go_game()
+
+
+func _on_start_co_loa() -> void:
+	if _leaving:
+		return
+	Global.pending_run_mode = "co_loa"
+	Global.start_run("")
+	_go_game()
+
+
+func _on_change_hao_khi(delta: int) -> void:
+	var raw_hk: Variant = Global.get("hao_khi_level")
+	var cur: int = int(raw_hk) if raw_hk != null else 0
+	var nxt: int = clampi(cur + delta, 0, HaoKhiData.MAX_LEVEL)
+	if Global.has_method("set_hao_khi_level"):
+		Global.call("set_hao_khi_level", nxt)
+	else:
+		Global.set("hao_khi_level", nxt)
+		Global.save_game()
+	refresh()
 
 
 func _on_start_daily() -> void:

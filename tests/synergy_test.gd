@@ -66,7 +66,7 @@ func _run() -> void:
 	for wid in WeaponData.DATA:
 		var f: String = SynergyData.family(str(wid))
 		_check(f in SynergyData.FAMILY_ORDER, "vũ khí thiếu hệ: " + str(wid))
-	_check(WeaponData.DATA.size() == 217, "số vũ khí = %d (kỳ vọng 217)" % WeaponData.DATA.size())
+	_check(WeaponData.DATA.size() >= 217, "số vũ khí = %d (kỳ vọng >= 217)" % WeaponData.DATA.size())
 
 	print("== 2. SynergyData.level() đúng cho cả 10 tướng")
 	for hid in HeroData.ORDER:

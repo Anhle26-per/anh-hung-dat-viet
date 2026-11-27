@@ -1,5 +1,5 @@
 extends RefCounted
-## Dữ liệu mở rộng tướng v2.0.0: Nội tại (11 tướng), Kỹ năng 2 (11 tướng) và 5 Tượng Thần Việt.
+## Dữ liệu mở rộng tướng v3.0.0: Nội tại (14 tướng), Kỹ năng 2 (14 tướng) và 5 Tượng Thần Việt.
 
 const PASSIVES := {
 	"hai_ba_trung": {
@@ -45,6 +45,18 @@ const PASSIVES := {
 	"thanh_giong": {
 		"name": "Sức mạnh Phù Đổng",
 		"desc": "Mỗi 10 giặc hạ được tăng vĩnh viễn +1 máu tối đa trong lượt (tối đa +3).",
+	},
+	"an_duong_vuong": {
+		"name": "Nỏ Thần Kim Quy",
+		"desc": "Vũ khí cung/nỏ +1 xuyên và +15% chí mạng.",
+	},
+	"lac_long_quan": {
+		"name": "Huyết Mạch Rồng Tiên",
+		"desc": "Miễn chậm, hạ 8 giặc hồi +1 Máu hoặc Giáp.",
+	},
+	"son_tinh": {
+		"name": "Bất Động Như Sơn",
+		"desc": "Miễn đẩy lùi, đứng yên 0.8s tăng +25% sát thương đòn kế.",
 	},
 }
 
@@ -125,6 +137,27 @@ const SKILLS_2 := {
 		"skill_desc": "Nhổ bụi tre ngà khổng lồ quét 360° cực mạnh, đánh văng giặc và thổi bay mọi đạn địch.",
 		"skill_cd": 11.0,
 		"synergy_desc": "★ Quét 2 vòng liên tiếp  |  ★★ Gọi thiên lôi giáng xuống mỗi giặc trúng đòn",
+	},
+	"an_duong_vuong": {
+		"skill": "loa_thanh_tran",
+		"skill_name": "Loa Thành Trấn",
+		"skill_desc": "Dựng ụ Nỏ Liên Châu Cổ Loa tự bắn tên thần suốt 9 giây.",
+		"skill_cd": 14.0,
+		"synergy_desc": "★ Ụ nỏ bắn nhanh +30%  |  ★★ Dựng 2 ụ nỏ + phóng tên xuyên phá 3",
+	},
+	"lac_long_quan": {
+		"skill": "tram_trung_hao_quang",
+		"skill_name": "Trăm Trứng Hào Quang",
+		"skill_desc": "Hào quang Hồng Bàng hồi giáp cho cả đội và phóng tia Rồng truy kích.",
+		"skill_cd": 13.0,
+		"synergy_desc": "★ Hồi +2 Giáp & +25 Khí  |  ★★ Phóng 8 tia Rồng truy kích + tăng +25% sát thương",
+	},
+	"son_tinh": {
+		"skill": "thach_giap_tan_vien",
+		"skill_name": "Thạch Giáp Tản Viên",
+		"skill_desc": "Hóa thân Thạch Thần tăng +4 Giáp tạm và giáng búa chấn địa 3 nhịp.",
+		"skill_cd": 13.5,
+		"synergy_desc": "★ +6 Giáp tạm & tầm chấn địa +25%  |  ★★ Nhịp cuối gọi núi đá làm choáng 2s",
 	},
 }
 

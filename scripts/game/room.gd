@@ -3,6 +3,7 @@ extends Node2D
 ## -> dọn sạch thì mở cửa và hiện rương sơn mài.  kind: start, combat, treasure, shop, exit, boss, legend
 
 signal portal_entered
+signal portal_entered_branch(branch_kind: String)
 
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
@@ -22,6 +23,8 @@ const BlacksmithNpc = preload("res://scripts/entities/blacksmith_npc.gd")
 const EventAltar = preload("res://scripts/entities/event_altar.gd")
 const MountPickup = preload("res://scripts/entities/mount_pickup.gd")
 const BattlefieldHazard = preload("res://scripts/entities/battlefield_hazard.gd")
+const RescueNpc = preload("res://scripts/entities/rescue_npc.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
 
 const T := 16
 const MAX_ENEMIES := 28
@@ -54,6 +57,10 @@ var covers: Array = []
 var traps: Array = []
 var hazards: Array = []
 var _treasure_req_sent: bool = false
+var arena_elite_wave: bool = false
+var extra_treasure_chest: bool = false
+var extra_event_altar: bool = false
+var rescue_npc_id: String = ""
 
 
 func _is_badass() -> bool:
@@ -66,6 +73,20 @@ func _is_boss_rush() -> bool:
 
 func _has_mutator(mid: String) -> bool:
 	return Global != null and Global.has_method("has_mutator") and Global.has_mutator(mid)
+
+
+func _secret_biome() -> String:
+	if Global == null:
+		return ""
+	var raw: Variant = Global.get("secret_biome_override")
+	return str(raw) if raw != null else ""
+
+
+func _global_int(key: String) -> int:
+	if Global == null:
+		return 0
+	var v: Variant = Global.get(key)
+	return int(v) if v != null else 0
 
 
 func _ready() -> void:
@@ -92,8 +113,23 @@ func _ready() -> void:
 	if kind == "event":
 		state = "done"
 		_spawn_event_altar()
+		if extra_event_altar:
+			_spawn_event_altar(rect.get_center() + Vector2(-58, 6))
 		if randf() < 0.28 and (not Net.is_online() or Net.is_host()):
 			_spawn_mount_pickup.call_deferred(rect.get_center() + Vector2(78, 12))
+	elif extra_event_altar:
+		_spawn_event_altar(rect.get_center() + Vector2(-60, -18))
+	if rescue_npc_id != "" and (not Net.is_online() or Net.is_host()):
+		var rn := RescueNpc.new()
+		rn.setup(rescue_npc_id)
+		rn.position = rect.get_center() + Vector2(62, -26)
+		add_child(rn)
+	if extra_treasure_chest and (not Net.is_online() or Net.is_host()):
+		var extra_ch := LootChest.new()
+		extra_ch.level = level
+		extra_ch.chest_id = room_key + "_route_chest"
+		extra_ch.position = rect.get_center() + Vector2(-56, 18)
+		get_parent().add_child.call_deferred(extra_ch)
 	if kind == "exit" and randf() < 0.55 and not _is_boss_rush():
 		_spawn_blacksmith(rect.get_center() + Vector2(-70, 0))
 	if kind == "victory_hall":
@@ -105,6 +141,17 @@ func _ready() -> void:
 		get_parent().add_child.call_deferred(victory_altar)
 		if level == 16 and not _is_boss_rush():
 			_spawn_portal.call_deferred(vc + Vector2(0, -56), "Cổng Thần Thoại (4-1)", true)
+		elif level == 32 and not _is_boss_rush():
+			var can_true: bool = false
+			if Global != null:
+				if Global.has_method("can_enter_true_ending"):
+					can_true = Global.can_enter_true_ending()
+				else:
+					var rr: Variant = Global.get("run_relics")
+					var has_rel: bool = rr is Array and not (rr as Array).is_empty()
+					can_true = has_rel or _global_int("hao_khi_level") >= 1 or _global_int("secret_bosses_beaten") >= 1 or _global_int("best_level") >= 16
+			if can_true:
+				_spawn_portal.call_deferred(vc + Vector2(0, -56), "Cổng Cửu Trùng (Trùm Cuối 33)", true, "true_ending", Color(1.0, 0.84, 0.24), "Kết Thúc Thực · Hỗn Mang Yêu Đế")
 	if kind == "treasure":
 		_chest = AnimatedSprite2D.new()
 		_chest.sprite_frames = Art.frames("items/chest.png", 18, 11, {"closed": [[0], 1.0, false], "open": [[1], 1.0, false]})
@@ -235,7 +282,7 @@ func _enter() -> void:
 				_pull_all_players_inside()
 				Net.send_world_event("room_lock", {"key": room_key, "kind": kind, "legend_id": legend_id}, false)
 			_play_combat_room_music()
-			_waves_left = waves_for_level(level)
+			_waves_left = waves_for_level(level) + (1 if arena_elite_wave else 0)
 			_spawn_wave()
 		"boss":
 			state = "fighting"
@@ -305,7 +352,7 @@ func _enter() -> void:
 					if randf() < 0.30:
 						_spawn_mount_pickup(ec + Vector2(48, 18))
 			else:
-				_spawn_portal(rect.get_center())
+				_spawn_exit_portals(rect.get_center())
 			if Net.is_online() and Net.is_host():
 				Net.send_world_event("room_exit", {"key": room_key}, false)
 
@@ -526,6 +573,8 @@ func _spawn_wave() -> void:
 	if _has_mutator("elite_swarm"):
 		n += 3
 		elite_chance = maxf(elite_chance, 0.80)
+	if arena_elite_wave and _waves_left == 0:
+		elite_chance = maxf(elite_chance, 0.85)
 	if Net.is_online() and Net.player_count() > 1:
 		n += 2 * (Net.player_count() - 1)
 	var avail: int = maxi(1, _effective_max_enemies() - _active_non_boss_count() - _spawn_queue.size())
@@ -742,19 +791,28 @@ func _clear() -> void:
 		Sfx.play("level_clear")
 		Sfx.play_music("victory")
 		var bonus_tier: int = 3 if _is_badass() else 2
-		if _is_boss_rush():
+		if _secret_biome() != "":
+			_spawn_portal(c + Vector2(0, -30), "Rời Bí Cảnh (Tiếp Tục)", true, "secret_return", Color(0.40, 0.96, 0.88), "Hoàn thành Bí Cảnh!")
+			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
+			_spawn_relic_pickup(c + Vector2(0, -4))
+			get_tree().call_group("hud", "show_banner", "Đại thắng Bí Cảnh! Nhận Cổ Vật & quay lại hành trình!")
+		elif _is_boss_rush():
 			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "Hạ Trùm Vượt Ải %d! Tiến sang cửa kế!" % level)
+		elif level >= 33:
+			_spawn_portal(c + Vector2(0, -30), "Cổng Khải Hoàn Vạn Cổ", true, "standard", Color(1.0, 0.88, 0.34), "Giang Sơn Gấm Vóc")
+			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
+			get_tree().call_group("hud", "show_banner", "ĐẠI THẮNG CỬU TRÙNG! Hỗn Mang Yêu Đế đã gục ngã!")
 		elif level == 15:
-			_spawn_portal(c + Vector2(0, -30), "Sảnh Khải Hoàn (3-6)")
+			_spawn_exit_portals(c + Vector2(0, -30), "Sảnh Khải Hoàn (3-6)", false)
 			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "Đại thắng 3 Chương! Bước qua cổng vào Sảnh Khải Hoàn (3-6)!")
 		elif level == 31:
-			_spawn_portal(c + Vector2(0, -30), "Sảnh Huyền Thoại (6-6)", true)
+			_spawn_exit_portals(c + Vector2(0, -30), "Sảnh Huyền Thoại (6-6)", true)
 			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "ĐẠI THẮNG THẦN THOẠI! Vào Sảnh Huyền Thoại (6-6)!")
 		else:
-			_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
+			_spawn_exit_portals(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
 			_spawn_weapon(c + Vector2(-28, 24), bonus_tier)
 			get_tree().call_group("hud", "show_banner", "Đại thắng! Giặc tan tác!")
 		# Rương sơn mài thưởng Trùm + cơ hội rớt Thần Binh Trùm (Motif Weapon)
@@ -772,7 +830,7 @@ func _clear() -> void:
 	elif kind == "legend":
 		Sfx.play("level_clear")
 		Sfx.play_music("victory")
-		_spawn_portal(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
+		_spawn_exit_portals(c + Vector2(0, -30), "", EnemyData.is_mythic_level(level))
 		_spawn_weapon(c + Vector2(0, 24), 2 if _is_badass() else 1)
 		for i in 5:
 			_drop_local("coin", 2, c)
@@ -784,6 +842,9 @@ func _clear() -> void:
 		loot_chest.chest_id = room_key
 		loot_chest.position = c + Vector2(-30, 18) if _challenge_altar != null else c
 		get_parent().add_child(loot_chest)
+		if arena_elite_wave:
+			_spawn_relic_pickup(c + Vector2(30, 14))
+			get_tree().call_group("hud", "show_banner", "Vượt Đấu Trường Tinh Anh! Rơi Cổ Vật Sử Việt!")
 		if _is_badass():
 			_drop_local("coin", 2, c + Vector2(14, 12))
 		if _challenge_altar != null and is_instance_valid(_challenge_altar):
@@ -877,14 +938,57 @@ func _drop_local(k: String, amount: int, pos: Vector2) -> void:
 	get_parent().add_child(p)
 
 
-func _spawn_portal(pos: Vector2, portal_label: String = "", is_mythic: bool = false) -> void:
+func _spawn_portal(pos: Vector2, portal_label: String = "", is_mythic: bool = false, b_kind: String = "standard", p_col: Color = Color(0, 0, 0, 0), sub: String = "") -> void:
 	var portal := Portal.new()
 	portal.position = pos
 	portal.mythic = is_mythic
+	portal.branch_kind = b_kind
+	portal.portal_color = p_col
+	portal.subtitle = sub
 	if portal_label != "":
 		portal.label = portal_label
 	portal.entered.connect(func(): portal_entered.emit())
+	portal.entered_branch.connect(func(bk: String): portal_entered_branch.emit(bk))
 	get_parent().add_child(portal)
+
+
+func _spawn_exit_portals(center: Vector2, main_label: String = "", is_mythic: bool = false) -> void:
+	_spawn_portal(center, main_label, is_mythic, "standard")
+	if level >= 32 or _secret_biome() != "" or _is_boss_rush():
+		return
+	var left_roll: float = randf()
+	if left_roll < 0.45:
+		_spawn_portal(center + Vector2(-74, 0), "Đấu Trường Tinh Anh", false, "arena", Color(0.32, 0.88, 1.0), "[+Cổ Vật]")
+	elif left_roll < 0.85:
+		_spawn_portal(center + Vector2(-74, 0), "Mạch Kho Báu", false, "treasure_route", Color(1.0, 0.82, 0.28), "[+Rương]")
+	else:
+		_spawn_portal(center + Vector2(-74, 0), "Đền Sự Kiện", false, "event_route", Color(0.55, 0.96, 0.72), "[+Bàn Thờ / Giải Cứu]")
+	if level % 5 == 0 or EnemyData.is_boss_level(level):
+		var go_thuy: bool = ((level / 5) % 2 == 1) if level % 5 == 0 else (randf() < 0.5)
+		if go_thuy:
+			_spawn_portal(center + Vector2(74, 0), "Bí Cảnh: Thủy Cung Bạch Đằng", true, "secret:thuy_cung", Color(0.28, 0.90, 1.0), "Thủy Tinh")
+		else:
+			_spawn_portal(center + Vector2(74, 0), "Bí Cảnh: Đỉnh Tản Viên", true, "secret:dinh_tan_vien", Color(0.76, 0.46, 1.0), "Thiên Lôi Ma Vương")
+
+
+func _spawn_relic_pickup(pos: Vector2) -> void:
+	var owned: Array = []
+	if Global != null and Global.get("run_relics") is Array:
+		owned = Global.get("run_relics") as Array
+	var rid: String = RelicData.roll_relic(owned)
+	if rid == "":
+		return
+	var pk := Pickup.new()
+	pk.kind = "relic"
+	if "relic_id" in pk:
+		pk.set("relic_id", rid)
+	else:
+		if Global != null and Global.has_method("add_relic"):
+			Global.call("add_relic", rid)
+		pk.kind = "coin"
+		pk.amount = 12
+	pk.position = pos
+	get_parent().add_child(pk)
 
 
 func _spawn_blacksmith(pos: Vector2) -> void:
@@ -895,17 +999,22 @@ func _spawn_blacksmith(pos: Vector2) -> void:
 	blacksmith = bn
 
 
-func _spawn_event_altar() -> void:
+func _spawn_event_altar(pos_override: Vector2 = Vector2.INF) -> void:
 	var candidates: Array[String] = EventAltar.KINDS.duplicate()
 	if bool(Global.get("mentor_upgraded")):
 		candidates.erase("mentor_npc")
+	if event_altar != null and is_instance_valid(event_altar):
+		candidates.erase(str(event_altar.get("kind")))
+	if candidates.is_empty():
+		candidates = EventAltar.KINDS.duplicate()
 	var ea := EventAltar.new()
 	ea.kind = candidates[randi() % candidates.size()]
 	ea.level = level
 	ea.room = self
-	ea.position = rect.get_center() + Vector2(0, 4)
+	ea.position = pos_override if pos_override != Vector2.INF else (rect.get_center() + Vector2(0, 4))
 	add_child(ea)
-	event_altar = ea
+	if event_altar == null:
+		event_altar = ea
 
 
 func _spawn_mount_pickup(pos: Vector2, mid: String = "") -> void:

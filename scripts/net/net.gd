@@ -144,12 +144,16 @@ func create_room(rname: String, pname: String, port: int = DEFAULT_PORT) -> int:
 
 	var hero_id: String = _default_hero_from_profile()
 	var pet_id: String = Global.selected_pet if Global.PETS.has(Global.selected_pet) else ""
+	var skin_id: String = Global.get_selected_skin(hero_id) if Global.has_method("get_selected_skin") else "default"
+	var pet_awk: bool = Global.is_pet_awakened(pet_id) if Global.has_method("is_pet_awakened") else false
 	Global.selected_hero = hero_id
 	players[1] = {
 		"id": 1,
 		"name": _local_player_name,
 		"hero": hero_id,
+		"skin": skin_id,
 		"pet": pet_id,
+		"pet_awakened": pet_awk,
 		"hero_confirmed": false,
 		"ready": true,
 		"color": PLAYER_COLORS[0],
@@ -237,10 +241,21 @@ func request_set_pet(pet_id: String) -> void:
 		return
 	if pet_id != "" and not Global.PETS.has(pet_id):
 		return
+	var awk: bool = Global.is_pet_awakened(pet_id) if Global.has_method("is_pet_awakened") else false
 	if is_host():
-		_apply_set_pet(1, pet_id)
+		_apply_set_pet(1, pet_id, awk)
 	else:
-		_rpc_set_pet.rpc_id(1, pet_id)
+		_rpc_set_pet.rpc_id(1, pet_id, awk)
+
+
+func request_set_skin(sid: String) -> void:
+	if not is_online():
+		return
+	var clean_sid: String = sid if sid != "" else "default"
+	if is_host():
+		_apply_set_skin(1, clean_sid)
+	else:
+		_rpc_set_skin.rpc_id(1, clean_sid)
 
 
 func all_peers_confirmed() -> bool:
@@ -271,6 +286,9 @@ func host_enter_lobby() -> void:
 func host_start_match() -> void:
 	if not is_online() or not is_host():
 		return
+	var keep_mode: String = Global.run_mode if Global.run_mode in ["boss_rush", "co_loa"] else Global.pending_run_mode
+	if keep_mode in ["normal", "boss_rush", "co_loa"]:
+		Global.pending_run_mode = keep_mode
 	host_profile = _build_host_profile()
 	if players.has(1):
 		Global.selected_hero = str(players[1].get("hero", _default_hero_from_profile()))
@@ -280,6 +298,7 @@ func host_start_match() -> void:
 	in_lobby = false
 	in_match = true
 	Global.start_run()
+	host_profile["run_mode"] = Global.run_mode
 	seed(match_seed)
 	Global.boss_order = []
 	Global.boss_at(0)
@@ -367,7 +386,9 @@ func _rpc_register_player(pname: String) -> void:
 				"id": sender,
 				"name": clean_name,
 				"hero": hero_id,
+				"skin": str(slot.get("skin", "default")),
 				"pet": str(slot.get("pet", "")),
+				"pet_awakened": bool(slot.get("pet_awakened", false)),
 				"hero_confirmed": true,
 				"ready": true,
 				"color": col,
@@ -397,7 +418,9 @@ func _rpc_register_player(pname: String) -> void:
 		"id": sender,
 		"name": unique_name,
 		"hero": hero_id,
+		"skin": "default",
 		"pet": "",
+		"pet_awakened": false,
 		"hero_confirmed": false,
 		"ready": false,
 		"color": col,
@@ -453,11 +476,19 @@ func _rpc_set_ready(ready: bool) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _rpc_set_pet(pet_id: String) -> void:
+func _rpc_set_pet(pet_id: String, awakened: bool = false) -> void:
 	if not is_host():
 		return
 	var sender: int = multiplayer.get_remote_sender_id()
-	_apply_set_pet(sender, pet_id)
+	_apply_set_pet(sender, pet_id, awakened)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_set_skin(sid: String) -> void:
+	if not is_host():
+		return
+	var sender: int = multiplayer.get_remote_sender_id()
+	_apply_set_skin(sender, sid)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -481,6 +512,14 @@ func _rpc_start_match(seed_val: int, level_val: int, b_order: Array, profile: Di
 		Global.run_buffs = {}
 		Global.run_materials = {}
 		Global.run_weapon_mods = {}
+		Global.run_weapon_affixes = {}
+		Global.run_relics = []
+		Global.next_branch_kind = "standard"
+		Global.secret_biome_override = ""
+		Global.secret_bosses_beaten = 0
+		Global.run_player_stats = {}
+		var rm: String = str(host_profile.get("run_mode", "normal"))
+		Global.run_mode = rm if rm in ["normal", "boss_rush", "co_loa"] else "normal"
 		var ups: Dictionary = host_profile.get("upgrades", {})
 		Global.free_revives = int(ups.get("hoi_sinh", 0))
 		Global.challenge_code = ""
@@ -566,6 +605,8 @@ func _rpc_world_req(kind: String, data: Dictionary) -> void:
 	var payload: Dictionary = data.duplicate()
 	payload["sender"] = sender
 	world_event_received.emit(kind, payload)
+	if kind in ["ping", "sparring_hit"]:
+		_rpc_world_ev.rpc(kind, payload)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -612,7 +653,9 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if in_match:
 		disconnected_slots[pname] = {
 			"hero": str(info.get("hero", _default_hero_from_profile())),
+			"skin": str(info.get("skin", "default")),
 			"pet": str(info.get("pet", "")),
+			"pet_awakened": bool(info.get("pet_awakened", false)),
 			"color": info.get("color", PLAYER_COLORS[0]),
 			"slot_idx": int(info.get("slot_idx", 1)),
 			"expires_ms": Time.get_ticks_msec() + RECONNECT_GRACE_MS,
@@ -668,16 +711,26 @@ func _apply_set_ready(pid: int, ready: bool) -> void:
 	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
 
 
-func _apply_set_pet(pid: int, pet_id: String) -> void:
+func _apply_set_pet(pid: int, pet_id: String, awakened: bool = false) -> void:
 	if not players.has(pid):
 		return
 	if pet_id != "" and not Global.PETS.has(pet_id):
 		return
 	var info: Dictionary = players[pid]
 	info["pet"] = pet_id
+	info["pet_awakened"] = awakened
 	players[pid] = info
 	if pid == local_peer_id():
 		Global.selected_pet = pet_id
+	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
+
+
+func _apply_set_skin(pid: int, sid: String) -> void:
+	if not players.has(pid):
+		return
+	var info: Dictionary = players[pid]
+	info["skin"] = sid if sid != "" else "default"
+	players[pid] = info
 	_rpc_sync_lobby.rpc(room_name, host_profile, players, in_match, in_lobby)
 
 
@@ -697,6 +750,9 @@ func _build_host_profile() -> Dictionary:
 		"hero_levels": Global.hero_levels.duplicate(true),
 		"weapon_ranks": Global.weapon_ranks.duplicate(true),
 		"difficulty": str(Global.settings.get("difficulty", "thuong")),
+		"hao_khi_level": Global.hao_khi_level,
+		"skill_tree": Global.skill_tree.duplicate(true),
+		"run_mode": Global.run_mode,
 	}
 
 

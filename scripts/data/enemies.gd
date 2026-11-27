@@ -235,8 +235,135 @@ const MYTHIC_BOSSES := {
 }
 
 
+const SECRET_CHAPTERS := {
+	"thuy_cung": {
+		"id": "thuy_cung",
+		"name": "Thủy Cung Bạch Đằng",
+		"year": "Bí Cảnh · Thủy Quốc",
+		"army": "nam_han",
+		"army_name": "Thủy Yêu Thủy Cung",
+		"boss": "thuy_tinh",
+		"theme": 1,
+		"decor": ["lantern", "pot", "banner"],
+		"folk": ["ngu_tinh", "ho_tinh", "ma_troi"],
+		"dark": Color(0.56, 0.74, 0.94),
+		"secret": true,
+		"weather": "abyss_bubbles",
+		"intro": "Thủy Cung Bạch Đằng mở cửa — Thủy Tinh dâng sóng cuốn chờ anh hùng!",
+	},
+	"dinh_tan_vien": {
+		"id": "dinh_tan_vien",
+		"name": "Đỉnh Tản Viên",
+		"year": "Bí Cảnh · Cửu Đỉnh",
+		"army": "minh",
+		"army_name": "Lôi Binh Tản Viên",
+		"boss": "thien_loi",
+		"theme": 0,
+		"decor": ["bamboo", "banner", "lantern"],
+		"folk": ["dai_bang", "chan_tinh", "moc_tinh"],
+		"dark": Color(0.68, 0.72, 0.88),
+		"secret": true,
+		"weather": "thunder_peak",
+		"intro": "Đỉnh Tản Viên sấm sét rền vang — Thiên Lôi Ma Vương xuất thế!",
+	},
+}
+
+const TRUE_ENDING_CHAPTER := {
+	"cuu_trung": {
+		"id": "cuu_trung",
+		"name": "Đỉnh Hồng Lĩnh — Cửu Trùng",
+		"year": "Kết Thúc Thực · Vạn Cổ",
+		"army": "nguyen_mong",
+		"army_name": "Hỗn Mang Thiên Binh",
+		"boss": "hon_mang_yeu_de",
+		"theme": 3,
+		"decor": ["lantern", "banner", "pot"],
+		"folk": ["ngu_tinh", "chan_tinh", "ho_tinh"],
+		"dark": Color(0.76, 0.66, 0.92),
+		"mythic": true,
+		"true_ending": true,
+		"weather": "cosmic_embers",
+		"intro": "Vượt ải Cửu Trùng — Hỗn Mang Yêu Đế hiện thân cho trận chiến cuối cùng của giang sơn!",
+	},
+}
+
+const SECRET_BOSSES := {
+	"thuy_tinh": {
+		"name": "Thủy Tinh",
+		"title": "Chúa Tể Thủy Tộc Bạch Đằng",
+		"intro": "Chúa Tể Thủy Cung Bạch Đằng — dâng sóng thần, gọi thủy quái và xoáy nước nhấn chìm chiến trường!",
+		"hp": 1100,
+		"speed": 56.0,
+		"radius": 18.0,
+		"radius2": 18.0,
+		"patterns": ["dive", "spiral", "tidal", "summon"],
+		"patterns2": ["dive", "tidal", "fan", "whirlpool"],
+		"summon": "ngu_tinh",
+		"special": "song_than",
+		"form2": "Long Vương Thủy Tinh",
+		"sheet": "enemies/boss_thuy_tinh.png",
+		"sheet2": "enemies/boss_thuy_tinh_2.png",
+		"size": Vector2i(84, 64),
+		"size2": Vector2i(84, 64),
+		"frames": 48,
+		"secret": true,
+	},
+	"thien_loi": {
+		"name": "Thiên Lôi Ma Vương",
+		"title": "Bá Chủ Sấm Sét Đỉnh Tản Viên",
+		"intro": "Thiên Lôi giáng thế — triệu hồi cột sét trời đánh và lôi kích càn quét Đỉnh Tản Viên!",
+		"hp": 1250,
+		"speed": 64.0,
+		"radius": 18.0,
+		"radius2": 18.0,
+		"patterns": ["lightning_pillars", "charge", "fan", "summon"],
+		"patterns2": ["lightning_pillars", "leap_slam", "spiral", "charge"],
+		"summon": "dai_bang",
+		"special": "loi_dinh",
+		"form2": "Lôi Thần Cuồng Nộ",
+		"sheet": "enemies/boss_thien_loi.png",
+		"sheet2": "enemies/boss_thien_loi_2.png",
+		"size": Vector2i(84, 64),
+		"size2": Vector2i(84, 64),
+		"frames": 48,
+		"secret": true,
+	},
+	"hon_mang_yeu_de": {
+		"name": "Hỗn Mang Yêu Đế",
+		"title": "Trùm Cuối Truyền Thuyết Lĩnh Nam",
+		"intro": "Hỗn Mang Yêu Đế giáng lâm Cửu Trùng — kết hợp nhật thực, sấm sét và sóng thần thử lửa anh hùng!",
+		"hp": 2200,
+		"speed": 58.0,
+		"radius": 20.0,
+		"radius2": 22.0,
+		"patterns": ["eclipse_ring", "leap_slam", "spiral", "summon"],
+		"patterns2": ["eclipse_ring", "lightning_pillars", "tidal", "clone"],
+		"summon": "chan_tinh",
+		"special": "hon_mang_triet",
+		"form2": "Hỗn Mang Chân Thân",
+		"sheet": "enemies/boss_hon_mang_yeu_de.png",
+		"sheet2": "enemies/boss_hon_mang_yeu_de_2.png",
+		"size": Vector2i(96, 72),
+		"size2": Vector2i(96, 72),
+		"frames": 48,
+		"mythic": true,
+		"true_ending": true,
+	},
+}
+
+
+static func _active_secret_biome() -> String:
+	if Global == null:
+		return ""
+	var raw: Variant = Global.get("secret_biome_override")
+	if raw == null:
+		return ""
+	var sb: String = str(raw)
+	return sb if SECRET_CHAPTERS.has(sb) else ""
+
+
 static func is_victory_hall(level: int) -> bool:
-	return level == 16 or level >= 32
+	return level == 16 or level == 32 or level >= 34
 
 
 static func is_mythic_level(level: int) -> bool:
@@ -244,6 +371,10 @@ static func is_mythic_level(level: int) -> bool:
 
 
 static func is_boss_level(level: int) -> bool:
+	if _active_secret_biome() != "":
+		return true
+	if level == 33:
+		return true
 	if level >= 1 and level <= 15:
 		return level % 5 == 0
 	if level >= 17 and level <= 31:
@@ -252,6 +383,8 @@ static func is_boss_level(level: int) -> bool:
 
 
 static func is_legend_mid_level(level: int) -> bool:
+	if _active_secret_biome() != "" or level >= 33:
+		return false
 	return stage_in_chapter(level) == 3 and not is_victory_hall(level)
 
 
@@ -286,7 +419,12 @@ static func chapter_index(level: int) -> int:
 
 
 static func chapter(level: int) -> Dictionary:
-	if is_mythic_level(level) or level >= 32:
+	var sb: String = _active_secret_biome()
+	if sb != "":
+		return SECRET_CHAPTERS[sb]
+	if level >= 33:
+		return TRUE_ENDING_CHAPTER["cuu_trung"]
+	if is_mythic_level(level) or level == 32:
 		return MYTHIC_CHAPTERS[chapter_index(level)]
 	return CHAPTERS[chapter_index(level)]
 
@@ -311,7 +449,12 @@ static func boss_index(level: int) -> int:
 
 ## Mã trùm ở màn này
 static func boss_id(level: int) -> String:
-	if is_mythic_level(level) or level >= 32:
+	var sb: String = _active_secret_biome()
+	if sb != "":
+		return str(SECRET_CHAPTERS[sb].boss)
+	if level >= 33:
+		return "hon_mang_yeu_de"
+	if is_mythic_level(level) or level == 32:
 		var mch: Dictionary = MYTHIC_CHAPTERS[chapter_index(level)]
 		return str(mch.boss)
 	return Global.boss_at(boss_index(level))
@@ -325,6 +468,14 @@ static func home_chapter(boss: String) -> Dictionary:
 	for mch in MYTHIC_CHAPTERS:
 		if mch.boss == boss:
 			return mch
+	for sk in SECRET_CHAPTERS:
+		var sch: Dictionary = SECRET_CHAPTERS[sk]
+		if sch.boss == boss:
+			return sch
+	for tk in TRUE_ENDING_CHAPTER:
+		var tch: Dictionary = TRUE_ENDING_CHAPTER[tk]
+		if tch.boss == boss:
+			return tch
 	return CHAPTERS[0]
 
 
@@ -335,6 +486,14 @@ static func army_name(army: String) -> String:
 	for mch in MYTHIC_CHAPTERS:
 		if mch.army == army:
 			return mch.army_name
+	for sk in SECRET_CHAPTERS:
+		var sch: Dictionary = SECRET_CHAPTERS[sk]
+		if sch.army == army:
+			return sch.army_name
+	for tk in TRUE_ENDING_CHAPTER:
+		var tch: Dictionary = TRUE_ENDING_CHAPTER[tk]
+		if tch.army == army:
+			return tch.army_name
 	return ""
 
 
@@ -356,8 +515,9 @@ static func info(id: String, level: int) -> Dictionary:
 		army = parts[1]
 	if id == "boss":
 		var bid := boss_id(level)
+		var is_secret_boss: bool = SECRET_BOSSES.has(bid)
 		var is_mythic_boss: bool = MYTHIC_BOSSES.has(bid)
-		var b: Dictionary = MYTHIC_BOSSES[bid] if is_mythic_boss else BOSSES[bid]
+		var b: Dictionary = SECRET_BOSSES[bid] if is_secret_boss else (MYTHIC_BOSSES[bid] if is_mythic_boss else BOSSES[bid])
 		var home := home_chapter(bid)
 		var power := boss_index(level)
 		d = b.duplicate()
@@ -365,14 +525,14 @@ static func info(id: String, level: int) -> Dictionary:
 		d["boss"] = true
 		d["ai"] = "boss"
 		d["radius"] = b.get("radius", 14.0)
-		d["coins"] = 28 if is_mythic_boss else 16
+		d["coins"] = 36 if bool(b.get("true_ending", false)) else (28 if (is_mythic_boss or is_secret_boss) else 16)
 		d["sheet"] = b.get("sheet", "enemies/boss_%s.png" % bid)
 		d["size"] = b.get("size", Vector2i(48, 48))
 		d["frames"] = b.get("frames", 48)
 		d["army"] = home.army
 		d["summon"] = "%s@%s" % [b.summon, home.army]
 		d["power"] = power
-		var boss_hp: int = int(b["hp"]) if is_mythic_boss else int(round(BOSS_BASE_HP * (1.0 + BOSS_HP_STEP * power)))
+		var boss_hp: int = int(b["hp"]) if (is_mythic_boss or is_secret_boss) else int(round(BOSS_BASE_HP * (1.0 + BOSS_HP_STEP * power)))
 		var hp_mult: float = Global.difficulty_hp_mult()
 		d["hp"] = boss_hp if is_equal_approx(hp_mult, 1.0) else maxi(1, int(round(float(boss_hp) * hp_mult)))
 		var sz: Vector2i = d.size
@@ -422,6 +582,11 @@ static func pool(level: int) -> Array:
 	var ch := chapter(level)
 	var stg := stage_in_chapter(level)
 	var p: Array
+	if _active_secret_biome() != "" or level >= 33:
+		p = ["bo_binh", "cung_thu", "khien_binh", "phap_su", "ky_binh"]
+		p.append(ch.folk.pick_random())
+		p.append(ch.folk.pick_random())
+		return p
 	if is_mythic_level(level):
 		if stage_chapter_num(level) == 6:
 			p = ["bo_binh", "cung_thu", "khien_binh", "phap_su", "ky_binh", "xe_tang"]

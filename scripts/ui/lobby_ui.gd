@@ -3,6 +3,11 @@ extends CanvasLayer
 ## tướng, lò rèn, giá binh khí, bia ghi công, giếng ước, bảng khiêu chiến, bách khoa.
 
 const HeroData = preload("res://scripts/data/heroes.gd")
+const HeroSkins = preload("res://scripts/data/hero_skins.gd")
+const SkillTreeData = preload("res://scripts/data/skill_tree.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
+const CampNpcs = preload("res://scripts/data/camp_npcs.gd")
+const HaoKhiData = preload("res://scripts/data/hao_khi_data.gd")
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
@@ -46,6 +51,58 @@ var _lan_ip_lbl: Label = null
 var _lan_peers_box: VBoxContainer = null
 var _lan_start_btn: Button = null
 var _minimap: Control = null
+var _preview_skin_hero: String = ""
+var _preview_skin_id: String = ""
+
+
+func _is_npc_rescued(npc_id: String) -> bool:
+	var arr: Variant = Global.get("rescued_npcs")
+	return arr is Array and (arr as Array).has(npc_id)
+
+
+func _get_selected_skin_id(hid: String) -> String:
+	if Global.has_method("get_selected_skin"):
+		return str(Global.call("get_selected_skin", hid))
+	var map: Variant = Global.get("selected_skins")
+	if map is Dictionary and (map as Dictionary).has(hid):
+		return str((map as Dictionary)[hid])
+	return HeroSkins.DEFAULT_SKIN
+
+
+func _is_skin_unlocked(hid: String, sid: String) -> bool:
+	if sid == HeroSkins.DEFAULT_SKIN or sid == "":
+		return true
+	if Global.has_method("is_skin_unlocked"):
+		return bool(Global.call("is_skin_unlocked", hid, sid))
+	var map: Variant = Global.get("unlocked_skins")
+	if map is Dictionary and (map as Dictionary).has(hid):
+		var arr: Variant = (map as Dictionary)[hid]
+		if arr is Array:
+			return (arr as Array).has(sid)
+	return false
+
+
+func _is_pet_awakened(pid: String) -> bool:
+	if Global.has_method("is_pet_awakened"):
+		return bool(Global.call("is_pet_awakened", pid))
+	var arr: Variant = Global.get("awakened_pets")
+	return arr is Array and (arr as Array).has(pid)
+
+
+func _can_awaken_pet(pid: String) -> bool:
+	if Global.has_method("can_awaken_pet"):
+		return bool(Global.call("can_awaken_pet", pid))
+	return false
+
+
+func _hao_khi_level() -> int:
+	var lv: Variant = Global.get("hao_khi_level")
+	return clampi(int(lv) if lv != null else 0, 0, HaoKhiData.MAX_LEVEL)
+
+
+func _skill_tree_dict() -> Dictionary:
+	var raw: Variant = Global.get("skill_tree")
+	return raw as Dictionary if raw is Dictionary else {}
 
 
 class LobbyMinimap extends Control:
@@ -103,11 +160,14 @@ class LobbyMinimap extends Control:
 			var fill := Color(0.32, 0.3, 0.38, 0.95) if active else Color(0.18, 0.17, 0.22, 0.92)
 			draw_rect(mr, fill)
 			draw_rect(mr, Color(1.0, 0.85, 0.35) if active else Color(0.55, 0.52, 0.56), false, 1.0)
-		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Giếng Ước (ngọc), Shop Nguyên Liệu (vàng), Cầu thang Tầng Hầm (hổ phách)
+		# Điểm mốc: Cổng Bắc (xanh dương), Lò Rèn (cam), Shop Nguyên Liệu (vàng), Giếng Ước (ngọc), Đài Thiên Phú (lục), Đài Thức Tỉnh (ngọc lam), Võ Đài (đỏ), Cầu thang Tầng Hầm (hổ phách)
 		draw_rect(Rect2(ox + 680 * sx - 2, oy + 115 * sy - 2, 4, 4), Color(0.45, 0.85, 1.0))
 		draw_rect(Rect2(ox + 1032 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(1.0, 0.58, 0.25))
 		draw_rect(Rect2(ox + 1204 * sx - 1.5, oy + 452 * sy - 1.5, 3, 3), Color(1.0, 0.84, 0.28))
 		draw_rect(Rect2(ox + 245 * sx - 1.5, oy + 345 * sy - 1.5, 3, 3), Color(0.45, 0.95, 0.88))
+		draw_rect(Rect2(ox + 680 * sx - 1.5, oy + 326 * sy - 1.5, 3, 3), Color(0.42, 0.96, 0.62))
+		draw_rect(Rect2(ox + 356 * sx - 1.5, oy + 446 * sy - 1.5, 3, 3), Color(0.38, 0.94, 0.90))
+		draw_rect(Rect2(ox + 1140 * sx - 1.5, oy + 654 * sy - 1.5, 3, 3), Color(1.0, 0.42, 0.34))
 		var st_x: float = ox + 680.0 * sx
 		var st_y: float = oy + 662.0 * sy
 		draw_rect(Rect2(st_x - 2.5, st_y - 2.0, 5.0, 4.0), Color(0.95, 0.72, 0.25))
@@ -128,6 +188,7 @@ class HeroSkillPreview extends Control:
 	var hero_id: String = "ngo_quyen"
 	var weapon_rank: int = 1
 	var skill_idx: int = 1
+	var skin_modulate: Color = Color.WHITE
 	var _t: float = 0.0
 	var _phase_t: float = 0.0
 	var _casting: bool = true
@@ -142,10 +203,11 @@ class HeroSkillPreview extends Control:
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	func setup(hid: String, wrank: int = 1, sk_idx: int = -1) -> void:
+	func setup(hid: String, wrank: int = 1, sk_idx: int = -1, sk_tint: Color = Color.WHITE) -> void:
 		hero_id = hid if HeroData.DATA.has(hid) else "ngo_quyen"
 		weapon_rank = clampi(wrank, 1, 5)
 		skill_idx = clampi(sk_idx if sk_idx >= 1 else Global.active_skill_index(hero_id), 1, 2)
+		skin_modulate = sk_tint
 		replay()
 
 	func replay() -> void:
@@ -257,9 +319,9 @@ class HeroSkillPreview extends Control:
 			else:
 				h_frame = 11 if int(_t * 10.0) % 2 == 0 else 12
 		else:
-			var idle_seq: Array[int] = [0, 1, 16, 2, 17, 3] if hero_frames >= 28 else [0, 1, 2, 3]
+			var idle_seq: Array = [0, 1, 16, 2, 17, 3] if hero_frames >= 28 else [0, 1, 2, 3]
 			h_frame = idle_seq[int(_t * 5.0) % idle_seq.size()]
-		_draw_frame(hero_tex, hero_pos, 32, 32, h_frame, 1.75)
+		_draw_frame(hero_tex, hero_pos, 32, 32, h_frame, 1.75, false, skin_modulate)
 
 		# Vũ khí đang cầm theo đúng bậc
 		if weap_tex != null:
@@ -549,8 +611,12 @@ func _process(_delta: float) -> void:
 			tags.append("Linh thú: %s" % str(Global.PETS[Global.selected_pet].name))
 		if Global.badass_mode:
 			tags.append("Ác Mộng")
+		if _hao_khi_level() > 0:
+			tags.append("Hào Khí %d" % _hao_khi_level())
 		if Global.pending_run_mode == "boss_rush":
 			tags.append("Boss Rush")
+		elif Global.pending_run_mode == "co_loa":
+			tags.append("Cổ Loa")
 		if not Global.pending_mutators.is_empty():
 			tags.append("Biến số x%d" % Global.pending_mutators.size())
 		if Global.pending_challenge_code != "":
@@ -903,16 +969,27 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 		_end(box)
 		return
 	box.add_theme_constant_override("separation", 3)
+	if _preview_skin_hero != id:
+		_preview_skin_hero = id
+		_preview_skin_id = _get_selected_skin_id(id)
+	var skins_list: Array = HeroSkins.skins_for(id)
+	var cur_skin_id: String = _preview_skin_id if _preview_skin_id != "" else _get_selected_skin_id(id)
+	var cur_skin: Dictionary = HeroSkins.get_skin(id, cur_skin_id)
+	var cur_skin_mod: Color = cur_skin.get("modulate", Color.WHITE) as Color
+	var cur_skin_unlocked: bool = _is_skin_unlocked(id, str(cur_skin.get("id", HeroSkins.DEFAULT_SKIN)))
+	var cur_skin_active: bool = (_get_selected_skin_id(id) == str(cur_skin.get("id", HeroSkins.DEFAULT_SKIN)))
+	var cur_skin_cost: int = int(cur_skin.get("cost", 0))
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	box.add_child(row)
 	var left_col := VBoxContainer.new()
-	left_col.add_theme_constant_override("separation", 4)
+	left_col.add_theme_constant_override("separation", 3)
 	row.add_child(left_col)
 	var sk_idx: int = Global.active_skill_index(id)
 	var info_preview := HeroSkillPreview.new()
-	info_preview.custom_minimum_size = Vector2(138, 86)
-	info_preview.setup(id, Global.weapon_rank(id), sk_idx)
+	info_preview.custom_minimum_size = Vector2(138, 82)
+	info_preview.setup(id, Global.weapon_rank(id), sk_idx, cur_skin_mod)
 	left_col.add_child(info_preview)
 	var sk_pv_row := HBoxContainer.new()
 	sk_pv_row.add_theme_constant_override("separation", 4)
@@ -929,6 +1006,50 @@ func open_hero(id: String, tab: String = "info", preview_rank: int = -1) -> void
 	sk_pv_row.add_child(pv_c2)
 	sk_pv_row.add_child(UI.button("▶ Xem", info_preview.replay, 11, 62.0))
 	left_col.add_child(UI.button("5 bậc vũ khí", open_hero.bind(id, "showcase", Global.weapon_rank(id)), 12, 138.0))
+
+	var skin_col: Color = cur_skin.get("aura_color", Color(1.0, 0.88, 0.42)) as Color
+	var skin_lbl := UI.label("Trang phục: %s" % str(cur_skin.get("name", "Mặc định")), 10, skin_col, true)
+	skin_lbl.custom_minimum_size = Vector2(138, 0)
+	left_col.add_child(skin_lbl)
+	var skin_row := HBoxContainer.new()
+	skin_row.add_theme_constant_override("separation", 4)
+	left_col.add_child(skin_row)
+	var b_next_skin := UI.button("Đổi áo (%d)" % skins_list.size(), func():
+		var nxt_sid: String = HeroSkins.next_skin_id(id, cur_skin_id)
+		_preview_skin_hero = id
+		_preview_skin_id = nxt_sid
+		if unlocked and _is_skin_unlocked(id, nxt_sid) and Global.has_method("select_skin"):
+			Global.call("select_skin", id, nxt_sid)
+			if Net != null and Net.is_online() and Net.has_method("request_set_skin"):
+				Net.call("request_set_skin", nxt_sid)
+			if lobby != null and lobby.has_method("refresh_hero_appearance"):
+				lobby.refresh_hero_appearance(id)
+		open_hero(id, "info", preview_rank), 10, 68.0)
+	skin_row.add_child(b_next_skin)
+	var skin_act_txt: String = "Đang mặc" if cur_skin_active else ("Chọn" if cur_skin_unlocked else "Mở %dx" % cur_skin_cost)
+	var b_skin_act := UI.button(skin_act_txt, func():
+		var target_sid: String = str(cur_skin.get("id", HeroSkins.DEFAULT_SKIN))
+		if not unlocked:
+			return
+		var ok := false
+		if cur_skin_unlocked:
+			if Global.has_method("select_skin"):
+				Global.call("select_skin", id, target_sid)
+				ok = true
+		elif Global.has_method("unlock_and_select_skin"):
+			ok = bool(Global.call("unlock_and_select_skin", id, target_sid))
+		if ok:
+			if Sfx != null:
+				Sfx.play("buy" if not cur_skin_unlocked else "pickup_weapon")
+			if Net != null and Net.is_online() and Net.has_method("request_set_skin"):
+				Net.call("request_set_skin", target_sid)
+			if lobby != null and lobby.has_method("refresh_hero_appearance"):
+				lobby.refresh_hero_appearance(id)
+			open_hero(id, "info", preview_rank), 10, 66.0)
+	b_skin_act.disabled = (not unlocked) or cur_skin_active or (not cur_skin_unlocked and Global.coins < cur_skin_cost)
+	if not cur_skin_unlocked and unlocked:
+		b_skin_act.modulate = Color(1.0, 0.88, 0.42)
+	skin_row.add_child(b_skin_act)
 	var info := VBoxContainer.new()
 	info.custom_minimum_size = Vector2(360, 0)
 	info.add_theme_constant_override("separation", 2)
@@ -1766,17 +1887,21 @@ func open_codex(tab: String = "buffs") -> void:
 	var box := _begin("Bách Khoa Toàn Thư")
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", 10)
+	tabs.add_theme_constant_override("separation", 8)
 	box.add_child(tabs)
-	var b_buff := UI.button("Phúc lành (%d)" % BuffData.DATA.size(), open_codex.bind("buffs"), 14, 150.0)
+	var b_buff := UI.button("Phúc lành (%d)" % BuffData.DATA.size(), open_codex.bind("buffs"), 13, 142.0)
 	b_buff.disabled = (tab == "buffs")
-	var b_boss := UI.button("Trùm & Chương (%d)" % EnemyData.CHAPTERS.size(), open_codex.bind("bosses"), 14, 160.0)
+	var b_relic := UI.button("Cổ Vật (%d)" % RelicData.ORDER.size(), open_codex.bind("relics"), 13, 128.0)
+	b_relic.disabled = (tab == "relics")
+	var total_bosses: int = EnemyData.CHAPTERS.size() + EnemyData.MYTHIC_CHAPTERS.size() + EnemyData.SECRET_BOSSES.size()
+	var b_boss := UI.button("Trùm & Bí Cảnh (%d)" % total_bosses, open_codex.bind("bosses"), 13, 168.0)
 	b_boss.disabled = (tab == "bosses")
 	tabs.add_child(b_buff)
+	tabs.add_child(b_relic)
 	tabs.add_child(b_boss)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(540, 190)
+	scroll.custom_minimum_size = Vector2(560, 190)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
 	var list := VBoxContainer.new()
@@ -1793,7 +1918,24 @@ func open_codex(tab: String = "buffs") -> void:
 			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			row.add_child(nm)
 			var dsc := UI.label(str(bd.desc), 12, Color(0.88, 0.88, 0.85), true)
-			dsc.custom_minimum_size = Vector2(300, 0)
+			dsc.custom_minimum_size = Vector2(315, 0)
+			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(dsc)
+			list.add_child(row)
+	elif tab == "relics":
+		for rid_v in RelicData.ORDER:
+			var rid: String = str(rid_v)
+			var rd: Dictionary = RelicData.get_relic(rid)
+			var rar: String = str(rd.get("rarity", "rare"))
+			var rcol: Color = rd.get("color", RelicData.rarity_color(rar)) as Color
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			var nm := UI.label("%s [%s]" % [str(rd.get("name", rid)), RelicData.rarity_name(rar)], 12, rcol)
+			nm.custom_minimum_size = Vector2(215, 0)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(nm)
+			var dsc := UI.label(str(rd.get("desc", "")), 11, Color(0.90, 0.88, 0.85), true)
+			dsc.custom_minimum_size = Vector2(320, 0)
 			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			row.add_child(dsc)
 			list.add_child(row)
@@ -1803,19 +1945,83 @@ func open_codex(tab: String = "buffs") -> void:
 			var binfo: Dictionary = EnemyData.BOSSES.get(bid2, {})
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 8)
-			var nm := UI.label("%s — %s" % [str(ch.get("name", "")), str(binfo.get("name", bid2))], 13, Color(1.0, 0.78, 0.45))
+			var nm := UI.label("%s — %s" % [str(ch.get("name", "")), str(binfo.get("name", bid2))], 12, Color(1.0, 0.78, 0.45))
 			nm.custom_minimum_size = Vector2(225, 0)
 			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			row.add_child(nm)
-			var dsc := UI.label("%s: %s (%s)" % [str(ch.get("year", "")), str(binfo.get("title", "")), str(binfo.get("form2", ""))], 12, Color(0.88, 0.86, 0.84), true)
-			dsc.custom_minimum_size = Vector2(290, 0)
+			var dsc := UI.label("%s: %s (%s)" % [str(ch.get("year", "")), str(binfo.get("title", "")), str(binfo.get("form2", ""))], 11, Color(0.88, 0.86, 0.84), true)
+			dsc.custom_minimum_size = Vector2(310, 0)
 			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			row.add_child(dsc)
 			list.add_child(row)
+		for mch in EnemyData.MYTHIC_CHAPTERS:
+			var mbid: String = str(mch.get("boss", ""))
+			var mbinfo: Dictionary = EnemyData.MYTHIC_BOSSES.get(mbid, {})
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			var nm := UI.label("%s — %s" % [str(mch.get("name", "")), str(mbinfo.get("name", mbid))], 12, Color(0.84, 0.62, 1.0))
+			nm.custom_minimum_size = Vector2(225, 0)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(nm)
+			var dsc := UI.label("%s: %s (%s)" % [str(mch.get("year", "")), str(mbinfo.get("title", "")), str(mbinfo.get("form2", ""))], 11, Color(0.90, 0.86, 0.96), true)
+			dsc.custom_minimum_size = Vector2(310, 0)
+			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(dsc)
+			list.add_child(row)
+		var secret_specs := [
+			["thuy_cung", "thuy_tinh", Color(0.42, 0.88, 1.0)],
+			["dinh_tan_vien", "thien_loi", Color(0.76, 0.82, 1.0)],
+		]
+		for spec in secret_specs:
+			var sc: Dictionary = EnemyData.SECRET_CHAPTERS.get(str(spec[0]), {})
+			var sb: Dictionary = EnemyData.SECRET_BOSSES.get(str(spec[1]), {})
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			var nm := UI.label("%s — %s" % [str(sc.get("name", "")), str(sb.get("name", ""))], 12, spec[2] as Color)
+			nm.custom_minimum_size = Vector2(225, 0)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(nm)
+			var dsc := UI.label("%s: %s (%s)" % [str(sc.get("year", "")), str(sb.get("title", "")), str(sb.get("form2", ""))], 11, Color(0.88, 0.94, 1.0), true)
+			dsc.custom_minimum_size = Vector2(310, 0)
+			dsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			row.add_child(dsc)
+			list.add_child(row)
+		var tc: Dictionary = EnemyData.TRUE_ENDING_CHAPTER.get("cuu_trung", {})
+		var tb: Dictionary = EnemyData.SECRET_BOSSES.get("hon_mang_yeu_de", {})
+		var trow := HBoxContainer.new()
+		trow.add_theme_constant_override("separation", 8)
+		var tnm := UI.label("%s — %s" % [str(tc.get("name", "Đỉnh Hồng Lĩnh — Cửu Trùng")), str(tb.get("name", "Hỗn Mang Yêu Đế"))], 12, Color(1.0, 0.72, 0.98))
+		tnm.custom_minimum_size = Vector2(225, 0)
+		tnm.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		trow.add_child(tnm)
+		var tdsc := UI.label("%s: %s (%s)" % [str(tc.get("year", "")), str(tb.get("title", "")), str(tb.get("form2", ""))], 11, Color(1.0, 0.88, 0.98), true)
+		tdsc.custom_minimum_size = Vector2(310, 0)
+		tdsc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		trow.add_child(tdsc)
+		list.add_child(trow)
 	_end(box)
 
 
 # ------------------------------------------------------------------ Quán Trà Đại Sảnh
+
+func _roll_village_fortune() -> String:
+	var outcomes: Array[Dictionary] = [
+		{"name": "Quẻ Đại Cát — Long Mạch", "coins": 30, "buff": "banh_chung", "msg": "Quẻ Đại Cát: +30 xu & phúc lành Bánh chưng lượt tới!"},
+		{"name": "Quẻ Thượng Cát — Tài Lộc", "coins": 45, "buff": "", "mat": "ngoc_than", "msg": "Quẻ Thượng Cát: +45 xu & +1 Ngọc thần!"},
+		{"name": "Quẻ Trung Cát — Thần Cơ", "coins": 20, "buff": "mat_than", "msg": "Quẻ Trung Cát: +20 xu & phúc lành Mắt thần lượt tới!"},
+		{"name": "Quẻ Bình An — Hộ Mệnh", "coins": 25, "buff": "khien_doc", "msg": "Quẻ Bình An: +25 xu & phúc lành Khiên độc lượt tới!"},
+	]
+	var pick: Dictionary = outcomes[randi() % outcomes.size()]
+	Global.coins += int(pick.get("coins", 0))
+	var b: String = str(pick.get("buff", ""))
+	if b != "" and not Global.lobby_garden_buffs.has(b):
+		Global.lobby_garden_buffs.append(b)
+	var m: String = str(pick.get("mat", ""))
+	if m != "" and MaterialData.DATA.has(m):
+		Global.materials[m] = Global.material_count(m) + 1
+	Global.save_game()
+	return str(pick.get("msg", "Gieo quẻ thành công!"))
+
 
 func open_tea(last_msg: String = "") -> void:
 	var box := _begin("Quán Trà Đại Sảnh")
@@ -1823,7 +2029,7 @@ func open_tea(last_msg: String = "") -> void:
 	var cur_name: String = str(Global.LOBBY_DRINKS[Global.lobby_drink].name) if Global.lobby_drink != "" and Global.LOBBY_DRINKS.has(Global.lobby_drink) else "Chưa chọn"
 	box.add_child(UI.label("Xu: %d   |   Đang dùng: %s" % [Global.coins, cur_name], 14, Color(1.0, 0.88, 0.45)))
 	if last_msg != "":
-		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+		box.add_child(UI.label(last_msg, 13, Color(0.55, 0.98, 0.72)))
 	for did in ["tra_sen", "ruou_can", "ca_phe", "tra_gung"]:
 		var dd: Dictionary = Global.LOBBY_DRINKS[did]
 		var row := HBoxContainer.new()
@@ -1851,6 +2057,25 @@ func open_tea(last_msg: String = "") -> void:
 			open_tea("Đã chọn %s cho lượt xuất trận tới!" % str(dd.name)), 13, 128.0)
 		b.disabled = active or Global.coins < cost
 		row.add_child(b)
+	if _is_npc_rescued("quan_su_co_loa"):
+		var rolled: bool = lobby != null and bool(lobby.get("fortune_rolled"))
+		var f_row := HBoxContainer.new()
+		f_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		f_row.add_theme_constant_override("separation", 8)
+		box.add_child(f_row)
+		f_row.add_child(UI.label("Quân Sư Cổ Loa:", 12, Color(0.45, 0.88, 1.0)))
+		var b_fortune := UI.button("Đã gieo quẻ lần này ✓" if rolled else "🔮 Gieo Quẻ Đầu Làng (Miễn phí)", func():
+			if lobby == null or bool(lobby.get("fortune_rolled")):
+				return
+			lobby.set("fortune_rolled", true)
+			var fmsg: String = _roll_village_fortune()
+			Sfx.play("level_clear")
+			if lobby.has_method("on_station_fx"):
+				lobby.on_station_fx(Vector2(558, 594), fmsg, Color(0.52, 0.96, 1.0))
+			open_tea(fmsg), 12, 240.0)
+		b_fortune.disabled = rolled
+		b_fortune.modulate = Color(0.55, 0.96, 1.0) if not rolled else Color(0.7, 0.72, 0.76)
+		f_row.add_child(b_fortune)
 	_end(box)
 
 
@@ -1874,7 +2099,8 @@ func open_war_table(tab: String = "seed", last_msg: String = "") -> void:
 
 	if tab == "seed":
 		var cur_code: String = Global.pending_challenge_code
-		box.add_child(UI.label("Mã cổng hiện đặt: %s" % (cur_code if cur_code != "" else "Ngẫu nhiên tự do"), 14, Color(1.0, 0.88, 0.45)))
+		var best_cl: int = int(Global.stats.get("best_co_loa_wave", 0))
+		box.add_child(UI.label("Mã cổng hiện đặt: %s  |  Thủ Thành Cổ Loa: Đợt %d" % [cur_code if cur_code != "" else "Ngẫu nhiên tự do", best_cl], 13, Color(1.0, 0.88, 0.45)))
 		var edit := LineEdit.new()
 		edit.text = cur_code
 		edit.placeholder_text = "Nhập mã chiến dịch (vd: MELINH40)"
@@ -1898,12 +2124,20 @@ func open_war_table(tab: String = "seed", last_msg: String = "") -> void:
 			Global.pending_challenge_code = norm
 			if lobby != null and lobby.has_method("on_station_fx"):
 				lobby.on_station_fx(Vector2(808, 608), "Đặt mã: %s" % (norm if norm != "" else "Tự do"), Color(0.65, 0.92, 1.0))
-			open_war_table("seed", "Cổng xuất trận sẽ dùng mã: %s" % (norm if norm != "" else "Ngẫu nhiên")), 14, 160.0))
+			open_war_table("seed", "Cổng xuất trận sẽ dùng mã: %s" % (norm if norm != "" else "Ngẫu nhiên")), 13, 146.0))
 		acts.add_child(UI.button("Xuất trận ngay", func():
 			var norm2: String = edit.text.strip_edges().to_upper()
 			if lobby != null and lobby.has_method("start_run_with_code"):
 				close()
-				lobby.start_run_with_code(norm2), 14, 140.0))
+				lobby.start_run_with_code(norm2), 13, 132.0))
+		var b_coloa := UI.button("⚔️ Chế độ Thủ Thành Cổ Loa", func():
+			Global.pending_run_mode = "co_loa"
+			Global.pending_challenge_code = ""
+			if lobby != null and lobby.has_method("start_run_with_code"):
+				close()
+				lobby.start_run_with_code(""), 13, 210.0)
+		b_coloa.modulate = Color(1.0, 0.88, 0.42)
+		acts.add_child(b_coloa)
 	else:
 		if Global.leaderboard.is_empty():
 			box.add_child(UI.label("Chưa có chiến tích nào. Hãy hoàn thành một lượt xuất trận!", 13, Color(0.86, 0.84, 0.8)))
@@ -1932,27 +2166,58 @@ func open_war_table(tab: String = "seed", last_msg: String = "") -> void:
 
 func open_garden(last_msg: String = "") -> void:
 	Global.ensure_garden_plots()
-	var box := _begin("Vườn Thảo Dược Linh Sen")
+	var has_tue_tinh: bool = _is_npc_rescued("than_y_tue_tinh")
+	var box := _begin("Vườn Thảo Dược Linh Sen (%d ô)" % Global.garden_plots.size())
 	var can_water: bool = lobby != null and not bool(lobby.garden_watered)
 	box.add_child(UI.label("Trồng thảo dược chín sau mỗi lượt chiến đấu, hoặc tưới nước 1 lần mỗi lần ghé sảnh.  |  Xu: %d" % Global.coins, 12, Color(0.85, 0.94, 0.84), true))
+	if has_tue_tinh:
+		box.add_child(UI.label("Danh Y Tuệ Tĩnh: Mở rộng 6 luống & giống thần thoại Linh Chi Vàng / Hoa Ưu Đàm!", 11, Color(0.45, 0.96, 0.64)))
 	if last_msg != "":
-		box.add_child(UI.label(last_msg, 14, Color(0.55, 0.98, 0.72)))
+		box.add_child(UI.label(last_msg, 13, Color(0.55, 0.98, 0.72)))
+
+	var plant_keys: Array[String] = ["tre_nga", "huyet_sam", "sen_tuyet"]
+	if has_tue_tinh:
+		for extra_k in ["linh_chi_vang", "hoa_uu_dam"]:
+			if Global.GARDEN_PLANTS.has(extra_k):
+				plant_keys.append(extra_k)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(586, 176)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 5)
+	scroll.add_child(list)
+
 	for i in Global.garden_plots.size():
 		var slot_data: Dictionary = Global.garden_plots[i]
 		var pid: String = str(slot_data.get("plant", ""))
 		var stg: int = int(slot_data.get("stage", 0))
 		var card := PanelContainer.new()
 		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel.png"))
-		box.add_child(card)
+		card.custom_minimum_size = Vector2(566, 0)
+		list.add_child(card)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		card.add_child(row)
 		if pid == "":
-			var lb := UI.label("Ô %d: Đất trống" % (i + 1), 13, Color(0.82, 0.8, 0.76))
-			lb.custom_minimum_size = Vector2(150, 0)
+			var lb := UI.label("Ô %d: Đất trống" % (i + 1), 12, Color(0.82, 0.8, 0.76))
+			lb.custom_minimum_size = Vector2(118, 0)
 			lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			row.add_child(lb)
-			for pkey in ["tre_nga", "huyet_sam", "sen_tuyet"]:
+			var btns_wrap := VBoxContainer.new()
+			btns_wrap.add_theme_constant_override("separation", 3)
+			row.add_child(btns_wrap)
+			var r1 := HBoxContainer.new()
+			r1.add_theme_constant_override("separation", 5)
+			btns_wrap.add_child(r1)
+			var r2: HBoxContainer = null
+			if plant_keys.size() > 3:
+				r2 = HBoxContainer.new()
+				r2.add_theme_constant_override("separation", 5)
+				btns_wrap.add_child(r2)
+			for p_idx in plant_keys.size():
+				var pkey: String = plant_keys[p_idx]
 				var pd: Dictionary = Global.GARDEN_PLANTS[pkey]
 				var cost: int = int(pd.cost)
 				var b := UI.button("%s (%dx)" % [str(pd.name), cost], func():
@@ -1963,18 +2228,24 @@ func open_garden(last_msg: String = "") -> void:
 								lobby.refresh_garden_display()
 							if lobby.has_method("on_station_fx"):
 								lobby.on_station_fx(Vector2(154, 430), "Đã gieo %s!" % str(pd.name), Color(0.65, 0.98, 0.6))
-						open_garden("Đã trồng %s vào Ô %d!" % [str(pd.name), i + 1]), 12, 114.0)
+						open_garden("Đã trồng %s vào Ô %d!" % [str(pd.name), i + 1]), 11, 134.0)
 				b.disabled = Global.coins < cost
-				row.add_child(b)
+				if pkey == "linh_chi_vang" or pkey == "hoa_uu_dam":
+					b.modulate = Color(1.0, 0.90, 0.45)
+				if p_idx < 3 or r2 == null:
+					r1.add_child(b)
+				else:
+					r2.add_child(b)
 		else:
 			var pd2: Dictionary = Global.GARDEN_PLANTS.get(pid, {})
 			var st_txt: String = "Đã chín!" if stg >= 2 else "Đang lớn"
 			var st_col: Color = Color(0.55, 0.98, 0.6) if stg >= 2 else Color(1.0, 0.85, 0.45)
 			var info_box := VBoxContainer.new()
-			info_box.custom_minimum_size = Vector2(340, 0)
+			info_box.custom_minimum_size = Vector2(360, 0)
+			info_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			info_box.add_theme_constant_override("separation", 1)
 			row.add_child(info_box)
-			var h_lb := UI.label("Ô %d: %s  [%s]" % [i + 1, str(pd2.get("name", pid)), st_txt], 14, st_col)
+			var h_lb := UI.label("Ô %d: %s  [%s]" % [i + 1, str(pd2.get("name", pid)), st_txt], 13, st_col)
 			h_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 			info_box.add_child(h_lb)
 			var d_lb := UI.label(str(pd2.get("desc", "")), 11, Color(0.86, 0.86, 0.82), true)
@@ -2004,6 +2275,251 @@ func open_garden(last_msg: String = "") -> void:
 				wb.disabled = not can_water
 				row.add_child(wb)
 	_end(box)
+
+
+# ------------------------------------------------------------------ Đài Thiên Phú (Cây Thiên Phú Đại Việt)
+
+func open_skill_tree(branch_filter: String = "all", last_msg: String = "") -> void:
+	var tree_dict: Dictionary = _skill_tree_dict()
+	var bonuses: Dictionary = SkillTreeData.compute_bonuses(tree_dict)
+	var box := _begin("Cây Thiên Phú Đại Việt")
+	box.add_theme_constant_override("separation", 3)
+
+	var inv := HBoxContainer.new()
+	inv.alignment = BoxContainer.ALIGNMENT_CENTER
+	inv.add_theme_constant_override("separation", 8)
+	box.add_child(inv)
+	inv.add_child(UI.label("Xu: %d" % Global.coins, 12, Color(1.0, 0.88, 0.45)))
+	for mid in MaterialData.ORDER:
+		var md: Dictionary = MaterialData.DATA[mid]
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 2)
+		cell.add_child(_mat_icon(str(mid), 11.0))
+		var cnt: int = Global.material_count(str(mid))
+		cell.add_child(UI.label(str(cnt), 12, md.color if cnt > 0 else Color(0.55, 0.55, 0.55)))
+		inv.add_child(cell)
+
+	var sum_parts: Array[String] = []
+	if int(bonuses.get("dmg_pct", 0)) > 0:
+		sum_parts.append("+%d%% ST" % int(bonuses.dmg_pct))
+	if int(bonuses.get("atk_speed_pct", 0)) > 0:
+		sum_parts.append("+%d%% Tốc đánh" % int(bonuses.atk_speed_pct))
+	if int(bonuses.get("hp_add", 0)) > 0:
+		sum_parts.append("+%d Máu" % int(bonuses.hp_add))
+	if int(bonuses.get("armor_add", 0)) > 0:
+		sum_parts.append("+%d Giáp" % int(bonuses.armor_add))
+	if int(bonuses.get("energy_add", 0)) > 0:
+		sum_parts.append("+%d NL" % int(bonuses.energy_add))
+	if int(bonuses.get("skill_cd_pct", 0)) > 0:
+		sum_parts.append("-%d%% Hồi chiêu" % int(bonuses.skill_cd_pct))
+	if int(bonuses.get("coin_pct", 0)) > 0:
+		sum_parts.append("+%d%% Xu" % int(bonuses.coin_pct))
+	var sum_txt: String = "Tổng cộng: " + (" · ".join(sum_parts) if not sum_parts.is_empty() else "Chưa nâng bậc thiên phú nào")
+	box.add_child(UI.label(sum_txt, 11, Color(0.62, 0.96, 0.78), true))
+
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 12, Color(0.55, 0.98, 0.72)))
+
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 5)
+	box.add_child(tabs)
+	var b_all := UI.button("Tất cả (16)", open_skill_tree.bind("all", ""), 11, 96.0)
+	b_all.disabled = (branch_filter == "all")
+	tabs.add_child(b_all)
+	for bid_v in SkillTreeData.BRANCH_ORDER:
+		var bid: String = str(bid_v)
+		var br: Dictionary = SkillTreeData.BRANCHES[bid]
+		var tb := UI.button(str(br.name), open_skill_tree.bind(bid, ""), 11, 92.0)
+		tb.disabled = (branch_filter == bid)
+		tb.modulate = (br.color as Color) if branch_filter == bid else Color(0.86, 0.88, 0.92)
+		tabs.add_child(tb)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(586, 166.0 if last_msg == "" else 150.0)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	scroll.add_child(list)
+
+	var branches_to_show: Array = SkillTreeData.BRANCH_ORDER if branch_filter == "all" else [branch_filter]
+	for bid_v in branches_to_show:
+		var bid: String = str(bid_v)
+		if not SkillTreeData.BRANCHES.has(bid):
+			continue
+		var br: Dictionary = SkillTreeData.BRANCHES[bid]
+		var bcol: Color = br.get("color", Color.WHITE) as Color
+		var bhdr := UI.label("◆ %s — %s" % [str(br.name), str(br.desc)], 12, bcol)
+		bhdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list.add_child(bhdr)
+		for nid_v in br.get("nodes", []):
+			var nid: String = str(nid_v)
+			var nd: Dictionary = SkillTreeData.NODES.get(nid, {})
+			if nd.is_empty():
+				continue
+			var cur_r: int = SkillTreeData.node_rank(tree_dict, nid)
+			var max_r: int = int(nd.get("max_rank", 1))
+			var maxed: bool = cur_r >= max_r
+
+			var card := PanelContainer.new()
+			card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if maxed else "ui/panel.png"))
+			card.custom_minimum_size = Vector2(566, 0)
+			list.add_child(card)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			card.add_child(row)
+
+			var info_col := VBoxContainer.new()
+			info_col.custom_minimum_size = Vector2(412, 0)
+			info_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			info_col.add_theme_constant_override("separation", 1)
+			row.add_child(info_col)
+
+			var nl := UI.label("%s  (%d / %d)" % [str(nd.name), cur_r, max_r], 13, Color(0.55, 0.98, 0.65) if maxed else bcol.lerp(Color.WHITE, 0.35))
+			nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info_col.add_child(nl)
+			var dl := UI.label(str(nd.desc), 11, Color(0.90, 0.88, 0.85), true)
+			dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info_col.add_child(dl)
+
+			if not maxed:
+				var cost: Dictionary = SkillTreeData.upgrade_cost(nid, cur_r + 1)
+				_add_cost_row(info_col, int(cost.get("coins", 0)), cost.get("mats", {}))
+				var can_up: bool = SkillTreeData.can_upgrade_node(tree_dict, nid, Global.coins, Global.materials)
+				var b_up := UI.button("Nâng cấp", func():
+					if Global.has_method("upgrade_skill_tree_node") and bool(Global.call("upgrade_skill_tree_node", nid)):
+						Sfx.play("forge")
+						if lobby != null and lobby.has_method("on_station_fx"):
+							lobby.on_station_fx(Vector2(680, 326), "%s Bậc %d!" % [str(nd.name), cur_r + 1], bcol)
+						open_skill_tree(branch_filter, "Đã nâng %s lên Bậc %d!" % [str(nd.name), cur_r + 1]), 12, 118.0)
+				b_up.disabled = not can_up
+				row.add_child(b_up)
+			else:
+				var b_max := UI.button("Tối đa ✓", func(): pass, 12, 118.0)
+				b_max.disabled = true
+				row.add_child(b_max)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Đài Thức Tỉnh Thần Thú
+
+func open_pet_shrine(last_msg: String = "") -> void:
+	var box := _begin("Đài Thức Tỉnh Thần Thú")
+	box.add_theme_constant_override("separation", 4)
+	var has_nghe_nhan: bool = _is_npc_rescued("nghe_nhan_phu_lang")
+	var sub_txt: String = "Thức tỉnh linh thú lên hình thái Thần Thú tối thượng!"
+	if has_nghe_nhan:
+		sub_txt += "  (Nghệ Nhân Phù Lãng: -20% nguyên liệu!)"
+	box.add_child(UI.label(sub_txt, 12, Color(0.55, 0.96, 0.88) if has_nghe_nhan else Color(0.88, 0.92, 0.96), true))
+	box.add_child(UI.label("Xu: %d  |  Yêu hồn: %d  |  Ngọc thần: %d" % [Global.coins, Global.material_count("yeu_hon"), Global.material_count("ngoc_than")], 12, Color(1.0, 0.88, 0.45)))
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 13, Color(0.55, 0.98, 0.72)))
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(586, 174.0 if last_msg == "" else 156.0)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 5)
+	scroll.add_child(list)
+
+	for pid in ["dog", "cat", "rooster", "crane"]:
+		var evo: Dictionary = CampNpcs.get_awakened_pet(pid)
+		if evo.is_empty():
+			continue
+		var awakened: bool = _is_pet_awakened(pid)
+		var evo_col: Color = evo.get("color", Color(1.0, 0.84, 0.34)) as Color
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if awakened else "ui/panel.png"))
+		card.custom_minimum_size = Vector2(566, 0)
+		list.add_child(card)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		card.add_child(row)
+
+		var at := AtlasTexture.new()
+		at.atlas = Art.tex(str(evo.get("sprite", "")))
+		at.region = Rect2(0, 0, int(evo.get("fw", 28)), int(evo.get("fh", 24)))
+		var pic := TextureRect.new()
+		pic.texture = at
+		pic.custom_minimum_size = Vector2(40, 36)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		row.add_child(pic)
+
+		var info := VBoxContainer.new()
+		info.custom_minimum_size = Vector2(360, 0)
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 1)
+		row.add_child(info)
+		var nl := UI.label("%s → %s" % [str(evo.get("base_name", pid)), str(evo.get("name", pid))], 13, evo_col)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		info.add_child(nl)
+		var dl := UI.label(str(evo.get("desc", "")), 11, Color(0.90, 0.88, 0.85), true)
+		dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		info.add_child(dl)
+		if not awakened:
+			var raw_mats: Dictionary = evo.get("mats", {})
+			var adj_mats: Dictionary = {}
+			for m_k in raw_mats:
+				var qty: int = int(raw_mats[m_k])
+				if has_nghe_nhan:
+					qty = maxi(1, int(floor(float(qty) * 0.8)))
+				adj_mats[m_k] = qty
+			_add_cost_row(info, int(evo.get("coins", 300)), adj_mats)
+
+		if awakened:
+			var b_done := UI.button("Đã Thức Tỉnh ★", func():
+				Global.select_pet(pid)
+				if Net != null and Net.is_online():
+					Net.request_set_pet(pid)
+				if lobby != null and lobby.has_method("refresh_pet_stations"):
+					lobby.refresh_pet_stations()
+				open_pet_shrine("Đã chọn %s đồng hành ra trận!" % str(evo.get("name", pid))), 12, 128.0)
+			b_done.modulate = Color(0.65, 1.0, 0.78)
+			row.add_child(b_done)
+		else:
+			var can_aw: bool = _can_awaken_pet(pid)
+			var b_aw := UI.button("Thức Tỉnh", func():
+				if Global.has_method("awaken_pet") and bool(Global.call("awaken_pet", pid)):
+					Sfx.play("level_clear")
+					if lobby != null:
+						if lobby.has_method("refresh_pet_stations"):
+							lobby.refresh_pet_stations()
+						if lobby.has_method("on_station_fx"):
+							lobby.on_station_fx(Vector2(356, 446), "Thức tỉnh %s!" % str(evo.get("name", pid)), evo_col)
+					open_pet_shrine("%s đã thức tỉnh thành công!" % str(evo.get("name", pid))), 13, 128.0)
+			b_aw.disabled = not can_aw
+			b_aw.modulate = Color(1.0, 0.88, 0.42) if can_aw else Color(0.75, 0.75, 0.8)
+			row.add_child(b_aw)
+	_end(box)
+
+
+# ------------------------------------------------------------------ Võ Đài Tỷ Thí
+
+func open_sparring() -> void:
+	var box := _begin("Võ Đài Tỷ Thí")
+	var arena_nd: Node2D = lobby.get("_sparring_arena") as Node2D if lobby != null else null
+	var is_on: bool = arena_nd != null and is_instance_valid(arena_nd) and bool(arena_nd.get("active"))
+	var has_vosu: bool = _is_npc_rescued("vo_su_thien_nam")
+	box.add_child(UI.label("Võ Đài Tỷ Thí không gây tử vong (máu dừng ở 1, tự hồi đầy khi phân thắng bại).", 13, Color(0.92, 0.90, 0.86), true))
+	if has_vosu:
+		box.add_child(UI.label("Võ Sư Thiên Nam: \"Lên đài tỷ thí một phen, rèn gân cốt trước giờ xuất quân!\"", 12, Color(1.0, 0.78, 0.42), true))
+	var mode_txt: String = "Đang diễn ra (Bước vào vòng đỏ Võ Đường Đông để giao đấu!)" if is_on else "Đang nghỉ — Bật tỷ thí để đấu với Võ Sư Thiên Nam (Solo) hoặc đồng đội (LAN)."
+	box.add_child(UI.label(mode_txt, 12, Color(0.55, 0.98, 0.72) if is_on else Color(0.84, 0.86, 0.92), true))
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 10)
+	box.add_child(btns)
+	var b_tog := UI.button("Kết thúc Tỷ Thí" if is_on else "⚔️ Bắt đầu Tỷ Thí", func():
+		if lobby != null and lobby.has_method("toggle_sparring"):
+			lobby.toggle_sparring()
+		close(), 15, 190.0)
+	b_tog.modulate = Color(1.0, 0.56, 0.48) if is_on else Color(1.0, 0.88, 0.38)
+	btns.add_child(b_tog)
+	btns.add_child(UI.button("Đóng", close, 15, 110.0))
 
 
 # ------------------------------------------------------------------ Bàn Phù Phép Binh Khí

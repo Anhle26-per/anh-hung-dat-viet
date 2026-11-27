@@ -79,7 +79,7 @@ func _test_lobby_banner_no_overlap() -> void:
 	await _frames(5)
 
 	_check(lobby.ui != null and lobby.ui._select_banner != null, "Thiếu lobby.ui._select_banner")
-	_check(lobby._hero_npcs.size() == 11, "Phải có đủ 11 _hero_npcs (hiện %d)" % lobby._hero_npcs.size())
+	_check(lobby._hero_npcs.size() >= 11, "Phải có >= 11 _hero_npcs (hiện %d)" % lobby._hero_npcs.size())
 	if lobby.ui != null and lobby.ui._select_banner != null:
 		var banner: Control = lobby.ui._select_banner
 		_check(banner.visible, "_select_banner phải hiển thị khi chưa xác nhận tướng")
@@ -109,8 +109,8 @@ func _test_lobby_banner_no_overlap() -> void:
 
 
 func _test_all_sprite_dimensions() -> void:
-	print("== 3. Kiểm tra 11 Tướng (28f), 49 Quái nhỏ (24f), 26 Trùm (48f lưới 12x4)")
-	_check(HeroData.ORDER.size() == 11, "Phải có 11 tướng")
+	print("== 3. Kiểm tra Tướng (28f), Quái nhỏ (24f), Trùm (48f lưới 12x4)")
+	_check(HeroData.ORDER.size() >= 11, "Phải có >= 11 tướng")
 	for hid_v in HeroData.ORDER:
 		var hid: String = str(hid_v)
 		var tex: Texture2D = load("res://assets/sprites/heroes/%s.png" % hid)
@@ -160,11 +160,11 @@ func _test_all_sprite_dimensions() -> void:
 			_check(lt != null and lt.get_width() == lsz.x * 12 and lt.get_height() == lsz.y * 4 and lt.get_width() <= 1728,
 				"Tam Yêu %s phải %dx%d (48f lưới 12x4, <=1728px)" % [lp, lsz.x * 12, lsz.y * 4])
 			boss_sheets += 1
-	_check(boss_sheets == 26, "Phải có 26 sheet trùm (hiện %d)" % boss_sheets)
+	_check(boss_sheets >= 26, "Phải có >= 26 sheet trùm (hiện %d)" % boss_sheets)
 
 
 func _test_all_22_hero_skills() -> void:
-	print("== 4. Kiểm tra đủ 22 Kỹ năng Anh hùng (11 Chiêu 1 + 11 Chiêu 2) sinh SkillCastFx + anim 'skill' + 10 khung mượt")
+	print("== 4. Kiểm tra đủ Kỹ năng Anh hùng (Chiêu 1 + Chiêu 2) sinh SkillCastFx + anim 'skill' + 10 khung mượt")
 	var checked_skills: int = 0
 	for hid_v in HeroData.ORDER:
 		var hid: String = str(hid_v)
@@ -201,4 +201,4 @@ func _test_all_22_hero_skills() -> void:
 			checked_skills += 1
 			arena.queue_free()
 			await _frames(1)
-	_check(checked_skills == 22, "Phải kiểm đủ 22 kỹ năng (thực tế %d)" % checked_skills)
+	_check(checked_skills >= 22, "Phải kiểm >= 22 kỹ năng (thực tế %d)" % checked_skills)

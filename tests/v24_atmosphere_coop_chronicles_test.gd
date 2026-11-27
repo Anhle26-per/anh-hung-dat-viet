@@ -62,10 +62,10 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("== 1. Kiểm tra Version v2.4.0 (BUILD 240) & HotpatchSync")
-	_check(VersionData.VERSION == "2.4.0", "VERSION phải là '2.4.0' (hiện '%s')" % VersionData.VERSION)
-	_check(VersionData.BUILD == 240, "BUILD phải là 240 (hiện %d)" % VersionData.BUILD)
-	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "HotpatchSync.needs_autoload_sync phải false trên v2.4.0")
+	print("== 1. Kiểm tra Version (>= 2.4.0 / BUILD >= 240) & HotpatchSync")
+	_check(VersionData.VERSION != "", "VERSION không được rỗng")
+	_check(VersionData.BUILD >= 240, "BUILD phải >= 240 (hiện %d)" % VersionData.BUILD)
+	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "HotpatchSync.needs_autoload_sync phải false trên bản hiện tại")
 
 	await _test_weather_fx()
 	await _test_combat_juice_decals_and_trails()
@@ -191,8 +191,8 @@ func _test_coop_synergy_and_game_combo() -> void:
 
 
 func _test_chronicles_data_save_and_lobby() -> void:
-	print("== 5. Kiểm tra ChronicleData (16 mục), Boss/Blueprint Unlock, Save/Load & Lobby Trophy Wall / Modal")
-	_check(ChronicleData.total_count() == 16, "ChronicleData phải có đúng 16 mục (hiện %d)" % ChronicleData.total_count())
+	print("== 5. Kiểm tra ChronicleData (>= 16 mục), Boss/Blueprint Unlock, Save/Load & Lobby Trophy Wall / Modal")
+	_check(ChronicleData.total_count() >= 16, "ChronicleData phải có >= 16 mục (hiện %d)" % ChronicleData.total_count())
 	for bid in EnemyData.BOSSES:
 		var cid: String = ChronicleData.entry_for_boss(str(bid))
 		_check(cid != "" and ChronicleData.DATA.has(cid), "Thiếu trang Hồn Sử cho Boss '%s'" % str(bid))

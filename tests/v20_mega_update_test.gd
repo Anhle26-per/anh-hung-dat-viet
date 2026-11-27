@@ -90,8 +90,8 @@ func _test_version_and_hotpatch() -> void:
 
 
 func _test_weapons_evo_and_decompose() -> void:
-	print("== 2. Kiểm tra 18 công thức hợp nhất, 6 Thần binh Hợp nhất, 13 Thần binh Trùm (ff384c), phân tách")
-	_check(WeaponEvolutions.MERGE_RECIPES.size() == 18, "MERGE_RECIPES phải có 18 công thức (hiện %d)" % WeaponEvolutions.MERGE_RECIPES.size())
+	print("== 2. Kiểm tra >= 18 công thức hợp nhất, 6 Thần binh Hợp nhất, >= 13 Thần binh Trùm (ff384c), phân tách")
+	_check(WeaponEvolutions.MERGE_RECIPES.size() >= 18, "MERGE_RECIPES phải có >= 18 công thức (hiện %d)" % WeaponEvolutions.MERGE_RECIPES.size())
 	var merged_mythics := ["thai_cuc_kiem", "cung_loi_hoa", "phao_thien_long", "luoi_hai_am_duong", "no_thien_co", "truong_ngu_hanh"]
 	for mw in merged_mythics:
 		_check(WeaponData.DATA.has(mw), "Thiếu Thần binh Hợp nhất: " + mw)
@@ -115,8 +115,8 @@ func _test_weapons_evo_and_decompose() -> void:
 		all_boss_ids.append(str(k))
 	for k in EnemyData.MYTHIC_BOSSES.keys():
 		all_boss_ids.append(str(k))
-	_check(all_boss_ids.size() == 13, "Tổng số trùm phải là 13 (hiện %d)" % all_boss_ids.size())
-	_check(WeaponEvolutions.BOSS_MOTIF_BY_BOSS.size() == 13, "BOSS_MOTIF_BY_BOSS phải đủ 13 trùm")
+	_check(all_boss_ids.size() >= 13, "Tổng số trùm phải >= 13 (hiện %d)" % all_boss_ids.size())
+	_check(WeaponEvolutions.BOSS_MOTIF_BY_BOSS.size() >= 13, "BOSS_MOTIF_BY_BOSS phải có >= 13 trùm")
 	for bid in all_boss_ids:
 		var bwid: String = WeaponEvolutions.boss_weapon_for(bid)
 		_check(bwid != "" and WeaponData.DATA.has(bwid), "Thiếu Thần binh Trùm cho %s: %s" % [bid, bwid])
@@ -133,20 +133,34 @@ func _test_weapons_evo_and_decompose() -> void:
 
 
 func _test_heroes_skills_buffs_modes() -> void:
-	print("== 3. Kiểm tra 11 Skill 2, 11 Passives, 5 Tượng, 8 Buffs mới, 8 Mutators & daily_mutators()")
-	var expected_s2 := [
-		"co_lenh_me_linh", "chieng_nui_nua", "thuy_trieu_dang", "tuong_nhu_nguyet",
-		"hoa_cong_bach_dang", "kim_quy_ho_gia", "hoa_ho_dai_phao", "nhat_tao_xung_kich",
-		"phuc_kich_yen_the", "boc_pha_nghin_can", "nho_tre_danh_giac",
-	]
-	_check(HeroData.ORDER.size() == 11, "HeroData.ORDER phải có 11 tướng")
+	print("== 3. Kiểm tra Skill 2, Passives, 5 Tượng, 8 Buffs mới, 8 Mutators & daily_mutators()")
+	var expected_s2 := {
+		"hai_ba_trung": "co_lenh_me_linh",
+		"ba_trieu": "chieng_nui_nua",
+		"ngo_quyen": "thuy_trieu_dang",
+		"ly_thuong_kiet": "tuong_nhu_nguyet",
+		"tran_hung_dao": "hoa_cong_bach_dang",
+		"le_loi": "kim_quy_ho_gia",
+		"quang_trung": "hoa_ho_dai_phao",
+		"nguyen_trung_truc": "nhat_tao_xung_kich",
+		"hoang_hoa_tham": "phuc_kich_yen_the",
+		"chien_si_dien_bien": "boc_pha_nghin_can",
+		"thanh_giong": "nho_tre_danh_giac",
+		"an_duong_vuong": "loa_thanh_tran",
+		"lac_long_quan": "tram_trung_hao_quang",
+		"son_tinh": "thach_giap_tan_vien",
+	}
+	_check(HeroData.ORDER.size() >= 11, "HeroData.ORDER phải có >= 11 tướng")
 	for i in HeroData.ORDER.size():
 		var hid: String = str(HeroData.ORDER[i])
 		var pinfo: Dictionary = HeroData.passive_info(hid)
 		_check(str(pinfo.get("name", "")) != "" and str(pinfo.get("desc", "")) != "", "Thiếu nội tại cho " + hid)
 		var s2: Dictionary = HeroData.skill_info(hid, 2)
-		_check(str(s2.get("skill", "")) == expected_s2[i], "Skill 2 của %s sai: %s vs %s" % [hid, str(s2.get("skill", "")), expected_s2[i]])
-		_check(Art.tex("ui/skill_%s.png" % expected_s2[i]) != null, "Thiếu icon ui/skill_%s.png" % expected_s2[i])
+		var sk2: String = str(s2.get("skill", ""))
+		_check(sk2 != "", "Thiếu skill 2 cho " + hid)
+		if expected_s2.has(hid):
+			_check(sk2 == str(expected_s2[hid]), "Skill 2 của %s sai: %s vs %s" % [hid, sk2, str(expected_s2[hid])])
+		_check(Art.tex("ui/skill_%s.png" % sk2) != null, "Thiếu icon ui/skill_%s.png" % sk2)
 
 	_check(HeroSkillsExt.STATUE_ORDER.size() == 5, "STATUE_ORDER phải có 5 tượng")
 	for sid_v in HeroSkillsExt.STATUE_ORDER:

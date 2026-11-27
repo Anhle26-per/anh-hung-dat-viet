@@ -508,6 +508,35 @@ def hand_crossbow():
     return p.finish((4, cy))
 
 
+def co_loa_crossbow():
+    """Nỏ Cổ Loa: thân đồng, cánh cung vàng, rùa thần & mũi tên đồng."""
+    p = Pen(19, 15)
+    cy = 7
+    p.rect(1, cy, 13, cy + 1, "bronze")
+    p.rect(4, cy - 1, 7, cy + 2, "gold")
+    p.line([(10, cy - 5), (13, cy), (10, cy + 6)], "gold", 2)
+    p.dline([(10, cy - 5), (7, cy)], "white", 1)
+    p.dline([(10, cy + 6), (7, cy + 1)], "white", 1)
+    p.dline([(6, cy - 1), (17, cy - 1)], "cyan", 1)
+    p.dot(17, cy - 1, "white", 1)
+    p.dot(6, cy, "jade", 1)
+    return p.finish((5, cy))
+
+
+def tan_vien_hammer():
+    """Búa Tản Viên: cán gỗ lim, đầu búa đá núi vàng viền ngọc."""
+    p = Pen(23, 17)
+    cy = 8
+    p.rect(1, cy, 13, cy + 1, "dwood")
+    p.rect(12, cy - 5, 19, cy + 6, "stone")
+    p.rect(12, cy - 6, 19, cy - 5, "bronze")
+    p.rect(12, cy + 6, 19, cy + 7, "bronze")
+    p.dot(15, cy, "gold", 1)
+    p.dot(16, cy, "jade", 1)
+    p.dot(19, cy - 4, "stone", 1)
+    return p.finish((5, cy))
+
+
 # ---------------------------------------------------------------- Danh sách
 PROC = {
     # vũ khí cơ bản của từng tướng
@@ -521,6 +550,9 @@ PROC = {
     "dao_rua": lambda: blade(4, 11, 4, "iron", "wood", guard=None, tip_up=True),
     "hoa_mai_yen_the": lambda: gun(barrel=14, body=5, stock="musket", ms="dwood", mb="iron", grip=False, th=1),
     "sung_truong_bo_binh": lambda: gun(barrel=13, body=7, stock="rifle", under="wood", mb="gun", th=1, grip=False),
+    "no_co_loa": co_loa_crossbow,
+    "long_uyen_kiem": lambda: blade(5, 15, 3, "cyan", "gold", guard="gold", glow="white", pommel="jade"),
+    "bua_tan_vien": tan_vien_hammer,
     # cận chiến
     "gay_tre": lambda: staff(24, "bamboo", bands=(6, 18)),
     "dao_gam": lambda: blade(4, 8, 2, "iron", "leather", guard="iron"),
@@ -592,7 +624,7 @@ TIER_GLOW = {4: hexc("c070ff", 110), 5: hexc("ffc040", 140), "red": hexc("ff384c
 BASIC_WEAPONS = (
     "kiem_dong", "doan_dao", "giao_tre", "no_tay", "guom_lenh",
     "con_lam_son", "ong_lua", "dao_rua", "hoa_mai_yen_the", "sung_truong_bo_binh",
-    "gay_tre",
+    "gay_tre", "no_co_loa", "long_uyen_kiem", "bua_tan_vien",
 )
 
 

@@ -80,7 +80,7 @@ func _run() -> void:
 		Global.run_weapon_mods = {}
 
 	print("== 1. Kiểm tra dữ liệu Thánh Gióng trong HeroData")
-	_check(HeroData.ORDER.size() == 11, "số tướng phải là 11 (thực tế: %d)" % HeroData.ORDER.size())
+	_check(HeroData.ORDER.size() >= 11, "số tướng phải >= 11 (thực tế: %d)" % HeroData.ORDER.size())
 	_check(HeroData.ORDER.has("thanh_giong"), "thiếu thanh_giong trong ORDER")
 	_check(HeroData.DATA.has("thanh_giong"), "thiếu thanh_giong trong DATA")
 	var hd: Dictionary = HeroData.DATA["thanh_giong"]

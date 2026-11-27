@@ -11,6 +11,8 @@ const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const HeroSkillsExt = preload("res://scripts/data/hero_skills_ext.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
+const HaoKhiData = preload("res://scripts/data/hao_khi_data.gd")
 
 const MOUNT_NAMES := {
 	"voi_chien_mount": "Voi Chiến",
@@ -237,6 +239,30 @@ func draw_hud(ci: Control) -> void:
 		Art.draw_text(ci, Vector2(10, left_y + 12), st_txt, 11, st_col, false)
 		left_y += 18.0
 
+	# --- Cổ Vật Sử Việt (Relics)
+	var relics_raw: Variant = Global.get("run_relics")
+	if relics_raw is Array and not (relics_raw as Array).is_empty():
+		var r_arr: Array = relics_raw as Array
+		var badge_sz: float = 13.0
+		var cols_per_row: int = 8
+		var rows_r: int = (r_arr.size() + cols_per_row - 1) / cols_per_row
+		var r_box_w: float = clampf(float(mini(r_arr.size(), cols_per_row)) * 16.0 + 10.0, 72.0, 142.0)
+		var r_box_h: float = 15.0 + float(rows_r) * 15.0
+		_panel(ci, Rect2(4.0, left_y, r_box_w, r_box_h))
+		Art.draw_text(ci, Vector2(9.0, left_y + 10.0), "Cổ Vật (%d)" % r_arr.size(), 10, Color(1.0, 0.86, 0.42), false)
+		for ri in r_arr.size():
+			var rid: String = str(r_arr[ri])
+			var rinfo: Dictionary = RelicData.get_relic(rid)
+			var rcol: Color = rinfo.get("color", Color(0.95, 0.80, 0.35)) as Color
+			var rname_ch: String = str(rinfo.get("name", rid)).substr(0, 1).to_upper()
+			var rx: float = 10.0 + float(ri % cols_per_row) * 16.0
+			var ry: float = left_y + 14.0 + float(ri / cols_per_row) * 15.0
+			var rrect := Rect2(rx, ry, badge_sz, badge_sz)
+			ci.draw_rect(rrect, Color(rcol.r, rcol.g, rcol.b, 0.24))
+			ci.draw_rect(rrect, rcol, false, 1.2)
+			Art.draw_text(ci, rrect.get_center() + Vector2(0.0, 4.0), rname_ch, 10, rcol.lightened(0.25), true)
+		left_y += r_box_h + 2.0
+
 	# --- Trạng thái đồng đội trong phòng LAN
 	if Net != null and Net.is_online():
 		_draw_teammates(ci, left_y)
@@ -249,7 +275,14 @@ func draw_hud(ci: Control) -> void:
 	var stage_lbl: String = ("Thần %d-%d" if is_m_hud else "Màn %d-%d") % [chn, stage]
 	var stage_col: Color = Color(0.92, 0.76, 1.0) if is_m_hud else Color(1, 0.92, 0.75)
 	var stage_sz: int = 15 if is_m_hud else 16
-	if Global.is_boss_rush():
+	var is_coloa: bool = Global.has_method("is_co_loa") and Global.is_co_loa()
+	if is_coloa:
+		var coloa_n: Node = get_tree().get_first_node_in_group("co_loa_defense")
+		var cw: int = int(coloa_n.get("wave")) if coloa_n != null else 0
+		stage_lbl = "Cổ Loa #%d" % maxi(1, cw)
+		stage_col = Color(1.0, 0.88, 0.36)
+		stage_sz = 14
+	elif Global.is_boss_rush():
 		stage_lbl = "Khải Hoàn" if Global.level >= 13 else "Boss %d/12" % Global.level
 		stage_col = Color(1.0, 0.88, 0.35) if Global.level >= 13 else Color(1.0, 0.44, 0.42)
 		stage_sz = 14
@@ -258,6 +291,11 @@ func draw_hud(ci: Control) -> void:
 	Art.draw_text(ci, Vector2(w - 79, 34), str(Global.run_coins), 16, Color(1, 0.88, 0.45), false)
 	_draw_minimap(ci, Vector2(w - 96, 40), Vector2(88, 64))
 	var right_y: float = 110.0
+	var hk_lv: int = Global.eff_hao_khi_level() if Global.has_method("eff_hao_khi_level") else (int(Global.get("hao_khi_level")) if Global.get("hao_khi_level") != null else 0)
+	if hk_lv > 0:
+		_panel(ci, Rect2(w - 100, right_y, 96, 16))
+		Art.draw_text(ci, Vector2(w - 52, right_y + 12), "Hào Khí Bậc %d" % hk_lv, 11, Color(1.0, 0.68, 0.28), true)
+		right_y += 18.0
 	if Global.badass_mode or not Global.active_mutators.is_empty():
 		var mode_tags: PackedStringArray = []
 		if Global.badass_mode:
@@ -296,14 +334,49 @@ func draw_hud(ci: Control) -> void:
 
 	# --- Thanh máu trùm
 	var boss = get_tree().get_first_node_in_group("boss")
-	if boss != null and not boss.is_spawning():
+	var has_boss: bool = boss != null and not boss.is_spawning()
+	if has_boss:
 		var bw := 240.0
 		var bx := (w - bw) / 2.0
-		Art.draw_text(ci, Vector2(w / 2.0, 16), "%s - %s" % [boss.display_name(), boss.title()], 16, Color(1, 0.65, 0.5))
+		var p3_v: Variant = boss.get("phase3_enraged")
+		var p3_enraged: bool = (p3_v is bool and bool(p3_v))
+		var pulse_p3: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 85.0)
+		var b_title_col: Color = Color(1.0, 0.88, 0.34).lerp(Color(0.88, 0.48, 1.0), pulse_p3) if p3_enraged else Color(1, 0.65, 0.5)
+		var b_hdr: String = "%s - %s%s" % [boss.display_name(), boss.title(), " [CUỒNG NỘ]" if p3_enraged else ""]
+		Art.draw_text(ci, Vector2(w / 2.0, 16), b_hdr, 16, b_title_col)
+		if p3_enraged:
+			ci.draw_rect(Rect2(bx - 3, 19, bw + 6, 12), Color(0.88, 0.44, 1.0).lerp(Color(1.0, 0.84, 0.28), pulse_p3), false, 1.4)
 		ci.draw_rect(Rect2(bx - 2, 20, bw + 4, 10), Color(0.05, 0.02, 0.04))
-		ci.draw_rect(Rect2(bx, 22, bw, 6), Color(0.25, 0.08, 0.1))
-		ci.draw_rect(Rect2(bx, 22, bw * clampf(float(boss.hp) / boss.max_hp, 0.0, 1.0), 6), Color("e03a3a"))
-		ci.draw_rect(Rect2(bx, 22, bw * clampf(float(boss.hp) / boss.max_hp, 0.0, 1.0), 2), Color("ff8a7a"))
+		ci.draw_rect(Rect2(bx, 22, bw, 6), Color(0.20, 0.08, 0.26) if p3_enraged else Color(0.25, 0.08, 0.1))
+		var b_fill: Color = Color(0.78, 0.34, 1.0).lerp(Color(1.0, 0.82, 0.26), pulse_p3) if p3_enraged else Color("e03a3a")
+		var b_hi: Color = Color(1.0, 0.94, 0.65) if p3_enraged else Color("ff8a7a")
+		ci.draw_rect(Rect2(bx, 22, bw * clampf(float(boss.hp) / boss.max_hp, 0.0, 1.0), 6), b_fill)
+		ci.draw_rect(Rect2(bx, 22, bw * clampf(float(boss.hp) / boss.max_hp, 0.0, 1.0), 2), b_hi)
+
+	# --- Thủ Thành Cổ Loa: Đợt & Máu Lõi Cổ Loa
+	if is_coloa:
+		var coloa: Node = get_tree().get_first_node_in_group("co_loa_defense")
+		var core: Node = get_tree().get_first_node_in_group("co_loa_core")
+		if coloa != null or core != null:
+			var cl_w: int = int(coloa.get("wave")) if coloa != null else 0
+			var cl_state: String = str(coloa.get("state")) if coloa != null else ""
+			var cl_prep: float = float(coloa.get("prep_time")) if coloa != null else 0.0
+			var chp: int = int(core.get("hp")) if core != null else 0
+			var cmax: int = maxi(1, int(core.get("max_hp"))) if core != null else 250
+			var gauge_w: float = 228.0
+			var gx: float = (w - gauge_w) * 0.5
+			var gy: float = 36.0 if has_boss else 4.0
+			var gh: float = 38.0 if cl_state == "prep" else 26.0
+			_panel(ci, Rect2(gx, gy, gauge_w, gh))
+			var show_w: int = maxi(1, cl_w + (1 if cl_state == "prep" and cl_w == 0 else 0))
+			var hdr_txt: String = "Đợt Cổ Loa %d  |  Lõi Cổ Loa: %d/%d" % [show_w, chp, cmax]
+			Art.draw_text(ci, Vector2(w * 0.5, gy + 12.0), hdr_txt, 11, Color(1.0, 0.90, 0.45), true)
+			var cratio: float = clampf(float(chp) / float(cmax), 0.0, 1.0)
+			var c_col: Color = Color(0.35, 0.92, 0.62) if cratio > 0.5 else (Color(1.0, 0.78, 0.28) if cratio > 0.25 else Color(0.96, 0.32, 0.30))
+			ci.draw_rect(Rect2(gx + 10.0, gy + 17.0, gauge_w - 20.0, 5.0), Color(0.18, 0.08, 0.08))
+			ci.draw_rect(Rect2(gx + 10.0, gy + 17.0, (gauge_w - 20.0) * cratio, 5.0), c_col)
+			if cl_state == "prep":
+				Art.draw_text(ci, Vector2(w * 0.5, gy + 32.0), "Chuẩn bị %.0fs — Nhấn [F] gọi đợt sớm" % maxf(0.0, cl_prep), 11, Color(0.55, 0.95, 1.0), true)
 
 	# --- Vũ khí + kỹ năng (máy tính). Trên điện thoại thì nằm trên nút ảo.
 	if not Global.touch_mode:

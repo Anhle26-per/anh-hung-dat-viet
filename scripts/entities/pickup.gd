@@ -4,14 +4,16 @@ extends Node2D
 const WeaponData = preload("res://scripts/data/weapons.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
 const SynergyData = preload("res://scripts/data/synergy.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
-var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon, material, blueprint_frag
+var kind := "coin"     # coin, energy, potion, potion_big, potion_energy, weapon, material, blueprint_frag, relic
 var amount := 1
 var weapon_id := ""
 var material_id := ""
 var blueprint_id: String = ""
+var relic_id: String = ""
 var pickup_id: int = 0
 var net_handled_claim: bool = false
 var _claim_pending: bool = false
@@ -50,6 +52,11 @@ func _ready() -> void:
 				if bp_tier >= 3 or bool(bp_wd.get("boss_motif", false)):
 					var bp_col: Color = Color("ff384c") if bool(bp_wd.get("boss_motif", false)) else WeaponData.tier_color(blueprint_id)
 					add_child(Art.light(bp_col, 1.0 if bp_tier >= 5 else 0.75, 0.9 if bp_tier >= 5 else 0.7))
+		"relic":
+			_spr = Node2D.new()
+			var rinfo: Dictionary = RelicData.get_relic(relic_id)
+			var rcol: Color = rinfo.get("color", Color(1.0, 0.78, 0.28))
+			add_child(Art.light(rcol, 1.15, 1.05))
 		"weapon":
 			_spr = Sprite2D.new()
 			_spr.texture = Art.tex("weapons/%s.png" % weapon_id)
@@ -85,7 +92,7 @@ func _ready() -> void:
 				add_child(leg_pt)
 				_play_legendary_reveal.call_deferred()
 	add_child(_spr)
-	if kind == "coin" or kind == "energy" or kind == "material" or kind == "blueprint_frag":
+	if kind == "coin" or kind == "energy" or kind == "material" or kind == "blueprint_frag" or kind == "relic":
 		_vel = Vector2.from_angle(randf() * TAU) * randf_range(40.0, 90.0)
 
 
@@ -126,7 +133,7 @@ func _anim(rel: String, fw: int, fh: int, fps: float) -> AnimatedSprite2D:
 func _process(delta: float) -> void:
 	_t += delta
 	_spr.position.y = sin(_t * 4.0) * 1.5 - (3.0 if kind == "weapon" else 0.0)
-	if kind == "weapon" or kind == "blueprint_frag":
+	if kind == "weapon" or kind == "blueprint_frag" or kind == "relic":
 		queue_redraw()
 	var p: Node = Global.local_player()
 	if p == null or not is_instance_valid(p) or bool(p.get("dead")) or bool(p.get("downed")):
@@ -134,7 +141,7 @@ func _process(delta: float) -> void:
 	var to: Vector2 = p.global_position - global_position
 	var d := to.length()
 	match kind:
-		"coin", "energy", "material", "blueprint_frag":
+		"coin", "energy", "material", "blueprint_frag", "relic":
 			if _t > 0.35 and d < 80.0:
 				_vel = to.normalized() * 240.0
 			else:
@@ -247,6 +254,8 @@ func _collect(p) -> void:
 			var wname_bp: String = str(w_bp.get("name", blueprint_id))
 			var bp_col: Color = Color("ff384c") if bool(w_bp.get("boss_motif", false)) else WeaponData.tier_color(blueprint_id)
 			var res: Dictionary = Global.add_blueprint_fragment(blueprint_id, maxi(1, amount))
+			if Global.has_method("record_player_stat"):
+				Global.record_player_stat(int(p.get("peer_id")), "fragments", maxi(1, amount))
 			if bool(res.get("already_owned", false)):
 				var dup_coins: int = 12 * maxi(1, amount)
 				p.stats_changed.emit()
@@ -275,10 +284,45 @@ func _collect(p) -> void:
 				Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 30.0, 0.7, 0.0, bp_col, true)
 			else:
 				Sfx.play("pickup_material")
+		"relic":
+			var rinfo: Dictionary = RelicData.get_relic(relic_id)
+			var rname: String = str(rinfo.get("name", relic_id))
+			var rcol: Color = rinfo.get("color", Color(1.0, 0.80, 0.30))
+			var added: bool = Global.add_relic(relic_id) if Global.has_method("add_relic") else false
+			Sfx.play("chest_open")
+			Fx.burst(get_parent(), global_position, rcol, 44.0, 0.5)
+			Fx.particles(get_parent(), global_position, Color(0.82, 0.52, 1.0), 16, 85.0, 0.6, -35.0, 2.0)
+			if added:
+				Fx.float_text(get_parent(), global_position + Vector2(0, -18), "★ Cổ Vật: %s ★" % rname, rcol, 15)
+				if is_inside_tree():
+					get_tree().call_group("hud", "show_banner", "★ Nhận Cổ Vật: %s! ★" % rname)
+			else:
+				Global.run_coins += 25
+				Fx.float_text(get_parent(), global_position + Vector2(0, -16), "+25 xu (trùng Cổ Vật)", Color(1.0, 0.88, 0.35), 13)
+			if p.has_signal("stats_changed"):
+				p.stats_changed.emit()
 	queue_free()
 
 
 func _draw() -> void:
+	if kind == "relic":
+		var rinfo: Dictionary = RelicData.get_relic(relic_id)
+		var rcol: Color = rinfo.get("color", Color(1.0, 0.78, 0.28))
+		var pcol := Color(0.76, 0.45, 1.0)
+		var rp := 0.5 + 0.5 * sin(_t * 4.5)
+		var bob := sin(_t * 4.0) * 1.5 - 4.0
+		draw_rect(Rect2(-6.0, -52.0, 12.0, 52.0), Color(rcol.r, rcol.g, rcol.b, 0.14 + 0.08 * rp))
+		draw_rect(Rect2(-2.2, -46.0, 4.4, 46.0), Color(pcol.r, pcol.g, pcol.b, 0.28 + 0.14 * rp))
+		draw_set_transform(Vector2(0, 4), 0.0, Vector2(1.0, 0.42))
+		draw_circle(Vector2.ZERO, 10.5 + rp * 2.5, Color(pcol.r, pcol.g, pcol.b, 0.26 + 0.14 * rp))
+		draw_arc(Vector2.ZERO, 12.0 + rp * 2.5, 0.0, TAU, 24, Color(rcol.r, rcol.g, rcol.b, 0.75 + 0.2 * rp), 1.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var pts := PackedVector2Array([
+			Vector2(0, bob - 8.0), Vector2(6.5, bob), Vector2(0, bob + 8.0), Vector2(-6.5, bob)
+		])
+		draw_colored_polygon(pts, rcol)
+		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(1.0, 0.96, 0.8), 1.4)
+		return
 	if kind == "blueprint_frag":
 		var bw := WeaponData.get_data(blueprint_id)
 		var b_tier := int(bw.get("tier", 1))

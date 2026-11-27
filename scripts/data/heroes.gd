@@ -8,7 +8,8 @@ extends RefCounted
 const HeroSkillsExt = preload("res://scripts/data/hero_skills_ext.gd")
 
 const ORDER := ["hai_ba_trung", "ba_trieu", "ngo_quyen", "ly_thuong_kiet", "tran_hung_dao",
-	"le_loi", "quang_trung", "nguyen_trung_truc", "hoang_hoa_tham", "chien_si_dien_bien", "thanh_giong"]
+	"le_loi", "quang_trung", "nguyen_trung_truc", "hoang_hoa_tham", "chien_si_dien_bien", "thanh_giong",
+	"an_duong_vuong", "lac_long_quan", "son_tinh"]
 
 const DATA := {
 	"hai_ba_trung": {
@@ -98,6 +99,30 @@ const DATA := {
 		"synergy_desc": "★ +3 dmg húc, phun 5 cầu lửa  |  ★★ +6 dmg húc, phun 8 cầu lửa + rải lửa",
 		"skill_cd": 10.0, "hp": 7, "armor": 6, "energy": 180, "speed": 100.0,
 		"color": Color(0.76, 0.24, 0.20), "accent": Color(1.0, 0.78, 0.28), "cost": 1200, "secret": true, "unlock_level": 6,
+	},
+	"an_duong_vuong": {
+		"name": "An Dương Vương", "era": "Âu Lạc - Thành Cổ Loa",
+		"weapon": "no_co_loa", "skill": "mua_ten_co_loa", "skill_name": "Mưa tên Cổ Loa",
+		"skill_desc": "Khai hỏa Nỏ Thần Kim Quy phóng loạt tên xuyên thấu 180° trong 4 giây.",
+		"synergy_desc": "★ +3 mũi tên xuyên  |  ★★ Tạo vòng hào quang Kim Quy chặn đạn & bắn liên hoàn",
+		"skill_cd": 12.0, "hp": 6, "armor": 6, "energy": 210, "speed": 96.0,
+		"color": Color(0.86, 0.62, 0.22), "accent": Color(0.35, 0.90, 0.85), "cost": 900,
+	},
+	"lac_long_quan": {
+		"name": "Lạc Long Quân", "era": "Hồng Bàng - Quốc Tổ Bách Việt",
+		"weapon": "long_uyen_kiem", "skill": "thuy_long_trieu", "skill_name": "Thủy long triều",
+		"skill_desc": "Triệu hồi Song Long Biển Đông xoay quanh người công kích và xóa đạn giặc trong 6 giây.",
+		"synergy_desc": "★ Thủy Long to & gây choáng  |  ★★ Hồi 2 Giáp + phóng 6 sóng Rồng tỏa tròn",
+		"skill_cd": 13.5, "hp": 7, "armor": 6, "energy": 210, "speed": 98.0,
+		"color": Color(0.20, 0.65, 0.92), "accent": Color(0.98, 0.84, 0.36), "cost": 1100,
+	},
+	"son_tinh": {
+		"name": "Sơn Tinh", "era": "Truyền thuyết - Tản Viên Sơn Thánh",
+		"weapon": "bua_tan_vien", "skill": "doi_non_lap_be", "skill_name": "Dời non lấp bể",
+		"skill_desc": "Gọi 3 dãy núi đá Tản Viên trồi lên nghiền nát, hất tung và làm choáng giặc.",
+		"synergy_desc": "★ +2 dãy trụ đá & giáp +2  |  ★★ Chấn động toàn màn gây choáng 1,8s",
+		"skill_cd": 12.5, "hp": 8, "armor": 6, "energy": 190, "speed": 92.0,
+		"color": Color(0.45, 0.68, 0.34), "accent": Color(0.90, 0.66, 0.32), "cost": 1000,
 	},
 }
 

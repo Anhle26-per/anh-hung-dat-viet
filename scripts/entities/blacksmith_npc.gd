@@ -2,6 +2,7 @@ extends "res://scripts/entities/interactable.gd"
 ## Thợ rèn lưu động: gắn 1 bùa cường hóa ngẫu nhiên lên vũ khí đang cầm trong lượt chơi.
 
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
+const WeaponData = preload("res://scripts/data/weapons.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
 var level: int = 1
@@ -84,8 +85,21 @@ func interact() -> void:
 		pool = WeaponMods.ORDER.duplicate()
 	var mod_id: String = str(pool.pick_random())
 
+	var cur_affix: String = Global.get_weapon_affix(wid) if Global.has_method("get_weapon_affix") else ""
+	var w_tier: int = int(WeaponData.get_data(wid).get("tier", 1))
+	var affix_pool: Array = []
+	for a in WeaponMods.AFFIX_ORDER:
+		var aid: String = str(a)
+		if aid != cur_affix:
+			affix_pool.append(aid)
+	var new_affix: String = WeaponMods.roll_affix(w_tier)
+	if new_affix == cur_affix and not affix_pool.is_empty():
+		new_affix = str(affix_pool.pick_random())
+
 	Global.run_coins -= price
 	Global.set_weapon_mod(wid, mod_id)
+	if new_affix != "" and Global.has_method("set_weapon_affix"):
+		Global.set_weapon_affix(wid, new_affix)
 	used = true
 	enabled = false
 	near = false
@@ -96,7 +110,9 @@ func interact() -> void:
 	Fx.particles(par, global_position + Vector2(0, -6), col, 20, 95.0, 0.55, -35.0, 2.2)
 	Fx.particles(par, global_position + Vector2(0, -6), Color(1.0, 0.86, 0.35), 12, 70.0, 0.45, -25.0, 1.8)
 	Fx.burst(par, global_position, col, 32.0, 0.35)
-	Fx.float_text(par, global_position + Vector2(0, -32), "Đã gắn: %s!" % WeaponMods.mod_name(mod_id), col, 15)
+	var affix_label: String = WeaponMods.affix_name(new_affix)
+	var forge_msg: String = "Đã gắn: %s + [%s]!" % [WeaponMods.mod_name(mod_id), affix_label] if affix_label != "" else ("Đã gắn: %s!" % WeaponMods.mod_name(mod_id))
+	Fx.float_text(par, global_position + Vector2(0, -32), forge_msg, col, 15)
 	if p.has_signal("stats_changed"):
 		p.stats_changed.emit()
 	if _light != null:

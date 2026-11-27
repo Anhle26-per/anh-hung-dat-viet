@@ -4,6 +4,7 @@ extends Node2D
 ## một phòng cụt = phòng kho báu, có thể có phòng gánh hàng rong, còn lại = phòng đánh quái.
 
 signal portal_entered
+signal portal_entered_branch(branch_kind: String)
 
 const Room = preload("res://scripts/game/room.gd")
 const Decor = preload("res://scripts/game/decor.gd")
@@ -11,6 +12,7 @@ const Cover = preload("res://scripts/entities/cover.gd")
 const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const RunModes = preload("res://scripts/data/run_modes.gd")
+const CampNpcs = preload("res://scripts/data/camp_npcs.gd")
 
 const T := 16          # kích thước 1 ô (pixel)
 const ROOM_W := 29     # chiều rộng phòng (ô) - rộng rãi để né đạn, né bẫy & chiến đấu
@@ -130,17 +132,21 @@ func generate(level: int) -> void:
 	var row: int = chapter.theme
 	add_child(tiles)
 
-	# 1) Chọn vị trí các phòng trên lưới (Màn 3-6 / 6-6 là Sảnh Khải Hoàn 2 phòng; Boss Rush 1..12 là 3 phòng)
+	# 1) Chọn vị trí các phòng trên lưới (Màn 3-6 / 6-6 là Sảnh Khải Hoàn 2 phòng; Boss Rush 1..12 là 3 phòng; Bí Cảnh 3 phòng gọn)
 	var boss_rush: bool = Global != null and Global.has_method("is_boss_rush") and Global.is_boss_rush()
+	var sb_raw: Variant = Global.get("secret_biome_override") if Global != null else ""
+	var is_secret_biome: bool = (sb_raw != null and str(sb_raw) != "")
+	var branch_raw: Variant = Global.get("next_branch_kind") if Global != null else "standard"
+	var branch_kind: String = str(branch_raw) if (branch_raw != null and str(branch_raw) != "") else "standard"
 	var rush_clear_lv: int = RunModes.BOSS_RUSH_CLEAR_LEVEL
-	var is_hall := EnemyData.is_victory_hall(level) or (boss_rush and level >= rush_clear_lv)
-	var count := 2 if is_hall else (3 if boss_rush else (5 + mini(level, 3)))
+	var is_hall := (not is_secret_biome) and (EnemyData.is_victory_hall(level) or (boss_rush and level >= rush_clear_lv))
+	var count := 2 if is_hall else (3 if (boss_rush or is_secret_biome) else (5 + mini(level, 3)))
 	var cells: Array = [Vector2i.ZERO]
 	if is_hall:
 		var hall_cell := Vector2i(0, -1)
 		cells.append(hall_cell)
 		links.append([Vector2i.ZERO, hall_cell])
-	elif boss_rush:
+	elif boss_rush or is_secret_biome:
 		var br_boss := Vector2i(0, -1)
 		var br_exit := Vector2i(0, -2)
 		cells.append(br_boss)
@@ -182,7 +188,7 @@ func generate(level: int) -> void:
 	var others := cells.filter(func(c): return c != Vector2i.ZERO and c != exit_cell)
 	var leaves := others.filter(func(c): return adj[c].size() == 1)
 	var treasure_cell := Vector2i(9999, 9999)
-	if not is_hall and not boss_rush:
+	if not is_hall and not boss_rush and not is_secret_biome:
 		if not leaves.is_empty():
 			treasure_cell = leaves.pick_random()
 		elif others.size() >= 3:
@@ -190,7 +196,7 @@ func generate(level: int) -> void:
 
 	# phòng gánh hàng rong (từ màn 2, 65%): ưu tiên phòng cụt khác phòng kho báu
 	var shop_cell := Vector2i(9999, 9999)
-	if not is_hall and not boss_rush and level >= 2 and randf() < 0.65:
+	if not is_hall and not boss_rush and not is_secret_biome and level >= 2 and randf() < 0.65:
 		var cand := leaves.filter(func(c): return c != treasure_cell)
 		if cand.is_empty() and others.size() >= 4:
 			cand = others.filter(func(c): return c != treasure_cell)
@@ -199,10 +205,12 @@ func generate(level: int) -> void:
 
 	# phòng sự kiện [!] (chế độ thường): ưu tiên phòng nhánh cụt khác kho báu & sạp hàng
 	var event_cell := Vector2i(9999, 9999)
-	if not is_hall and not boss_rush:
+	if not is_hall and not boss_rush and not is_secret_biome:
 		var ev_cand := leaves.filter(func(c): return c != treasure_cell and c != shop_cell)
 		if ev_cand.is_empty():
 			ev_cand = others.filter(func(c): return c != treasure_cell and c != shop_cell)
+		if ev_cand.is_empty() and branch_kind == "event_route" and not others.is_empty():
+			ev_cand = others.duplicate()
 		if not ev_cand.is_empty():
 			event_cell = ev_cand.pick_random()
 
@@ -216,6 +224,10 @@ func generate(level: int) -> void:
 		var k: String = "combat"
 		if c == Vector2i.ZERO:
 			k = "start"
+		elif is_secret_biome and c == Vector2i(0, -1):
+			k = "combat"
+		elif is_secret_biome and c == exit_cell:
+			k = "boss"
 		elif boss_rush and not is_hall and c == Vector2i(0, -1):
 			k = "boss"
 		elif c == exit_cell:
@@ -299,6 +311,36 @@ func generate(level: int) -> void:
 		Color("74b844"), Color("9aa878"), Color("e0a850"), Color("f0b84e"),
 	]
 	var ov_items: Array = []
+	var arena_room_cell := Vector2i(9999, 9999)
+	var extra_treasure_cell := Vector2i(9999, 9999)
+	var extra_event_cell := Vector2i(9999, 9999)
+	var rescue_cell := Vector2i(9999, 9999)
+	var rescue_id: String = ""
+	if not is_hall and not boss_rush and not is_secret_biome:
+		if branch_kind == "arena":
+			for c in cells:
+				if str(room_kinds[c]) == "combat":
+					arena_room_cell = c
+					break
+		elif branch_kind == "treasure_route":
+			extra_treasure_cell = treasure_cell if rooms.get(treasure_cell, null) != null or room_kinds.has(treasure_cell) else Vector2i.ZERO
+		elif branch_kind == "event_route":
+			extra_event_cell = event_cell if room_kinds.has(event_cell) else Vector2i.ZERO
+		var unrescued: Array[String] = _unrescued_npc_ids()
+		if not unrescued.is_empty() and (not Net.is_online() or Net.is_host()):
+			var want_rescue: bool = (branch_kind == "event_route") or (randf() < 0.35)
+			if want_rescue:
+				rescue_id = unrescued[randi() % unrescued.size()]
+				if room_kinds.has(event_cell):
+					rescue_cell = event_cell
+				elif room_kinds.has(treasure_cell):
+					rescue_cell = treasure_cell
+				else:
+					for c in cells:
+						if str(room_kinds[c]) == "combat":
+							rescue_cell = c
+							break
+
 	for c in cells:
 		var r := Room.new()
 		r.rect = Rect2(Vector2(_origin(c)) * T, Vector2(ROOM_W, ROOM_H) * T)
@@ -306,9 +348,14 @@ func generate(level: int) -> void:
 		r.room_key = "%d,%d" % [c.x, c.y]
 		r.door_rects = doors[c]
 		r.kind = str(room_kinds[c])
+		r.arena_elite_wave = (c == arena_room_cell)
+		r.extra_treasure_chest = (c == extra_treasure_cell)
+		r.extra_event_altar = (c == extra_event_cell)
+		r.rescue_npc_id = rescue_id if c == rescue_cell else ""
 		if r.kind == "legend":
 			r.legend_id = Global.pick_legend()
 		r.portal_entered.connect(func(): portal_entered.emit())
+		r.portal_entered_branch.connect(func(bk: String): portal_entered_branch.emit(bk))
 		add_child(r)
 		rooms[c] = r
 		rooms_by_key[r.room_key] = r
@@ -326,6 +373,17 @@ func generate(level: int) -> void:
 
 func start_position() -> Vector2:
 	return rooms[Vector2i.ZERO].rect.get_center()
+
+
+func _unrescued_npc_ids() -> Array[String]:
+	var out: Array[String] = []
+	var rescued_raw: Variant = Global.get("rescued_npcs") if Global != null else null
+	var rescued_arr: Array = rescued_raw as Array if rescued_raw is Array else []
+	for nid_v in CampNpcs.NPC_ORDER:
+		var nid: String = str(nid_v)
+		if not rescued_arr.has(nid):
+			out.append(nid)
+	return out
 
 
 func get_room_by_key(key: String) -> Node:

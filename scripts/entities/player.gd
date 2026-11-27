@@ -29,8 +29,13 @@ const ProgressionData = preload("res://scripts/data/progression.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const WeaponEvolutions = preload("res://scripts/data/weapon_evolutions.gd")
 const HeroSkillsExt = preload("res://scripts/data/hero_skills_ext.gd")
+const HeroSkins = preload("res://scripts/data/hero_skins.gd")
+const SkillTreeData = preload("res://scripts/data/skill_tree.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
 const SpiritBlade = preload("res://scripts/effects/spirit_blade.gd")
 const SkillCastFx = preload("res://scripts/effects/skill_fx.gd")
+const PingMarker = preload("res://scripts/effects/ping_marker.gd")
+const SparringArena = preload("res://scripts/entities/sparring_arena.gd")
 
 const RADIUS := 7.0
 const AUTO_AIM_RANGE := 230.0
@@ -164,6 +169,20 @@ var _passive_kill_count: int = 0
 var _tg_bonus_hp: int = 0
 var mount_sprite: AnimatedSprite2D = null
 
+# v3.0.0 Skins, Skill Tree, Relics, Passives & Ping
+var skin_id: String = "default"
+var pet_awakened: bool = false
+var _skin_modulate: Color = Color.WHITE
+var _skin_fx_col: Color = Color(0, 0, 0, 0)
+var _applied_relics: Array = []
+var _relic_stats: Dictionary = {}
+var _skill_tree_bonuses: Dictionary = {}
+var _son_tinh_still_t: float = 0.0
+var _son_tinh_empowered_t: float = 0.0
+var _llq_kill_count: int = 0
+var _ping_idx: int = 0
+var _ping_reset_t: float = 0.0
+
 # Phần hình
 var body: AnimatedSprite2D
 var elephant: AnimatedSprite2D
@@ -192,15 +211,70 @@ func setup(id: String) -> void:
 	speed = hero.speed
 	weapons = [hero.weapon, ""]
 	slot = 0
-	# nâng cấp vĩnh viễn từ Lò rèn + Tu luyện tướng (cộng dồn; LAN lấy theo Chủ phòng)
+	# nâng cấp vĩnh viễn từ Lò rèn + Tu luyện tướng + Cây Thiên Phú + Cổ Vật (cộng dồn; LAN lấy theo Chủ phòng)
 	var hb: Dictionary = ProgressionData.hero_bonuses(Global.eff_hero_level(id))
-	max_hp += Global.eff_upgrade("mau") + int(hb.hp)
+	_skill_tree_bonuses = SkillTreeData.compute_bonuses(Global.eff_skill_tree())
+	max_hp += Global.eff_upgrade("mau") + int(hb.hp) + int(_skill_tree_bonuses.get("hp_add", 0))
+	max_armor += Global.eff_upgrade("giap") + int(hb.armor) + int(_skill_tree_bonuses.get("armor_add", 0))
+	max_energy += 40 * Global.eff_upgrade("nang_luong") + int(hb.energy) + int(_skill_tree_bonuses.get("energy_add", 0))
+	_applied_relics.clear()
+	sync_relics()
 	hp = max_hp
-	max_armor += Global.eff_upgrade("giap") + int(hb.armor)
 	armor = max_armor
-	max_energy += 40 * Global.eff_upgrade("nang_luong") + int(hb.energy)
 	energy = max_energy
+	if Net != null and Net.is_online() and Net.players.has(peer_id):
+		var pinfo: Dictionary = Net.players[peer_id]
+		skin_id = str(pinfo.get("skin", "default"))
+		pet_awakened = bool(pinfo.get("pet_awakened", false))
+	else:
+		skin_id = Global.get_selected_skin(id) if Global.has_method("get_selected_skin") else "default"
+		pet_awakened = Global.is_pet_awakened(Global.selected_pet) if Global.has_method("is_pet_awakened") else false
 	Global.discover(hero.weapon)
+
+
+func sync_relics() -> void:
+	if Global == null:
+		return
+	var r_list: Array = Global.run_relics
+	_relic_stats = RelicData.aggregate_stats(r_list)
+	var changed: bool = false
+	for rid_v in r_list:
+		var rid: String = str(rid_v)
+		if rid == "" or _applied_relics.has(rid):
+			continue
+		_applied_relics.append(rid)
+		var st: Dictionary = RelicData.get_relic(rid).get("stats", {})
+		var add_hp: int = int(st.get("hp_add", 0))
+		var add_arm: int = int(st.get("armor_add", 0))
+		var add_en: int = int(st.get("energy_add", 0))
+		if add_hp > 0:
+			max_hp += add_hp
+			hp += add_hp
+			changed = true
+		if add_arm > 0:
+			max_armor += add_arm
+			armor += add_arm
+			changed = true
+		if add_en > 0:
+			max_energy += add_en
+			energy += add_en
+			changed = true
+	if changed:
+		stats_changed.emit()
+
+
+func apply_skin(sid: String) -> void:
+	skin_id = sid if sid != "" else "default"
+	var sdata: Dictionary = HeroSkins.get_skin(hero_id, skin_id)
+	var m_col: Variant = sdata.get("modulate", Color.WHITE)
+	_skin_modulate = m_col as Color if m_col is Color else Color.WHITE
+	if skin_id != "default":
+		var f_col: Variant = sdata.get("fx_color", Color(0, 0, 0, 0))
+		_skin_fx_col = f_col as Color if f_col is Color else Color(0, 0, 0, 0)
+	else:
+		_skin_fx_col = Color(0, 0, 0, 0)
+	if body != null and is_instance_valid(body) and not dead and not downed:
+		body.modulate = _skin_modulate
 
 
 func _ready() -> void:
@@ -280,6 +354,7 @@ func _ready() -> void:
 	body.material = _mat
 	body.play("idle")
 	add_child(body)
+	apply_skin(skin_id)
 
 	twin = AnimatedSprite2D.new()
 	twin.sprite_frames = body.sprite_frames
@@ -337,6 +412,10 @@ func effective_weapon(id: String) -> Dictionary:
 	var mod_id: String = Global.get_weapon_mod(id)
 	if mod_id != "":
 		out = WeaponMods.apply(out, mod_id)
+	if Global != null and Global.has_method("get_weapon_affix"):
+		var affix_id: String = Global.get_weapon_affix(id)
+		if affix_id != "":
+			out = WeaponMods.apply_affix(out, affix_id)
 	if Global != null and Global.has_method("is_weapon_evolved") and Global.is_weapon_evolved(id):
 		var bonus: Dictionary = WeaponEvolutions.evolved_bonus(id)
 		out = out.duplicate()
@@ -502,12 +581,20 @@ func _physics_process(delta: float) -> void:
 	_armor_regen -= delta
 	if _armor_regen <= 0.0 and armor < max_armor:
 		armor += 1
-		_armor_regen = 0.85 if hero_id == "ly_thuong_kiet" else 1.0
+		var base_arm_t: float = 0.85 if hero_id == "ly_thuong_kiet" else 1.0
+		var regen_boost: float = 1.0 + float(_skill_tree_bonuses.get("armor_regen_pct", 0)) / 100.0
+		_armor_regen = base_arm_t / regen_boost
 		stats_changed.emit()
 
+	_ping_reset_t = maxf(_ping_reset_t - delta, 0.0)
+	_son_tinh_empowered_t = maxf(_son_tinh_empowered_t - delta, 0.0)
 	var move := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if Global.joy_vector != Vector2.ZERO:
 		move = Global.joy_vector
+	if move.length_squared() <= 0.01 and velocity.length() < 8.0:
+		_son_tinh_still_t += delta
+	else:
+		_son_tinh_still_t = 0.0
 
 	var want_dash: bool = (InputMap.has_action("dash") and Input.is_action_just_pressed("dash")) or bool(Global.get("touch_dash"))
 	if Global.get("touch_dash") != null:
@@ -574,6 +661,7 @@ func _physics_process(delta: float) -> void:
 				mult *= 1.10
 		if mount_id != "" and mount_hp > 0:
 			mult *= float(MOUNTS.get(mount_id, {}).get("speed", 1.15))
+		mult *= 1.0 + float(_relic_stats.get("speed_pct", 0)) / 100.0
 		var inf_energy: bool = Global != null and Global.has_method("has_mutator") and Global.has_mutator("infinite_energy")
 		if move.length_squared() > 0.01 and Input.is_action_pressed("sprint"):
 			var in_lobby: bool = is_inside_tree() and get_tree().get_first_node_in_group("lobby") != null
@@ -681,6 +769,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if get_tree().get_first_node_in_group("lobby") == null and drop_current_weapon():
 			_drop_input_guard = true
 			get_viewport().set_input_as_handled()
+	elif InputMap.has_action("ping") and event.is_action_pressed("ping"):
+		_emit_tactical_ping()
+		get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
@@ -960,7 +1051,8 @@ func _try_attack() -> void:
 	var frenzy_cd_mult: float = 0.8 if _frenzy_timer > 0.0 else 1.0
 	var passive_cd_mult: float = 0.9 if hero_id == "hai_ba_trung" else 1.0
 	var trench_cd_mult: float = 0.9 if in_trench else 1.0
-	var eff_cd: float = cd * (0.5 if buff_timer > 0.0 else 1.0) * pow(0.87, buff("giay_co")) * frenzy_cd_mult * passive_cd_mult * trench_cd_mult / rate_mult
+	var st_atk_spd: float = 1.0 + float(_skill_tree_bonuses.get("atk_speed_pct", 0)) / 100.0
+	var eff_cd: float = cd * (0.5 if buff_timer > 0.0 else 1.0) * pow(0.87, buff("giay_co")) * frenzy_cd_mult * passive_cd_mult * trench_cd_mult / (rate_mult * st_atk_spd)
 	if is_free:
 		_free_shots -= 1
 		if _free_shots > 0:
@@ -1003,7 +1095,8 @@ func _release_charged_attack(w: Dictionary, ratio: float) -> void:
 	if cw.has("width"):
 		cw["width"] = float(cw["width"]) * lerpf(1.0, 1.7, ratio)
 	var rate_mult: float = float(SynergyData.IMPRINTS["sung"].fire_rate_mult) if rapid_reload_timer > 0.0 else 1.0
-	_fire_timer = maxf(0.18, float(w.get("cooldown", 0.45)) * 0.65 * pow(0.87, buff("giay_co")) / rate_mult)
+	var st_atk_spd: float = 1.0 + float(_skill_tree_bonuses.get("atk_speed_pct", 0)) / 100.0
+	_fire_timer = maxf(0.18, float(w.get("cooldown", 0.45)) * 0.65 * pow(0.87, buff("giay_co")) / (rate_mult * st_atk_spd))
 	if get_parent() != null and ratio >= 0.85:
 		Fx.burst(get_parent(), _muzzle_pos(), Color(1.0, 0.88, 0.35), 24.0, 0.25)
 	_execute_weapon_attack(cw, shot_stun)
@@ -1013,6 +1106,8 @@ func _release_charged_attack(w: Dictionary, ratio: float) -> void:
 
 func _execute_weapon_attack(w: Dictionary, shot_stun: float = 0.0) -> void:
 	_total_attack_count += 1
+	if hero_id == "son_tinh" and _son_tinh_still_t >= 0.8:
+		_son_tinh_empowered_t = 0.45
 	var w_exec := w
 	if _post_dash_boost:
 		_post_dash_boost = false
@@ -1150,7 +1245,8 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 			b_dmg = maxi(b_dmg + 1, int(round(float(b_dmg) * 1.15)))
 		b.setup(true, b_pos, dir, w.speed, b_dmg, b_life, b_proj)
 		b.spawn_origin = global_position + offset
-		b.pierce = int(w.get("pierce", 0)) + (int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0)
+		var adv_bow: bool = hero_id == "an_duong_vuong" and (b_proj == "arrow" or str(weapons[slot]).begins_with("no") or str(weapons[slot]).begins_with("cung"))
+		b.pierce = int(w.get("pierce", 0)) + (int(SynergyData.IMPRINTS["sung"].pierce) if rapid_reload_timer > 0.0 else 0) + (1 if adv_bow else 0)
 		b.explode_radius = maxf(w.get("explode", 0.0) * (1.0 + 0.35 * buff("hoa_duoc")), extra_explode)
 		b.knock = w.get("knock", 60.0) * (1.15 if hero_id == "thanh_giong" else 1.0)
 		b.homing = w.get("homing", 0.0)
@@ -1165,6 +1261,7 @@ func _shoot(w: Dictionary, offset := Vector2.ZERO, shot_stun: float = 0.0) -> vo
 		b.burn_duration = 2.2 * burn_mult
 		b.status_kind = str(w.get("status", ""))
 		b.slow_duration = float(w.get("slow", 0.0))
+		b.mod_frost = bool(w.get("mod_ice", false))
 		if buff("bang_tam") > 0:
 			b.slow_duration = maxf(b.slow_duration, 2.0)
 			if b.status_kind == "":
@@ -1336,6 +1433,8 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		for ch in get_children():
 			if ch is OrbitBlades:
 				ch.trigger_launch(first_hit)
+	if is_local and offset == Vector2.ZERO:
+		_check_sparring_melee_hit(dmg, reach, arc)
 	var broadcast_net: bool = is_local and Net != null and Net.is_online()
 	var net_waves: Array = []
 	if twin_timer > 0.0 and _twin_syn == 2:
@@ -1401,6 +1500,7 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 		b.owner_node = self
 		b.status_kind = str(w.get("status", ""))
 		b.slow_duration = float(w.get("slow", 0.0))
+		b.mod_frost = bool(w.get("mod_ice", false))
 		b.stun_duration = float(w.get("stun", 0.0))
 		get_parent().add_child(b)
 		if broadcast_net:
@@ -1611,6 +1711,8 @@ func _wave(w: Dictionary) -> void:
 	r.color = w.get("color", Color(1.0, 0.75, 0.35))
 	r.notes = w.has("stun")
 	get_parent().add_child(r)
+	if is_local:
+		_check_sparring_wave_hit(int(w.damage), r.radius)
 	if w.has("chain"):
 		var near_e = null
 		var near_d: float = r.radius + 16.0
@@ -1695,17 +1797,24 @@ func _use_skill() -> void:
 	var base_cd: float = float(sk_info.get("skill_cd", hero.get("skill_cd", 10.0)))
 	var mentor_up: bool = Global != null and bool(Global.get("mentor_upgraded"))
 	var mentor_mult: float = 1.35 if mentor_up else 1.0
+	var st_sk_dmg: float = 1.0 + float(_skill_tree_bonuses.get("skill_dmg_pct", 0)) / 100.0
+	var sk_dmg_mult: float = mentor_mult * st_sk_dmg
 	var hb: Dictionary = ProgressionData.hero_bonuses(Global.eff_hero_level(hero_id))
-	skill_timer = base_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult) * (0.85 if mentor_up else 1.0)
+	var cd_red: float = clampf(float(int(_skill_tree_bonuses.get("skill_cd_pct", 0)) + int(_relic_stats.get("skill_cd_pct", 0))) / 100.0, 0.0, 0.60)
+	skill_timer = base_cd * pow(0.8, buff("tra_tim_sen")) * float(hb.cd_mult) * (0.85 if mentor_up else 1.0) * (1.0 - cd_red)
+	var e_refund: int = int(_skill_tree_bonuses.get("skill_energy_refund", 0))
+	if e_refund > 0:
+		add_energy(e_refund)
 	Sfx.play_skill(hero_id)
 	if body != null and not dead:
 		_anim_lock_t = 0.44
 		body.play("skill")
 		body.frame = 0
 	_cast_pulse_t = 0.44
-	_cast_pulse_col = (hero.get("color", Color(1.0, 0.88, 0.7)) as Color).lightened(0.35)
+	var base_hcol: Color = hero.get("color", Color(1.0, 0.88, 0.7)) as Color
+	_cast_pulse_col = _skin_fx_col.lightened(0.2) if _skin_fx_col.a > 0.01 else base_hcol.lightened(0.35)
 	var parent := get_parent()
-	SkillCastFx.spawn(parent, global_position, aim_dir, sk_id, Color(0, 0, 0, 0), syn)
+	SkillCastFx.spawn(parent, global_position, aim_dir, sk_id, _skin_fx_col, syn)
 	var wr: WeakRef = weakref(parent)
 	var ally_passive_mult: float = 1.0
 	match sk_id:
@@ -2067,6 +2176,149 @@ func _use_skill() -> void:
 			Fx.slash(parent, global_position + weapon_pivot.position, aim_dir, 58.0, deg_to_rad(180.0), Color(0.45, 0.95, 0.48), "swing")
 			Fx.shake(get_tree(), 4.5)
 			Fx.float_text(parent, global_position + Vector2(0, -30), "Nhổ Tre Đánh Giặc!", Color(0.5, 1.0, 0.55), 18)
+		# --- 3 New Heroes: An Dương Vương, Lạc Long Quân, Sơn Tinh (v3.0.0) ---
+		"mua_ten_co_loa":
+			var arrow_cnt: int = (9 if syn >= 1 else 7) + (2 if mentor_up else 0)
+			var arrow_dmg: int = maxi(4, int(round(5.0 * sk_dmg_mult)))
+			var arrow_pierce: int = 2 + (1 if syn >= 1 else 0)
+			var burst_times: Array = [0.0, 0.55, 1.10, 1.65] if syn == 2 else [0.0, 0.70, 1.40]
+			var wr_me: WeakRef = weakref(self)
+			for bt in burst_times:
+				get_tree().create_timer(bt).timeout.connect(func():
+					var me = wr_me.get_ref()
+					var par = wr.get_ref()
+					if me == null or par == null or me.dead or me.downed:
+						return
+					var base_ang: float = me.aim_dir.angle()
+					for ai in arrow_cnt:
+						var frac: float = 0.5 if arrow_cnt <= 1 else float(ai) / float(arrow_cnt - 1)
+						var aa: float = base_ang + lerpf(-PI * 0.5, PI * 0.5, frac)
+						var ad: Vector2 = Vector2.from_angle(aa)
+						var ab := Bullet.new()
+						ab.setup(true, me.global_position + ad * 12.0, ad, 480.0, arrow_dmg, 0.9, "arrow")
+						ab.spawn_origin = me.global_position
+						ab.pierce = arrow_pierce
+						ab.color = Color(1.0, 0.88, 0.36)
+						ab.owner_node = me
+						par.add_child(ab))
+			if syn == 2:
+				_reflect_syn = 1
+				_reflect_timer = maxf(_reflect_timer, 4.0 * mentor_mult)
+				var rring := ReflectRing.new()
+				rring.damage_mult = 1.5 * mentor_mult
+				add_child(rring)
+			Fx.float_text(parent, global_position + Vector2(0, -30), "Mưa Tên Cổ Loa!", Color(1.0, 0.86, 0.34), 18)
+		"loa_thanh_tran":
+			var t_cnt: int = 2 if (syn == 2 or mentor_up) else 1
+			for ti in t_cnt:
+				var tu_cl := Turret.new()
+				tu_cl.life = 9.0 * mentor_mult
+				tu_cl.fire_cd = 0.45 if syn >= 1 else 0.65
+				tu_cl.use_marked = (syn == 2)
+				var off_t: Vector2 = aim_dir * 20.0 + (aim_dir.rotated(PI * 0.5) * (16.0 if ti == 0 else -16.0) if t_cnt > 1 else Vector2.ZERO)
+				tu_cl.position = global_position + off_t
+				parent.add_child(tu_cl)
+			Fx.float_text(parent, global_position + Vector2(0, -30), "Loa Thành Trấn!", Color(0.95, 0.80, 0.34), 18)
+		"thuy_long_trieu":
+			var ob_llq := OrbitBlades.new()
+			ob_llq.count = (5 if syn == 2 else (4 if syn == 1 else 3)) + (1 if mentor_up else 0)
+			ob_llq.radius = 38.0 if syn >= 1 else 32.0
+			ob_llq.life = 6.0 * mentor_mult
+			ob_llq.launch_on_melee = (syn >= 1)
+			add_child(ob_llq)
+			var wwr := WaveRing.new()
+			wwr.position = global_position
+			wwr.radius = 120.0 * mentor_mult
+			wwr.damage = int(round(6.0 * sk_dmg_mult))
+			wwr.stun = 0.8 if syn >= 1 else 0.0
+			wwr.color = Color(0.28, 0.78, 1.0)
+			parent.add_child(wwr)
+			if syn == 2:
+				restore_armor(2)
+				for wi in 6:
+					var wd3: Vector2 = Vector2.from_angle(TAU * float(wi) / 6.0)
+					var wb3 := Bullet.new()
+					wb3.setup(true, global_position + wd3 * 12.0, wd3, 250.0, int(round(7.0 * sk_dmg_mult)), 0.75, "water_wave")
+					wb3.spawn_origin = global_position
+					wb3.pierce = 99
+					wb3.owner_node = self
+					parent.add_child(wb3)
+			Fx.float_text(parent, global_position + Vector2(0, -30), "Thủy Long Triều!", Color(0.32, 0.82, 1.0), 18)
+		"tram_trung_hao_quang":
+			var arm_gain: int = 2 if syn >= 1 else 1
+			var en_gain: int = 25 if syn >= 1 else 15
+			for pl in Global.all_players():
+				if is_instance_valid(pl) and not bool(pl.get("dead")) and not bool(pl.get("downed")):
+					if pl.has_method("restore_armor"):
+						pl.restore_armor(arm_gain)
+					if pl.has_method("add_energy"):
+						pl.add_energy(en_gain)
+			var ray_cnt: int = (8 if syn == 2 else 6) + (2 if mentor_up else 0)
+			var ray_dmg: int = maxi(4, int(round(6.0 * sk_dmg_mult)))
+			for ri in ray_cnt:
+				var rd: Vector2 = Vector2.from_angle(TAU * float(ri) / float(ray_cnt))
+				var rb := Bullet.new()
+				rb.setup(true, global_position + rd * 12.0, rd, 280.0, ray_dmg, 1.25, "orb_water")
+				rb.spawn_origin = global_position
+				rb.homing = 5.5
+				rb.color = Color(0.35, 0.86, 1.0)
+				rb.owner_node = self
+				parent.add_child(rb)
+			if syn == 2:
+				buff_timer = maxf(buff_timer, 3.5 * mentor_mult)
+			Fx.float_text(parent, global_position + Vector2(0, -30), "Trăm Trứng Hào Quang!", Color(0.45, 0.88, 1.0), 18)
+		"doi_non_lap_be":
+			var lines_cnt: int = 5 if syn >= 1 else 3
+			var sp_dmg: int = maxi(6, int(round(9.0 * sk_dmg_mult)))
+			for li in lines_cnt:
+				var la: float = aim_dir.angle() + lerpf(-0.55, 0.55, float(li) / float(maxi(1, lines_cnt - 1)))
+				var ld: Vector2 = Vector2.from_angle(la)
+				for si in 4:
+					var rs := RockSpike.new()
+					rs.position = global_position + ld * (24.0 + float(si) * 20.0)
+					rs.damage = sp_dmg
+					parent.add_child(rs)
+			var swr := WaveRing.new()
+			swr.position = global_position
+			swr.radius = (140.0 if syn == 2 else 105.0) * mentor_mult
+			swr.damage = maxi(5, int(round(8.0 * sk_dmg_mult)))
+			swr.stun = 1.8 if syn == 2 else 1.0
+			swr.knock = 260.0
+			swr.color = Color(0.76, 0.62, 0.34)
+			parent.add_child(swr)
+			if syn >= 1:
+				restore_armor(2)
+			Fx.shake(get_tree(), 4.5)
+			Fx.float_text(parent, global_position + Vector2(0, -30), "Dời Non Lấp Bể!", Color(0.88, 0.72, 0.38), 18)
+		"thach_giap_tan_vien":
+			var armor_b: int = 6 if syn >= 1 else 4
+			restore_armor(armor_b)
+			_invuln = maxf(_invuln, 1.2 * mentor_mult)
+			var pulse_r: float = (125.0 if syn >= 1 else 100.0) * mentor_mult
+			var pulse_dmg: int = maxi(5, int(round(7.0 * sk_dmg_mult)))
+			var wr_st: WeakRef = weakref(self)
+			for pi in 3:
+				get_tree().create_timer(float(pi) * 0.4).timeout.connect(func():
+					var me = wr_st.get_ref()
+					var par = wr.get_ref()
+					if me == null or par == null or me.dead or me.downed:
+						return
+					var pwr := WaveRing.new()
+					pwr.position = me.global_position
+					pwr.radius = pulse_r
+					pwr.damage = pulse_dmg
+					pwr.knock = 220.0
+					pwr.stun = 2.0 if (pi == 2 and syn == 2) else 0.45
+					pwr.color = Color(0.76, 0.58, 0.32)
+					par.add_child(pwr)
+					Fx.shake(me.get_tree(), 3.2)
+					if pi == 2 and syn == 2:
+						for ri in 8:
+							var rs2 := RockSpike.new()
+							rs2.position = me.global_position + Vector2.from_angle(TAU * float(ri) / 8.0) * 42.0
+							rs2.damage = pulse_dmg
+							par.add_child(rs2))
+			Fx.float_text(parent, global_position + Vector2(0, -30), "Thạch Giáp Tản Viên!", Color(0.84, 0.68, 0.36), 18)
 	_trigger_statue_effect()
 	_trigger_imprint(fam, cw)
 	if syn == 2:
@@ -2639,6 +2891,10 @@ func restore(d: Dictionary) -> void:
 		mount_id = r_mid
 		mount_hp = r_mhp
 		mount_max_hp = maxi(r_mhp, int(d.get("mount_max_hp", r_mhp)))
+	if Global != null:
+		_applied_relics = Global.run_relics.duplicate()
+		_relic_stats = RelicData.aggregate_stats(Global.run_relics)
+		_skill_tree_bonuses = SkillTreeData.compute_bonuses(Global.eff_skill_tree())
 
 
 func pick_weapon(id: String) -> void:
@@ -2800,6 +3056,9 @@ func take_damage(amount: int, source: String = "") -> void:
 		dmg = maxi(1, dmg - 1)
 	if hero_id == "ba_trieu" and armor >= max_armor and max_armor > 0 and dmg > 1:
 		dmg = maxi(1, dmg - 1)
+	var dmg_taken_pct: int = int(_skill_tree_bonuses.get("dmg_taken_pct", 0))
+	if dmg_taken_pct > 0 and dmg > 1:
+		dmg = maxi(1, int(round(float(dmg) * (1.0 - clampf(float(dmg_taken_pct) / 100.0, 0.0, 0.5)))))
 	if dmg <= 0:
 		return
 	Global.run_last_hit = source if source != "" else _nearest_attacker_name()
@@ -2845,7 +3104,7 @@ func take_damage(amount: int, source: String = "") -> void:
 		Fx.particles(get_parent(), global_position, Color(1.0, 0.92, 0.45), 12, 95.0, 0.4, 0.0, 2.0)
 		stats_changed.emit()
 		return
-	_invuln = 0.7
+	_invuln = 0.7 + float(_skill_tree_bonuses.get("iframe_add", 0.0))
 	_flash = 1.0
 	_armor_regen = ARMOR_REGEN_DELAY
 	var absorbed := mini(armor, dmg)
@@ -2863,7 +3122,7 @@ func take_damage(amount: int, source: String = "") -> void:
 func dot_damage(amount: int, kind: String) -> void:
 	if dead or downed or _dash_time > 0.0 or _horse_time > 0.0 or _dodge_dash_t > 0.0:
 		return
-	if (kind == "burn" and (buff("khien_lua") > 0 or hero_id == "nguyen_trung_truc")) or (kind == "poison" and buff("khien_doc") > 0):
+	if (kind == "burn" and (buff("khien_lua") > 0 or hero_id == "nguyen_trung_truc")) or (kind == "poison" and (buff("khien_doc") > 0 or int(_relic_stats.get("poison_immune", 0)) > 0)):
 		return
 	if Net != null and Net.is_online() and not is_local:
 		return
@@ -2978,7 +3237,7 @@ func revive_from_down(broadcast: bool = true) -> void:
 		status.clear()
 	if body != null:
 		body.rotation = 0.0
-		body.modulate = Color.WHITE
+		body.modulate = _skin_modulate
 		body.play("idle")
 	if weapon_pivot != null:
 		weapon_pivot.visible = true
@@ -2987,6 +3246,12 @@ func revive_from_down(broadcast: bool = true) -> void:
 		Fx.float_text(get_parent(), global_position + Vector2(0, -26), "Đã được cứu!", Color(0.55, 1.0, 0.65), 16)
 	Sfx.play("pickup_coin")
 	stats_changed.emit()
+	if broadcast and Global != null and Global.has_method("record_player_stat") and is_inside_tree():
+		for other in Global.all_players():
+			if other != self and is_instance_valid(other) and not bool(other.get("dead")) and not bool(other.get("downed")):
+				if global_position.distance_to((other as Node2D).global_position) <= 44.0:
+					Global.record_player_stat(int(other.get("peer_id")), "revives", 1)
+					break
 	if broadcast and Net != null and Net.is_online():
 		Net.send_down_event("revive", peer_id, {})
 
@@ -3016,7 +3281,7 @@ func revive() -> void:
 	_htk_cd = 0.0
 	status.clear()
 	body.rotation = 0.0
-	body.modulate = Color.WHITE
+	body.modulate = _skin_modulate
 	body.play("idle")
 	weapon_pivot.visible = true
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
@@ -3033,7 +3298,11 @@ func buff(id: String) -> int:
 
 
 func damage_mult() -> float:
-	var m: float = 1.0 + 0.2 * buff("ruou_thuoc")
+	var m: float = 1.0 + 0.2 * buff("ruou_thuoc") + float(_skill_tree_bonuses.get("dmg_pct", 0)) / 100.0
+	if str(current_weapon().get("type", "")) == "melee":
+		m += float(_relic_stats.get("melee_dmg_pct", 0)) / 100.0
+	if hero_id == "son_tinh" and (_son_tinh_still_t >= 0.8 or _son_tinh_empowered_t > 0.0):
+		m += 0.25
 	if Global != null and Global.has_method("has_mutator") and Global.has_mutator("glass_cannon"):
 		m *= 2.0
 	return m
@@ -3041,7 +3310,17 @@ func damage_mult() -> float:
 
 func crit_chance() -> float:
 	var c: float = 0.12 * buff("mat_than") + 0.08 * buff("xuyen_tam") + (0.15 if _frenzy_timer > 0.0 else 0.0)
+	c += float(_skill_tree_bonuses.get("crit_pct", 0)) / 100.0
+	c += float(_relic_stats.get("crit_pct", 0)) / 100.0
+	var cw: Dictionary = current_weapon()
+	c += float(cw.get("crit_bonus", 0.0))
 	if hero_id == "ly_thuong_kiet" or hero_id == "hoang_hoa_tham":
+		c += 0.10
+	elif hero_id == "an_duong_vuong":
+		var wid_cur: String = str(weapons[slot]) if slot >= 0 and slot < weapons.size() else ""
+		if str(cw.get("proj", "")) == "arrow" or wid_cur.begins_with("no") or wid_cur.begins_with("cung"):
+			c += 0.15
+	if Global != null and Global.selected_pet == "cat" and Global.has_method("is_pet_awakened") and Global.is_pet_awakened("cat"):
 		c += 0.10
 	if hero_id == "tran_hung_dao" and is_inside_tree():
 		var near_ally: bool = false
@@ -3138,6 +3417,16 @@ func apply_buff(id: String) -> void:
 ## Gọi khi hạ được 1 kẻ địch
 func on_kill(pos: Vector2 = Vector2.ZERO) -> void:
 	_passive_kill_count += 1
+	if Global != null and Global.has_method("record_player_stat"):
+		var wid_cur: String = str(weapons[slot]) if slot >= 0 and slot < weapons.size() else ""
+		Global.record_player_stat(peer_id, "kills", 1, wid_cur)
+	if hero_id == "lac_long_quan":
+		_llq_kill_count += 1
+		if _llq_kill_count % 8 == 0:
+			if hp < max_hp:
+				heal(1)
+			else:
+				restore_armor(1)
 	if hero_id == "ly_thuong_kiet" and _passive_kill_count % 6 == 0:
 		restore_armor(1)
 	if hero_id == "thanh_giong" and _passive_kill_count % 10 == 0 and _tg_bonus_hp < 3:
@@ -3205,6 +3494,10 @@ func burn_bonus_mult(target) -> int:
 func on_hit_enemy(e) -> void:
 	if is_instance_valid(e) and not e.dead:
 		last_hit_enemy = e
+		var cw_hit: Dictionary = current_weapon()
+		var leech_en: int = int(cw_hit.get("mod_leech_energy", 0))
+		if leech_en > 0:
+			add_energy(leech_en)
 		if _mark_timer > 0.0:
 			e.set_meta("marked_until", Time.get_ticks_msec() + 3000)
 		if buff("khien_doc") > 0 and randf() < 0.20 and e.has_method("apply_status"):
@@ -3300,7 +3593,7 @@ func apply_remote_state(st: Dictionary) -> void:
 	elif not new_dead and dead:
 		dead = false
 		if body != null:
-			body.modulate = Color.WHITE
+			body.modulate = _skin_modulate
 			body.play("idle")
 
 
@@ -3461,6 +3754,70 @@ func play_remote_action(kind: String, data: Dictionary) -> void:
 						(par as Node).add_child(rs))
 		"skill":
 			_play_remote_skill(data)
+		"ping":
+			var ppos := Vector2(float(data.get("x", global_position.x)), float(data.get("y", global_position.y)))
+			var pkind: String = str(data.get("kind", "focus"))
+			var pname: String = str(data.get("name", display_name))
+			var pcol: Color = Color.html(str(data.get("col", name_color.to_html(true))))
+			PingMarker.spawn_ping(parent, ppos, pkind, pname, pcol)
+
+
+func _emit_tactical_ping() -> void:
+	if not is_inside_tree() or get_parent() == null:
+		return
+	if _ping_reset_t > 0.0:
+		_ping_idx = (_ping_idx + 1) % PingMarker.PING_ORDER.size()
+	else:
+		_ping_idx = 0
+	_ping_reset_t = 2.2
+	var pkind: String = str(PingMarker.PING_ORDER[_ping_idx])
+	var ppos: Vector2 = global_position + aim_dir * 48.0 if Global.auto_aim() else get_global_mouse_position()
+	var pname: String = display_name if display_name != "" else str(Global.settings.get("player_name", "Anh Hùng"))
+	PingMarker.spawn_ping(get_parent(), ppos, pkind, pname, name_color)
+	if Sfx != null:
+		Sfx.play("ui_click")
+	if Net != null and Net.is_online():
+		Net.send_player_action("ping", {
+			"x": ppos.x,
+			"y": ppos.y,
+			"kind": pkind,
+			"name": pname,
+			"col": name_color.to_html(true),
+		})
+
+
+func _check_sparring_melee_hit(dmg: int, reach: float, arc: float) -> void:
+	if not is_inside_tree() or get_tree().get_first_node_in_group("lobby") == null:
+		return
+	var arena: Node = get_tree().get_first_node_in_group("sparring_arena")
+	if arena == null or not bool(arena.get("active")) or not SparringArena.is_in_arena(global_position):
+		return
+	for other in Global.all_players():
+		if other == self or not is_instance_valid(other) or bool(other.get("dead")):
+			continue
+		var opos: Vector2 = (other as Node2D).global_position
+		if SparringArena.is_in_arena(opos) and _in_arc(opos, reach + RADIUS, arc, RADIUS):
+			var att_name: String = display_name if display_name != "" else str(Global.settings.get("player_name", "Anh Hùng"))
+			arena.apply_non_lethal_hit(other, dmg, att_name)
+			if Net != null and Net.is_online():
+				Net.send_world_event("sparring_hit", {"target": int(other.get("peer_id")), "dmg": dmg, "attacker": att_name}, not Net.is_host())
+
+
+func _check_sparring_wave_hit(dmg: int, rad: float) -> void:
+	if not is_inside_tree() or get_tree().get_first_node_in_group("lobby") == null:
+		return
+	var arena: Node = get_tree().get_first_node_in_group("sparring_arena")
+	if arena == null or not bool(arena.get("active")) or not SparringArena.is_in_arena(global_position):
+		return
+	for other in Global.all_players():
+		if other == self or not is_instance_valid(other) or bool(other.get("dead")):
+			continue
+		var opos: Vector2 = (other as Node2D).global_position
+		if SparringArena.is_in_arena(opos) and global_position.distance_to(opos) <= rad + RADIUS:
+			var att_name: String = display_name if display_name != "" else str(Global.settings.get("player_name", "Anh Hùng"))
+			arena.apply_non_lethal_hit(other, dmg, att_name)
+			if Net != null and Net.is_online():
+				Net.send_world_event("sparring_hit", {"target": int(other.get("peer_id")), "dmg": dmg, "attacker": att_name}, not Net.is_host())
 
 
 func _play_remote_skill(data: Dictionary) -> void:
@@ -3484,7 +3841,7 @@ func _play_remote_skill(data: Dictionary) -> void:
 		body.frame = 0
 	_cast_pulse_t = 0.44
 	_cast_pulse_col = (hero.get("color", Color(1.0, 0.88, 0.7)) as Color).lightened(0.35)
-	SkillCastFx.spawn(parent, pos, dir, sk, Color(0, 0, 0, 0), syn)
+	SkillCastFx.spawn(parent, pos, dir, sk, _skin_fx_col, syn)
 	var wr: WeakRef = weakref(parent)
 	match sk:
 		"coc_bach_dang":
@@ -3605,6 +3962,67 @@ func _play_remote_skill(data: Dictionary) -> void:
 				parent.add_child(fb)
 			Fx.burst(parent, pos, Color(1.0, 0.55, 0.2), 44.0, 0.4)
 			Fx.float_text(parent, pos + Vector2(20 * dir.x, -30), "Hí! Phun lửa!", Color(1.0, 0.78, 0.28), 18)
+		"mua_ten_co_loa":
+			var r_acnt: int = 9 if syn >= 1 else 7
+			for ai in r_acnt:
+				var frac: float = 0.5 if r_acnt <= 1 else float(ai) / float(r_acnt - 1)
+				var aa: float = dir.angle() + lerpf(-PI * 0.5, PI * 0.5, frac)
+				var ad: Vector2 = Vector2.from_angle(aa)
+				var ab := Bullet.new()
+				ab.visual_only = true
+				ab.setup(true, pos + ad * 12.0, ad, 480.0, 0, 0.9, "arrow")
+				ab.spawn_origin = pos
+				ab.pierce = 3
+				ab.color = Color(1.0, 0.88, 0.36)
+				ab.owner_node = self
+				parent.add_child(ab)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Mưa Tên Cổ Loa!", Color(1.0, 0.86, 0.34), 18)
+		"loa_thanh_tran":
+			var rtu_cl := _RemoteTurretFx.new()
+			rtu_cl.position = pos + dir * 20.0
+			parent.add_child(rtu_cl)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Loa Thành Trấn!", Color(0.95, 0.80, 0.34), 18)
+		"thuy_long_trieu":
+			var rob_llq := _RemoteOrbitFx.new()
+			rob_llq.count = 5 if syn == 2 else (4 if syn == 1 else 3)
+			rob_llq.radius = 36.0
+			add_child(rob_llq)
+			var rww := _RemoteWaveFx.new()
+			rww.position = pos
+			rww.radius = 120.0
+			rww.color = Color(0.28, 0.78, 1.0)
+			parent.add_child(rww)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Thủy Long Triều!", Color(0.32, 0.82, 1.0), 18)
+		"tram_trung_hao_quang":
+			for ri in 6:
+				var rd: Vector2 = Vector2.from_angle(TAU * float(ri) / 6.0)
+				var rb := Bullet.new()
+				rb.visual_only = true
+				rb.setup(true, pos + rd * 12.0, rd, 280.0, 0, 1.0, "orb_water")
+				rb.spawn_origin = pos
+				rb.homing = 5.0
+				rb.color = Color(0.35, 0.86, 1.0)
+				rb.owner_node = self
+				parent.add_child(rb)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Trăm Trứng Hào Quang!", Color(0.45, 0.88, 1.0), 18)
+		"doi_non_lap_be":
+			var rswr := _RemoteWaveFx.new()
+			rswr.position = pos
+			rswr.radius = 120.0
+			rswr.color = Color(0.76, 0.62, 0.34)
+			parent.add_child(rswr)
+			for si in 4:
+				var rs := _RemoteSpikeFx.new()
+				rs.position = pos + dir * (24.0 + float(si) * 20.0)
+				parent.add_child(rs)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Dời Non Lấp Bể!", Color(0.88, 0.72, 0.38), 18)
+		"thach_giap_tan_vien":
+			var rtwr := _RemoteWaveFx.new()
+			rtwr.position = pos
+			rtwr.radius = 110.0
+			rtwr.color = Color(0.76, 0.58, 0.32)
+			parent.add_child(rtwr)
+			Fx.float_text(parent, pos + Vector2(0, -30), "Thạch Giáp Tản Viên!", Color(0.84, 0.68, 0.36), 18)
 	# Hiệu ứng ấn đồng điệu (chỉ hình ảnh, không gây sát thương kép)
 	var imp: Dictionary = SynergyData.IMPRINTS.get(fam, {})
 	if not imp.is_empty():

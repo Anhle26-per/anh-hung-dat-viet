@@ -1,8 +1,23 @@
 # Anh Hùng Đất Việt: Tiến độ và kế hoạch
 
-Cập nhật: 24/11/2026
+Cập nhật: 27/11/2026 — **Mega Expansion v3.0.0 (*Giang Sơn Gấm Vóc*)**
 
-Đây là game roguelike bắn súng góc nhìn từ trên xuống, kiểu Soul Knight, làm bằng **Godot 4** với đồ họa pixel art. Người chơi điều khiển các anh hùng Việt Nam từ năm 40 đến năm 1954, đánh quân xâm lược và yêu quái trong truyền thuyết. **Định hướng đã chốt (24/11/2026):** game chỉ để chủ dự án và bạn bè chơi, không phát hành công khai. Có hai cách chơi: một mình, và chơi chung qua wifi nhà (LAN). Phần việc còn lại giao cho Gemini theo [GIAO-VIEC-GEMINI.md](GIAO-VIEC-GEMINI.md).
+Đây là game roguelike bắn súng góc nhìn từ trên xuống, kiểu Soul Knight, làm bằng **Godot 4.7.2** với đồ họa pixel art. Người chơi điều khiển các anh hùng Việt Nam từ thời Hồng Bàng – Âu Lạc đến năm 1954 và thế giới Thần Thoại Lĩnh Nam, hỗ trợ chơi đơn, chơi LAN Co-op (2–4 người) và chế độ Thủ Thành Cổ Loa. **Định hướng:** game phi thương mại, chạy cục bộ & chơi LAN cùng bạn bè.
+
+---
+
+## 0. Lộ trình phát triển v2.0 → v3.0.0 (*Giang Sơn Gấm Vóc*)
+
+| Phiên bản | Tên gọi | Điểm nhấn chính |
+|---|---|---|
+| **v2.0.0** | *Linh Hồn Chiến Trận* | 18 công thức hợp nhất & 6 Thần binh Hợp nhất Cấp 5, Tiến Hóa vũ khí, 13 Thần binh Trùm Đỏ, 11 Nội tại + 11 Chiêu 2 + 5 Tượng Thần Việt, Dodge Dash, Charge, Combo 3 đòn, Thú cưỡi, EventAltar, Hazards, Boss Rush 1..13, Badass & 8 Mutators. |
+| **v2.1.0** | *Vạn Binh Khởi Trận* | Toàn bộ 13 trùm Pha 1 & Pha 2 nâng cấp 48 khung lưới 12×4 (10 trạng thái), Sảnh Solo click-to-select & 5 NPC sinh động, Linh thú theo xuống Tầng Hầm, LAN cho phép trùng tướng & nhịp độ Horde (tối đa 28 giặc/phòng). |
+| **v2.2.0** | *Kho Báu Lĩnh Nam* | Vứt vũ khí `[G]`, Rương phân tầng & Mảnh bản vẽ (T1–T5), Ghép Bản Vẽ tại Tầng Hầm, tự động cập nhật hotpatch `.pck` + `HotpatchSync`. |
+| **v2.3.0** | *Anh Linh Khởi Thế* | Đồng bộ 28 khung (896×32) cho tất cả anh hùng, 24 khung cho 49 quái nhỏ, `SkillCastFx` riêng cho từng tuyệt kỹ, sửa triệt để UI Đại Sảnh không chồng lấn. |
+| **v2.4.0** | *Hồn Sử Đại Việt* | Thời tiết 10 chương + Bloom, Vết chiến trường (`GroundDecal`) & vệt vũ khí, Hợp Chiêu Đại Việt LAN (`CoopSynergyData`), 16 trang Hồn Sử & Tường Kỷ Vật, Võ Đường DPS Meter & Thử Binh Khí. |
+| **v3.0.0** | *Giang Sơn Gấm Vóc* | **4 Trụ Cột Đại Mở Rộng**: (1) Thủ Thành Cổ Loa (Nỏ Thần, 8 bệ & 5 loại tháp Lv1–3, Boss Công Thành mỗi 5 đợt), Ping chiến thuật 4 loại, Bảng tổng kết MVP & Võ Đài Tỷ Thí; (2) 14 Tướng (thêm An Dương Vương, Lạc Long Quân, Sơn Tinh — 28 kỹ năng), Trang phục Anh Hùng (`HeroSkins`), 15 Cổ Vật Sử Việt (`Relics`), Cây Thiên Phú 4 nhánh 16 nút (`SkillTree`), 12 Bùa + 8 Thuộc tính (`Affixes`) + 8 Vũ khí mới (tổng 225 vũ khí); (3) Cổng phân nhánh, 2 Bí Cảnh (*Thủy Cung Bạch Đằng* – Thủy Tinh, *Đỉnh Tản Viên* – Thiên Lôi Ma Vương, 48f 12×4), Độ khó Hào Khí 1..10 & Boss Pha 3 Cuồng Nộ (`<= 25% HP`); (4) 4 Thần Thú Thức Tỉnh (`*_evo.png`), 4 Danh Sĩ giải cứu trong hầm ngục (mở rộng Vườn Thảo Dược 3→6 luống + Linh Chi Vàng & Hoa Ưu Đàm), Kết Thúc Thực Màn 33 (*Đỉnh Hồng Lĩnh — Cửu Trùng*, Trùm **Hỗn Mang Yêu Đế** 48f & **Thái Tổ Thiên Kiếm**), 24 trang Hồn Sử, 30 Thành Tựu & tương thích ngược file lưu v2.4.0. |
+
+Kiểm thử tự động hiện có **35 bộ kiểm thử (`tests/*_test.tscn`) + `check_scripts.tscn`** (gồm `smoke_test.tscn` và `v30_mega_expansion_test.tscn`), xác minh cả hotpatch GPU `v2.4.0 -> v3.0.0`.
 
 ---
 

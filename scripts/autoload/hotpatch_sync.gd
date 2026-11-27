@@ -17,6 +17,12 @@ const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/data/synergy.gd",
 	"res://scripts/data/progression.gd",
 	"res://scripts/data/weapon_mods.gd",
+	"res://scripts/data/relics.gd",
+	"res://scripts/data/skill_tree.gd",
+	"res://scripts/data/hero_skins.gd",
+	"res://scripts/data/hao_khi_data.gd",
+	"res://scripts/data/co_loa_data.gd",
+	"res://scripts/data/camp_npcs.gd",
 	"res://scripts/art/art.gd",
 	"res://scripts/ui/ui.gd",
 	"res://scripts/effects/fx.gd",
@@ -24,6 +30,7 @@ const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/effects/weather_fx.gd",
 	"res://scripts/effects/ground_decal.gd",
 	"res://scripts/effects/coop_combo_fx.gd",
+	"res://scripts/effects/ping_marker.gd",
 	"res://scripts/net/discovery.gd",
 	"res://scripts/net/net_sync.gd",
 ]
@@ -41,6 +48,7 @@ const SCENE_SCRIPTS: Array[String] = [
 	"res://scripts/ui/pause_menu.gd",
 	"res://scripts/ui/hud.gd",
 	"res://scripts/ui/lobby_ui.gd",
+	"res://scripts/ui/match_summary.gd",
 	"res://scripts/entities/bullet.gd",
 	"res://scripts/entities/pickup.gd",
 	"res://scripts/entities/enemy.gd",
@@ -57,6 +65,10 @@ const SCENE_SCRIPTS: Array[String] = [
 	"res://scripts/entities/event_altar.gd",
 	"res://scripts/entities/mount_pickup.gd",
 	"res://scripts/entities/battlefield_hazard.gd",
+	"res://scripts/entities/co_loa_core.gd",
+	"res://scripts/entities/defense_tower.gd",
+	"res://scripts/entities/rescue_npc.gd",
+	"res://scripts/entities/sparring_arena.gd",
 	"res://scripts/game/ambience.gd",
 	"res://scripts/game/decor.gd",
 	"res://scripts/game/dummy.gd",
@@ -66,6 +78,7 @@ const SCENE_SCRIPTS: Array[String] = [
 	"res://scripts/game/station.gd",
 	"res://scripts/game/room.gd",
 	"res://scripts/game/dungeon.gd",
+	"res://scripts/game/co_loa_defense.gd",
 	"res://scripts/game/lobby.gd",
 	"res://scripts/game/game.gd",
 ]
@@ -83,15 +96,15 @@ static func _reload_script(gd_path: String) -> Script:
 	return fresh
 
 
-static func _version_build_under_240(u: Node) -> bool:
+static func _version_build_under_300(u: Node) -> bool:
 	var vd_path: String = "res://scripts/data/version.gdc" if FileAccess.file_exists("res://scripts/data/version.gdc") else "res://scripts/data/version.gd"
 	if ResourceLoader.exists(vd_path):
 		var vd: Script = ResourceLoader.load(vd_path) as Script
-		if vd != null and int(vd.get_script_constant_map().get("BUILD", 0)) < 240:
+		if vd != null and int(vd.get_script_constant_map().get("BUILD", 0)) < 300:
 			return true
 	if u != null and u.get_script() is Script:
 		var u_vd: Variant = (u.get_script() as Script).get_script_constant_map().get("VersionData", null)
-		if u_vd is Script and int((u_vd as Script).get_script_constant_map().get("BUILD", 0)) < 240:
+		if u_vd is Script and int((u_vd as Script).get_script_constant_map().get("BUILD", 0)) < 300:
 			return true
 	return false
 
@@ -102,15 +115,19 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 	var u: Node = tree.root.get_node_or_null("Updater")
 	if u != null and not u.has_method("_is_running_from_project_dir"):
 		return true
-	if _version_build_under_240(u):
+	if _version_build_under_300(u):
 		return true
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g == null:
 		return false
-	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint", "active_skill_index", "assemble_blueprint", "add_blueprint_fragment", "unlock_chronicle"]:
+	for m in [
+		"owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint",
+		"active_skill_index", "assemble_blueprint", "add_blueprint_fragment", "unlock_chronicle",
+		"add_relic", "is_co_loa", "is_pet_awakened", "rescue_npc",
+	]:
 		if not g.has_method(m):
 			return true
-	if not InputMap.has_action("sprint") or not InputMap.has_action("dash") or not InputMap.has_action("merge_weapon") or not InputMap.has_action("drop_weapon"):
+	if not InputMap.has_action("sprint") or not InputMap.has_action("dash") or not InputMap.has_action("merge_weapon") or not InputMap.has_action("drop_weapon") or not InputMap.has_action("ping") or not InputMap.has_action("start_wave"):
 		return true
 	var s: Node = tree.root.get_node_or_null("Sfx")
 	if s != null:
@@ -121,7 +138,7 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 	if n != null:
 		if n.get("in_lobby") == null or n.get("_exiting") == null:
 			return true
-		for nm in ["host_enter_lobby", "request_set_pet"]:
+		for nm in ["host_enter_lobby", "request_set_pet", "request_set_skin"]:
 			if not n.has_method(nm):
 				return true
 	return false
@@ -133,7 +150,7 @@ static func ensure_autoloads_synced(tree: SceneTree) -> bool:
 	for p in DATA_SCRIPTS:
 		_reload_script(p)
 	var u: Node = tree.root.get_node_or_null("Updater")
-	if u != null and (not u.has_method("_is_running_from_project_dir") or _version_build_under_240(u)):
+	if u != null and (not u.has_method("_is_running_from_project_dir") or _version_build_under_300(u)):
 		var u_base_ver: String = str(u.get("base_version")) if u.get("base_version") != null else ""
 		var u_base_build: int = int(u.get("base_build")) if u.get("base_build") != null else 0
 		var u_patch_loaded: bool = bool(u.get("patch_loaded"))

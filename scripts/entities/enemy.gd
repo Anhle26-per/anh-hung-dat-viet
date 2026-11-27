@@ -9,6 +9,9 @@ signal killed(enemy)
 
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
+const HaoKhiData = preload("res://scripts/data/hao_khi_data.gd")
+const SkillTreeData = preload("res://scripts/data/skill_tree.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 const Bullet = preload("res://scripts/entities/bullet.gd")
@@ -61,6 +64,9 @@ var _burst_spread := 6.0
 var _slowed := false
 # trùm nổi giận: thêm 1 bộ đếm chiêu độc lập (chướng khí / hỏa tiễn) chạy song song
 var enraged := false
+var phase3_enraged: bool = false
+var elite_shield: int = 0
+var max_elite_shield: int = 0
 var _rage_t := 2.0
 var _rage_n := 0
 var status: Node2D
@@ -121,6 +127,9 @@ func setup(k: String, lvl: int, target) -> void:
 	hp = max_hp
 	radius = data.radius
 	speed = data.speed
+	var hk_lv: int = Global.eff_hao_khi_level() if (Global != null and Global.has_method("eff_hao_khi_level")) else 0
+	var hk_info: Dictionary = HaoKhiData.level_info(hk_lv)
+	speed *= float(hk_info.get("speed_mult", 1.0))
 	if Global != null and bool(Global.get("badass_mode")):
 		speed *= 1.18
 	if Global != null and Global.has_method("has_mutator") and Global.has_mutator("hyper_speed"):
@@ -148,6 +157,12 @@ func make_elite() -> void:
 	hp = max_hp
 	radius *= 1.2
 	speed *= 1.1
+	var hk_lv: int = Global.eff_hao_khi_level() if (Global != null and Global.has_method("eff_hao_khi_level")) else 0
+	var hk_info: Dictionary = HaoKhiData.level_info(hk_lv)
+	var sh_chance: float = float(hk_info.get("elite_shield_chance", 0.0))
+	if sh_chance > 0.0 and randf() < sh_chance:
+		max_elite_shield = maxi(4, int(round(float(max_hp) * 0.35)))
+		elite_shield = max_elite_shield
 
 
 ## Bậc sức mạnh của trùm = thứ tự gặp trong lượt (0 = trùm đầu tiên)
@@ -299,6 +314,12 @@ func _touches_player(ppos: Vector2) -> bool:
 
 func _boss_color() -> Color:
 	var bid: String = str(data.get("id", ""))
+	if bid == "hon_mang_yeu_de":
+		return Color(1.0, 0.24, 0.34) if phase3_enraged else (Color(0.88, 0.44, 1.0) if transformed else Color(0.68, 0.32, 0.96))
+	if bid == "thuy_tinh":
+		return Color(0.28, 0.88, 1.0) if transformed else Color(0.22, 0.66, 0.96)
+	if bid == "thien_loi":
+		return Color(1.0, 0.88, 0.28) if transformed else Color(0.62, 0.72, 1.0)
 	if bid in ["cuu_vi_ho", "ho_tinh_vuong"]:
 		return Color(0.84, 0.34, 1.0) if transformed else Color(1.0, 0.38, 0.72)
 	if bid in ["xuong_cuong", "moc_tinh_vuong"]:
@@ -1172,13 +1193,17 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		return Vector2.ZERO
 	if rage and not enraged:
 		_enrage()
+	if not phase3_enraged and hp > 0 and hp <= int(ceil(float(max_hp) * 0.25)):
+		var hk_lv_p3: int = Global.eff_hao_khi_level() if (Global != null and Global.has_method("eff_hao_khi_level")) else 0
+		if hk_lv_p3 >= 4 or (Global != null and bool(Global.get("badass_mode"))) or str(data.get("id", "")) == "hon_mang_yeu_de":
+			_trigger_phase3_enrage()
 	if enraged and _special_t <= 0.0:
 		_rage_skill(delta)
 	# chiêu đặc biệt mỗi trùm (1 lần)
 	if not _special_used:
 		var sp: String = data.get("special", "")
 		var low := hp < max_hp * 0.4
-		if (low and sp in ["tran_khien", "tron_chay", "mua_ten", "sa_lay", "boc_chay", "phao_kich", "ham_chi_huy", "cuu_vi", "rung_gia", "song_than"]) or (sp == "thuy_quai" and rage) or (sp == "ong_dong" and hp < max_hp * 0.35) or (sp == "bo_chay" and hp < max_hp * 0.3):
+		if (low and sp in ["tran_khien", "tron_chay", "mua_ten", "sa_lay", "boc_chay", "phao_kich", "ham_chi_huy", "cuu_vi", "rung_gia", "song_than", "loi_dinh", "hon_mang_triet"]) or (sp == "thuy_quai" and rage) or (sp == "ong_dong" and hp < max_hp * 0.35) or (sp == "bo_chay" and hp < max_hp * 0.3):
 			_start_special(sp)
 	if _special != "" and _special_t <= 0.0:
 		if _special == "tron_chay":
@@ -1259,6 +1284,26 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 					_shoot_t = 0.9
 					_start_burst(7, 12.0)
 				return Vector2.ZERO
+			"loi_dinh":
+				_shoot_t -= delta
+				if _shoot_t <= 0.0:
+					_shoot_t = 0.42
+					if player != null and is_instance_valid(player):
+						_mortar(player.global_position + Vector2(randf_range(-28, 28), randf_range(-28, 28)), 0.7)
+					_fire_ring(8, randf() * TAU, 145.0, "orb_lightning")
+				return _boss_strafe(delta, dir, dist, 0.5)
+			"hon_mang_triet":
+				_shoot_t -= delta
+				if _shoot_t <= 0.0:
+					_shoot_t = 0.32
+					_spiral += 0.38
+					_fire(_spiral, 130.0, "orb_void")
+					_fire(_spiral + PI, 130.0, "orb_star")
+					_fire(_spiral + PI * 0.5, 130.0, "orb_void")
+					_fire(_spiral + PI * 1.5, 130.0, "orb_star")
+					if room != null and randf() < 0.35 and player != null and is_instance_valid(player):
+						_mortar(player.global_position + Vector2(randf_range(-24, 24), randf_range(-24, 24)), 0.85)
+				return Vector2.ZERO
 		return Vector2.ZERO
 
 	var patterns: Array = data.patterns
@@ -1272,6 +1317,8 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 		_reset_motion_fx()
 	_shoot_t -= delta
 	var cd_mult := 0.65 if rage else 0.9
+	if phase3_enraged:
+		cd_mult *= 0.80
 	if bool(data.get("mythic", false)) or EnemyData.is_mythic_level(level):
 		cd_mult *= 0.85
 	# trùm càng về sau ra chiêu càng dồn dập (tối đa nhanh hơn ~45%)
@@ -1486,6 +1533,35 @@ func _boss(delta: float, dir: Vector2, dist: float) -> Vector2:
 				for i in 14:
 					_fire(dir.angle() + deg_to_rad(lerpf(-75, 75, i / 13.0)), 85.0)
 			return _boss_strafe(delta, dir, dist, 0.45)
+		"whirlpool":
+			if _shoot_t <= 0.0:
+				_shoot_t = 0.24 * cd_mult
+				_spiral += 0.42
+				for wi in 4:
+					_fire(_spiral + TAU * float(wi) / 4.0, 115.0, "orb_water")
+				if player != null and is_instance_valid(player) and dist > 48.0 and dist < 210.0:
+					(player as Node2D).global_position += (global_position - (player as Node2D).global_position).normalized() * 12.0
+			return _boss_strafe(delta, dir, dist, 0.4)
+		"lightning_pillars":
+			if _shoot_t <= 0.0 and _volleys < 4:
+				_shoot_t = 0.55 * cd_mult
+				_volleys += 1
+				_trigger_action_anim("cast_summon", 0.35)
+				if player != null and is_instance_valid(player):
+					_mortar(player.global_position + Vector2(randf_range(-24, 24), randf_range(-24, 24)), 0.72)
+				for li in 5:
+					_fire(dir.angle() + deg_to_rad(lerpf(-42.0, 42.0, float(li) / 4.0)), 165.0, "orb_lightning")
+			return _boss_strafe(delta, dir, dist, 0.55)
+		"eclipse_ring":
+			if _shoot_t <= 0.0 and _volleys < 3:
+				_shoot_t = 0.72 * cd_mult
+				_volleys += 1
+				_trigger_action_anim("cast_summon", 0.40)
+				Fx.burst(get_parent(), global_position, Color(0.75, 0.35, 1.0), 46.0, 0.4)
+				_spiral += 0.28
+				_fire_ring(14, _spiral, 120.0, "orb_void")
+				_fire_ring(10, -_spiral, 100.0, "orb_star")
+			return _boss_strafe(delta, dir, dist, 0.5)
 	return Vector2.ZERO
 
 
@@ -1541,6 +1617,8 @@ func net_special_banner(sp: String) -> void:
 		"phao_kich": "Đồn trưởng gọi pháo kích!",
 		"ham_chi_huy": "Đờ Cát rút vào hầm chỉ huy!",
 		"bo_chay": "Tôn Sĩ Nghị bỏ cả ấn tín mà chạy!",
+		"loi_dinh": "Thiên Lôi Ma Vương giáng thiên lôi chín tầng trời!",
+		"hon_mang_triet": "Hỗn Mang Yêu Đế khai mở Hỗn Mang Triệt Địa!",
 	}
 	if banners.has(sp):
 		get_tree().call_group("hud", "show_banner", str(banners[sp]))
@@ -1604,6 +1682,28 @@ func _tidal_wall() -> void:
 					"exp": 0.0, "ox": x, "oy": y, "muzzle": false,
 				}, false)
 		y += 13.0
+
+
+func _trigger_phase3_enrage() -> void:
+	if phase3_enraged:
+		return
+	phase3_enraged = true
+	speed *= 1.28
+	_flash = 1.0
+	_mat.set_shader_parameter("flash_color", Color(1.0, 0.22, 0.28))
+	_trigger_action_anim("rage", 0.6)
+	var aura_l := Art.light(Color(1.0, 0.32, 0.24), 2.0, 1.05)
+	add_child(aura_l)
+	if get_parent() != null:
+		Fx.burst(get_parent(), global_position, Color(1.0, 0.20, 0.26), 92.0, 0.65)
+		Fx.burst(get_parent(), global_position, Color(1.0, 0.86, 0.30), 60.0, 0.45)
+		Fx.particles(get_parent(), global_position, Color(1.0, 0.32, 0.28), 32, 145.0, 0.65, -20.0, 2.4)
+	if is_inside_tree():
+		Fx.shake(get_tree(), 6.5)
+		get_tree().call_group("hud", "show_banner", "%s bước vào Giai Đoạn 3 — CUỒNG NỘ!" % data.name)
+		for b in get_tree().get_nodes_in_group("player_bullets"):
+			if is_instance_valid(b) and (b as Node2D).global_position.distance_to(global_position) < 75.0:
+				b.queue_free()
 
 
 ## Nổi giận khi còn nửa máu: viền đỏ, gầm lên, mở thêm bộ chiêu thứ hai
@@ -1727,6 +1827,14 @@ func _start_special(sp: String) -> void:
 			_special_t = 3.5
 			for i in 8:
 				_spawn_pickup("coin", 3)
+		"loi_dinh":
+			get_tree().call_group("hud", "show_banner", "Thiên Lôi Ma Vương giáng thiên lôi chín tầng trời!")
+			_special_t = 3.5
+			_shoot_t = 0.2
+		"hon_mang_triet":
+			get_tree().call_group("hud", "show_banner", "Hỗn Mang Yêu Đế khai mở Hỗn Mang Triệt Địa!")
+			_special_t = 4.0
+			_shoot_t = 0.15
 	Fx.burst(get_parent(), global_position, Color(1, 0.4, 0.3), 50.0, 0.5)
 	Fx.shake(get_tree(), 4.0)
 	if Net.is_online() and Net.is_host() and net_id > 0:
@@ -1802,19 +1910,42 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 			dmg_mult *= 1.25
 		if player.has_method("buff") and player.buff("bang_tam") > 0 and is_slowed():
 			dmg_mult *= 1.25
+		if is_boss() and Global != null and not Global.run_relics.is_empty():
+			var rel_agg: Dictionary = RelicData.aggregate_stats(Global.run_relics)
+			dmg_mult *= 1.0 + float(rel_agg.get("boss_dmg_pct", 0)) / 100.0
 		dmg = int(round(float(amount) * dmg_mult))
 		var forced_crit: bool = player.has_method("is_kinetic_ready") and player.is_kinetic_ready()
 		var eff_crit: float = player.crit_chance()
 		if player.has_method("buff") and player.buff("bang_tam") > 0 and is_slowed():
 			eff_crit += 0.15
+		var st_bon: Dictionary = SkillTreeData.compute_bonuses(Global.eff_skill_tree()) if Global != null and Global.has_method("eff_skill_tree") else {}
+		var crit_mult: float = 2.0 + float(st_bon.get("crit_dmg_pct", 0)) / 100.0
+		if hp < int(ceil(float(max_hp) * 0.35)):
+			dmg = int(round(float(dmg) * (1.0 + float(st_bon.get("finisher_pct", 0)) / 100.0)))
 		if forced_crit:
-			dmg = (dmg + 8) * 2
+			dmg = int(round(float(dmg + 8) * crit_mult))
 			crit = true
 		elif randf() < eff_crit:
-			dmg *= 2
+			dmg = int(round(float(dmg) * crit_mult))
 			crit = true
 	last_hit_crit = crit
 	var blocked: bool = false
+	if elite_shield > 0:
+		var abs_sh: int = mini(elite_shield, dmg)
+		elite_shield -= abs_sh
+		dmg -= abs_sh
+		blocked = true
+		if get_parent() != null:
+			Fx.particles(get_parent(), hurtbox_center(), Color(0.42, 0.88, 1.0), 6, 65.0, 0.3)
+		if elite_shield <= 0 and get_parent() != null:
+			Fx.float_text(get_parent(), global_position + Vector2(0, -radius - 14), "Vỡ khiên!", Color(0.48, 0.92, 1.0), 13)
+		if dmg <= 0:
+			_flash = 0.65
+			_hp_bar_t = 3.0
+			queue_redraw()
+			Sfx.play("hit_metal")
+			Fx.float_text(get_parent(), Vector2(global_position.x, hurtbox_rect().position.y - 4.0), "%d (Khiên)" % abs_sh, Color(0.55, 0.92, 1.0), 12)
+			return
 	if data.ai == "tank" and knock != Vector2.ZERO and _stun_t <= 0.0:
 		# đòn đánh từ phía trước bị khiên đỡ bớt
 		var facing := Vector2(_face, 0)
@@ -1831,6 +1962,9 @@ func take_damage(amount: int, knock := Vector2.ZERO) -> void:
 	if _slowed:
 		dmg = int(dmg * 1.5)
 	hp -= dmg
+	if player != null and is_instance_valid(player) and Global != null and Global.has_method("record_player_stat"):
+		var wid_p: String = str(player.weapons[player.slot]) if ("weapons" in player and player.slot >= 0 and player.slot < player.weapons.size()) else ""
+		Global.record_player_stat(int(player.get("peer_id")), "damage", dmg, wid_p)
 	_flash = 1.0
 	if not is_boss():
 		_hurt_anim_t = 0.16
@@ -1867,6 +2001,9 @@ func dot_damage(amount: int, kind: String) -> void:
 	if is_boss():
 		dmg = maxi(1, dmg)
 	hp -= dmg
+	if player != null and is_instance_valid(player) and Global != null and Global.has_method("record_player_stat"):
+		var wid_d: String = str(player.weapons[player.slot]) if ("weapons" in player and player.slot >= 0 and player.slot < player.weapons.size()) else ""
+		Global.record_player_stat(int(player.get("peer_id")), "damage", dmg, wid_d)
 	_flash = maxf(_flash, 0.4)
 	if not is_boss():
 		_hurt_anim_t = 0.16
@@ -1916,12 +2053,22 @@ func _finish_die(drop: bool, spawn_shared_loot: bool) -> void:
 		Global.add_stat("kills")
 		if is_boss():
 			Global.add_stat("bosses")
+			var bid_die: String = str(data.get("id", kind))
+			if bool(data.get("secret", false)) or bid_die in ["thuy_tinh", "thien_loi"]:
+				Global.secret_bosses_beaten += 1
+				Global.add_stat("secret_bosses")
+			if bid_die == "hon_mang_yeu_de":
+				Global.add_stat("true_endings")
 			var lp: Node = Global.local_player()
 			Global.on_boss_killed(int(lp.get("hp")) if (lp != null and is_instance_valid(lp)) else 0)
 			if Global.has_method("unlock_chronicle_for_boss"):
-				var cres: Dictionary = Global.call("unlock_chronicle_for_boss", str(data.get("id", kind)))
+				var cres: Dictionary = Global.call("unlock_chronicle_for_boss", bid_die)
 				if bool(cres.get("newly_unlocked", false)) and is_inside_tree():
 					get_tree().call_group("hud", "show_chronicle_toast", str(cres.get("title", "")))
+			if Global.has_method("eff_hao_khi_level") and Global.eff_hao_khi_level() >= 5 and Global.has_method("unlock_chronicle"):
+				var hkc: Dictionary = Global.unlock_chronicle("hao_khi_dai_viet")
+				if bool(hkc.get("newly_unlocked", false)) and is_inside_tree():
+					get_tree().call_group("hud", "show_chronicle_toast", str(hkc.get("title", "")))
 	remove_from_group("enemies")
 	remove_from_group("boss")
 	Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0, radius / 7.0)
@@ -1970,20 +2117,41 @@ func _drop_loot(spawn_shared_loot: bool = true) -> void:
 	var mythic: bool = EnemyData.is_mythic_level(level)
 	for mid in MaterialData.roll_enemy_drops(is_boss(), is_legend, is_folk, elite, modern, mythic):
 		_spawn_material(str(mid))
+	var hk_lv_drop: int = Global.eff_hao_khi_level() if (Global != null and Global.has_method("eff_hao_khi_level")) else 0
+	var hk_drop_info: Dictionary = HaoKhiData.level_info(hk_lv_drop)
+	var st_luck: Dictionary = SkillTreeData.compute_bonuses(Global.eff_skill_tree()) if (Global != null and Global.has_method("eff_skill_tree")) else {}
+	var luck_bonus: float = float(st_luck.get("luck_pct", 0)) / 100.0
+	var frag_bonus: float = float(hk_drop_info.get("fragment_bonus", 0.0)) + luck_bonus
+	var rel_bonus: float = float(hk_drop_info.get("relic_bonus", 0.0)) + luck_bonus
+	var bid_drop: String = str(data.get("id", kind))
+	var is_secret_drop: bool = bool(data.get("secret", false)) or bid_drop in ["thuy_tinh", "thien_loi"]
+	var is_true_ending_drop: bool = (bid_drop == "hon_mang_yeu_de")
 	if Global != null and Global.has_method("roll_blueprint_drop"):
-		if is_legend:
-			if mythic or randf() < 0.65:
+		if is_secret_drop or is_true_ending_drop:
+			_spawn_relic_pickup(Vector2(-14.0, -8.0))
+			for bi in 2:
+				var bp_sec: String = str(Global.roll_blueprint_drop(level, "boss", true))
+				if bp_sec != "":
+					_spawn_blueprint_frag(bp_sec, Vector2(float(bi) * 16.0 - 8.0, 8.0))
+			if is_true_ending_drop:
+				_spawn_blueprint_frag("thai_to_thien_kiem", Vector2(14.0, -8.0))
+		elif is_legend:
+			if mythic or randf() < minf(0.95, 0.65 + frag_bonus):
 				var bp_leg: String = str(Global.roll_blueprint_drop(level, "legend", mythic))
 				if bp_leg != "":
 					_spawn_blueprint_frag(bp_leg)
+			if randf() < 0.25 + rel_bonus:
+				_spawn_relic_pickup(Vector2(12.0, 0.0))
 		elif is_boss():
 			var bp_count: int = 2 if mythic else 1
 			for bi in bp_count:
 				var bp_boss: String = str(Global.roll_blueprint_drop(level, "boss", mythic))
 				if bp_boss != "":
 					_spawn_blueprint_frag(bp_boss, Vector2(float(bi) * 14.0 - 7.0, 0.0))
+			if randf() < 0.30 + rel_bonus:
+				_spawn_relic_pickup(Vector2(14.0, 0.0))
 		elif elite:
-			if randf() < 0.22:
+			if randf() < minf(0.65, 0.22 + frag_bonus):
 				var bp_el: String = str(Global.roll_blueprint_drop(level, "elite", mythic))
 				if bp_el != "":
 					_spawn_blueprint_frag(bp_el)
@@ -2033,6 +2201,21 @@ func _spawn_blueprint_frag(bp_wid: String, offset: Vector2 = Vector2.ZERO) -> vo
 	get_parent().add_child(p)
 
 
+func _spawn_relic_pickup(offset: Vector2 = Vector2.ZERO) -> void:
+	if get_parent() == null:
+		return
+	var owned: Array = Global.run_relics if Global != null else []
+	var rid: String = RelicData.roll_relic(owned)
+	if rid == "":
+		return
+	var p := Pickup.new()
+	p.kind = "relic"
+	p.relic_id = rid
+	p.amount = 1
+	p.position = global_position + offset
+	get_parent().add_child(p)
+
+
 func _spawn_pickup(k: String, amount: int) -> void:
 	var p := Pickup.new()
 	p.kind = k
@@ -2046,6 +2229,10 @@ func _draw() -> void:
 		return
 	if is_boss():
 		_draw_boss_fx()
+		if phase3_enraged:
+			var p3_r: float = maxf(_hb_size.x, _hb_size.y) * 0.68
+			draw_arc(_hb_offset, p3_r, _boss_t * 4.0, _boss_t * 4.0 + PI * 1.4, 28, Color(1.0, 0.22, 0.28, 0.85), 2.4)
+			draw_arc(_hb_offset, p3_r + 4.0, -_boss_t * 3.0, -_boss_t * 3.0 + PI * 1.2, 28, Color(1.0, 0.86, 0.28, 0.72), 1.6)
 	elif _charge_state == "windup":
 		if str(data.get("ai", "")) == "slam":
 			var sr: float = 54.0 * clampf(1.0 - _charge_t / 0.55, 0.2, 1.0)
@@ -2054,12 +2241,14 @@ func _draw() -> void:
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		else:
 			_draw_charge_lane(110.0)
-	if is_boss() or _hp_bar_t <= 0.0 or hp >= max_hp or max_hp <= 0:
+	if elite_shield > 0 and max_elite_shield > 0 and not is_boss():
+		draw_arc(_hb_offset, maxf(radius * 1.35, 13.0), 0.0, TAU, 24, Color(0.38, 0.86, 1.0, 0.55), 1.5)
+	if is_boss() or ((_hp_bar_t <= 0.0 or hp >= max_hp or max_hp <= 0) and elite_shield <= 0):
 		return
 	var bw: float = 24.0 if elite else 18.0
 	var bh: float = 3.0
 	var pos := Vector2(-bw / 2.0, (_hb_offset.y - _hb_size.y * 0.5) - 6.0)
-	var a: float = clampf(_hp_bar_t / 0.4, 0.0, 1.0)
+	var a: float = clampf(_hp_bar_t / 0.4, 0.0, 1.0) if _hp_bar_t > 0.0 else 0.85
 	var ratio: float = clampf(float(hp) / float(max_hp), 0.0, 1.0)
 	draw_rect(Rect2(pos - Vector2(1.0, 1.0), Vector2(bw + 2.0, bh + 2.0)), Color(0.06, 0.02, 0.04, 0.92 * a))
 	draw_rect(Rect2(pos, Vector2(bw, bh)), Color(0.24, 0.07, 0.09, 0.92 * a))
@@ -2067,6 +2256,11 @@ func _draw() -> void:
 	if fw > 0.0:
 		draw_rect(Rect2(pos, Vector2(fw, bh)), Color(0.86, 0.18, 0.22, a))
 		draw_rect(Rect2(pos, Vector2(fw, 1.0)), Color(1.0, 0.48, 0.46, a))
+	if elite_shield > 0 and max_elite_shield > 0:
+		var s_ratio: float = clampf(float(elite_shield) / float(max_elite_shield), 0.0, 1.0)
+		var spos := pos - Vector2(0.0, 4.0)
+		draw_rect(Rect2(spos, Vector2(bw, 2.5)), Color(0.08, 0.16, 0.24, 0.92))
+		draw_rect(Rect2(spos, Vector2(bw * s_ratio, 2.5)), Color(0.38, 0.88, 1.0, 0.95))
 
 
 func _draw_charge_lane(lane_len: float) -> void:

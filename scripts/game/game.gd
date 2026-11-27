@@ -16,6 +16,10 @@ const Pet = preload("res://scripts/entities/pet.gd")
 const CoopSynergyData = preload("res://scripts/data/coop_synergy.gd")
 const CoopComboFx = preload("res://scripts/effects/coop_combo_fx.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
+const CoLoaDefense = preload("res://scripts/game/co_loa_defense.gd")
+const PingMarker = preload("res://scripts/effects/ping_marker.gd")
+const MatchSummary = preload("res://scripts/ui/match_summary.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
 
 const COOP_COMBO_WINDOW: float = 2.4
 const COOP_COMBO_MAX_DIST: float = 260.0
@@ -65,6 +69,8 @@ var _weather_node: Node = null
 var _recent_skill_casts: Dictionary = {}
 var _coop_combo_cd: float = 0.0
 var _coop_clock: float = 0.0
+var _is_co_loa_mode: bool = false
+var _ping_kind: String = "focus"
 
 
 func _ready() -> void:
@@ -178,6 +184,54 @@ func apply_camera_zoom() -> void:
 	if camera != null and is_instance_valid(camera):
 		var z: float = Global.camera_zoom()
 		camera.zoom = Vector2(z, z)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _leaving or not is_inside_tree() or get_tree().paused:
+		return
+	if player == null or not is_instance_valid(player) or bool(player.get("dead")):
+		return
+	if _game_over != null or _victory_ui != null:
+		return
+	var is_ping_key: bool = false
+	var shift_held: bool = false
+	if event is InputEventKey:
+		var ke: InputEventKey = event as InputEventKey
+		if ke.pressed and not ke.echo and ke.physical_keycode == KEY_T:
+			is_ping_key = true
+			shift_held = ke.shift_pressed
+	elif InputMap.has_action("ping") and event.is_action_pressed("ping"):
+		is_ping_key = true
+	if is_ping_key:
+		if shift_held:
+			_ping_kind = PingMarker.cycle_ping_kind(_ping_kind)
+			var pinfo: Dictionary = PingMarker.PING_TYPES.get(_ping_kind, {})
+			if hud != null and hud.has_method("show_banner"):
+				hud.show_banner("Ping: %s" % str(pinfo.get("label", _ping_kind)))
+		else:
+			trigger_tactical_ping()
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
+
+
+func trigger_tactical_ping() -> void:
+	if world == null or not is_instance_valid(world):
+		return
+	if player == null or not is_instance_valid(player) or bool(player.get("dead")):
+		return
+	for c in world.get_children():
+		if c is PingMarker and float(c.get("_t")) < 0.08:
+			return
+	var ppos: Vector2 = (player as Node2D).global_position if Global.auto_aim() else world.get_global_mouse_position()
+	var pname: String = str(player.get("display_name"))
+	if pname == "":
+		pname = str(Global.settings.get("player_name", "Anh Hùng"))
+	var pcol: Color = player.get("name_color") as Color if player.get("name_color") is Color else Color(0, 0, 0, 0)
+	PingMarker.spawn_ping(world, ppos, _ping_kind, pname, pcol)
+	if Net != null and Net.is_online():
+		Net.send_player_action("ping", {"kind": _ping_kind, "x": ppos.x, "y": ppos.y, "name": pname})
+	_ping_kind = PingMarker.cycle_ping_kind(_ping_kind)
 
 
 func _spawn_net_player(pid: int, info: Dictionary) -> Node:
@@ -313,11 +367,44 @@ func _build_level() -> void:
 	for c in world.get_children():
 		if c != player and c != pet and not keep_players.has(c) and not keep_pets.has(c):
 			c.queue_free()
+	var co_loa_mode: bool = Global.has_method("is_co_loa") and Global.is_co_loa()
+	_is_co_loa_mode = co_loa_mode
+	if co_loa_mode:
+		darkness.color = Color(0.84, 0.78, 0.70)
+		if Sfx.has_method("play_stage_music"):
+			Sfx.play_stage_music(5, 0)
+		else:
+			Sfx.play_music("battle")
+		dungeon = CoLoaDefense.new()
+		world.add_child(dungeon)
+		world.move_child(dungeon, 0)
+		if dungeon.has_signal("core_destroyed"):
+			dungeon.core_destroyed.connect(_on_co_loa_core_destroyed)
+		if dungeon.has_signal("wave_started"):
+			dungeon.wave_started.connect(func(w: int):
+				if Net != null and Net.is_online() and Net.is_host():
+					Net.send_world_event("co_loa_wave", {"wave": w, "state": "fighting", "prep_time": 0.0}, false))
+		if dungeon.has_signal("wave_cleared"):
+			dungeon.wave_cleared.connect(func(w: int):
+				if Net != null and Net.is_online() and Net.is_host():
+					Net.send_world_event("co_loa_wave", {"wave": w, "state": "prep", "prep_time": float(dungeon.get("prep_time"))}, false))
+		if net_sync != null:
+			net_sync.set_deferred("is_clearing_level", false)
+		var cl_start: Vector2 = dungeon.start_position()
+		_place_players_at(cl_start)
+		camera.reset_smoothing()
+		if not Net.is_online() or Net.is_host():
+			Global.save_run(player)
+		hud.show_banner("Thủ Thành Cổ Loa — Bảo vệ Lẫy Nỏ Thần!")
+		return
+
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
 	var is_br_hall: bool = Global.is_boss_rush() and Global.level >= 13
-	if is_br_hall or Global.level == 16 or Global.level >= 32:
+	if is_br_hall or Global.level == 16 or Global.level == 32 or Global.level >= 34:
 		Sfx.play_music("victory")
+	elif Global.level == 33:
+		Sfx.play_music("boss")
 	elif Sfx.has_method("play_stage_music"):
 		Sfx.play_stage_music(Global.level, 0)
 	else:
@@ -330,7 +417,11 @@ func _build_level() -> void:
 	elif Global.challenge_code != "":
 		seed(Global.challenge_seed(Global.challenge_code) + Global.level * 1009)
 	dungeon.generate(Global.level)
+	if Global.get("next_branch_kind") != null:
+		Global.set("next_branch_kind", "standard")
 	dungeon.portal_entered.connect(_on_portal)
+	if dungeon.has_signal("portal_entered_branch"):
+		dungeon.portal_entered_branch.connect(_on_portal_branch)
 	var wfx_script := _load_weather_script()
 	if wfx_script != null:
 		var wnode: Node = wfx_script.new()
@@ -342,6 +433,37 @@ func _build_level() -> void:
 	if net_sync != null:
 		net_sync.set_deferred("is_clearing_level", false)
 	var start_pos: Vector2 = dungeon.start_position()
+	_place_players_at(start_pos)
+	camera.reset_smoothing()
+	if not Net.is_online() or Net.is_host():
+		Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
+	var sb_raw: Variant = Global.get("secret_biome_override")
+	var sb_active: String = str(sb_raw) if sb_raw != null else ""
+	var stage := EnemyData.stage_in_chapter(Global.level)
+	var chn := EnemyData.stage_chapter_num(Global.level)
+	if sb_active != "":
+		hud.show_banner("Bí Cảnh: %s!" % str(ch.get("name", sb_active)))
+	elif Global.level == 33:
+		hud.show_banner("Đỉnh Hồng Lĩnh — Cửu Trùng! Đối mặt Hỗn Mang Yêu Đế!")
+	elif Global.level >= 34:
+		hud.show_banner("Cửu Trùng Khải Hoàn — Giang Sơn Gấm Vóc!")
+	elif Global.is_boss_rush():
+		if Global.level >= 13:
+			hud.show_banner("Boss Rush 13/13  -  Sảnh Chiến Thần Khải Hoàn!")
+		else:
+			hud.show_banner("Boss Rush %d/12  -  Trận Quyết Chiến Trùm!" % Global.level)
+	elif Global.level == 16:
+		hud.show_banner("Màn 3-6  -  Sảnh Khải Hoàn!")
+	elif Global.level >= 32:
+		hud.show_banner("Màn 6-6  -  Sảnh Huyền Thoại!")
+	elif stage == 1:
+		hud.show_chapter(chn, ch)
+	else:
+		var prefix: String = "Thần thoại " if EnemyData.is_mythic_level(Global.level) else "Màn "
+		hud.show_banner("%s%d-%d%s" % [prefix, chn, stage, "  -  Trận quyết chiến!" if EnemyData.is_boss_level(Global.level) else ""])
+
+
+func _place_players_at(start_pos: Vector2) -> void:
 	if Net.is_online():
 		var idx: int = 0
 		var peer_keys: Array = players_by_peer.keys()
@@ -371,35 +493,78 @@ func _build_level() -> void:
 		player.nearby_pickup = null
 		if pet != null and is_instance_valid(pet):
 			(pet as Node2D).global_position = start_pos + Vector2(-18.0, 12.0)
-	camera.reset_smoothing()
-	if not Net.is_online() or Net.is_host():
-		Global.save_run(player)     # điểm lưu đầu mỗi màn (tắt game thì "Chơi tiếp" từ đây)
-	var stage := EnemyData.stage_in_chapter(Global.level)
-	var chn := EnemyData.stage_chapter_num(Global.level)
-	if Global.is_boss_rush():
-		if Global.level >= 13:
-			hud.show_banner("Boss Rush 13/13  -  Sảnh Chiến Thần Khải Hoàn!")
-		else:
-			hud.show_banner("Boss Rush %d/12  -  Trận Quyết Chiến Trùm!" % Global.level)
-	elif Global.level == 16:
-		hud.show_banner("Màn 3-6  -  Sảnh Khải Hoàn!")
-	elif Global.level >= 32:
-		hud.show_banner("Màn 6-6  -  Sảnh Huyền Thoại!")
-	elif stage == 1:
-		hud.show_chapter(chn, ch)
-	else:
-		var prefix: String = "Thần thoại " if EnemyData.is_mythic_level(Global.level) else "Màn "
-		hud.show_banner("%s%d-%d%s" % [prefix, chn, stage, "  -  Trận quyết chiến!" if EnemyData.is_boss_level(Global.level) else ""])
+
+
+func _on_co_loa_core_destroyed() -> void:
+	if _leaving or _game_over != null:
+		return
+	await get_tree().create_timer(1.0).timeout
+	if _leaving or not is_inside_tree():
+		return
+	_show_game_over()
+
+
+func _grant_bonus_relic() -> void:
+	var owned: Array = []
+	if Global.get("run_relics") is Array:
+		owned = Global.get("run_relics") as Array
+	var rid: String = RelicData.roll_relic(owned)
+	if rid != "" and Global.has_method("add_relic"):
+		Global.call("add_relic", rid)
 
 
 func _on_portal() -> void:
 	if _portal_triggered:
 		return
+	_on_portal_branch("standard")
+
+
+func _on_portal_branch(bk: String) -> void:
+	if _portal_triggered:
+		return
+	if Net.is_online() and not Net.is_host():
+		return
+	_portal_triggered = true
+
+	var sb_raw: Variant = Global.get("secret_biome_override")
+	var sb_cur: String = str(sb_raw) if sb_raw != null else ""
+
+	if bk.begins_with("secret:"):
+		var sb_id: String = bk.substr(7)
+		if Global.get("secret_biome_override") != null:
+			Global.set("secret_biome_override", sb_id)
+		Sfx.play("level_clear")
+		touch.reset()
+		if Net.is_online() and Net.is_host():
+			Net.send_world_event("secret_biome", {"id": sb_id}, false)
+		_build_level.call_deferred()
+		return
+
+	if bk == "secret_return" or sb_cur != "":
+		if Global.get("secret_biome_override") != null:
+			Global.set("secret_biome_override", "")
+		var sbb_v: Variant = Global.get("secret_bosses_beaten")
+		if sbb_v != null:
+			Global.set("secret_bosses_beaten", int(sbb_v) + 1)
+		Global.stats["secret_bosses"] = int(Global.stats.get("secret_bosses", 0)) + 1
+		Global.run_coins += 40
+		_grant_bonus_relic()
+	elif bk == "true_ending":
+		if Global.get("secret_biome_override") != null:
+			Global.set("secret_biome_override", "")
+		Sfx.play("level_clear")
+		touch.reset()
+		if Net.is_online() and Net.is_host():
+			Net.send_world_event("advance", {"level": 33}, false)
+			_advance_to.call_deferred(33)
+		else:
+			_advance_to.call_deferred(33)
+		return
+	elif Global.get("next_branch_kind") != null:
+		Global.set("next_branch_kind", bk)
+
 	if Net.is_online():
-		if not Net.is_host():
-			return
-		_portal_triggered = true
-		if Global.level == 16 or Global.level == 31:
+		if Global.level == 16 or Global.level == 31 or Global.level == 33:
 			var next_lvl: int = Global.level + 1
 			Net.send_world_event("advance", {"level": next_lvl}, false)
 			_advance_to.call_deferred(next_lvl)
@@ -410,13 +575,15 @@ func _on_portal() -> void:
 		return
 	Sfx.play("level_clear")
 	touch.reset()
-	if (Global.is_boss_rush() and Global.level >= 13) or Global.level == 16 or Global.level == 31:
+	if (Global.is_boss_rush() and Global.level >= 13) or Global.level == 16 or Global.level == 31 or Global.level == 33:
 		_advance.call_deferred()
 		return
 	# qua màn: chọn 1 phúc lành rồi mới sang màn mới
 	var title: String
 	if Global.level == 15:
 		title = "Sảnh Khải Hoàn (Màn 3-6)"
+	elif Global.level == 31:
+		title = "Sảnh Huyền Thoại (Màn 6-6)"
 	else:
 		var nxt := EnemyData.chapter(Global.level + 1)
 		title = "%s - %s" % [nxt.name, nxt.year]
@@ -533,6 +700,11 @@ func _on_net_player_action(peer_id: int, kind: String, data: Dictionary) -> void
 	var rp: Variant = players_by_peer.get(peer_id, null)
 	if rp != null and is_instance_valid(rp) and not bool(rp.get("is_local")):
 		rp.play_remote_action(kind, data)
+		if kind == "ping" and world != null and is_instance_valid(world):
+			var ppos := Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
+			var pname: String = str(data.get("name", rp.get("display_name")))
+			var pcol: Color = rp.get("name_color") as Color if rp.get("name_color") is Color else Color(0, 0, 0, 0)
+			PingMarker.spawn_ping(world, ppos, str(data.get("kind", "focus")), pname, pcol)
 	if kind == "skill" and (Net == null or not Net.is_online() or Net.is_host()):
 		var hid: String = str(data.get("hero_id", ""))
 		if hid == "" and rp != null and is_instance_valid(rp):
@@ -754,6 +926,51 @@ func _on_net_world_event(kind: String, data: Dictionary) -> void:
 				return
 			var next_lvl: int = int(data.get("level", Global.level + 1))
 			_advance_to.call_deferred(next_lvl)
+		"secret_biome":
+			if Net.is_host():
+				return
+			if Global.get("secret_biome_override") != null:
+				Global.set("secret_biome_override", str(data.get("id", "")))
+			_build_level.call_deferred()
+		"co_loa_wave":
+			if Net.is_host() or dungeon == null or not is_instance_valid(dungeon):
+				return
+			dungeon.set("wave", int(data.get("wave", 0)))
+			dungeon.set("state", str(data.get("state", "prep")))
+			dungeon.set("prep_time", float(data.get("prep_time", 0.0)))
+		"co_loa_tower":
+			if Net.is_host() or dungeon == null or not is_instance_valid(dungeon):
+				return
+			var pad_id: int = int(data.get("pad_id", -1))
+			var tlist: Variant = dungeon.get("towers")
+			if tlist is Array and pad_id >= 0 and pad_id < (tlist as Array).size():
+				var tw: Variant = (tlist as Array)[pad_id]
+				if tw != null and is_instance_valid(tw) and tw.has_method("apply_state"):
+					tw.apply_state(data)
+		"co_loa_core":
+			if Net.is_host() or dungeon == null or not is_instance_valid(dungeon):
+				return
+			var cnode: Variant = dungeon.get("core")
+			if cnode != null and is_instance_valid(cnode):
+				cnode.set("max_hp", int(data.get("max_hp", 250)))
+				cnode.set("hp", int(data.get("hp", 250)))
+		"co_loa_tower_req":
+			if not Net.is_host() or dungeon == null or not is_instance_valid(dungeon):
+				return
+			var pad_req: int = int(data.get("pad_id", -1))
+			var tlist2: Variant = dungeon.get("towers")
+			if tlist2 is Array and pad_req >= 0 and pad_req < (tlist2 as Array).size():
+				var tw2: Variant = (tlist2 as Array)[pad_req]
+				if tw2 != null and is_instance_valid(tw2):
+					var op: String = str(data.get("op", ""))
+					if op == "build" and tw2.has_method("build_tower"):
+						tw2.build_tower(str(data.get("tower_id", "")))
+					elif op == "interact" and tw2.has_method("interact"):
+						tw2.interact()
+					elif op == "cycle" and tw2.has_method("cycle_build_choice"):
+						tw2.cycle_build_choice()
+					if tw2.has_method("export_state"):
+						Net.send_world_event("co_loa_tower", tw2.export_state(), false)
 		"coop_combo":
 			if Net.is_host():
 				return
@@ -1023,17 +1240,45 @@ func _on_player_died() -> void:
 	_show_game_over()
 
 
+func _build_match_summary_panel() -> PanelContainer:
+	var raw_stats: Variant = Global.get("run_player_stats")
+	var pstats: Dictionary = (raw_stats as Dictionary).duplicate(true) if raw_stats is Dictionary else {}
+	if pstats.is_empty():
+		var mvp_wid: String = ""
+		if player != null and is_instance_valid(player) and player.get("weapons") is Array:
+			var ws: Array = player.weapons
+			var sl: int = int(player.get("slot"))
+			if sl >= 0 and sl < ws.size():
+				mvp_wid = str(ws[sl])
+		pstats[1] = {
+			"hero": Global.selected_hero,
+			"name": str(Global.settings.get("player_name", "Anh Hùng")),
+			"damage": 0,
+			"kills": Global.run_kills,
+			"combos": 0,
+			"revives": 0,
+			"fragments": 0,
+			"mvp_weapon": mvp_wid,
+		}
+	return MatchSummary.build_panel(pstats)
+
+
 func show_victory(mythic: bool = false) -> void:
 	if _victory_ui != null:
 		return
 	touch.reset()
 	if hud != null and hud.has_method("clear_boss_intro"):
 		hud.clear_boss_intro()
-	var bonus_coins: int = 90 if mythic else 50
+	var is_true_ending: bool = Global.level >= 34
+	var bonus_coins: int = 150 if is_true_ending else (90 if mythic else 50)
 	if not Net.is_online() or Net.is_host():
 		Global.coins += bonus_coins
-		Global.materials["ngoc_than"] = Global.material_count("ngoc_than") + (2 if mythic else 1)
-		if mythic:
+		Global.materials["ngoc_than"] = Global.material_count("ngoc_than") + (3 if is_true_ending else (2 if mythic else 1))
+		if is_true_ending:
+			Global.materials["yeu_hon"] = Global.material_count("yeu_hon") + 3
+			Global.stats["mythic_clears"] = int(Global.stats.get("mythic_clears", 0)) + 1
+			Global.stats["true_endings"] = int(Global.stats.get("true_endings", 0)) + 1
+		elif mythic:
 			Global.materials["yeu_hon"] = Global.material_count("yeu_hon") + 2
 			Global.stats["mythic_clears"] = int(Global.stats.get("mythic_clears", 0)) + 1
 	var entry: Dictionary = Global.record_score("thang")
@@ -1042,38 +1287,48 @@ func show_victory(mythic: bool = false) -> void:
 	_victory_ui.layer = 30
 	add_child(_victory_ui)
 	var box := UI.overlay(_victory_ui, 0.72)
-	if mythic:
-		box.add_child(UI.label("VANG DANH SỬ SÁCH! ĐẠI THẮNG THẦN THOẠI!", 26, Color(0.92, 0.72, 1.0)))
-		box.add_child(UI.label("Chinh phục trọn vẹn 6 Chương & Yêu Vương Lĩnh Nam (Màn 4-1 → 6-6)!", 15, Color(0.86, 0.94, 0.98)))
-		box.add_child(UI.label("Thưởng Huyền Thoại: +90 xu, +2 Ngọc thần, +2 Yêu hồn  |  Xu trận: %d xu" % Global.run_coins, 14, Color(0.62, 0.98, 0.76)))
+	box.add_theme_constant_override("separation", 4)
+	if is_true_ending:
+		box.add_child(UI.label("VẠN ĐẠI BÌNH YÊN! GIANG SƠN GẤM VÓC!", 24, Color(1.0, 0.90, 0.36)))
+		box.add_child(UI.label("Đánh bại Hỗn Mang Yêu Đế tại Đỉnh Hồng Lĩnh — Cửu Trùng!", 14, Color(0.92, 0.86, 1.0)))
+		box.add_child(UI.label("Thưởng Vạn Cổ: +150 xu, +3 Ngọc thần, +3 Yêu hồn  |  Xu trận: %d xu" % Global.run_coins, 13, Color(0.62, 0.98, 0.76)))
+	elif mythic:
+		box.add_child(UI.label("VANG DANH SỬ SÁCH! ĐẠI THẮNG THẦN THOẠI!", 24, Color(0.92, 0.72, 1.0)))
+		box.add_child(UI.label("Chinh phục trọn vẹn 6 Chương & Yêu Vương Lĩnh Nam (Màn 4-1 → 6-6)!", 14, Color(0.86, 0.94, 0.98)))
+		box.add_child(UI.label("Thưởng Huyền Thoại: +90 xu, +2 Ngọc thần, +2 Yêu hồn  |  Xu trận: %d xu" % Global.run_coins, 13, Color(0.62, 0.98, 0.76)))
 	elif Global.is_boss_rush():
-		box.add_child(UI.label("ĐẠI THẮNG BOSS RUSH! CHIẾN THẦN VÔ ĐỊCH!", 26, Color(1.0, 0.42, 0.44)))
-		box.add_child(UI.label("Chinh phục trọn vẹn 12 Trùm liên hoàn!", 15, Color(0.86, 0.94, 0.98)))
-		box.add_child(UI.label("Thưởng khải hoàn: +50 xu & +1 Ngọc thần  |  Tổng kết xu trận: %d xu" % Global.run_coins, 14, Color(0.55, 0.98, 0.72)))
+		box.add_child(UI.label("ĐẠI THẮNG BOSS RUSH! CHIẾN THẦN VÔ ĐỊCH!", 24, Color(1.0, 0.42, 0.44)))
+		box.add_child(UI.label("Chinh phục trọn vẹn 12 Trùm liên hoàn!", 14, Color(0.86, 0.94, 0.98)))
+		box.add_child(UI.label("Thưởng khải hoàn: +50 xu & +1 Ngọc thần  |  Tổng kết xu trận: %d xu" % Global.run_coins, 13, Color(0.55, 0.98, 0.72)))
 	else:
-		box.add_child(UI.label("ĐẠI THẮNG! KHẢI HOÀN!", 30, Color(1.0, 0.88, 0.35)))
+		box.add_child(UI.label("ĐẠI THẮNG! KHẢI HOÀN!", 26, Color(1.0, 0.88, 0.35)))
 		var ch := EnemyData.chapter(Global.level)
-		box.add_child(UI.label("Hoàn thành 3 Chương (Màn 1-1 → 3-6) tại %s - %s!" % [ch.name, ch.year], 15, Color(0.86, 0.94, 0.98)))
-		box.add_child(UI.label("Thưởng khải hoàn: +50 xu & +1 Ngọc thần  |  Tổng kết xu trận: %d xu" % Global.run_coins, 14, Color(0.55, 0.98, 0.72)))
+		box.add_child(UI.label("Hoàn thành 3 Chương (Màn 1-1 → 3-6) tại %s - %s!" % [ch.name, ch.year], 14, Color(0.86, 0.94, 0.98)))
+		box.add_child(UI.label("Thưởng khải hoàn: +50 xu & +1 Ngọc thần  |  Tổng kết xu trận: %d xu" % Global.run_coins, 13, Color(0.55, 0.98, 0.72)))
 	var score_line: String = "Thời gian: %s  |  Số giặc: %d  |  Điểm: %d" % [
 		Global.format_time(float(entry.get("time", Global.run_elapsed))),
 		int(entry.get("kills", Global.run_kills)),
 		int(entry.get("score", 0)),
 	]
-	box.add_child(UI.label(score_line, 16, Color(1.0, 0.88, 0.45)))
+	box.add_child(UI.label(score_line, 14, Color(1.0, 0.88, 0.45)))
+	box.add_child(UI.center(_build_match_summary_panel()))
 	var share_txt: String = Global.format_share_text(entry)
-	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 16, 200.0)
-	box.add_child(UI.center(_copy_btn))
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 8)
+	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 14, 140.0)
+	btn_row.add_child(_copy_btn)
 	if not Net.is_online():
-		if mythic or Global.is_boss_rush():
-			box.add_child(UI.center(UI.button("Về Doanh Trại (Tổng kết xu)", _on_victory_lobby, 16, 270.0)))
+		if is_true_ending or mythic or Global.is_boss_rush():
+			btn_row.add_child(UI.button("Về Doanh Trại (Tổng kết xu)", _on_victory_lobby, 14, 240.0))
 		else:
-			box.add_child(UI.center(UI.button("Về Doanh Trại (Tổng kết xu)", _on_victory_lobby, 16, 250.0)))
-			box.add_child(UI.center(UI.button("Khởi Hành Thần Thoại (4-1 → 6-6)", _on_victory_continue, 16, 270.0)))
+			btn_row.add_child(UI.button("Về Doanh Trại", _on_victory_lobby, 14, 150.0))
+			btn_row.add_child(UI.button("Khởi Hành Thần Thoại (4-1 → 6-6)", _on_victory_continue, 14, 250.0))
 	else:
-		if not mythic:
-			box.add_child(UI.center(UI.button("Khởi Hành Thần Thoại", _on_victory_continue, 16, 240.0)))
-		box.add_child(UI.center(UI.button("Rời phòng LAN", _on_menu, 16, 220.0)))
+		if not mythic and not is_true_ending:
+			btn_row.add_child(UI.button("Khởi Hành Thần Thoại", _on_victory_continue, 14, 210.0))
+		btn_row.add_child(UI.button("Rời phòng LAN", _on_menu, 14, 160.0))
+	box.add_child(btn_row)
 
 
 func _on_victory_lobby() -> void:
@@ -1106,32 +1361,40 @@ func _show_game_over() -> void:
 	_game_over.layer = 30
 	add_child(_game_over)
 	var box := UI.overlay(_game_over, 0.7)
-	var heading: String = "Toàn đội đã gục ngã!" if (Net.is_online() and Net.player_count() > 1) else "Tướng quân đã ngã xuống!"
-	box.add_child(UI.label(heading, 32, Color(1, 0.55, 0.45)))
+	box.add_theme_constant_override("separation", 4)
+	var heading: String = "Toàn đội đã gục ngã!" if (Net.is_online() and Net.player_count() > 1) else ("Thành Cổ Loa đã thất thủ!" if _is_co_loa_mode else "Tướng quân đã ngã xuống!")
+	box.add_child(UI.label(heading, 26, Color(1, 0.55, 0.45)))
 	var ch := EnemyData.chapter(Global.level)
 	var sub: String = "%s - %s  |  Nhặt được %d xu" % [ch.name, ch.year, Global.run_coins]
-	if Global.challenge_code != "":
+	if _is_co_loa_mode and dungeon != null:
+		sub = "Thủ Thành Cổ Loa — Đợt %d  |  Nhặt được %d xu" % [int(dungeon.get("wave")), Global.run_coins]
+	elif Global.challenge_code != "":
 		sub = "Mã thử thách: %s  |  %s" % [Global.challenge_code, sub]
-	box.add_child(UI.label(sub, 16))
+	box.add_child(UI.label(sub, 14))
 	var score_line: String = "Màn: %d  |  Thời gian: %s  |  Số giặc: %d  |  Điểm: %d" % [
 		int(entry.get("level", Global.level)),
 		Global.format_time(float(entry.get("time", Global.run_elapsed))),
 		int(entry.get("kills", Global.run_kills)),
 		int(entry.get("score", 0)),
 	]
-	box.add_child(UI.label(score_line, 18, Color(1.0, 0.88, 0.45)))
+	box.add_child(UI.label(score_line, 15, Color(1.0, 0.88, 0.45)))
+	box.add_child(UI.center(_build_match_summary_panel()))
 	var share_txt: String = Global.format_share_text(entry)
-	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 18, 220.0)
-	box.add_child(UI.center(_copy_btn))
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 8)
+	_copy_btn = UI.button("Chép kết quả", func(): _on_copy_result(share_txt), 14, 136.0)
+	btn_row.add_child(_copy_btn)
 	if not Net.is_online():
-		if Global.free_revives > 0:
-			box.add_child(UI.center(UI.button("Hồi sinh (Thuốc hồi sinh)", _on_free_revive)))
-		elif not Global.revived:
-			box.add_child(UI.center(UI.button("Hồi sinh (xem quảng cáo)", _on_revive)))
-		box.add_child(UI.center(UI.button("Chơi lại", _on_restart)))
-		box.add_child(UI.center(UI.button("Về sảnh", _on_menu)))
+		if not _is_co_loa_mode and Global.free_revives > 0:
+			btn_row.add_child(UI.button("Hồi sinh (Thuốc)", _on_free_revive, 14, 150.0))
+		elif not _is_co_loa_mode and not Global.revived:
+			btn_row.add_child(UI.button("Hồi sinh (QC)", _on_revive, 14, 140.0))
+		btn_row.add_child(UI.button("Chơi lại", _on_restart, 14, 118.0))
+		btn_row.add_child(UI.button("Về sảnh", _on_menu, 14, 118.0))
 	else:
-		box.add_child(UI.center(UI.button("Rời phòng LAN", _on_menu)))
+		btn_row.add_child(UI.button("Rời phòng LAN", _on_menu, 14, 160.0))
+	box.add_child(btn_row)
 
 
 func _on_copy_result(share_txt: String) -> void:

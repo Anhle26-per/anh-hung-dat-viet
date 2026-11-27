@@ -59,6 +59,10 @@ var crit_pierce: bool = false
 var spawn_origin: Vector2 = Vector2.INF
 var bounces: int = 0
 var split_on_hit: int = 0
+var mod_split: int = 0
+var mod_chain_lightning: int = 0
+var mod_frost: bool = false
+var mod_bounce: int = 0
 var refract_boost: bool = false
 var fire_ignited: bool = false
 var boss_motif: bool = false
@@ -92,9 +96,19 @@ func _ready() -> void:
 	var def_bounces: int = int(info.get("bounces", 0))
 	if def_bounces > 0:
 		bounces = maxi(bounces, def_bounces)
+	if mod_bounce > 0:
+		bounces = maxi(bounces, mod_bounce)
 	var def_chain: int = int(info.get("chain", 0))
 	if chain_count <= 0 and def_chain > 0:
 		chain_count = def_chain
+	if mod_chain_lightning > 0:
+		chain_count = maxi(chain_count, mod_chain_lightning)
+	if mod_split > 0:
+		split_on_hit = maxi(split_on_hit, mod_split)
+	if mod_frost:
+		slow_duration = maxf(slow_duration, 2.0)
+		if status_kind == "":
+			status_kind = "slow"
 	var is_big_mut: bool = Global != null and Global.has_method("has_mutator") and Global.has_mutator("big_bullets")
 	var eff_scale: float = maxf(0.25, bullet_scale * (1.6 if is_big_mut else 1.0))
 	var shape := CircleShape2D.new()
@@ -104,7 +118,8 @@ func _ready() -> void:
 	add_child(cs)
 	monitorable = false
 	collision_layer = 0
-	collision_mask = 1 | (4 if from_player else 2)
+	var in_lobby: bool = is_inside_tree() and get_tree().get_first_node_in_group("lobby") != null
+	collision_mask = 1 | (6 if (from_player and in_lobby) else (4 if from_player else 2))
 	if not from_player:
 		add_to_group("enemy_bullets")
 	else:
@@ -265,6 +280,18 @@ func _on_body_entered(body: Node) -> void:
 		return
 	if from_player and body.is_in_group("enemies"):
 		_hit_enemy(body)
+	elif from_player and body.is_in_group("player") and body != owner_node:
+		if is_inside_tree() and get_tree().get_first_node_in_group("lobby") != null:
+			var arena: Node = get_tree().get_first_node_in_group("sparring_arena")
+			if arena != null and bool(arena.get("active")) and arena.has_method("apply_non_lethal_hit"):
+				var bpos: Vector2 = (body as Node2D).global_position
+				if arena.get_script() != null and arena.get_script().has_method("is_in_arena") and arena.get_script().is_in_arena(bpos):
+					if not visual_only:
+						var att_name: String = str(owner_node.get("display_name")) if (owner_node != null and is_instance_valid(owner_node)) else ""
+						arena.apply_non_lethal_hit(body, damage, att_name)
+						if Net != null and Net.is_online():
+							Net.send_world_event("sparring_hit", {"target": int(body.get("peer_id")), "dmg": damage, "attacker": att_name}, not Net.is_host())
+					_finish()
 	elif not from_player and body.is_in_group("player"):
 		if not bool(body.get("is_local")) or bool(body.get("downed")):
 			return

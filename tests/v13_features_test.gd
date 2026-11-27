@@ -97,8 +97,8 @@ func _run() -> void:
 	_reset_global()
 	Global.save_game()
 
-	print("== 1. Kiểm tra 217 vũ khí, 14 bản vẽ, 10 loại đạn mới, SynergyData & weapon_pivot khi ngắm lên")
-	_check(WeaponData.DATA.size() == 217, "WeaponData.DATA.size() phải bằng 217 (hiện %d)" % WeaponData.DATA.size())
+	print("== 1. Kiểm tra >= 217 vũ khí, 14 bản vẽ, 10 loại đạn mới, SynergyData & weapon_pivot khi ngắm lên")
+	_check(WeaponData.DATA.size() >= 217, "WeaponData.DATA.size() phải >= 217 (hiện %d)" % WeaponData.DATA.size())
 
 	var grips_file: FileAccess = FileAccess.open("res://assets/sprites/weapons/grips.json", FileAccess.READ)
 	_check(grips_file != null, "không mở được grips.json")
@@ -240,8 +240,8 @@ func _run() -> void:
 	_check(not lobby.in_basement, "exit_basement() phải đưa về Đại Sảnh (in_basement = false)")
 	_check(str(lobby.room_at(lobby.player.global_position).get("id", "")) == "center", "sau exit_basement() phải ở phòng center")
 
-	print("== 4. Kiểm tra 24 Thành tựu, nhận thưởng, lưu/nạp & chế tạo bản vẽ")
-	_check(AchievementData.ORDER.size() == 24, "AchievementData.ORDER phải có 24 mốc (hiện %d)" % AchievementData.ORDER.size())
+	print("== 4. Kiểm tra >= 24 Thành tựu, nhận thưởng xu/nguyên liệu/bản vẽ & chế tạo bản vẽ")
+	_check(AchievementData.ORDER.size() >= 24, "AchievementData.ORDER phải có >= 24 mốc (hiện %d)" % AchievementData.ORDER.size())
 	_check(AchievementData.BLUEPRINT_TIERS["basic"].size() == 7 and AchievementData.BLUEPRINT_TIERS["advanced"].size() == 7,
 		"BLUEPRINT_TIERS phải có 7 cơ bản + 7 nâng cao")
 

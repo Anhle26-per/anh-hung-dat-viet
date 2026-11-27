@@ -17,6 +17,29 @@ var _particles: Array[CPUParticles2D] = []
 static func preset_for_level(level: int) -> Dictionary:
 	var ch: Dictionary = EnemyData.chapter(level)
 	var ch_name: String = str(ch.get("name", ""))
+	var weather_id: String = str(ch.get("weather", ""))
+	match weather_id:
+		"abyss_bubbles":
+			return {
+				"kind": "abyss_bubbles",
+				"label": ch_name if ch_name != "" else "Thủy Cung Bạch Đằng",
+				"tint": Color(0.32, 0.92, 1.0, 0.92),
+				"intensity": 1.0,
+			}
+		"thunder_peak":
+			return {
+				"kind": "thunder_peak",
+				"label": ch_name if ch_name != "" else "Đỉnh Tản Viên",
+				"tint": Color(0.56, 0.80, 1.0, 0.94),
+				"intensity": 1.0,
+			}
+		"cosmic_embers":
+			return {
+				"kind": "cosmic_embers",
+				"label": ch_name if ch_name != "" else "Đỉnh Hồng Lĩnh — Cửu Trùng",
+				"tint": Color(0.88, 0.62, 1.0, 0.95),
+				"intensity": 1.05,
+			}
 	if EnemyData.is_mythic_level(level) or level >= 19 or bool(ch.get("mythic", false)):
 		return {
 			"kind": "mythic_snow",
@@ -240,6 +263,61 @@ func _spawn_particles(kind: String, tint: Color, inten: float) -> void:
 			snow.material = Art.additive()
 			add_child(snow)
 			_particles.append(snow)
+		"abyss_bubbles":
+			var bub := _make_emitter(vis.get_center(), extents, Art.tex("fx/light.png"), maxi(16, int(round(28.0 * inten))), 4.8)
+			bub.direction = Vector2(0.0, -1.0)
+			bub.spread = 20.0
+			bub.gravity = Vector2(0.0, -18.0)
+			bub.initial_velocity_min = 10.0
+			bub.initial_velocity_max = 24.0
+			bub.orbit_velocity_min = -0.04
+			bub.orbit_velocity_max = 0.04
+			bub.scale_amount_min = 0.22
+			bub.scale_amount_max = 0.52
+			bub.color_ramp = _fade_ramp(tint, Color(0.55, 0.98, 1.0), 0.78)
+			bub.material = Art.additive()
+			add_child(bub)
+			_particles.append(bub)
+		"thunder_peak":
+			var wind := _make_emitter(vis.get_center(), extents, Art.tex("fx/dust.png"), maxi(18, int(round(32.0 * inten))), 0.95)
+			wind.direction = Vector2(-0.48, 1.0)
+			wind.spread = 8.0
+			wind.gravity = Vector2(-90.0, 240.0)
+			wind.initial_velocity_min = 135.0
+			wind.initial_velocity_max = 200.0
+			wind.scale_amount_min = 0.55
+			wind.scale_amount_max = 0.95
+			wind.color_ramp = _fade_ramp(tint, Color(0.75, 0.92, 1.0, 0.14), 0.52)
+			add_child(wind)
+			_particles.append(wind)
+
+			var spk := _make_emitter(vis.get_center(), extents, Art.tex("fx/spark.png"), maxi(10, int(round(18.0 * inten))), 1.4)
+			spk.direction = Vector2(-0.2, -1.0)
+			spk.spread = 50.0
+			spk.gravity = Vector2(0.0, -12.0)
+			spk.initial_velocity_min = 16.0
+			spk.initial_velocity_max = 36.0
+			spk.scale_amount_min = 0.55
+			spk.scale_amount_max = 1.05
+			spk.color_ramp = _fade_ramp(Color(0.55, 0.90, 1.0, 0.95), Color(1.0, 0.98, 0.65, 0.8), 0.9)
+			spk.material = Art.additive()
+			add_child(spk)
+			_particles.append(spk)
+		"cosmic_embers":
+			var c_emb := _make_emitter(vis.get_center(), extents, Art.tex("fx/spark.png"), maxi(18, int(round(32.0 * inten))), 3.8)
+			c_emb.direction = Vector2(0.08, -1.0)
+			c_emb.spread = 34.0
+			c_emb.gravity = Vector2(4.0, -26.0)
+			c_emb.initial_velocity_min = 12.0
+			c_emb.initial_velocity_max = 28.0
+			c_emb.orbit_velocity_min = -0.02
+			c_emb.orbit_velocity_max = 0.02
+			c_emb.scale_amount_min = 0.65
+			c_emb.scale_amount_max = 1.25
+			c_emb.color_ramp = _fade_ramp(Color(1.0, 0.86, 0.36, 0.94), Color(0.78, 0.42, 1.0, 0.78), 0.90)
+			c_emb.material = Art.additive()
+			add_child(c_emb)
+			_particles.append(c_emb)
 
 
 func _make_emitter(pos: Vector2, extents: Vector2, tex: Texture2D, amount: int, life: float) -> CPUParticles2D:
@@ -368,6 +446,54 @@ func _draw() -> void:
 				var perp := Vector2(-dir.y, dir.x) * 0.35
 				var col := Color(tint.r, tint.g, tint.b, 0.42)
 				draw_colored_polygon(PackedVector2Array([p - dir, p + perp, p + dir, p - perp]), col)
+		"abyss_bubbles":
+			# Sương thủy tảo trôi nhẹ ở Thủy Cung Bạch Đằng
+			for b in 3:
+				var by := vis.position.y + vis.size.y * (0.20 + float(b) * 0.30) + sin(_t * 0.6 + float(b) * 1.9) * 12.0
+				var bx := vis.position.x + fposmod(float(b) * 0.34 + _t * 0.03, 1.0) * vis.size.x - 100.0
+				draw_rect(Rect2(Vector2(bx, by), Vector2(200.0, 16.0)), Color(0.28, 0.88, 0.98, 0.055 + 0.02 * sin(_t + float(b))))
+			for m in _motes:
+				var spd: float = float(m.spd)
+				var ph: float = float(m.phase)
+				var u := fposmod(float(m.u) + sin(_t * 1.2 + ph) * 0.03, 1.0)
+				var v := fposmod(float(m.v) - _t * 0.13 * spd, 1.0)
+				var p := vis.position + Vector2(u * vis.size.x, v * vis.size.y)
+				var r: float = 2.4 * float(m.sz)
+				draw_circle(p, r, Color(0.26, 0.88, 1.0, 0.12))
+				draw_arc(p, r, 0.0, TAU, 16, Color(0.48, 0.96, 1.0, 0.48), 1.0)
+				draw_circle(p + Vector2(-r * 0.35, -r * 0.35), maxf(0.8, r * 0.28), Color(0.90, 1.0, 1.0, 0.55))
+		"thunder_peak":
+			for m in _motes:
+				var spd: float = float(m.spd)
+				var ph: float = float(m.phase)
+				var u := fposmod(float(m.u) - _t * 0.36 * spd, 1.0)
+				var v := fposmod(float(m.v) + _t * 0.85 * spd, 1.0)
+				var p := vis.position + Vector2(u * vis.size.x, v * vis.size.y)
+				var len_v := Vector2(-8.0, 16.0) * float(m.sz)
+				draw_line(p, p + len_v, Color(tint.r, tint.g, tint.b, 0.28), 1.0)
+				var spark_pulse := sin(_t * 14.0 + ph)
+				if spark_pulse > 0.72:
+					var sp := vis.position + Vector2(fposmod(float(m.u) + _t * 0.05, 1.0) * vis.size.x, fposmod(float(m.v) + _t * 0.03, 1.0) * vis.size.y)
+					draw_line(sp - Vector2(3.0, 1.5), sp + Vector2(1.0, -0.5), Color(0.65, 0.94, 1.0, 0.75), 1.2)
+					draw_line(sp + Vector2(1.0, -0.5), sp + Vector2(3.5, 2.5), Color(1.0, 0.98, 0.72, 0.80), 1.2)
+		"cosmic_embers":
+			for b in 2:
+				var by := vis.position.y + vis.size.y * (0.28 + float(b) * 0.42) + cos(_t * 0.45 + float(b)) * 10.0
+				draw_rect(Rect2(Vector2(vis.position.x, by), Vector2(vis.size.x, 16.0)), Color(0.62, 0.34, 0.88, 0.045))
+			for idx in _motes.size():
+				var m: Dictionary = _motes[idx]
+				var spd: float = float(m.spd)
+				var ph: float = float(m.phase)
+				var u := fposmod(float(m.u) + sin(_t * 0.85 + ph) * 0.035 + _t * 0.015 * spd, 1.0)
+				var v := fposmod(float(m.v) - _t * 0.13 * spd, 1.0)
+				var p := vis.position + Vector2(u * vis.size.x, v * vis.size.y)
+				var flicker := 0.48 + 0.48 * sin(_t * 5.8 + ph)
+				var sz: float = 1.6 * float(m.sz)
+				var is_gold: bool = (idx % 2 == 0)
+				var c_outer := Color(1.0, 0.78, 0.24, 0.16 * flicker) if is_gold else Color(0.76, 0.42, 1.0, 0.16 * flicker)
+				var c_core := Color(1.0, 0.94, 0.56, 0.65 * flicker) if is_gold else Color(0.92, 0.72, 1.0, 0.62 * flicker)
+				draw_circle(p, sz * 2.1, c_outer)
+				draw_circle(p, sz * 0.8, c_core)
 		_:
 			# "petals"
 			for m in _motes:

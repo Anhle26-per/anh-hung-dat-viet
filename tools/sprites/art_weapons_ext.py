@@ -783,6 +783,13 @@ PROC_EXT = {
     "ho_ly_cuu_vi": fox_nine_tail_orb,
     "truong_xuong_cuong": lambda: magic_staff(23, "dwood", "poison", "rock", "red"),
     "hai_than_hac_hai": lambda: boss_trident("black", "cyan", "red", "cyan"),
+    "dinh_ba_thuy_tinh_than": lambda: boss_trident("cyan", "white", "red", "gold"),
+    "loi_chuy_thien_de": lambda: hammer(19, 6, "black", "gold", "red", "cyan"),
+    "thai_to_thien_kiem": lambda: sword(6, 19, 4, "gold", "red", "gold", curve=0, glow="fire"),
+
+    # --- 2 Thần binh Hợp nhất v3.0.0
+    "long_than_hai_kich": lambda: boss_halberd("jade", "cyan", "gold", "cyan"),
+    "thien_loi_than_cung": lambda: bow(24, "gold", deco="cyan", glow="white"),
 }
 
 

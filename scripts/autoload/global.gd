@@ -16,6 +16,12 @@ const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const AchievementData = preload("res://scripts/data/achievements.gd")
 const ChronicleData = preload("res://scripts/data/chronicles.gd")
+const RelicData = preload("res://scripts/data/relics.gd")
+const SkillTreeData = preload("res://scripts/data/skill_tree.gd")
+const HeroSkins = preload("res://scripts/data/hero_skins.gd")
+const HaoKhiData = preload("res://scripts/data/hao_khi_data.gd")
+const CampNpcs = preload("res://scripts/data/camp_npcs.gd")
+const CoLoaData = preload("res://scripts/data/co_loa_data.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -28,6 +34,9 @@ const DEFAULT_STATS: Dictionary = {
 	"chests": 0,
 	"blueprints_assembled": 0,
 	"coop_combos": 0,
+	"best_co_loa_wave": 0,
+	"true_endings": 0,
+	"secret_bosses": 0,
 }
 
 # --- Dữ liệu được lưu lại ---
@@ -48,10 +57,16 @@ var forged: String = ""           # mã vũ khí đã rèn chờ mang vào lư�
 var hero_levels: Dictionary = {}  # mã tướng -> cấp (1..5)
 var weapon_ranks: Dictionary = {} # mã tướng -> bậc vũ khí khởi đầu (1..5)
 var leaderboard: Array = []       # bảng điểm so tài cục bộ (tối đa 20 mục, xếp theo điểm giảm dần)
-var garden_plots: Array = []      # 3 ô Vườn Thảo Dược: [{"plant": String, "stage": int}]
+var garden_plots: Array = []      # 3 (hoặc 6) ô Vườn Thảo Dược: [{"plant": String, "stage": int}]
 var selected_pet: String = ""     # linh thú đồng hành ra trận ("" = không mang)
 var selected_skills: Dictionary = {}  # mã tướng -> chỉ số chiêu thức (1 hoặc 2)
 var badass_mode: bool = false         # chế độ Ác Mộng (Badass Mode)
+var unlocked_skins: Dictionary = {}   # mã tướng -> Array[String]
+var selected_skins: Dictionary = {}   # mã tướng -> String
+var skill_tree: Dictionary = {}       # node_id -> rank
+var hao_khi_level: int = 0            # 0..10
+var awakened_pets: Array = []         # danh sách mã thú đã thức tỉnh
+var rescued_npcs: Array = []          # danh sách mã NPC doanh trại đã giải cứu
 var log_path: String = "user://nhat_ky.csv"
 
 const DEFAULT_SETTINGS: Dictionary = {
@@ -95,6 +110,8 @@ const GARDEN_PLANTS := {
 	"huyet_sam": {"name": "Huyết Sâm", "desc": "Thu hoạch: +1 phúc lành Bánh chưng lượt tới & +1 Ngọc thần.", "cost": 20, "buff": "banh_chung", "mat": "ngoc_than", "mat_qty": 1, "coins": 0},
 	"sen_tuyet": {"name": "Sen Tuyết", "desc": "Thu hoạch: +1 phúc lành Khiên độc lượt tới & +1 Yêu hồn.", "cost": 25, "buff": "khien_doc", "mat": "yeu_hon", "mat_qty": 1, "coins": 0},
 	"tre_nga": {"name": "Tre Ngà", "desc": "Thu hoạch: +35 xu, +2 Gỗ lim & +1 Sắt.", "cost": 15, "buff": "", "mat": "go_lim", "mat_qty": 2, "coins": 35},
+	"linh_chi_vang": {"name": "Linh Chi Vàng", "desc": "Thu hoạch: +1 phúc lành Mắt thần lượt tới, +20 xu & +2 Ngọc thần.", "cost": 45, "buff": "mat_than", "mat": "ngoc_than", "mat_qty": 2, "coins": 20},
+	"hoa_uu_dam": {"name": "Hoa Ưu Đàm", "desc": "Thu hoạch: +1 phúc lành Rượu thuốc lượt tới, +40 xu & +2 Yêu hồn.", "cost": 55, "buff": "ruou_thuoc", "mat": "yeu_hon", "mat_qty": 2, "coins": 40},
 }
 
 # Linh thú đồng hành tại sảnh & theo vào hầm ngục
@@ -161,6 +178,12 @@ var legend_last := ""      # thứ tự trùm ngẫu nhiên của lượt chơi 
 var run_buffs: Dictionary = {}   # phúc lành đã chọn trong lượt: mã -> số lần
 var run_materials: Dictionary = {} # nguyên liệu nhặt được trong lượt chơi hiện tại
 var run_weapon_mods: Dictionary = {} # bùa vũ khí gắn trong lượt: mã vũ khí -> mã bùa
+var run_weapon_affixes: Dictionary = {} # thuộc tính ngẫu nhiên vũ khí trong lượt: mã vũ khí -> mã thuộc tính
+var run_relics: Array = []         # cổ vật Sử Việt nhặt được trong lượt
+var next_branch_kind: String = "standard"
+var secret_biome_override: String = ""
+var secret_bosses_beaten: int = 0
+var run_player_stats: Dictionary = {} # peer_id -> {hero, name, damage, kills, combos, revives, fragments, best_weapon, mvp_weapon}
 var run_mode: String = "normal"
 var active_mutators: Array = []
 var statue_id: String = ""
@@ -300,6 +323,20 @@ func eff_difficulty() -> String:
 	return difficulty()
 
 
+func eff_hao_khi_level() -> int:
+	if Net != null and Net.is_online() and Net.host_profile.has("hao_khi_level"):
+		return clampi(int(Net.host_profile.get("hao_khi_level", 0)), 0, HaoKhiData.MAX_LEVEL)
+	return clampi(hao_khi_level, 0, HaoKhiData.MAX_LEVEL)
+
+
+func eff_skill_tree() -> Dictionary:
+	if Net != null and Net.is_online() and Net.host_profile.has("skill_tree"):
+		var st_v: Variant = Net.host_profile.get("skill_tree", {})
+		if typeof(st_v) == TYPE_DICTIONARY:
+			return st_v as Dictionary
+	return skill_tree
+
+
 # ------------------------------------------------------------------ Lượt chơi
 
 ## Băm mã thử thách thành hạt giống cố định (FNV-1a 31-bit, giống nhau giữa mọi phiên chơi).
@@ -341,7 +378,15 @@ func start_run(code: String = "") -> void:
 	run_buffs = {}
 	run_materials = {}
 	run_weapon_mods = {}
-	run_mode = pending_run_mode if pending_run_mode in ["normal", "boss_rush"] else "normal"
+	run_weapon_affixes = {}
+	run_relics = []
+	next_branch_kind = "standard"
+	secret_biome_override = ""
+	secret_bosses_beaten = 0
+	run_player_stats = {}
+	run_mode = pending_run_mode if pending_run_mode in ["normal", "boss_rush", "co_loa"] else "normal"
+	var st_bonuses: Dictionary = SkillTreeData.compute_bonuses(eff_skill_tree())
+	run_coins = int(st_bonuses.get("start_coins", 0))
 	active_mutators = []
 	for m in pending_mutators:
 		var ms: String = str(m)
@@ -535,14 +580,214 @@ func on_boss_killed(player_hp: int) -> void:
 func coin_mult() -> float:
 	var base_m: float = 1.0 + 0.5 * int(run_buffs.get("boi_thu", 0))
 	if selected_pet == "cat":
-		base_m += 0.15
-	return base_m
+		base_m += 0.35 if is_pet_awakened("cat") else 0.15
+	var st_b: Dictionary = SkillTreeData.compute_bonuses(eff_skill_tree())
+	var rel_b: Dictionary = RelicData.aggregate_stats(run_relics)
+	base_m += float(st_b.get("coin_pct", 0) + rel_b.get("coin_pct", 0)) / 100.0
+	var hk_m: float = float(HaoKhiData.level_info(eff_hao_khi_level()).get("coin_mult", 1.0))
+	return base_m * hk_m
 
 
 func select_pet(pet_id: String) -> void:
 	if pet_id == "" or PETS.has(pet_id):
 		selected_pet = pet_id
 		save_game()
+
+
+func add_relic(rid: String) -> bool:
+	if rid == "" or not RelicData.DATA.has(rid) or run_relics.has(rid):
+		return false
+	run_relics.append(rid)
+	var lp: Node = local_player()
+	if lp != null and is_instance_valid(lp) and lp.has_method("sync_relics"):
+		lp.sync_relics()
+	return true
+
+
+func has_relic(rid: String) -> bool:
+	return run_relics.has(rid)
+
+
+func set_weapon_affix(wid: String, aid: String) -> void:
+	if wid == "":
+		return
+	if aid == "" or not WeaponMods.AFFIXES.has(aid):
+		run_weapon_affixes.erase(wid)
+		return
+	run_weapon_affixes[wid] = aid
+
+
+func get_weapon_affix(wid: String) -> String:
+	if wid == "":
+		return ""
+	return str(run_weapon_affixes.get(wid, ""))
+
+
+func record_player_stat(pid: int, key: String, amount: int = 1, best_weapon: String = "") -> void:
+	var eff_pid: int = pid if pid > 0 else (Net.local_peer_id() if Net != null else 1)
+	if not run_player_stats.has(eff_pid) or typeof(run_player_stats[eff_pid]) != TYPE_DICTIONARY:
+		var h_id: String = selected_hero
+		var p_name: String = str(settings.get("player_name", "Anh Hùng"))
+		if Net != null and Net.is_online() and Net.players.has(eff_pid):
+			var pinfo: Dictionary = Net.players[eff_pid]
+			h_id = str(pinfo.get("hero", h_id))
+			p_name = str(pinfo.get("name", p_name))
+		else:
+			for pl in all_players():
+				if is_instance_valid(pl) and int(pl.get("peer_id")) == eff_pid:
+					if str(pl.get("hero_id")) != "":
+						h_id = str(pl.get("hero_id"))
+					if str(pl.get("display_name")) != "":
+						p_name = str(pl.get("display_name"))
+					break
+		run_player_stats[eff_pid] = {
+			"hero": h_id,
+			"name": p_name,
+			"damage": 0,
+			"kills": 0,
+			"combos": 0,
+			"revives": 0,
+			"fragments": 0,
+			"best_weapon": "",
+			"mvp_weapon": "",
+		}
+	var st: Dictionary = run_player_stats[eff_pid]
+	if key in ["damage", "kills", "combos", "revives", "fragments"]:
+		st[key] = int(st.get(key, 0)) + amount
+	if best_weapon != "" and WeaponData.DATA.has(best_weapon):
+		var cur_best: String = str(st.get("best_weapon", ""))
+		var cur_tier: int = int(WeaponData.get_data(cur_best).get("tier", 0)) if cur_best != "" else 0
+		var new_tier: int = int(WeaponData.get_data(best_weapon).get("tier", 1))
+		if cur_best == "" or new_tier >= cur_tier:
+			st["best_weapon"] = best_weapon
+			st["mvp_weapon"] = best_weapon
+	run_player_stats[eff_pid] = st
+
+
+func get_selected_skin(hid: String) -> String:
+	var sid: String = str(selected_skins.get(hid, HeroSkins.DEFAULT_SKIN))
+	if sid == "" or not is_skin_unlocked(hid, sid):
+		return HeroSkins.DEFAULT_SKIN
+	return sid
+
+
+func is_skin_unlocked(hid: String, sid: String) -> bool:
+	if sid == "" or sid == HeroSkins.DEFAULT_SKIN:
+		return true
+	var raw: Variant = unlocked_skins.get(hid, [])
+	return raw is Array and (raw as Array).has(sid)
+
+
+func unlock_and_select_skin(hid: String, sid: String) -> bool:
+	if not HeroData.DATA.has(hid):
+		return false
+	var skin: Dictionary = HeroSkins.get_skin(hid, sid)
+	var real_sid: String = str(skin.get("id", HeroSkins.DEFAULT_SKIN))
+	if is_skin_unlocked(hid, real_sid):
+		selected_skins[hid] = real_sid
+		save_game()
+		return true
+	var cost: int = int(skin.get("cost", 0))
+	if coins < cost:
+		return false
+	coins -= cost
+	var arr: Array = []
+	var existing: Variant = unlocked_skins.get(hid, [])
+	if existing is Array:
+		arr = (existing as Array).duplicate()
+	if not arr.has(real_sid):
+		arr.append(real_sid)
+	unlocked_skins[hid] = arr
+	selected_skins[hid] = real_sid
+	save_game()
+	return true
+
+
+func select_skin(hid: String, sid: String) -> void:
+	if not HeroData.DATA.has(hid):
+		return
+	if is_skin_unlocked(hid, sid):
+		selected_skins[hid] = sid if sid != "" else HeroSkins.DEFAULT_SKIN
+		save_game()
+
+
+func upgrade_skill_tree_node(nid: String) -> bool:
+	if not SkillTreeData.can_upgrade_node(skill_tree, nid, coins, materials):
+		return false
+	var cur: int = SkillTreeData.node_rank(skill_tree, nid)
+	var cost: Dictionary = SkillTreeData.upgrade_cost(nid, cur + 1)
+	if cost.is_empty():
+		return false
+	_spend_cost(int(cost.get("coins", 0)), cost.get("mats", {}))
+	skill_tree[nid] = cur + 1
+	save_game()
+	return true
+
+
+func set_hao_khi_level(lv: int) -> void:
+	hao_khi_level = clampi(lv, 0, HaoKhiData.MAX_LEVEL)
+	save_game()
+
+
+func is_pet_awakened(pid: String) -> bool:
+	return pid != "" and awakened_pets.has(pid)
+
+
+func _awakened_pet_cost(pid: String) -> Dictionary:
+	var info: Dictionary = CampNpcs.get_awakened_pet(pid)
+	if info.is_empty():
+		return {}
+	var c: int = int(info.get("coins", 300))
+	var raw_mats: Dictionary = info.get("mats", {})
+	var mats_out: Dictionary = {}
+	var has_artisan: bool = rescued_npcs.has("nghe_nhan_phu_lang")
+	for mk in raw_mats:
+		var qty: int = int(raw_mats[mk])
+		if has_artisan and qty > 1:
+			qty = maxi(1, int(ceil(float(qty) * 0.8)))
+		mats_out[str(mk)] = qty
+	return {"coins": c, "mats": mats_out}
+
+
+func can_awaken_pet(pid: String) -> bool:
+	if not PETS.has(pid) or is_pet_awakened(pid):
+		return false
+	var cost: Dictionary = _awakened_pet_cost(pid)
+	if cost.is_empty():
+		return false
+	return _has_cost(int(cost.get("coins", 0)), cost.get("mats", {}))
+
+
+func awaken_pet(pid: String) -> bool:
+	if not can_awaken_pet(pid):
+		return false
+	var cost: Dictionary = _awakened_pet_cost(pid)
+	_spend_cost(int(cost.get("coins", 0)), cost.get("mats", {}))
+	if not awakened_pets.has(pid):
+		awakened_pets.append(pid)
+	unlock_chronicle("than_thu_thuc_tinh")
+	save_game()
+	return true
+
+
+func rescue_npc(npc_id: String) -> bool:
+	if npc_id == "" or not CampNpcs.NPCS.has(npc_id) or rescued_npcs.has(npc_id):
+		return false
+	rescued_npcs.append(npc_id)
+	if npc_id == "than_y_tue_tinh":
+		ensure_garden_plots()
+	if rescued_npcs_count() >= CampNpcs.NPC_ORDER.size():
+		unlock_chronicle("doanh_trai_phan_thinh")
+	save_game()
+	return true
+
+
+func rescued_npcs_count() -> int:
+	return rescued_npcs.size()
+
+
+func can_enter_true_ending() -> bool:
+	return run_relics.size() >= 1 or eff_hao_khi_level() >= 1 or secret_bosses_beaten >= 1 or best_level >= 16
 
 
 func material_count(id: String) -> int:
@@ -1058,6 +1303,10 @@ func is_boss_rush() -> bool:
 	return run_mode == "boss_rush"
 
 
+func is_co_loa() -> bool:
+	return run_mode == "co_loa"
+
+
 func has_mutator(mid: String) -> bool:
 	return active_mutators.has(mid)
 
@@ -1106,6 +1355,12 @@ func end_run(outcome: String = "") -> void:
 		run_coins = 0
 		run_materials = {}
 		run_weapon_mods = {}
+		run_weapon_affixes = {}
+		run_relics = []
+		next_branch_kind = "standard"
+		secret_biome_override = ""
+		secret_bosses_beaten = 0
+		run_player_stats = {}
 		run_mode = "normal"
 		active_mutators = []
 		statue_id = ""
@@ -1127,6 +1382,12 @@ func end_run(outcome: String = "") -> void:
 	run_coins = 0
 	_commit_run_materials()
 	run_weapon_mods = {}
+	run_weapon_affixes = {}
+	run_relics = []
+	next_branch_kind = "standard"
+	secret_biome_override = ""
+	secret_bosses_beaten = 0
+	run_player_stats = {}
 	run_mode = "normal"
 	active_mutators = []
 	statue_id = ""
@@ -1149,20 +1410,21 @@ func end_run(outcome: String = "") -> void:
 
 
 func ensure_garden_plots() -> void:
-	if garden_plots.size() == 3:
+	var target_count: int = 6 if rescued_npcs.has("than_y_tue_tinh") else 3
+	if garden_plots.size() == target_count:
 		return
 	var fresh: bool = garden_plots.is_empty()
-	while garden_plots.size() < 3:
+	while garden_plots.size() < target_count:
 		garden_plots.append({"plant": "", "stage": 0})
-	if garden_plots.size() > 3:
-		garden_plots = garden_plots.slice(0, 3)
+	if garden_plots.size() > target_count:
+		garden_plots = garden_plots.slice(0, target_count)
 	if fresh:
 		garden_plots[0] = {"plant": "tre_nga", "stage": 2}
 
 
 func plant_garden(idx: int, plant_id: String) -> bool:
 	ensure_garden_plots()
-	if idx < 0 or idx >= 3 or not GARDEN_PLANTS.has(plant_id):
+	if idx < 0 or idx >= garden_plots.size() or not GARDEN_PLANTS.has(plant_id):
 		return false
 	var cur: Dictionary = garden_plots[idx]
 	if str(cur.get("plant", "")) != "":
@@ -1178,7 +1440,7 @@ func plant_garden(idx: int, plant_id: String) -> bool:
 
 func water_garden_plot(idx: int) -> bool:
 	ensure_garden_plots()
-	if idx < 0 or idx >= 3:
+	if idx < 0 or idx >= garden_plots.size():
 		return false
 	var cur: Dictionary = garden_plots[idx]
 	if str(cur.get("plant", "")) == "" or int(cur.get("stage", 0)) >= 2:
@@ -1191,7 +1453,7 @@ func water_garden_plot(idx: int) -> bool:
 
 func harvest_garden(idx: int) -> String:
 	ensure_garden_plots()
-	if idx < 0 or idx >= 3:
+	if idx < 0 or idx >= garden_plots.size():
 		return ""
 	var cur: Dictionary = garden_plots[idx]
 	var pid: String = str(cur.get("plant", ""))
@@ -1334,23 +1596,25 @@ func camera_zoom() -> float:
 
 
 func difficulty_hp_mult() -> float:
+	var base_m: float = 1.0
 	match eff_difficulty():
 		"de":
-			return 0.7
+			base_m = 0.7
 		"kho":
-			return 1.4
-		_:
-			return 1.0
+			base_m = 1.4
+	var hk_m: float = float(HaoKhiData.level_info(eff_hao_khi_level()).get("hp_mult", 1.0))
+	return base_m * hk_m
 
 
 func difficulty_dmg_mult() -> float:
+	var base_m: float = 1.0
 	match eff_difficulty():
 		"de":
-			return 0.75
+			base_m = 0.75
 		"kho":
-			return 1.25
-		_:
-			return 1.0
+			base_m = 1.25
+	var hk_m: float = float(HaoKhiData.level_info(eff_hao_khi_level()).get("dmg_mult", 1.0))
+	return base_m * hk_m
 
 
 func scale_enemy_damage(amount: int) -> int:
@@ -1392,6 +1656,12 @@ func save_game() -> void:
 		"unlocked_chronicles": unlocked_chronicles,
 		"blueprints": blueprints,
 		"blueprint_fragments": blueprint_fragments,
+		"unlocked_skins": unlocked_skins,
+		"selected_skins": selected_skins,
+		"skill_tree": skill_tree,
+		"hao_khi_level": hao_khi_level,
+		"awakened_pets": awakened_pets,
+		"rescued_npcs": rescued_npcs,
 	})
 
 
@@ -1457,6 +1727,12 @@ func save_run(p = null) -> bool:
 		"run_buffs": run_buffs,
 		"run_materials": run_materials,
 		"run_weapon_mods": run_weapon_mods,
+		"run_weapon_affixes": run_weapon_affixes,
+		"run_relics": run_relics,
+		"next_branch_kind": next_branch_kind,
+		"secret_biome_override": secret_biome_override,
+		"secret_bosses_beaten": secret_bosses_beaten,
+		"run_player_stats": run_player_stats,
 		"run_coins": run_coins,
 		"boss_order": boss_order,
 		"chapter_order": chapter_order,
@@ -1535,6 +1811,34 @@ func load_run() -> bool:
 			var mv: String = str(rwmd[k])
 			if wk != "" and WeaponMods.DATA.has(mv):
 				run_weapon_mods[wk] = mv
+	run_weapon_affixes = {}
+	var rwa: Variant = d.get("run_weapon_affixes", {})
+	if typeof(rwa) == TYPE_DICTIONARY:
+		var rwad: Dictionary = rwa
+		for k in rwad:
+			var wk2: String = str(k)
+			var av: String = str(rwad[k])
+			if wk2 != "" and WeaponMods.AFFIXES.has(av):
+				run_weapon_affixes[wk2] = av
+	run_relics = []
+	var rr: Variant = d.get("run_relics", [])
+	if typeof(rr) == TYPE_ARRAY:
+		for rid_v in (rr as Array):
+			var rid: String = str(rid_v)
+			if rid != "" and RelicData.DATA.has(rid) and not run_relics.has(rid):
+				run_relics.append(rid)
+	next_branch_kind = str(d.get("next_branch_kind", "standard"))
+	var sb_raw: String = str(d.get("secret_biome_override", ""))
+	secret_biome_override = sb_raw if EnemyData.SECRET_CHAPTERS.has(sb_raw) else ""
+	secret_bosses_beaten = maxi(0, int(d.get("secret_bosses_beaten", 0)))
+	run_player_stats = {}
+	var rps_raw: Variant = d.get("run_player_stats", {})
+	if typeof(rps_raw) == TYPE_DICTIONARY:
+		for k in (rps_raw as Dictionary):
+			var pid_k: int = int(k)
+			var val: Variant = (rps_raw as Dictionary)[k]
+			if typeof(val) == TYPE_DICTIONARY:
+				run_player_stats[pid_k] = (val as Dictionary).duplicate(true)
 	var pl: Dictionary = d.player
 	resume_data = {}
 	for k in pl:
@@ -1558,7 +1862,7 @@ func load_run() -> bool:
 	run_cap_bac = str(d.get("run_cap_bac", "%d/%d" % [hero_level(selected_hero), weapon_rank(selected_hero)]))
 	challenge_code = str(d.get("challenge_code", "")).strip_edges().to_upper()
 	var rm_mode: String = str(d.get("run_mode", "normal"))
-	run_mode = rm_mode if rm_mode in ["normal", "boss_rush"] else "normal"
+	run_mode = rm_mode if rm_mode in ["normal", "boss_rush", "co_loa"] else "normal"
 	active_mutators = []
 	var am_raw: Variant = d.get("active_mutators", [])
 	if typeof(am_raw) == TYPE_ARRAY:
@@ -1635,6 +1939,12 @@ func load_game() -> void:
 	selected_pet = ""
 	selected_skills = {}
 	badass_mode = false
+	unlocked_skins = {}
+	selected_skins = {}
+	skill_tree = {}
+	hao_khi_level = 0
+	awakened_pets = []
+	rescued_npcs = []
 	var data: Variant = _read_json(save_path)
 	if typeof(data) != TYPE_DICTIONARY:
 		ensure_garden_plots()
@@ -1711,10 +2021,17 @@ func load_game() -> void:
 					"outcome": str(ld.get("outcome", "")),
 				})
 		_sort_and_cap_leaderboard()
+	var rn: Variant = data.get("rescued_npcs", null)
+	if typeof(rn) == TYPE_ARRAY:
+		for item in (rn as Array):
+			var npc_id: String = str(item)
+			if CampNpcs.NPCS.has(npc_id) and not rescued_npcs.has(npc_id):
+				rescued_npcs.append(npc_id)
+	var max_plots: int = 6 if rescued_npcs.has("than_y_tue_tinh") else 3
 	var gp: Variant = data.get("garden_plots", null)
 	if typeof(gp) == TYPE_ARRAY:
 		for slot_item in gp:
-			if garden_plots.size() >= 3:
+			if garden_plots.size() >= max_plots:
 				break
 			if typeof(slot_item) == TYPE_DICTIONARY:
 				var sd: Dictionary = slot_item
@@ -1724,6 +2041,41 @@ func load_game() -> void:
 				var stg: int = clampi(int(sd.get("stage", 0)), 0, 2) if pid != "" else 0
 				garden_plots.append({"plant": pid, "stage": stg})
 	ensure_garden_plots()
+	var us_raw: Variant = data.get("unlocked_skins", null)
+	if typeof(us_raw) == TYPE_DICTIONARY:
+		for k in (us_raw as Dictionary):
+			var hk: String = str(k)
+			var arr_v: Variant = (us_raw as Dictionary)[k]
+			if HeroData.DATA.has(hk) and typeof(arr_v) == TYPE_ARRAY:
+				var clean_arr: Array = []
+				for sv in (arr_v as Array):
+					var s_id: String = str(sv)
+					if s_id != "" and not clean_arr.has(s_id):
+						clean_arr.append(s_id)
+				unlocked_skins[hk] = clean_arr
+	var ss_raw: Variant = data.get("selected_skins", null)
+	if typeof(ss_raw) == TYPE_DICTIONARY:
+		for k in (ss_raw as Dictionary):
+			var hk2: String = str(k)
+			var sid2: String = str((ss_raw as Dictionary)[k])
+			if HeroData.DATA.has(hk2) and is_skin_unlocked(hk2, sid2):
+				selected_skins[hk2] = sid2
+	var st_raw: Variant = data.get("skill_tree", null)
+	if typeof(st_raw) == TYPE_DICTIONARY:
+		for k in (st_raw as Dictionary):
+			var nid: String = str(k)
+			if SkillTreeData.NODES.has(nid):
+				var max_r: int = int(SkillTreeData.NODES[nid].get("max_rank", 1))
+				var rk: int = clampi(int((st_raw as Dictionary)[k]), 0, max_r)
+				if rk > 0:
+					skill_tree[nid] = rk
+	hao_khi_level = clampi(int(data.get("hao_khi_level", 0)), 0, HaoKhiData.MAX_LEVEL)
+	var ap_raw: Variant = data.get("awakened_pets", null)
+	if typeof(ap_raw) == TYPE_ARRAY:
+		for item in (ap_raw as Array):
+			var p_id: String = str(item)
+			if PETS.has(p_id) and not awakened_pets.has(p_id):
+				awakened_pets.append(p_id)
 	var sp: String = str(data.get("selected_pet", ""))
 	selected_pet = sp if PETS.has(sp) else ""
 	var sk_val: Variant = data.get("selected_skills", null)
@@ -1811,6 +2163,9 @@ func _ensure_input_actions() -> void:
 	_add_pad("merge_weapon", JOY_BUTTON_RIGHT_SHOULDER)
 	_add_keys("drop_weapon", [KEY_G])
 	_add_pad("drop_weapon", JOY_BUTTON_DPAD_DOWN)
+	_add_keys("ping", [KEY_T])
+	_add_pad("ping", JOY_BUTTON_DPAD_UP)
+	_add_keys("start_wave", [KEY_F])
 
 
 func _ensure(action: String) -> void:
