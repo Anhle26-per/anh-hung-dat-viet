@@ -37,6 +37,12 @@ var _boss_intro_fsize := Vector2i(48, 48)
 var _bgm_toast_id: String = ""
 var _bgm_toast_title: String = ""
 var _bgm_toast_t: float = 0.0
+var _coop_combo_name: String = ""
+var _coop_combo_sub: String = ""
+var _coop_combo_col: Color = Color(1.0, 0.85, 0.35)
+var _coop_combo_t: float = 0.0
+var _chronicle_toast_title: String = ""
+var _chronicle_toast_t: float = 0.0
 var _icons := {}
 
 
@@ -76,6 +82,22 @@ func show_music_toast(track_id: String, title: String) -> void:
 	_bgm_toast_id = track_id
 	_bgm_toast_title = title
 	_bgm_toast_t = 3.0
+
+
+func show_coop_combo(combo_name: String, subtitle: String, col: Color = Color(1.0, 0.85, 0.35)) -> void:
+	if combo_name == "":
+		return
+	_coop_combo_name = combo_name
+	_coop_combo_sub = subtitle
+	_coop_combo_col = col
+	_coop_combo_t = 2.6
+
+
+func show_chronicle_toast(title: String) -> void:
+	if title == "":
+		return
+	_chronicle_toast_title = title
+	_chronicle_toast_t = 3.2
 
 
 func show_banner(text: String) -> void:
@@ -124,6 +146,8 @@ func _process(delta: float) -> void:
 	_cutin_t -= delta
 	_boss_intro_t -= delta
 	_bgm_toast_t = maxf(_bgm_toast_t - delta, 0.0)
+	_coop_combo_t = maxf(_coop_combo_t - delta, 0.0)
+	_chronicle_toast_t = maxf(_chronicle_toast_t - delta, 0.0)
 
 
 func draw_hud(ci: Control) -> void:
@@ -396,6 +420,14 @@ func draw_hud(ci: Control) -> void:
 	# --- Thông báo đổi nhạc nền (góc dưới phải, phía trên bảng vũ khí)
 	if _bgm_toast_t > 0.0 and _bgm_toast_title != "":
 		_draw_music_toast(ci, w, h)
+
+	# --- Biểu ngữ Hợp Chiêu Đại Việt (Co-op Synergy Ultimate)
+	if _coop_combo_t > 0.0 and _coop_combo_name != "":
+		_draw_coop_combo(ci, w, h)
+
+	# --- Thông báo khai mở Hồn Sử mới (không chặn combat)
+	if _chronicle_toast_t > 0.0 and _chronicle_toast_title != "":
+		_draw_chronicle_toast(ci, w, h)
 
 	# --- Giới thiệu chương / Trùm xuất hiện
 	if _boss_intro_t > 0.0:
@@ -818,3 +850,97 @@ func _draw_music_toast(ci: Control, w: float, h: float) -> void:
 	ci.draw_rect(rect, Color(edge_col.r, edge_col.g, edge_col.b, 0.88 * alpha), false, 1.0)
 	ci.draw_rect(rect.grow(-2.0), Color(edge_col.r, edge_col.g, edge_col.b, 0.22 * alpha), false, 1.0)
 	Art.draw_text(ci, Vector2(px + 9.0, py + 13.5), label, 13, Color(txt_col.r, txt_col.g, txt_col.b, alpha), false)
+
+
+func _draw_coop_combo(ci: Control, w: float, _h: float) -> void:
+	var elapsed: float = 2.6 - _coop_combo_t
+	var enter_t: float = clampf(elapsed / 0.22, 0.0, 1.0)
+	var ease_in: float = 1.0 - pow(1.0 - enter_t, 3.0)
+	var fade_out: float = clampf(_coop_combo_t / 0.45, 0.0, 1.0)
+	var a: float = ease_in * fade_out
+	if a <= 0.01:
+		return
+	var title_txt: String = "★ HỢP CHIÊU ĐẠI VIỆT: %s ★" % _coop_combo_name.to_upper()
+	var title_sz: int = 15 if Art.text_width(title_txt, 15) <= 278.0 else 13
+	var need_w: float = maxf(Art.text_width(title_txt, title_sz), Art.text_width(_coop_combo_sub, 11)) + 54.0
+	var bw: float = clampf(need_w, 232.0, minf(336.0, w - 274.0))
+	var bh: float = 42.0 if _coop_combo_sub != "" else 28.0
+	var has_boss: bool = get_tree().get_first_node_in_group("boss") != null
+	var bx: float = (w - bw) * 0.5
+	var by: float = (34.0 if has_boss else 14.0) - (1.0 - ease_in) * 14.0
+
+	var bg_col := Color(_coop_combo_col.darkened(0.76), 0.92 * a)
+	var edge_col := Color(_coop_combo_col.r, _coop_combo_col.g, _coop_combo_col.b, 0.96 * a)
+	var gold_col := Color(1.0, 0.90, 0.46, 0.95 * a)
+	var poly := PackedVector2Array([
+		Vector2(bx + 10.0, by),
+		Vector2(bx + bw - 10.0, by),
+		Vector2(bx + bw, by + bh * 0.5),
+		Vector2(bx + bw - 10.0, by + bh),
+		Vector2(bx + 10.0, by + bh),
+		Vector2(bx, by + bh * 0.5),
+	])
+	ci.draw_colored_polygon(poly, bg_col)
+	var ring := poly.duplicate()
+	ring.append(poly[0])
+	ci.draw_polyline(ring, edge_col, 2.0)
+	var inner := PackedVector2Array([
+		Vector2(bx + 13.0, by + 3.0),
+		Vector2(bx + bw - 13.0, by + 3.0),
+		Vector2(bx + bw - 4.0, by + bh * 0.5),
+		Vector2(bx + bw - 13.0, by + bh - 3.0),
+		Vector2(bx + 13.0, by + bh - 3.0),
+		Vector2(bx + 4.0, by + bh * 0.5),
+		Vector2(bx + 13.0, by + 3.0),
+	])
+	ci.draw_polyline(inner, Color(gold_col.r, gold_col.g, gold_col.b, 0.42 * a), 1.0)
+
+	# Hai cặp mũi tên (chevrons) kẹp hai bên nhấp nháy theo nhịp
+	var pulse: float = 0.72 + 0.28 * sin(elapsed * 9.0)
+	var chev_shift: float = sin(elapsed * 7.5) * 2.5
+	var chev_col := Color(gold_col.r, gold_col.g, gold_col.b, pulse * a)
+	var cy_mid: float = by + bh * 0.5
+	for ci_idx in 2:
+		var lx: float = bx + 15.0 + float(ci_idx) * 6.0 - chev_shift
+		ci.draw_polyline(PackedVector2Array([
+			Vector2(lx + 4.0, cy_mid - 6.0),
+			Vector2(lx, cy_mid),
+			Vector2(lx + 4.0, cy_mid + 6.0),
+		]), chev_col, 1.8)
+		var rx: float = bx + bw - 15.0 - float(ci_idx) * 6.0 + chev_shift
+		ci.draw_polyline(PackedVector2Array([
+			Vector2(rx - 4.0, cy_mid - 6.0),
+			Vector2(rx, cy_mid),
+			Vector2(rx - 4.0, cy_mid + 6.0),
+		]), chev_col, 1.8)
+
+	Art.draw_text(ci, Vector2(w * 0.5, by + 18.0), title_txt, title_sz, Color(1.0, 0.94, 0.58, a), true)
+	if _coop_combo_sub != "":
+		Art.draw_text(ci, Vector2(w * 0.5, by + 34.0), _coop_combo_sub, 11, Color(0.98, 0.95, 0.86, 0.95 * a), true)
+
+
+func _draw_chronicle_toast(ci: Control, w: float, _h: float) -> void:
+	var elapsed: float = 3.2 - _chronicle_toast_t
+	var enter_t: float = clampf(elapsed / 0.25, 0.0, 1.0)
+	var ease_in: float = 1.0 - pow(1.0 - enter_t, 3.0)
+	var fade_out: float = clampf(_chronicle_toast_t / 0.5, 0.0, 1.0)
+	var a: float = minf(ease_in, fade_out)
+	if a <= 0.01:
+		return
+	var title_txt: String = "📖 Hồn Sử mới: %s" % _chronicle_toast_title
+	var sub_txt: String = "Đã lưu trang sử & treo Kỷ Vật tại Đại Sảnh"
+	var tw: float = maxf(Art.text_width(title_txt, 13), Art.text_width(sub_txt, 10))
+	var pw: float = clampf(tw + 28.0, 200.0, minf(318.0, w - 274.0))
+	var ph: float = 34.0
+	var px: float = (w - pw) * 0.5
+	var has_boss: bool = get_tree().get_first_node_in_group("boss") != null
+	var base_y: float = 82.0 if _coop_combo_t > 0.0 else (34.0 if has_boss else 14.0)
+	var py: float = base_y - (1.0 - ease_in) * 10.0
+	var rect := Rect2(px, py, pw, ph)
+	ci.draw_rect(rect, Color(0.18, 0.12, 0.06, 0.93 * a))
+	ci.draw_rect(rect.grow(-2.0), Color(0.34, 0.24, 0.12, 0.28 * a))
+	ci.draw_rect(Rect2(px, py, 3.0, ph), Color(1.0, 0.85, 0.36, 0.96 * a))
+	ci.draw_rect(rect, Color(1.0, 0.85, 0.36, 0.94 * a), false, 1.5)
+	ci.draw_rect(rect.grow(-2.5), Color(0.82, 0.62, 0.24, 0.45 * a), false, 1.0)
+	Art.draw_text(ci, Vector2(px + pw * 0.5 + 1.0, py + 14.0), title_txt, 13, Color(1.0, 0.92, 0.54, a), true)
+	Art.draw_text(ci, Vector2(px + pw * 0.5 + 1.0, py + 27.0), sub_txt, 10, Color(0.94, 0.89, 0.78, 0.92 * a), true)

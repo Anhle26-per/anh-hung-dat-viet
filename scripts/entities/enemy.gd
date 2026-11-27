@@ -1918,10 +1918,17 @@ func _finish_die(drop: bool, spawn_shared_loot: bool) -> void:
 			Global.add_stat("bosses")
 			var lp: Node = Global.local_player()
 			Global.on_boss_killed(int(lp.get("hp")) if (lp != null and is_instance_valid(lp)) else 0)
+			if Global.has_method("unlock_chronicle_for_boss"):
+				var cres: Dictionary = Global.call("unlock_chronicle_for_boss", str(data.get("id", kind)))
+				if bool(cres.get("newly_unlocked", false)) and is_inside_tree():
+					get_tree().call_group("hud", "show_chronicle_toast", str(cres.get("title", "")))
 	remove_from_group("enemies")
 	remove_from_group("boss")
 	Fx.anim(get_parent(), global_position, "fx/poof.png", 28, 28, 16.0, radius / 7.0)
 	Fx.particles(get_parent(), global_position, Color(0.85, 0.3, 0.3), 10, 90.0, 0.5, 120.0, 2.0)
+	Fx.decal(get_parent(), global_position, "armor_shards" if (elite or is_boss()) else "blood_ink", _boss_color() if is_boss() else Color(0.82, 0.22, 0.24), 1.35 if is_boss() else (1.1 if elite else 0.85))
+	if elite and not is_boss():
+		Fx.hitstop(get_tree(), 0.03)
 	if is_boss() and data.get("id", "") == "do_cat":
 		get_tree().call_group("hud", "show_banner", "Bắt sống Đờ Cát tại hầm chỉ huy!")
 	if is_boss():

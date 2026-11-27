@@ -318,6 +318,13 @@ func _hit_enemy(body: Node) -> void:
 	var was_crit: bool = typeof(lhc) == TYPE_BOOL and (lhc as bool)
 	var hit_col: Color = Color(1.0, 0.92, 0.35) if was_crit else (Color("ff384c") if boss_motif else color.lerp(Color(1, 0.9, 0.6), 0.5))
 	Fx.anim(get_parent(), global_position, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, hit_col, true)
+	if force_burn and explode_radius <= 0.0:
+		Fx.decal(get_parent(), global_position, "scorch", Color(0.18, 0.12, 0.10), clampf(bullet_scale * 0.85, 0.8, 1.3))
+	if boss_motif or qi_wave:
+		var slash_col: Color = Color("ff384c") if boss_motif else color.lerp(Color(1.0, 0.9, 0.55), 0.45)
+		Fx.decal(get_parent(), global_position, "slash_mark", slash_col, clampf(bullet_scale * 1.05, 0.9, 1.6), dir.angle())
+		if was_crit or hit_dmg >= 12:
+			Fx.hitstop(get_tree(), 0.024)
 	if split_on_hit > 0 and from_player and not visual_only and get_parent() != null:
 		_spawn_split_bullets()
 		split_on_hit = 0
@@ -450,6 +457,8 @@ func _spawn_wall_fx(hit_pos: Vector2, normal: Vector2) -> void:
 		return
 	var info: Dictionary = PROJ.get(proj, {})
 	var st: String = status_kind if status_kind != "" else str(info.get("status", ""))
+	if force_burn and explode_radius <= 0.0:
+		Fx.decal(par, hit_pos, "scorch", Color(0.18, 0.12, 0.10), clampf(bullet_scale * 0.8, 0.7, 1.2))
 	if st == "burn":
 		Fx.particles(par, hit_pos, Color(1.0, 0.55, 0.2), 5, 65.0, 0.25, 40.0, 1.8, 70.0, normal)
 		return
@@ -503,6 +512,7 @@ func _finish() -> void:
 					c.take_hit(maxi(1, damage), c.global_position, (c.global_position - global_position).normalized())
 		var sc := explode_radius / 22.0
 		Fx.anim(get_parent(), global_position, "fx/explosion.png", 44, 44, 18.0, sc, 0.0, Color.WHITE, false, 6)
+		Fx.decal(get_parent(), global_position, "scorch", Color(0.18, 0.12, 0.10), clampf(explode_radius / 30.0, 0.8, 1.8))
 		Fx.particles(get_parent(), global_position, Color(1, 0.7, 0.3), 14, 140.0, 0.5, 0.0, 2.0, 180.0, Vector2.UP, Color(0.5, 0.4, 0.5))
 		Fx.shake(get_tree(), minf(explode_radius / 12.0, 5.0))
 		var l := Art.light(Color(1, 0.6, 0.3), explode_radius / 30.0, 1.6)

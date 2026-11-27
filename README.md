@@ -2,11 +2,11 @@
 
 # ⚔️ ANH HÙNG ĐẤT VIỆT ⚔️
 
-### Phiên bản `v2.3.0` — *Tuyệt Kỹ & Hoạt Ảnh Mượt*
+### Phiên bản `v2.4.0` — *Hồn Sử Đại Việt*
 
 *Game hành động Roguelike bắn quái góc nhìn từ trên xuống (Top-Down Bullet-Hell) lấy cảm hứng từ Soul Knight — Tái hiện hào khí 2.000 năm lịch sử & truyền thuyết Việt Nam bằng đồ họa Pixel Art.*
 
-[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.3.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
+[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v2.4.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
 [![Godot](https://img.shields.io/badge/Godot-4.7.2-478cbf?style=for-the-badge&logo=godot-engine&logoColor=white)](https://godotengine.org/)
 [![Binh khí](https://img.shields.io/badge/Kho_Binh_Khí-217_Món-f59f00?style=for-the-badge)](#%EF%B8%8F-217-binh-khí-hợp-nhất--13-thần-binh-đỏ)
 [![Danh tướng](https://img.shields.io/badge/Danh_Tướng-11_Tướng_•_22_Chiêu-7950f2?style=for-the-badge)](#-11-danh-tướng--nội-tại-chiêu-1--chiêu-2)
@@ -44,13 +44,23 @@ Tất cả bản dựng chính thức được phát hành tại trang [**GitHub
 
 ---
 
-## 🔥 Điểm Nhấn Phiên Bản `v2.3.0 — Tuyệt Kỹ & Hoạt Ảnh Mượt`
+## 🔥 Điểm Nhấn Phiên Bản `v2.4.0 — Hồn Sử Đại Việt`
 
-- **22 Tuyệt Kỹ Anh Hùng Có Hiệu Ứng Riêng (`SkillCastFx`)**: Toàn bộ **22 kỹ năng (11 Chiêu 1 + 11 Chiêu 2)** được thiết kế hiệu ứng thi triển đa tầng riêng biệt (hào quang cộng sáng `_GlowLayer`, xung ánh sáng `PointLight2D`, hạt năng lượng & hình thái đặc trưng từng vị tướng), đồng bộ qua LAN Co-op, xem trước trực tiếp trong **Sảnh** (`C1`/`C2`) và bùng nổ cùng băng chân dung **Cut-in** nâng cấp trên HUD.
-- **11 Danh Tướng Nâng Cấp 28 Khung Hình (`896×32`)**: Bổ sung khung chuyển tiếp mượt cho toàn bộ động tác (*thở `6f` · đi `8f` · chém/bắn `4f` · tung chiêu `4f` · lướt né `2f` · gục `3f` · trúng đòn `1f`*), đồng bộ từ trận đấu tới Doanh trại, Menu chính & Bảng chọn tướng.
-- **49 Đạo Binh & Yêu Quái 24 Khung + 26 Trùm 48 Khung (`12×4`)**: Mở rộng toàn bộ **49 quái nhỏ** lên **24 khung** (thêm tư thế đứng thở `4f`, lấy đà `4f`, tấn công `6f`), và toàn bộ **26 bộ Đại Trùm** (13 Trùm Pha 1 & Hiện nguyên hình Pha 2) lên **48 khung** đóng gói lưới `12×4` (`width ≤ 1728px`), giúp mọi pha vung đao, bắn tên, gọi đệ, húc lướt, nhảy đập & cuồng nộ mượt mà rõ nét.
-- **Đại Sảnh Sạch Đẹp, Không Che Khuất Tướng**: Dời băng nhắc chọn tướng (`_select_banner`) xuống thanh đáy gọn gàng phía trên dòng phím tắt, bổ sung mũi tên vàng nhịp nhàng trên các bục mở khóa và vầng sáng định vị chân tướng khi rê chuột.
-- **Nền Tảng `v2.2.0` – `v2.0.0`**: Giữ trọn **Chia sẻ vũ khí LAN (`G`)**, **Rương ưu tiên Cấp 3–5 & Thần Binh Đỏ**, **Mảnh Bản Vẽ & Ghép Bản Vẽ**, **11 Tướng • 22 Chiêu**, **217 Binh Khí**, **39 Phúc lành**, **6 Phòng `[!]`**, **3 Thú Cưỡi**, **Ác Mộng** & **Boss Rush 13 tầng**.
+- **Hồn Sử Đại Việt & Bức Tường Kỷ Vật Đại Sảnh (`ChronicleData`, `TrophyWallDisplay`)**: Mở khóa **16 trang sử ký & danh ngôn hào hùng** khi đánh bại 10 Đại Trùm Lịch Sử, 3 Tam Yêu Lĩnh Nam, ghép Thần Binh Đỏ / Thần Binh Hợp Nhất hoặc kích hoạt Hợp Chiêu LAN. Kỷ vật được treo trực tiếp lên **16 giá khiên rực sáng** dọc tường Bắc Đại Sảnh, kèm **Bia Hồn Sử** tra cứu nhanh câu chuyện lịch sử & mốc thưởng xu.
+- **Hợp Chiêu Đại Việt — LAN Co-op Synergy Ultimates (`CoopSynergyData`, `CoopComboFx`)**: Khi 2 người chơi trong tổ đội LAN cùng tung tuyệt kỹ gần nhau trong `2.4s` (`260px`), kích hoạt ngay đại chiêu cộng hưởng với ấn sao Trống Đồng Đông Sơn 12 tia, sóng xung kích AoE, choáng địch, hồi giáp/năng lượng và băng HUD chuyên biệt (*Bạch Đằng Hỏa Cọc*, *Nữ Kiệt Lĩnh Nam*, *Nam Quốc Thuận Thiên*, *Hỏa Tốc Thần Binh*, *Pháo Kích Yên Thế*, *Phù Đổng Thiên Vương*, *Song Hùng Đồng Tâm*).
+- **Thời Tiết Từng Chương & Ánh Sáng Bloom (`WeatherFx`)**: Mỗi chiến trường mang khí hậu đặc trưng (*hoa đào Mê Linh*, *hoa rừng Núi Nưa*, *mưa sương Bạch Đằng / Như Nguyệt / Nhật Tảo*, *tàn lửa Thăng Long / Chi Lăng / Đống Đa / Điện Biên*, *lá tre Rừng Yên Thế*, *tuyết linh Thần Thoại*), hòa quyện hiệu ứng `WorldEnvironment` bloom dịu mắt cùng đom đóm hồ sen và khói hương Trống Đồng tại Doanh Trại.
+- **Lực Đánh Sắc Nét (`GroundDecal`, `Fx.weapon_trail`, Hitstop)**: Bổ sung dư ảnh vệt vũ khí Cấp 4–5 & Thần Binh Đỏ, khựng khung hình (`hitstop`) khi bạo kích / hạ tinh anh, cùng hệ thống vết chiến trường lưu trên mặt đất (tối đa `36` vết: *vết cháy nổ, nhát chém, mảnh giáp vỡ, dấu chân, mực máu*).
+- **Võ Đường Đo DPS Thực Thời & Giá Thử Binh Khí (`Dummy`, `open_weapon_test_rack`)**: 3 hình nhân rơm tại Võ Đường hiển thị đồng hồ **DPS hiện tại, Đỉnh DPS & Tổng sát thương** (tính cả hiệu ứng cháy/độc), đi kèm giá **Thử Binh Khí** cho phép cầm thử hoặc đặt xuống sàn bất kỳ vũ khí đã khám phá/mở bản vẽ để thử nghiệm `[R]` Hợp Nhất và tự động khôi phục vũ khí gốc khi xuất trận.
+- **Nền Tảng `v2.3.0` – `v2.0.0`**: Giữ trọn **22 SkillCastFx riêng biệt**, **11 Tướng 28 khung**, **49 Quái 24 khung & 26 Trùm 48 khung (`12×4`)**, **Chia sẻ vũ khí LAN (`G`)**, **Mảnh Bản Vẽ**, **217 Binh Khí**, **39 Phúc lành**, **6 Phòng `[!]`**, **3 Thú Cưỡi**, **Ác Mộng** & **Boss Rush 13 tầng**.
+
+<details>
+<summary>📜 <strong>Xem lại Điểm Nhấn `v2.3.0 — Tuyệt Kỹ & Hoạt Ảnh Mượt`</strong></summary>
+
+- **22 Tuyệt Kỹ Anh Hùng Có Hiệu Ứng Riêng (`SkillCastFx`)**: Toàn bộ **22 kỹ năng (11 Chiêu 1 + 11 Chiêu 2)** được thiết kế hiệu ứng thi triển đa tầng riêng biệt, đồng bộ qua LAN Co-op, xem trước trực tiếp trong **Sảnh** (`C1`/`C2`) và bùng nổ cùng băng chân dung **Cut-in** nâng cấp trên HUD.
+- **11 Danh Tướng 28 Khung (`896×32`), 49 Quái 24 Khung & 26 Trùm 48 Khung (`12×4`)**: Chuyển động mượt mà từ Doanh trại tới Chiến trường.
+- **Đại Sảnh Sạch Đẹp**: Dời băng nhắc chọn tướng xuống thanh đáy, thêm mũi tên vàng & vầng sáng định vị chân tướng.
+
+</details>
 
 ---
 

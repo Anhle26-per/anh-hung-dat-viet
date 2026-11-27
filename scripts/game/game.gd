@@ -13,6 +13,13 @@ const BuffSelect = preload("res://scripts/ui/buff_select.gd")
 const NetSync = preload("res://scripts/net/net_sync.gd")
 const Pickup = preload("res://scripts/entities/pickup.gd")
 const Pet = preload("res://scripts/entities/pet.gd")
+const CoopSynergyData = preload("res://scripts/data/coop_synergy.gd")
+const CoopComboFx = preload("res://scripts/effects/coop_combo_fx.gd")
+const Fx = preload("res://scripts/effects/fx.gd")
+
+const COOP_COMBO_WINDOW: float = 2.4
+const COOP_COMBO_MAX_DIST: float = 260.0
+const COOP_COMBO_COOLDOWN: float = 12.0
 
 static func _hotpatch_sync() -> Script:
 	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
@@ -54,6 +61,10 @@ var _portal_triggered: bool = false
 var _team_wiped: bool = false
 var _combat_room_music_seq: int = 0
 var _leaving: bool = false
+var _weather_node: Node = null
+var _recent_skill_casts: Dictionary = {}
+var _coop_combo_cd: float = 0.0
+var _coop_clock: float = 0.0
 
 
 func _ready() -> void:
@@ -145,6 +156,10 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	pause_menu.game = self
 	add_child(pause_menu)
+
+	var wfx_script := _load_weather_script()
+	if wfx_script != null:
+		wfx_script.apply_glow_environment(self)
 
 	_build_level()
 	# Lễ xuất quân: chọn 1 phúc lành ngay từ đầu
@@ -259,6 +274,10 @@ func add_shake(amount: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if not get_tree().paused:
+		_coop_clock += delta
+		if _coop_combo_cd > 0.0:
+			_coop_combo_cd = maxf(_coop_combo_cd - delta, 0.0)
 	if player != null and is_instance_valid(player) and not player.dead and not get_tree().paused:
 		Global.run_elapsed += delta
 	if _shake > 0.0:
@@ -277,6 +296,10 @@ func _build_level() -> void:
 	_combat_room_music_seq = 0
 	_portal_triggered = false
 	_buff_done_peers.clear()
+	_recent_skill_casts.clear()
+	if _weather_node != null and is_instance_valid(_weather_node):
+		_weather_node.queue_free()
+	_weather_node = null
 	if hud != null and hud.has_method("clear_boss_intro"):
 		hud.clear_boss_intro()
 	if net_sync != null:
@@ -308,6 +331,14 @@ func _build_level() -> void:
 		seed(Global.challenge_seed(Global.challenge_code) + Global.level * 1009)
 	dungeon.generate(Global.level)
 	dungeon.portal_entered.connect(_on_portal)
+	var wfx_script := _load_weather_script()
+	if wfx_script != null:
+		var wnode: Node = wfx_script.new()
+		if wnode != null:
+			world.add_child(wnode)
+			if wnode.has_method("setup"):
+				wnode.setup(Global.level, _compute_dungeon_bounds())
+			_weather_node = wnode
 	if net_sync != null:
 		net_sync.set_deferred("is_clearing_level", false)
 	var start_pos: Vector2 = dungeon.start_position()
@@ -502,6 +533,13 @@ func _on_net_player_action(peer_id: int, kind: String, data: Dictionary) -> void
 	var rp: Variant = players_by_peer.get(peer_id, null)
 	if rp != null and is_instance_valid(rp) and not bool(rp.get("is_local")):
 		rp.play_remote_action(kind, data)
+	if kind == "skill" and (Net == null or not Net.is_online() or Net.is_host()):
+		var hid: String = str(data.get("hero_id", ""))
+		if hid == "" and rp != null and is_instance_valid(rp):
+			hid = str(rp.get("hero_id"))
+		var fallback_pos: Vector2 = (rp as Node2D).global_position if (rp != null and is_instance_valid(rp) and rp is Node2D) else Vector2.ZERO
+		var pos := Vector2(float(data.get("x", fallback_pos.x)), float(data.get("y", fallback_pos.y)))
+		_record_skill_cast(peer_id, hid, pos)
 
 
 func host_spawn_shared_weapon(wid: String, pos: Vector2) -> Node:
@@ -716,6 +754,147 @@ func _on_net_world_event(kind: String, data: Dictionary) -> void:
 				return
 			var next_lvl: int = int(data.get("level", Global.level + 1))
 			_advance_to.call_deferred(next_lvl)
+		"coop_combo":
+			if Net.is_host():
+				return
+			var ha: String = str(data.get("hero_a", ""))
+			var hb: String = str(data.get("hero_b", ""))
+			var pa := Vector2(float(data.get("ax", 0.0)), float(data.get("ay", 0.0)))
+			var pb := Vector2(float(data.get("bx", 0.0)), float(data.get("by", 0.0)))
+			_execute_coop_combo(ha, hb, pa, pb, false)
+
+
+func _load_weather_script() -> Script:
+	var p := "res://scripts/effects/weather_fx.gd"
+	if ResourceLoader.exists(p):
+		return load(p) as Script
+	return null
+
+
+func _compute_dungeon_bounds() -> Rect2:
+	if dungeon == null or not is_instance_valid(dungeon) or dungeon.rooms.is_empty():
+		return Rect2(Vector2(-480.0, -360.0), Vector2(960.0, 720.0))
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for c in dungeon.rooms:
+		var rm: Variant = dungeon.rooms[c]
+		if rm != null and is_instance_valid(rm):
+			var rect: Rect2 = rm.rect
+			min_p.x = minf(min_p.x, rect.position.x)
+			min_p.y = minf(min_p.y, rect.position.y)
+			max_p.x = maxf(max_p.x, rect.end.x)
+			max_p.y = maxf(max_p.y, rect.end.y)
+	if min_p.x == INF:
+		return Rect2(Vector2(-480.0, -360.0), Vector2(960.0, 720.0))
+	var margin := Vector2(180.0, 180.0)
+	return Rect2(min_p - margin, (max_p - min_p) + margin * 2.0)
+
+
+func on_local_skill_cast(hero_id: String, pos: Vector2) -> void:
+	var local_pid: int = Net.local_peer_id() if Net != null else 1
+	_record_skill_cast(local_pid, hero_id, pos)
+
+
+func trigger_coop_combo_test(hero_a: String, hero_b: String, pos_a: Vector2, pos_b: Vector2) -> Dictionary:
+	return _execute_coop_combo(hero_a, hero_b, pos_a, pos_b, true)
+
+
+func _record_skill_cast(peer_id: int, hero_id: String, pos: Vector2) -> void:
+	var stale: Array = []
+	for k in _recent_skill_casts:
+		var entry: Dictionary = _recent_skill_casts[k]
+		if _coop_clock - float(entry.get("t", 0.0)) > COOP_COMBO_WINDOW:
+			stale.append(k)
+	for k in stale:
+		_recent_skill_casts.erase(k)
+	_recent_skill_casts[peer_id] = {"hero": hero_id, "pos": pos, "t": _coop_clock}
+	if Net != null and Net.is_online() and not Net.is_host():
+		return
+	if _coop_combo_cd > 0.0:
+		return
+	for k in _recent_skill_casts:
+		var other_pid: int = int(k)
+		if other_pid == peer_id:
+			continue
+		var other: Dictionary = _recent_skill_casts[k]
+		if _coop_clock - float(other.get("t", 0.0)) > COOP_COMBO_WINDOW:
+			continue
+		var other_pos: Vector2 = other.get("pos", Vector2.ZERO)
+		if pos.distance_to(other_pos) > COOP_COMBO_MAX_DIST:
+			continue
+		var hero_a: String = str(other.get("hero", ""))
+		var hero_b: String = hero_id
+		_recent_skill_casts.clear()
+		_coop_combo_cd = COOP_COMBO_COOLDOWN
+		_execute_coop_combo(hero_a, hero_b, other_pos, pos, true)
+		if Net != null and Net.is_online() and Net.is_host():
+			Net.send_world_event("coop_combo", {
+				"hero_a": hero_a,
+				"hero_b": hero_b,
+				"ax": other_pos.x,
+				"ay": other_pos.y,
+				"bx": pos.x,
+				"by": pos.y,
+			}, false)
+		break
+
+
+func _execute_coop_combo(hero_a: String, hero_b: String, pos_a: Vector2, pos_b: Vector2, apply_damage: bool) -> Dictionary:
+	var combo: Dictionary = CoopSynergyData.resolve(hero_a, hero_b)
+	var mid: Vector2 = (pos_a + pos_b) * 0.5
+	var rad: float = float(combo.get("radius", 160.0))
+	var dmg: int = int(combo.get("damage", 30))
+	var stun_dur: float = float(combo.get("stun_dur", 1.2))
+	var combo_col: Color = combo.get("color", Color(1.0, 0.84, 0.34))
+	var fx_parent: Node = world if (world != null and is_instance_valid(world)) else self
+	CoopComboFx.spawn(fx_parent, pos_a, pos_b, combo)
+	Sfx.play("skill")
+	add_shake(6.0)
+	Fx.float_text(fx_parent, mid + Vector2(0.0, -28.0), str(combo.get("name", "Hợp Chiêu Đại Việt")), combo_col, 18)
+
+	if apply_damage and is_inside_tree():
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if not is_instance_valid(e) or bool(e.get("dead")):
+				continue
+			var dist_e: float = e.distance_to_hurtbox(mid) if e.has_method("distance_to_hurtbox") else (mid.distance_to((e as Node2D).global_position) - float(e.get("radius")))
+			if dist_e <= rad:
+				var e_ctr: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else (e as Node2D).global_position
+				var kdir: Vector2 = (e_ctr - mid).normalized()
+				if kdir.length_squared() < 0.0001:
+					kdir = Vector2.RIGHT
+				if e.has_method("take_damage"):
+					e.take_damage(dmg, kdir * 220.0)
+				if stun_dur > 0.0 and e.has_method("apply_stun"):
+					e.apply_stun(stun_dur)
+
+	if player != null and is_instance_valid(player) and not bool(player.get("dead")):
+		var armor_b: int = int(combo.get("armor_bonus", 2))
+		var energy_b: int = int(combo.get("energy_bonus", 40))
+		var buff_d: float = float(combo.get("buff_dur", 4.0))
+		player.armor = mini(int(player.armor) + armor_b, int(player.max_armor))
+		if player.has_method("add_energy"):
+			player.add_energy(energy_b)
+		else:
+			player.energy = mini(int(player.energy) + energy_b, int(player.max_energy))
+		player.buff_timer = maxf(float(player.buff_timer), buff_d)
+		if player.has_signal("stats_changed"):
+			player.stats_changed.emit()
+
+	if hud != null and is_instance_valid(hud):
+		if hud.has_method("show_coop_combo"):
+			hud.show_coop_combo(str(combo.get("name", "Hợp Chiêu Đại Việt")), str(combo.get("subtitle", "")), combo_col)
+		elif hud.has_method("show_banner"):
+			hud.show_banner("Hợp Chiêu: %s!" % str(combo.get("name", "Hợp Chiêu Đại Việt")))
+
+	if Global != null:
+		if Global.has_method("add_stat"):
+			Global.add_stat("coop_combos")
+		if Global.has_method("unlock_chronicle"):
+			var res: Variant = Global.unlock_chronicle("coop_dong_tam")
+			if typeof(res) == TYPE_DICTIONARY and bool((res as Dictionary).get("newly_unlocked", false)):
+				if hud != null and is_instance_valid(hud) and hud.has_method("show_chronicle_toast"):
+					hud.show_chronicle_toast(str((res as Dictionary).get("title", "")))
+	return combo
 
 
 func _on_net_down_event(kind: String, target_peer: int, _data: Dictionary) -> void:

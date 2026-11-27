@@ -79,6 +79,7 @@ var _basement_down_st: Node2D = null
 var _basement_up_st: Node2D = null
 var _north_portal: Node2D = null
 var _hero_overlay: Node2D = null
+var _trophy_wall: Node2D = null
 var _hovered_hero_id: String = ""
 var _cursor_hero_idx: int = 0
 var _canvas_mod: CanvasModulate = null
@@ -158,6 +159,123 @@ class HeroRingOverlay extends Node2D:
 				draw_rect(Rect2(tag_pos.x - tw * 0.5, tag_pos.y - 8.5, tw, 11.0), Color(0.06, 0.03, 0.08, 0.84))
 				draw_rect(Rect2(tag_pos.x - tw * 0.5, tag_pos.y - 8.5, tw, 11.0), Color(tag_col.r, tag_col.g, tag_col.b, 0.65), false, 1.0)
 				Art.draw_text(self, tag_pos, tag_txt, 10, tag_col)
+
+
+class TrophyWallDisplay extends Node2D:
+	## Kệ Kỷ Vật Hồn Sử Đại Việt treo dọc tường Bắc Đại Sảnh (y = 258, phía trên các bục tướng y = 338)
+	const CHRONICLES_SCRIPT := "res://scripts/data/chronicles.gd"
+	const SLOT_XS: Array[float] = [
+		-206.0, -173.0, -159.0, -145.0, -131.0, -117.0, -103.0, -75.0,
+		75.0, 103.0, 117.0, 131.0, 145.0, 159.0, 173.0, 206.0,
+	]
+
+	var t: float = 0.0
+	var _cdata = null
+
+	func _ready() -> void:
+		z_index = 1
+		if ResourceLoader.exists(CHRONICLES_SCRIPT):
+			_cdata = load(CHRONICLES_SCRIPT)
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _unlocked_list() -> Array:
+		var raw: Variant = Global.get("unlocked_chronicles")
+		return raw if raw is Array else []
+
+	func trophy_count() -> int:
+		return _unlocked_list().size()
+
+	func _entry_info(cid: String) -> Dictionary:
+		if _cdata != null:
+			var d: Variant = _cdata.get("DATA")
+			if d is Dictionary and (d as Dictionary).has(cid):
+				return (d as Dictionary)[cid]
+		return {}
+
+	func _ordered_ids() -> Array:
+		if _cdata != null:
+			var ord: Variant = _cdata.get("ORDER")
+			if ord is Array and not (ord as Array).is_empty():
+				return ord as Array
+		return _unlocked_list()
+
+	func _shield_colors(info: Dictionary) -> Dictionary:
+		var cat: String = str(info.get("category", "boss"))
+		var base_col: Color = info.get("color", Color(1.0, 0.82, 0.28))
+		if cat == "mythic":
+			return {
+				"rim": Color(0.86, 0.62, 1.0),
+				"fill": base_col.lerp(Color(0.56, 0.24, 0.84), 0.35),
+				"gem": Color(0.95, 0.72, 1.0),
+			}
+		if cat == "relic":
+			return {
+				"rim": Color(1.0, 0.92, 0.48),
+				"fill": base_col.lerp(Color(0.95, 0.74, 0.22), 0.35),
+				"gem": Color(0.52, 0.96, 1.0),
+			}
+		return {
+			"rim": Color(1.0, 0.84, 0.34),
+			"fill": base_col.lerp(Color(0.76, 0.18, 0.18), 0.25),
+			"gem": Color(1.0, 0.94, 0.62),
+		}
+
+	func _draw() -> void:
+		# Thanh gỗ sơn son thếp vàng gắn hai bên tường Bắc Đại Sảnh
+		for side in [-1.0, 1.0]:
+			var bx: float = -182.0 if side < 0.0 else 96.0
+			draw_rect(Rect2(bx, -5.0, 86.0, 10.0), Color(0.22, 0.11, 0.07, 0.88))
+			draw_rect(Rect2(bx, -5.0, 86.0, 10.0), Color(0.76, 0.56, 0.22, 0.58), false, 1.0)
+			draw_rect(Rect2(bx + 2.0, -4.0, 82.0, 1.0), Color(1.0, 0.84, 0.42, 0.35))
+
+		var unlocked: Array = _unlocked_list()
+		var order: Array = _ordered_ids()
+		var slot_count: int = SLOT_XS.size()
+		for i in slot_count:
+			var sx: float = SLOT_XS[i]
+			var cid: String = str(order[i]) if i < order.size() else ""
+			var has_trophy: bool = (cid != "" and unlocked.has(cid))
+			if not has_trophy:
+				draw_rect(Rect2(sx - 4.0, -4.0, 8.0, 8.0), Color(0.14, 0.08, 0.06, 0.72))
+				draw_rect(Rect2(sx - 4.0, -4.0, 8.0, 8.0), Color(0.55, 0.42, 0.22, 0.35), false, 1.0)
+				draw_circle(Vector2(sx, -1.0), 1.0, Color(0.78, 0.62, 0.28, 0.42))
+				continue
+
+			var info: Dictionary = _entry_info(cid)
+			var pal: Dictionary = _shield_colors(info)
+			var rim: Color = pal.rim
+			var fill: Color = pal.fill
+			var gem: Color = pal.gem
+			var pulse: float = 0.65 + 0.35 * sin(t * 2.8 + float(i) * 0.9)
+
+			# Hào quang nhẹ quanh khiên kỷ vật đã mở khóa
+			draw_circle(Vector2(sx, 0.0), 8.5, Color(rim.r, rim.g, rim.b, 0.14 * pulse))
+
+			var outer := PackedVector2Array([
+				Vector2(sx - 5.5, -6.0),
+				Vector2(sx + 5.5, -6.0),
+				Vector2(sx + 5.5, 1.0),
+				Vector2(sx, 6.5),
+				Vector2(sx - 5.5, 1.0),
+			])
+			var inner := PackedVector2Array([
+				Vector2(sx - 4.0, -4.5),
+				Vector2(sx + 4.0, -4.5),
+				Vector2(sx + 4.0, 0.5),
+				Vector2(sx, 4.8),
+				Vector2(sx - 4.0, 0.5),
+			])
+			draw_colored_polygon(outer, rim)
+			draw_colored_polygon(inner, fill)
+			# Hoa văn tâm khiên + ánh lóe nhẹ chạy qua theo chu kỳ
+			draw_circle(Vector2(sx, -1.0), 1.6, gem)
+			var gleam: float = maxf(0.0, sin(t * 1.9 - float(i) * 0.55))
+			if gleam > 0.78:
+				var ga: float = (gleam - 0.78) / 0.22
+				draw_line(Vector2(sx - 3.5, -3.5), Vector2(sx + 3.0, 2.0), Color(1.0, 1.0, 0.95, 0.75 * ga), 1.4)
 var _forged_icon: Sprite2D
 var _garden_sprites: Array[Sprite2D] = []
 var _garden_sparkles: Array[CPUParticles2D] = []
@@ -516,7 +634,7 @@ func _decorate() -> void:
 	world.add_child(shop_motes)
 	for bp in [Vector2(978, 514), Vector2(1284, 514), Vector2(978, 650), Vector2(1284, 650)]:
 		_prop("world/prop_weapon_barrel.png", bp, Vector2(0, -6))
-	_prop("world/sandbag.png", Vector2(1024, 506))
+	_prop("world/sandbag.png", Vector2(1048, 520))
 	_prop("world/sandbag.png", Vector2(1238, 506))
 	_prop("world/lobby_bonsai.png", Vector2(964, 668), Vector2(0, -12))
 	_prop("world/lobby_bonsai.png", Vector2(1296, 668), Vector2(0, -12))
@@ -551,6 +669,13 @@ func _decorate() -> void:
 	var amb := Ambience.new()
 	amb.area = Rect2(Vector2(40, 20), Vector2(1280, 680))
 	world.add_child(amb)
+	if amb != null and amb.has_method("enable_glow"):
+		amb.enable_glow()
+
+	# Bảng Kỷ Vật Hồn Sử treo tường Bắc Đại Sảnh (y = 258, trên các bục tướng y = 338)
+	_trophy_wall = TrophyWallDisplay.new()
+	_trophy_wall.position = Vector2(680, 258)
+	world.add_child(_trophy_wall)
 
 	# Biển cầu thang xuống Tầng Hầm tại Đại Sảnh Anh Hùng
 	_sign_label("▼ Tầng Hầm", Vector2(680, 690), Color(1.0, 0.82, 0.42))
@@ -654,7 +779,14 @@ func _build_stations() -> void:
 	cl.position = Vector2(1240, 342)
 	world.add_child(cl)
 
-	# Võ Đường (phòng Đông - nửa dưới): 3 hình nhân rơm đánh thử
+	# Võ Đường (phòng Đông - nửa dưới): 3 hình nhân rơm đánh thử & Giá Thử Binh Khí
+	var wtest_spr := _sprite("world/weapon_rack.png", Vector2(0, -10))
+	var wtest_st := _add_station("weapon_test", "", "Thử Binh Khí", "Đổi vũ khí tập võ", Vector2(1008, 492), wtest_spr, -32.0)
+	wtest_st.radius = 24.0
+	var wtl := Art.light(Color(0.45, 0.92, 1.0), 0.72, 0.55)
+	wtl.position = Vector2(1008, 484)
+	world.add_child(wtl)
+
 	for p in [Vector2(1040, 580), Vector2(1140, 560), Vector2(1220, 610)]:
 		var dm := Dummy.new()
 		dm.position = p
@@ -721,6 +853,15 @@ func _build_stations() -> void:
 
 	var war_st := _add_station("war_table", "", "Sa Bàn Quân Sự", "Mã Seed & Bảng Vinh Danh", Vector2(808, 626), _sprite("world/lobby_war_table.png", Vector2(0, -12)), -38.0)
 	war_st.radius = 28.0
+
+	var chron_spr := _sprite("world/stele.png", Vector2(0, -12))
+	chron_spr.modulate = Color(1.08, 0.96, 0.78)
+	var chron_st := _add_station("chronicles", "", "Hồn Sử", "Sử Ký & Kỷ Vật", Vector2(492, 616), chron_spr, -36.0)
+	chron_st.radius = 26.0
+	chron_st.title_color = Color(1.0, 0.88, 0.42)
+	var chl := Art.light(Color(1.0, 0.86, 0.42), 0.72, 0.55)
+	chl.position = Vector2(492, 608)
+	world.add_child(chl)
 
 	# Vườn Sen (tây): Vườn Thảo Dược 3 luống cập nhật sống theo từng ô trồng
 	var garden_wrap := Node2D.new()
@@ -1054,6 +1195,12 @@ func _on_station(s) -> void:
 			ui.open_tea()
 		"war_table":
 			ui.open_war_table()
+		"chronicles":
+			if ui != null and ui.has_method("open_chronicles"):
+				ui.open_chronicles()
+		"weapon_test":
+			if ui != null and ui.has_method("open_weapon_test_rack"):
+				ui.open_weapon_test_rack()
 		"garden":
 			ui.open_garden()
 		"enchant":
@@ -1380,10 +1527,14 @@ func start_run_with_code(code: String) -> void:
 			if world != null:
 				Fx.float_text(world, Vector2(680, 92), "Chờ đồng đội chọn & xác nhận tướng!", Color(1.0, 0.55, 0.35), 14)
 			return
+		if player != null and is_instance_valid(player) and player.has_method("restore_test_weapons"):
+			player.restore_test_weapons()
 		_leaving = true
 		Sfx.play("level_clear")
 		Net.host_start_match()
 		return
+	if player != null and is_instance_valid(player) and player.has_method("restore_test_weapons"):
+		player.restore_test_weapons()
 	_leaving = true
 	set_process_unhandled_input(false)
 	Sfx.play("level_clear")
@@ -1523,6 +1674,8 @@ func _on_net_lobby_updated() -> void:
 func _on_net_match_started(_seed_val: int, _level: int) -> void:
 	if _leaving or not is_inside_tree():
 		return
+	if player != null and is_instance_valid(player) and player.has_method("restore_test_weapons"):
+		player.restore_test_weapons()
 	_leaving = true
 	set_process_unhandled_input(false)
 	_change_scene_deferred("res://scenes/game.tscn")

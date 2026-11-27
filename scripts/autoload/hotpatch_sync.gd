@@ -8,6 +8,8 @@ const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/data/materials.gd",
 	"res://scripts/data/enemies.gd",
 	"res://scripts/data/achievements.gd",
+	"res://scripts/data/chronicles.gd",
+	"res://scripts/data/coop_synergy.gd",
 	"res://scripts/data/heroes.gd",
 	"res://scripts/data/hero_skills_ext.gd",
 	"res://scripts/data/run_modes.gd",
@@ -19,6 +21,9 @@ const DATA_SCRIPTS: Array[String] = [
 	"res://scripts/ui/ui.gd",
 	"res://scripts/effects/fx.gd",
 	"res://scripts/effects/skill_fx.gd",
+	"res://scripts/effects/weather_fx.gd",
+	"res://scripts/effects/ground_decal.gd",
+	"res://scripts/effects/coop_combo_fx.gd",
 	"res://scripts/net/discovery.gd",
 	"res://scripts/net/net_sync.gd",
 ]
@@ -78,15 +83,15 @@ static func _reload_script(gd_path: String) -> Script:
 	return fresh
 
 
-static func _version_build_under_230(u: Node) -> bool:
+static func _version_build_under_240(u: Node) -> bool:
 	var vd_path: String = "res://scripts/data/version.gdc" if FileAccess.file_exists("res://scripts/data/version.gdc") else "res://scripts/data/version.gd"
 	if ResourceLoader.exists(vd_path):
 		var vd: Script = ResourceLoader.load(vd_path) as Script
-		if vd != null and int(vd.get_script_constant_map().get("BUILD", 0)) < 230:
+		if vd != null and int(vd.get_script_constant_map().get("BUILD", 0)) < 240:
 			return true
 	if u != null and u.get_script() is Script:
 		var u_vd: Variant = (u.get_script() as Script).get_script_constant_map().get("VersionData", null)
-		if u_vd is Script and int((u_vd as Script).get_script_constant_map().get("BUILD", 0)) < 230:
+		if u_vd is Script and int((u_vd as Script).get_script_constant_map().get("BUILD", 0)) < 240:
 			return true
 	return false
 
@@ -97,12 +102,12 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 	var u: Node = tree.root.get_node_or_null("Updater")
 	if u != null and not u.has_method("_is_running_from_project_dir"):
 		return true
-	if _version_build_under_230(u):
+	if _version_build_under_240(u):
 		return true
 	var g: Node = tree.root.get_node_or_null("Global")
 	if g == null:
 		return false
-	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint", "active_skill_index", "assemble_blueprint", "add_blueprint_fragment"]:
+	for m in ["owned_blueprint_count", "unclaimed_achievement_count", "roll_boss_blueprint", "active_skill_index", "assemble_blueprint", "add_blueprint_fragment", "unlock_chronicle"]:
 		if not g.has_method(m):
 			return true
 	if not InputMap.has_action("sprint") or not InputMap.has_action("dash") or not InputMap.has_action("merge_weapon") or not InputMap.has_action("drop_weapon"):
@@ -128,7 +133,7 @@ static func ensure_autoloads_synced(tree: SceneTree) -> bool:
 	for p in DATA_SCRIPTS:
 		_reload_script(p)
 	var u: Node = tree.root.get_node_or_null("Updater")
-	if u != null and (not u.has_method("_is_running_from_project_dir") or _version_build_under_230(u)):
+	if u != null and (not u.has_method("_is_running_from_project_dir") or _version_build_under_240(u)):
 		var u_base_ver: String = str(u.get("base_version")) if u.get("base_version") != null else ""
 		var u_base_build: int = int(u.get("base_build")) if u.get("base_build") != null else 0
 		var u_patch_loaded: bool = bool(u.get("patch_loaded"))

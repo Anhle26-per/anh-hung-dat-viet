@@ -15,6 +15,7 @@ const ProgressionData = preload("res://scripts/data/progression.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const AchievementData = preload("res://scripts/data/achievements.gd")
+const ChronicleData = preload("res://scripts/data/chronicles.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
 
@@ -26,6 +27,7 @@ const DEFAULT_STATS: Dictionary = {
 	"crafted": 0,
 	"chests": 0,
 	"blueprints_assembled": 0,
+	"coop_combos": 0,
 }
 
 # --- Dữ liệu được lưu lại ---
@@ -37,6 +39,7 @@ var upgrades: Dictionary = {}     # nâng cấp vĩnh viễn ở Lò rèn: mã -
 var discovered: Array = []        # vũ khí đã sưu tầm
 var stats: Dictionary = DEFAULT_STATS.duplicate()
 var achievements_claimed: Array = []  # mã thành tựu đã nhận thưởng
+var unlocked_chronicles: Array = []   # mã trang Hồn Sử Đại Việt đã mở khóa
 var blueprints: Array = []            # mã vũ khí bản vẽ đã mở khóa
 var blueprint_fragments: Dictionary = {}  # mã vũ khí -> số mảnh bản vẽ đã thu thập
 var free_revives := 0             # lượt hồi sinh miễn phí còn lại trong lượt chơi
@@ -723,6 +726,11 @@ func assemble_blueprint(wid: String) -> bool:
 	if not blueprints.has(wid):
 		blueprints.append(wid)
 	add_stat("blueprints_assembled")
+	var w: Dictionary = WeaponData.DATA.get(wid, {})
+	if bool(w.get("boss_motif", false)):
+		unlock_chronicle("relic_boss_motif")
+	elif bool(w.get("merged", false)):
+		unlock_chronicle("relic_merged_mythic")
 	save_game()
 	return true
 
@@ -872,6 +880,51 @@ func claim_all_achievements() -> Array:
 					claimed_list.append(reward)
 					changed = true
 	return claimed_list
+
+
+# ------------------------------------------------------------------ Hồn Sử Đại Việt
+
+func has_chronicle(cid: String) -> bool:
+	return unlocked_chronicles.has(cid)
+
+
+func unlocked_chronicle_count() -> int:
+	return unlocked_chronicles.size()
+
+
+func unlock_chronicle(cid: String) -> Dictionary:
+	if not ChronicleData.DATA.has(cid) or unlocked_chronicles.has(cid):
+		return {}
+	unlocked_chronicles.append(cid)
+	var info: Dictionary = ChronicleData.DATA[cid]
+	var reward: int = int(info.get("reward_coins", 0))
+	if reward > 0:
+		coins += reward
+	save_game()
+	return {
+		"id": cid,
+		"title": str(info.get("title", cid)),
+		"reward_coins": reward,
+		"newly_unlocked": true,
+	}
+
+
+func unlock_chronicle_for_boss(boss_id: String) -> Dictionary:
+	var cid: String = ChronicleData.entry_for_boss(boss_id)
+	if cid == "":
+		return {}
+	return unlock_chronicle(cid)
+
+
+func unlock_chronicle_for_weapon(wid: String) -> Dictionary:
+	if wid == "" or not WeaponData.DATA.has(wid):
+		return {}
+	var w: Dictionary = WeaponData.DATA[wid]
+	if bool(w.get("boss_motif", false)):
+		return unlock_chronicle("relic_boss_motif")
+	if bool(w.get("merged", false)):
+		return unlock_chronicle("relic_merged_mythic")
+	return {}
 
 
 func hero_level(id: String) -> int:
@@ -1336,6 +1389,7 @@ func save_game() -> void:
 		"selected_skills": selected_skills,
 		"badass_mode": badass_mode,
 		"achievements_claimed": achievements_claimed,
+		"unlocked_chronicles": unlocked_chronicles,
 		"blueprints": blueprints,
 		"blueprint_fragments": blueprint_fragments,
 	})
@@ -1573,6 +1627,7 @@ func load_game() -> void:
 	settings = DEFAULT_SETTINGS.duplicate()
 	stats = DEFAULT_STATS.duplicate()
 	achievements_claimed = []
+	unlocked_chronicles = []
 	blueprints = []
 	blueprint_fragments = {}
 	leaderboard = []
@@ -1686,6 +1741,13 @@ func load_game() -> void:
 			var aid: String = str(item)
 			if AchievementData.DATA.has(aid) and not achievements_claimed.has(aid):
 				achievements_claimed.append(aid)
+	var uc: Variant = data.get("unlocked_chronicles", null)
+	if typeof(uc) == TYPE_ARRAY:
+		var uc_arr: Array = uc
+		for item in uc_arr:
+			var cid: String = str(item)
+			if ChronicleData.DATA.has(cid) and not unlocked_chronicles.has(cid):
+				unlocked_chronicles.append(cid)
 	var bp: Variant = data.get("blueprints", null)
 	if typeof(bp) == TYPE_ARRAY:
 		var bp_arr: Array = bp

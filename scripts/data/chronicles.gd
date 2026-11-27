@@ -1,0 +1,282 @@
+extends RefCounted
+## Dữ liệu 16 trang Hồn Sử Đại Việt & Kỷ Vật Đại Sảnh:
+## 10 Trùm Lịch Sử + 3 Tam Yêu Lĩnh Nam + 3 Kỷ Vật Chiến Tích.
+
+const CATEGORY_ORDER: Array = ["boss", "mythic", "relic"]
+
+const CATEGORY_NAMES: Dictionary = {
+	"boss": "Trùm Lịch Sử",
+	"mythic": "Tam Yêu Lĩnh Nam",
+	"relic": "Kỷ Vật",
+}
+
+const MYTHIC_BOSS_ALIAS: Dictionary = {
+	"cuu_vi_ho": "ho_tinh_vuong",
+	"xuong_cuong": "moc_tinh_vuong",
+	"hac_hai_ngu": "ngu_tinh_vuong",
+}
+
+const ORDER: Array = [
+	# 10 Trùm Lịch Sử (EnemyData.BOSSES)
+	"to_dinh",
+	"luc_dan",
+	"hoang_thao",
+	"quach_quy",
+	"thoat_hoan",
+	"lieu_thang",
+	"ton_si_nghi",
+	"tau_hy_vong",
+	"don_truong",
+	"do_cat",
+	# 3 Tam Yêu Lĩnh Nam (EnemyData.LEGENDS)
+	"ho_tinh_vuong",
+	"moc_tinh_vuong",
+	"ngu_tinh_vuong",
+	# 3 Kỷ Vật Mốc Quan Trọng
+	"relic_boss_motif",
+	"relic_merged_mythic",
+	"coop_dong_tam",
+]
+
+const DATA: Dictionary = {
+	"to_dinh": {
+		"id": "to_dinh",
+		"title": "Bình Định Mê Linh — Phá Đao Tô Định",
+		"era": "Năm 40 · Khởi Nghĩa Hai Bà Trưng",
+		"category": "boss",
+		"boss_id": "to_dinh",
+		"color": Color(0.95, 0.36, 0.36),
+		"reward_coins": 25,
+		"story": "Thái thú Tô Định bạo ngược vơ vét Giao Chỉ, sát hại Thi Sách hòng dập tắt chí quật cường. Hai Bà Trưng phất cờ đại nghĩa tại Hát Môn, đánh tan quân Đông Hán và buộc Tô Định vứt ấn bỏ chạy về phương Bắc.",
+		"quote": "Một xin rửa sạch nước thù, hai xin đem lại nghiệp xưa họ Hùng!",
+		"plaque_label": "Mê Linh · Năm 40",
+		"hint": "Đánh bại Thái thú Tô Định tại chương Mê Linh.",
+	},
+	"luc_dan": {
+		"id": "luc_dan",
+		"title": "Núi Nưa Dậy Sóng — Bẻ Kích Lục Dận",
+		"era": "Năm 248 · Khởi Nghĩa Bà Triệu",
+		"category": "boss",
+		"boss_id": "luc_dan",
+		"color": Color(0.88, 0.56, 0.28),
+		"reward_coins": 25,
+		"story": "Giặc Đông Ngô đem đại quân do Thứ sử Lục Dận cầm đầu đàn áp đất Cửu Chân. Bà Triệu khoác áo giáp vàng cưỡi voi trắng xông pha, khiến quân Ngô kinh hồn bạt vía trước khí phách nữ anh hào.",
+		"quote": "Tôi muốn cưỡi cơn gió mạnh, đạp luồng sóng dữ, chém cá kình ở biển Đông!",
+		"plaque_label": "Núi Nưa · Năm 248",
+		"hint": "Đánh bại Lục Dận tại chương Núi Nưa.",
+	},
+	"hoang_thao": {
+		"id": "hoang_thao",
+		"title": "Sóng Bạch Đằng — Nhấn Chìm Hoằng Tháo",
+		"era": "Năm 938 · Trận Bạch Đằng",
+		"category": "boss",
+		"boss_id": "hoang_thao",
+		"color": Color(0.32, 0.78, 0.96),
+		"reward_coins": 30,
+		"story": "Thái tử Nam Hán Lưu Hoằng Tháo dẫn chiến thuyền theo thủy triều tiến vào cửa sông Bạch Đằng. Ngô Quyền bày trận cọc gỗ bịt sắt ngầm dưới lòng sông, nhử giặc vào bẫy khi nước rút và mở ra kỷ nguyên độc lập tự chủ.",
+		"quote": "Cọc ngầm Bạch Đằng giữ vững giang sơn muôn thuở.",
+		"plaque_label": "Bạch Đằng · 938",
+		"hint": "Đánh bại Thái tử Hoằng Tháo tại chương Sông Bạch Đằng.",
+	},
+	"quach_quy": {
+		"id": "quach_quy",
+		"title": "Phòng Tuyến Như Nguyệt — Bẻ Gãy Quách Quỳ",
+		"era": "Năm 1077 · Kháng Chiến Chống Tống",
+		"category": "boss",
+		"boss_id": "quach_quy",
+		"color": Color(0.45, 0.72, 1.0),
+		"reward_coins": 30,
+		"story": "Mười vạn quân Tống dưới quyền Thống soái Quách Quỳ bị chặn đứng bên bờ bắc sông Như Nguyệt. Trong đêm tối mịt mùng, bài thơ thần Nam quốc sơn hà vang vọng khiến quân giặc tan rã ý chí xâm lăng.",
+		"quote": "Nam quốc sơn hà Nam đế cư, tiệt nhiên định phận tại thiên thư!",
+		"plaque_label": "Như Nguyệt · 1077",
+		"hint": "Đánh bại Quách Quỳ tại chương Sông Như Nguyệt.",
+	},
+	"thoat_hoan": {
+		"id": "thoat_hoan",
+		"title": "Hào Khí Đông A — Truy Kích Thoát Hoan",
+		"era": "Năm 1285 · Kháng Chiến Chống Nguyên",
+		"category": "boss",
+		"boss_id": "thoat_hoan",
+		"color": Color(0.96, 0.42, 0.34),
+		"reward_coins": 35,
+		"story": "Trấn Nam Vương Thoát Hoan dẫn thiết kỵ Nguyên Mông tràn xuống Thăng Long hòng khuất phục Đại Việt. Trước sức mạnh đoàn kết của Hội nghị Diên Hồng và Hịch Tướng Sĩ, đại quân Mông Cổ đại bại, Thoát Hoan phải chui ống đồng trốn thoát.",
+		"quote": "Sát Thát! Đầu thần chưa rơi xuống đất, xin bệ hạ đừng lo!",
+		"plaque_label": "Đông A · 1285",
+		"hint": "Đánh bại Trấn Nam Vương Thoát Hoan tại Thành Thăng Long.",
+	},
+	"lieu_thang": {
+		"id": "lieu_thang",
+		"title": "Ải Chi Lăng — Chém Tướng Liễu Thăng",
+		"era": "Năm 1427 · Khởi Nghĩa Lam Sơn",
+		"category": "boss",
+		"boss_id": "lieu_thang",
+		"color": Color(0.42, 0.88, 0.56),
+		"reward_coins": 35,
+		"story": "Tổng binh Liễu Thăng cầm mười vạn viện binh nhà Minh tiến vào ải Chi Lăng với khí thế ngạo mạn. Nghĩa quân Lam Sơn nhử giặc vào vũng lầy núi Mã Yên, phục kích tiêu diệt chủ tướng giặc và mở đường cho đại thắng Đông Quan.",
+		"quote": "Đem đại nghĩa để thắng hung tàn, lấy chí nhân mà thay cường bạo!",
+		"plaque_label": "Chi Lăng · 1427",
+		"hint": "Đánh bại Tổng binh Liễu Thăng tại chương Ải Chi Lăng.",
+	},
+	"ton_si_nghi": {
+		"id": "ton_si_nghi",
+		"title": "Ngọc Hồi Đống Đa — Quét Sạch Tôn Sĩ Nghị",
+		"era": "Tết Kỷ Dậu 1789 · Đại Thắng Tây Sơn",
+		"category": "boss",
+		"boss_id": "ton_si_nghi",
+		"color": Color(1.0, 0.54, 0.36),
+		"reward_coins": 40,
+		"story": "Hai mươi chín vạn quân Thanh do Tôn Sĩ Nghị chỉ huy đóng chiếm Thăng Long dịp giáp Tết. Hoàng đế Quang Trung hành quân thần tốc, đánh tan đồn Ngọc Hồi và gò Đống Đa chỉ trong năm ngày đêm, khiến Tôn Sĩ Nghị bỏ ấn tín tháo chạy.",
+		"quote": "Đánh cho để dài tóc, đánh cho để đen răng, đánh cho sử tri Nam quốc anh hùng chi hữu chủ!",
+		"plaque_label": "Đống Đa · 1789",
+		"hint": "Đánh bại Tổng đốc Tôn Sĩ Nghị tại chương Gò Đống Đa.",
+	},
+	"tau_hy_vong": {
+		"id": "tau_hy_vong",
+		"title": "Hỏa Công Nhật Tảo — Đốt Tàu Hy Vọng",
+		"era": "Năm 1861 · Kháng Pháp Nam Bộ",
+		"category": "boss",
+		"boss_id": "tau_hy_vong",
+		"color": Color(0.36, 0.86, 0.94),
+		"reward_coins": 40,
+		"story": "Chiến hạm L'Espérance (Hy Vọng) của thủy quân Pháp án ngữ ngã ba vàm Nhật Tảo, uy hiếp nghĩa quân Tân An. Nguyễn Trung Trực giả làm thuyền buôn áp sát bất ngờ rồi phóng hỏa thiêu rụi tàu sắt giữa ban ngày.",
+		"quote": "Bao giờ người Tây nhổ hết cỏ nước Nam thì mới hết người Nam đánh Tây!",
+		"plaque_label": "Nhật Tảo · 1861",
+		"hint": "Đánh chìm Tàu chiến Hy Vọng tại chương Vàm Nhật Tảo.",
+	},
+	"don_truong": {
+		"id": "don_truong",
+		"title": "Hùm Thiêng Yên Thế — Hạ Đồn Nhã Nam",
+		"era": "Năm 1890 · Khởi Nghĩa Yên Thế",
+		"category": "boss",
+		"boss_id": "don_truong",
+		"color": Color(0.56, 0.82, 0.44),
+		"reward_coins": 45,
+		"story": "Quân viễn chinh Pháp xây dựng hệ thống đồn bốt dày đặc tại Nhã Nam hòng vây ép căn cứ nghĩa quân. Dưới sự chỉ huy của Hoàng Hoa Thám, đội quân áo nâu đánh du kích xuất quỷ nhập thần suốt gần ba thập kỷ.",
+		"quote": "Còn non, còn nước, còn người — Hùm thiêng Yên Thế chẳng lùi một bước!",
+		"plaque_label": "Yên Thế · 1890",
+		"hint": "Đánh bại Đồn trưởng Nhã Nam tại chương Rừng Yên Thế.",
+	},
+	"do_cat": {
+		"id": "do_cat",
+		"title": "Chấn Động Địa Cầu — Bắt Sống Đờ Cát",
+		"era": "Năm 1954 · Chiến Dịch Điện Biên Phủ",
+		"category": "boss",
+		"boss_id": "do_cat",
+		"color": Color(1.0, 0.80, 0.28),
+		"reward_coins": 50,
+		"story": "Tướng De Castries tự phụ biến thung lũng Điện Biên Phủ thành tập đoàn cứ điểm bất khả xâm phạm. Sau 56 ngày đêm khoét núi ngủ hầm, quân dân ta phất cao lá cờ Quyết Chiến Quyết Thắng trên nóc hầm chỉ huy Đờ Cát.",
+		"quote": "Chín năm làm một Điện Biên, nên vành hoa đỏ nên thiên sử vàng!",
+		"plaque_label": "Điện Biên · 1954",
+		"hint": "Đánh bại Đờ Cát tại chương Điện Biên Phủ.",
+	},
+	"ho_tinh_vuong": {
+		"id": "ho_tinh_vuong",
+		"title": "Đầm Xác Cáo — Diệt Cửu Vĩ Hồ Tinh",
+		"era": "Thần Thoại · Lĩnh Nam Chích Quái",
+		"category": "mythic",
+		"boss_id": "ho_tinh_vuong",
+		"color": Color(0.98, 0.44, 0.78),
+		"reward_coins": 40,
+		"story": "Cáo chín đuôi tu luyện nghìn năm trong hang đá Tây Hồ, hóa thân mê hoặc người dân quanh vùng. Lạc Long Quân dâng nước sông Hồng nhấn chìm hang ổ yêu ma, lập nên đầm Xác Cáo trong truyền thuyết Lĩnh Nam.",
+		"quote": "Tà mị chín đuôi tan biến trước chính khí Rồng Tiên.",
+		"plaque_label": "Hồ Tinh · Lĩnh Nam",
+		"hint": "Đánh bại Hồ Tinh (Tam Yêu giữa chương hoặc Đầm Xác Cáo).",
+	},
+	"moc_tinh_vuong": {
+		"id": "moc_tinh_vuong",
+		"title": "Rừng Chiên Đàn — Trảm Xương Cuồng Mộc Tinh",
+		"era": "Thần Thoại · Lĩnh Nam Chích Quái",
+		"category": "mythic",
+		"boss_id": "moc_tinh_vuong",
+		"color": Color(0.40, 0.92, 0.56),
+		"reward_coins": 45,
+		"story": "Cây chiên đàn cổ thụ cao ngất trời đất lâu năm thành tinh, biến thành yêu quái Xương Cuồng gieo rắc tai ương nơi rừng sâu. Tiếng trống đồng và ngọn lửa thiêng đã đánh bật gốc rễ ma thụ, trả lại bình yên cho núi rừng Phong Châu.",
+		"quote": "Gỗ mục hóa tinh sao địch nổi lưỡi búa khai thiên!",
+		"plaque_label": "Mộc Tinh · Lĩnh Nam",
+		"hint": "Đánh bại Mộc Tinh (Tam Yêu giữa chương hoặc Rừng Chiên Đàn).",
+	},
+	"ngu_tinh_vuong": {
+		"id": "ngu_tinh_vuong",
+		"title": "Biển Đông Dậy Sóng — Hàng Phục Ngư Tinh",
+		"era": "Thần Thoại · Lĩnh Nam Chích Quái",
+		"category": "mythic",
+		"boss_id": "ngu_tinh_vuong",
+		"color": Color(0.30, 0.76, 1.0),
+		"reward_coins": 50,
+		"story": "Thủy quái Ngư Tinh thân dài hàng chục trượng khuấy đảo biển Đông, nuốt chửng thuyền chài ven bờ. Bậc anh hùng nung khối sắt rực đỏ lao thẳng vào miệng thủy quái, chém tan yêu ngư bảo vệ hải phận Đại Việt.",
+		"quote": "Sóng dữ Biển Đông cũng phải khuất phục trước chí anh hùng.",
+		"plaque_label": "Ngư Tinh · Biển Đông",
+		"hint": "Đánh bại Ngư Tinh (Tam Yêu giữa chương hoặc Biển Đông Hắc Hải).",
+	},
+	"relic_boss_motif": {
+		"id": "relic_boss_motif",
+		"title": "Kỷ Vật Đoạt Binh — Thần Binh Trùm Đỏ",
+		"era": "Kỷ Vật · Chiến Tích Đại Sảnh",
+		"category": "relic",
+		"boss_id": "",
+		"color": Color(1.0, 0.28, 0.36),
+		"reward_coins": 40,
+		"story": "Từ những mảnh bản vẽ thu giữ sau trận tử chiến với các đại trùm, thợ rèn Đại Việt đã đúc nên Thần Binh Trùm Đỏ uy chấn thiên hạ. Thanh vũ khí này mang theo ấn ký chiến thắng của kẻ dám đối đầu hung tàn.",
+		"quote": "Lấy giáo giặc đâm giặc, lấy thần binh khắc tên vào sử xanh.",
+		"plaque_label": "Thần Binh Trùm",
+		"hint": "Ghép hoàn chỉnh bản vẽ hoặc sở hữu một Thần Binh Trùm Đỏ.",
+	},
+	"relic_merged_mythic": {
+		"id": "relic_merged_mythic",
+		"title": "Kỷ Vật Hợp Nhất — Song Binh Quy Tông",
+		"era": "Kỷ Vật · Lò Rèn Huyền Thoại",
+		"category": "relic",
+		"boss_id": "",
+		"color": Color(0.84, 0.48, 1.0),
+		"reward_coins": 45,
+		"story": "Âm dương giao hòa, lôi hỏa tương phùng — khi hai binh khí tương đồng cộng hưởng tại chiến trường hoặc qua bản vẽ huyền thoại, một Thần Binh Hợp Nhất tối thượng ra đời. Đó là đỉnh cao nghệ thuật luyện binh của đất Việt.",
+		"quote": "Hai dòng linh khí hợp làm một, uy lực chấn động càn khôn.",
+		"plaque_label": "Thần Binh Hợp Nhất",
+		"hint": "Hợp nhất hoặc ghép bản vẽ một Thần Binh Hợp Nhất Cấp 5.",
+	},
+	"coop_dong_tam": {
+		"id": "coop_dong_tam",
+		"title": "Kỷ Vật Đồng Tâm — Hợp Chiêu Đại Việt",
+		"era": "Kỷ Vật · Chiến Hảo Hữu LAN",
+		"category": "relic",
+		"boss_id": "",
+		"color": Color(1.0, 0.86, 0.32),
+		"reward_coins": 50,
+		"story": "Khi hai vị anh hùng sát cánh kề vai và cùng tung tuyệt kỹ trong khoảnh khắc sinh tử, hào quang Trống Đồng Đông Sơn bừng sáng nối liền tâm ý. Hợp Chiêu Đại Việt chứng minh sức mạnh đoàn kết vô địch trước mọi kẻ thù.",
+		"quote": "Đồng lòng tát cạn Biển Đông — Hợp chiêu một nhịp, quét tan quân thù!",
+		"plaque_label": "Hợp Chiêu Đồng Tâm",
+		"hint": "Kích hoạt một lần Hợp Chiêu Đại Việt cùng đồng đội LAN.",
+	},
+}
+
+
+static func get_entry(cid: String) -> Dictionary:
+	return DATA.get(cid, {})
+
+
+static func entry_for_boss(boss_id: String) -> String:
+	if boss_id == "":
+		return ""
+	var norm: String = str(MYTHIC_BOSS_ALIAS.get(boss_id, boss_id))
+	for cid_v in ORDER:
+		var cid: String = str(cid_v)
+		var d: Dictionary = DATA.get(cid, {})
+		if str(d.get("boss_id", "")) == norm:
+			return cid
+	return ""
+
+
+static func total_count() -> int:
+	return ORDER.size()
+
+
+static func entries_for_category(cat: String) -> Array:
+	if cat == "" or cat == "all":
+		return ORDER.duplicate()
+	var out: Array = []
+	for cid_v in ORDER:
+		var cid: String = str(cid_v)
+		var d: Dictionary = DATA.get(cid, {})
+		if str(d.get("category", "")) == cat:
+			out.append(cid)
+	return out

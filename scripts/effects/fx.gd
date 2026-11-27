@@ -4,6 +4,7 @@ extends RefCounted
 const Art = preload("res://scripts/art/art.gd")
 const Burst = preload("res://scripts/effects/burst.gd")
 const FloatText = preload("res://scripts/effects/float_text.gd")
+const GroundDecal = preload("res://scripts/effects/ground_decal.gd")
 
 static var _hitstop_active: bool = false
 
@@ -142,3 +143,42 @@ static func shake(tree: SceneTree, amount: float) -> void:
 
 static func draw_text_centered(ci: CanvasItem, pos: Vector2, text: String, size: int, color: Color) -> void:
 	Art.draw_text(ci, pos, text, size, color, true)
+
+
+## Vết chiến trường trên mặt đất (cháy nổ, vết chém, mảnh giáp, dấu chân, mực máu).
+static func decal(parent: Node, pos: Vector2, kind: String = "scorch", color: Color = Color.WHITE, scale_val: float = 1.0, rot: float = 0.0) -> Node2D:
+	if parent == null or not is_instance_valid(parent):
+		return null
+	var d := GroundDecal.new()
+	d.position = pos
+	d.rotation = rot
+	d.kind = kind
+	d.decal_color = color
+	d.decal_scale = scale_val
+	if kind == "footstep":
+		d.life = 2.0
+		d.max_life = 2.0
+	parent.add_child(d)
+	return d
+
+
+## Vệt bóng mờ vũ khí cộng sáng cho vũ khí Cấp 4-5 & Thần binh Trùm.
+static func weapon_trail(parent: Node, tex: Texture2D, pos: Vector2, rot: float, scale_vec: Vector2, flip_v: bool, color: Color, life: float = 0.22, offset_vec: Vector2 = Vector2.ZERO, is_centered: bool = true) -> void:
+	if parent == null or not is_instance_valid(parent) or tex == null:
+		return
+	var g := Sprite2D.new()
+	g.texture = tex
+	g.position = pos
+	g.rotation = rot
+	g.scale = scale_vec
+	g.flip_v = flip_v
+	if not is_centered or offset_vec != Vector2.ZERO:
+		g.centered = false
+		g.offset = offset_vec
+	g.modulate = Color(color.r, color.g, color.b, clampf(color.a * 0.72, 0.25, 0.75))
+	g.z_index = 1
+	g.material = Art.additive()
+	parent.add_child(g)
+	var tw := g.create_tween()
+	tw.tween_property(g, "modulate:a", 0.0, maxf(0.05, life))
+	tw.tween_callback(g.queue_free)

@@ -130,7 +130,9 @@ var _sprint_drain_acc: float = 0.0
 var _sprint_fx_t: float = 0.0
 var _lively_t: float = 0.0
 var _step_dust_t: float = 0.0
+var _footstep_decal_t: float = 0.0
 var _idle_sparkle_t: float = 0.75
+var _lobby_test_backup: Array = []
 
 # v2.0.0 Shared Contracts & Combat state
 var dash_cd_left: float = 0.0
@@ -792,6 +794,7 @@ func _process(delta: float) -> void:
 	_fx_t -= delta
 	_sprint_fx_t -= delta
 	_step_dust_t -= delta
+	_footstep_decal_t -= delta
 	_idle_sparkle_t -= delta
 	if _dash_time > 0.0:
 		elephant.visible = true
@@ -841,6 +844,9 @@ func _process(delta: float) -> void:
 				Fx.anim(get_parent(), global_position + Vector2(randf_range(-4.0, 4.0), 6.0), "fx/dust.png", 10, 10, 14.0, 0.95, 0.0, Color(0.75, 0.92, 1.0, 0.85))
 				Fx.particles(get_parent(), global_position + Vector2(0.0, 4.0), Color(0.42, 0.86, 1.0), 2, 42.0, 0.22, -20.0, 1.4, 40.0, -velocity.normalized())
 				Fx.afterimage(get_parent(), body, global_position, Color(0.38, 0.84, 1.0, 0.35), 0.16)
+			if sprinting and moving and velocity.length() > speed * 1.1 and mount_id == "" and _footstep_decal_t <= 0.0:
+				_footstep_decal_t = 0.22
+				Fx.decal(get_parent(), global_position + Vector2(randf_range(-2.0, 2.0), 7.0), "footstep", Color(0.75, 0.72, 0.65, 0.55), 0.9, velocity.angle())
 			elif moving and not sprinting and _step_dust_t <= 0.0:
 				_step_dust_t = 0.24
 				Fx.anim(get_parent(), global_position + Vector2(randf_range(-3.0, 3.0), 7.0), "fx/dust.png", 10, 10, 14.0, 0.72, 0.0, Color(0.92, 0.88, 0.8, 0.55))
@@ -1276,6 +1282,9 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 					cwr.knock = knock * 1.15
 					cwr.color = _tier_color(w)
 					get_parent().add_child(cwr)
+	var is_boss_motif: bool = bool(w.get("boss_motif", false))
+	var is_high_tier: bool = int(w.get("tier", 1)) >= 4 or is_boss_motif
+	var trail_col: Color = Color("ff384c") if is_boss_motif else _tier_color(w)
 	var first_hit = null
 	for e in get_tree().get_nodes_in_group("enemies"):
 		var has_hb: bool = e.has_method("closest_point_on_hurtbox")
@@ -1296,6 +1305,12 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			elif (mst == "slow" or float(w.get("slow", 0.0)) > 0.0 or buff("bang_tam") > 0) and is_instance_valid(e):
 				_apply_enemy_slow(e, maxf(float(w.get("slow", 0.0)), 2.0))
 			on_hit_enemy(e)
+			var lhc: Variant = e.get("last_hit_crit") if is_instance_valid(e) else null
+			var lc: Variant = e.get("last_crit") if is_instance_valid(e) else null
+			var was_crit: bool = (typeof(lhc) == TYPE_BOOL and (lhc as bool)) or (typeof(lc) == TYPE_BOOL and (lc as bool))
+			var is_heavy_hit: bool = offset == Vector2.ZERO and (combo_phase == 2 or float(w.get("_charge_scale", 1.0)) >= 1.2 or int(w.get("damage", 0)) >= 10)
+			if (was_crit or is_heavy_hit) and get_parent() != null:
+				Fx.decal(get_parent(), hit_pt, "slash_mark", Color(1.0, 0.88, 0.35) if was_crit else trail_col, 1.15 if was_crit else 0.95, aim_dir.angle())
 			if first_hit == null:
 				first_hit = e
 			Fx.anim(get_parent(), hit_pt, "fx/spark.png", 15, 15, 24.0, 1.0, 0.0, Color(1, 0.95, 0.7), true)
@@ -1361,6 +1376,18 @@ func _melee(w: Dictionary, offset := Vector2.ZERO, hit_stun: float = 0.0) -> voi
 			tw.tween_property(self, "swing", 0.0, 0.14)
 	var slash_col: Color = _tier_color(w)
 	Fx.slash(get_parent(), global_position + weapon_pivot.position, aim_dir, reach, arc, slash_col, style)
+	if is_high_tier and get_parent() != null and weapon_sprite != null and weapon_sprite.texture != null and weapon_pivot != null:
+		Fx.weapon_trail(get_parent(), weapon_sprite.texture, weapon_sprite.global_position, weapon_pivot.rotation + swing, weapon_sprite.scale, weapon_sprite.flip_v, trail_col, 0.22, weapon_sprite.offset, weapon_sprite.centered)
+		if style != "thrust" and is_inside_tree():
+			var wr_me: WeakRef = weakref(self)
+			var wr_par: WeakRef = weakref(get_parent())
+			get_tree().create_timer(0.05).timeout.connect(func():
+				var me: Variant = wr_me.get_ref()
+				var par: Variant = wr_par.get_ref()
+				if me == null or par == null or not is_instance_valid(me) or not is_instance_valid(par):
+					return
+				if me.weapon_sprite != null and me.weapon_sprite.texture != null and me.weapon_pivot != null and not me.dead:
+					Fx.weapon_trail(par as Node, me.weapon_sprite.texture, me.weapon_sprite.global_position, me.weapon_pivot.rotation + me.swing, me.weapon_sprite.scale, me.weapon_sprite.flip_v, trail_col, 0.22, me.weapon_sprite.offset, me.weapon_sprite.centered))
 	if w.has("wave"):
 		var b := Bullet.new()
 		var kind: String = w.wave
@@ -2050,6 +2077,8 @@ func _use_skill() -> void:
 	var imp: Dictionary = SynergyData.IMPRINTS.get(fam, SynergyData.IMPRINTS["kiem"])
 	Fx.float_text(parent, global_position + Vector2(0, -54), "Ấn: %s" % imp.name, SynergyData.family_color(fam), 13)
 	get_tree().call_group("hud", "show_cutin", hero_id)
+	if is_local and is_inside_tree():
+		get_tree().call_group("game_controller", "on_local_skill_cast", hero_id, global_position)
 	if is_local and Net != null and Net.is_online():
 		Net.send_player_action("skill", {
 			"skill": sk_id,
@@ -2193,6 +2222,19 @@ func _trigger_imprint(fam: String, cw: Dictionary) -> void:
 			skill_timer *= float(imp.cd_mult)
 
 
+func _emit_dash_strike_fx(epos: Vector2) -> void:
+	if get_parent() == null:
+		return
+	var cw: Dictionary = current_weapon()
+	var is_bm: bool = bool(cw.get("boss_motif", false))
+	if int(cw.get("tier", 1)) < 4 and not is_bm:
+		return
+	var tcol: Color = Color("ff384c") if is_bm else _tier_color(cw)
+	if weapon_sprite != null and weapon_sprite.texture != null and weapon_pivot != null:
+		Fx.weapon_trail(get_parent(), weapon_sprite.texture, weapon_sprite.global_position, weapon_pivot.rotation + swing, weapon_sprite.scale, weapon_sprite.flip_v, tcol, 0.22, weapon_sprite.offset, weapon_sprite.centered)
+	Fx.decal(get_parent(), epos, "slash_mark", tcol, 1.05, _dash_dir.angle())
+
+
 func _dash_damage() -> void:
 	var dash_dmg: int = 16 if _dash_syn == 2 else (13 if _dash_syn == 1 else 10)
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -2208,6 +2250,7 @@ func _dash_damage() -> void:
 					armor = mini(armor + 1, max_armor)
 					stats_changed.emit()
 			var epos: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+			_emit_dash_strike_fx(epos)
 			Fx.anim(get_parent(), epos, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1, 0.9, 0.6), true)
 			Fx.shake(get_tree(), 2.0)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
@@ -2227,6 +2270,7 @@ func _horse_damage() -> void:
 			if is_instance_valid(e) and not e.dead and e.has_method("apply_status"):
 				e.apply_status("burn", 2.5)
 			var epos: Vector2 = e.hurtbox_center() if e.has_method("hurtbox_center") else e.global_position
+			_emit_dash_strike_fx(epos)
 			Fx.anim(get_parent(), epos, "fx/spark.png", 15, 15, 24.0, 1.4, 0.0, Color(1.0, 0.6, 0.2), true)
 			Fx.shake(get_tree(), 2.0)
 	for b in get_tree().get_nodes_in_group("enemy_bullets"):
@@ -2622,6 +2666,48 @@ func pick_weapon(id: String) -> void:
 	if int(w.tier) >= 4:
 		Fx.particles(get_parent(), global_position, WeaponData.tier_color(id), 16, 90.0, 0.6, -40.0, 2.0)
 	Sfx.play("pickup_weapon")
+	_refresh_weapon_sprite()
+	stats_changed.emit()
+
+
+## Trang bị vũ khí thử nghiệm tại Võ Đường (không mở khóa bản vẽ hay rơi vũ khí cũ)
+func equip_test_weapon(wid: String) -> bool:
+	if not WeaponData.DATA.has(wid):
+		return false
+	_sync_weapon_slots()
+	if _lobby_test_backup.is_empty():
+		_lobby_test_backup = weapons.duplicate()
+	slot = clampi(slot, 0, maxi(0, weapons.size() - 1))
+	weapons[slot] = wid
+	_fire_timer = 0.0
+	_ranged_shot_count = 0
+	_melee_swing_count = 0
+	_charging = false
+	charge_ratio = 0.0
+	_refresh_weapon_sprite()
+	stats_changed.emit()
+	if get_parent() != null:
+		var wname: String = str(WeaponData.get_data(wid).get("name", wid))
+		Fx.float_text(get_parent(), global_position + Vector2(0, -26), "Thử: %s" % wname, WeaponData.tier_color(wid), 14)
+	return true
+
+
+## Khôi phục bộ vũ khí gốc sau khi rời Võ Đường / trước khi xuất trận
+func restore_test_weapons() -> void:
+	if _lobby_test_backup.is_empty():
+		return
+	weapons = _lobby_test_backup.duplicate()
+	_lobby_test_backup.clear()
+	_sync_weapon_slots()
+	slot = clampi(slot, 0, maxi(0, weapons.size() - 1))
+	if slot >= 0 and slot < weapons.size() and str(weapons[slot]) == "":
+		for i in weapons.size():
+			if str(weapons[i]) != "":
+				slot = i
+				break
+	_fire_timer = 0.0
+	_charging = false
+	charge_ratio = 0.0
 	_refresh_weapon_sprite()
 	stats_changed.emit()
 
@@ -3086,6 +3172,8 @@ func on_kill(pos: Vector2 = Vector2.ZERO) -> void:
 
 
 func on_crit_enemy(e) -> void:
+	if is_inside_tree():
+		Fx.hitstop(get_tree(), 0.026)
 	if buff("loi_dinh") > 0 and _lightning_cd <= 0.0 and is_instance_valid(e) and not e.dead:
 		_lightning_cd = 0.6
 		_chain_lightning(e, 3, 6)

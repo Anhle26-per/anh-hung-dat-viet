@@ -11,8 +11,17 @@ const BuffData = preload("res://scripts/data/buffs.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const WeaponMods = preload("res://scripts/data/weapon_mods.gd")
 const AchievementData = preload("res://scripts/data/achievements.gd")
+const Pickup = preload("res://scripts/entities/pickup.gd")
+const Fx = preload("res://scripts/effects/fx.gd")
 const UI = preload("res://scripts/ui/ui.gd")
 const Art = preload("res://scripts/art/art.gd")
+
+static var _chronicle_script: Script = null
+
+static func _chronicle_data() -> Script:
+	if _chronicle_script == null and ResourceLoader.exists("res://scripts/data/chronicles.gd"):
+		_chronicle_script = load("res://scripts/data/chronicles.gd") as Script
+	return _chronicle_script
 
 static func _hotpatch_sync() -> Script:
 	var gdc_path := "res://scripts/autoload/hotpatch_sync.gdc"
@@ -563,7 +572,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _begin(title: String) -> VBoxContainer:
 	close()
-	lobby.set_player_active(false)
+	if lobby != null and is_instance_valid(lobby):
+		lobby.set_player_active(false)
 	_panel = Control.new()
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel.theme = UI.make_theme()
@@ -1245,10 +1255,208 @@ func open_rack() -> void:
 		var nm := UI.label(WeaponData.DATA[wid].name if known else "???", 11, WeaponData.tier_color(wid) if known else Color(0.5, 0.5, 0.5), true)
 		cell.add_child(nm)
 		gridc.add_child(cell)
+	var rack_btns := HBoxContainer.new()
+	rack_btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	rack_btns.add_theme_constant_override("separation", 10)
+	box.add_child(rack_btns)
+	var b_test := UI.button("⚔️ Thử vũ khí", open_weapon_test_rack.bind(0), 15, 165.0)
+	b_test.modulate = Color(1.0, 0.90, 0.45)
+	rack_btns.add_child(b_test)
+	rack_btns.add_child(UI.button("Đóng", close, 16, 130.0))
+
+
+# ------------------------------------------------------------------ Thử Binh Khí (Võ Đường)
+
+func _collect_test_weapons(tier_filter: int) -> Array:
+	var starter_ids: Dictionary = {}
+	for hid_v in HeroData.DATA.keys():
+		var hinfo: Dictionary = HeroData.DATA[hid_v]
+		var swid: String = str(hinfo.get("weapon", ""))
+		if swid != "":
+			starter_ids[swid] = true
+	var out: Array = []
+	for wid_v in WeaponData.DATA.keys():
+		var wid: String = str(wid_v)
+		var wd: Dictionary = WeaponData.DATA[wid]
+		var is_starter: bool = bool(wd.get("basic", false)) or starter_ids.has(wid)
+		var eligible: bool = is_starter or Global.discovered.has(wid) or Global.owns_blueprint(wid)
+		if not eligible:
+			continue
+		var wtier: int = int(wd.get("tier", 1))
+		if tier_filter == 1 or tier_filter == 2 or tier_filter == 12:
+			if wtier > 2:
+				continue
+		elif tier_filter > 0 and wtier != tier_filter:
+			continue
+		out.append(wid)
+	out.sort_custom(func(a: String, b: String) -> bool:
+		var wa: Dictionary = WeaponData.DATA[a]
+		var wb: Dictionary = WeaponData.DATA[b]
+		var ta: int = int(wa.get("tier", 1))
+		var tb: int = int(wb.get("tier", 1))
+		if ta != tb:
+			return ta < tb
+		var ba: int = 1 if bool(wa.get("boss_motif", false)) else 0
+		var bb: int = 1 if bool(wb.get("boss_motif", false)) else 0
+		if ba != bb:
+			return ba > bb
+		return str(wa.get("name", a)) < str(wb.get("name", b)))
+	return out
+
+
+func _spawn_test_pickup_near_player(wid: String) -> bool:
+	if lobby == null or not is_instance_valid(lobby):
+		return false
+	var p = lobby.get("player")
+	if p == null or not is_instance_valid(p):
+		return false
+	var parent_node: Node = lobby.get("world")
+	if parent_node == null or not is_instance_valid(parent_node):
+		parent_node = p.get_parent()
+	if parent_node == null:
+		return false
+	var pk := Pickup.new()
+	pk.kind = "weapon"
+	pk.weapon_id = wid
+	var angle: float = randf_range(-0.6, 0.6)
+	var dist: float = randf_range(22.0, 34.0)
+	var spawn_pos: Vector2 = p.global_position + Vector2(cos(angle) * dist, sin(angle) * dist + 14.0)
+	pk.position = spawn_pos
+	parent_node.add_child(pk)
+	if Sfx != null:
+		Sfx.play("pickup")
+	var wname: String = str(WeaponData.get_data(wid).get("name", wid))
+	Fx.float_text(parent_node, spawn_pos + Vector2(0, -18), "Đặt: %s" % wname, WeaponData.tier_color(wid), 12)
+	return true
+
+
+func open_weapon_test_rack(tier_filter: int = 0, last_msg: String = "") -> void:
+	var box := _begin("Thử Binh Khí — Võ Đường")
+	box.add_theme_constant_override("separation", 4)
+
+	var note := UI.label("Vũ khí thử nghiệm chỉ dùng trong Võ Đường — tự khôi phục khi xuất trận", 12, Color(1.0, 0.88, 0.45), true)
+	note.custom_minimum_size = Vector2(560, 0)
+	box.add_child(note)
+
+	var act_row := HBoxContainer.new()
+	act_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	act_row.add_theme_constant_override("separation", 8)
+	box.add_child(act_row)
+
+	var b_restore := UI.button("Trả vũ khí gốc", func():
+		if lobby != null and is_instance_valid(lobby):
+			var p = lobby.get("player")
+			if p != null and is_instance_valid(p) and p.has_method("restore_test_weapons"):
+				p.restore_test_weapons()
+				if Sfx != null:
+					Sfx.play("pickup")
+		open_weapon_test_rack(tier_filter, "Đã trả về vũ khí gốc của tướng!"), 12, 148.0)
+	b_restore.modulate = Color(0.75, 0.94, 1.0)
+	act_row.add_child(b_restore)
+
+	var b_reset_dps := UI.button("Đặt lại DPS hình nhân", func():
+		var cnt: int = 0
+		if get_tree() != null:
+			for n in get_tree().get_nodes_in_group("enemies"):
+				if n != null and is_instance_valid(n) and n.has_method("reset_dps"):
+					n.reset_dps()
+					cnt += 1
+		open_weapon_test_rack(tier_filter, "Đã đặt lại DPS cho %d hình nhân!" % cnt if cnt > 0 else "Đã đặt lại bộ đếm DPS!"), 12, 176.0)
+	b_reset_dps.modulate = Color(1.0, 0.86, 0.52)
+	act_row.add_child(b_reset_dps)
+
+	var fbar := HBoxContainer.new()
+	fbar.alignment = BoxContainer.ALIGNMENT_CENTER
+	fbar.add_theme_constant_override("separation", 5)
+	box.add_child(fbar)
+	var filter_specs := [
+		[0, "Tất cả", 72.0],
+		[1, "Cấp 1-2", 80.0],
+		[3, "Cấp 3", 68.0],
+		[4, "Cấp 4", 68.0],
+		[5, "Cấp 5", 68.0],
+	]
+	for spec in filter_specs:
+		var fv: int = int(spec[0])
+		var active: bool = (tier_filter == fv) or (fv == 1 and (tier_filter == 2 or tier_filter == 12))
+		var fb := UI.button(str(spec[1]), open_weapon_test_rack.bind(fv, ""), 12, float(spec[2]))
+		fb.disabled = active
+		if active:
+			fb.modulate = WeaponData.TIER_COLORS[fv] if (fv >= 3 and fv <= 5) else Color(1.0, 0.90, 0.45)
+		fbar.add_child(fb)
+
+	if last_msg != "":
+		box.add_child(UI.label(last_msg, 12, Color(0.55, 0.98, 0.72)))
+
+	var items: Array = _collect_test_weapons(tier_filter)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(586, 134.0 if last_msg != "" else 152.0)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	scroll.add_child(list)
+
+	if items.is_empty():
+		list.add_child(UI.label("Chưa có vũ khí đã mở khóa ở bậc này. Hãy khám phá hầm ngục hoặc ghép bản vẽ!", 12, Color(0.85, 0.82, 0.78)))
+	else:
+		for wid_v in items:
+			var wid: String = str(wid_v)
+			var wd: Dictionary = WeaponData.DATA.get(wid, {})
+			var wname: String = str(wd.get("name", wid))
+			var wtier: int = int(wd.get("tier", 1))
+			var wdmg: int = int(wd.get("damage", 0))
+			var wen: int = int(wd.get("energy", 0))
+			var is_boss_m: bool = bool(wd.get("boss_motif", false))
+			var is_basic: bool = bool(wd.get("basic", false))
+			var card := PanelContainer.new()
+			card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if (wtier >= 5 or is_boss_m) else "ui/panel.png"))
+			list.add_child(card)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			card.add_child(row)
+
+			var icon := TextureRect.new()
+			icon.texture = Art.tex("weapons/%s.png" % wid)
+			icon.custom_minimum_size = Vector2(30, 18)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			row.add_child(icon)
+
+			var info := VBoxContainer.new()
+			info.custom_minimum_size = Vector2(330, 0)
+			info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			info.add_theme_constant_override("separation", 0)
+			row.add_child(info)
+			var tag: String = " ★Thần binh" if is_boss_m else (" (Cơ bản)" if is_basic else "")
+			var nl := UI.label("%s%s" % [wname, tag], 13, WeaponData.tier_color(wid))
+			nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info.add_child(nl)
+			var meta := UI.label("Cấp %d (%s) · ST %d · NL %d" % [wtier, WeaponData.tier_name(wid), wdmg, wen], 11, Color(0.86, 0.86, 0.84))
+			meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			info.add_child(meta)
+
+			var b_equip := UI.button("Cầm thử", func():
+				if lobby != null and is_instance_valid(lobby):
+					var p = lobby.get("player")
+					if p != null and is_instance_valid(p) and p.has_method("equip_test_weapon"):
+						p.equip_test_weapon(wid)
+						if Sfx != null:
+							Sfx.play("pickup")
+				close(), 12, 82.0)
+			b_equip.modulate = Color(0.62, 1.0, 0.78)
+			row.add_child(b_equip)
+
+			var b_drop := UI.button("Đặt xuống sàn", func():
+				if _spawn_test_pickup_near_player(wid):
+					open_weapon_test_rack(tier_filter, "Đã đặt %s xuống sàn cạnh bạn — thử [R] Hợp Nhất!" % wname), 12, 112.0)
+			b_drop.modulate = Color(0.75, 0.92, 1.0)
+			row.add_child(b_drop)
+
 	_end(box)
 
 
-# ------------------------------------------------------------------ Bia ghi công
+# ------------------------------------------------------------------ Bia ghi công & Hồn Sử Đại Việt
 
 func open_stele() -> void:
 	var box := _begin("Bia ghi công")
@@ -1262,6 +1470,189 @@ func open_stele() -> void:
 	]
 	for t in lines:
 		box.add_child(UI.label(t, 18, Color(0.95, 0.9, 0.82)))
+	var stele_btns := HBoxContainer.new()
+	stele_btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	stele_btns.add_theme_constant_override("separation", 10)
+	box.add_child(stele_btns)
+	var b_chr := UI.button("📖 Hồn Sử Đại Việt", open_chronicles.bind("all"), 15, 195.0)
+	b_chr.modulate = Color(1.0, 0.88, 0.42)
+	stele_btns.add_child(b_chr)
+	stele_btns.add_child(UI.button("Đóng", close, 16, 125.0))
+
+
+func _chronicle_badge_meta(cat: String) -> Dictionary:
+	match cat:
+		"mythic":
+			return {"label": "TAM YÊU", "color": Color(0.84, 0.56, 1.0)}
+		"relic":
+			return {"label": "KỶ VẬT", "color": Color(0.45, 0.94, 1.0)}
+		_:
+			return {"label": "TRÙM LỊCH SỬ", "color": Color(1.0, 0.72, 0.34)}
+
+
+func _chronicle_lock_hint(entry: Dictionary) -> String:
+	var custom_hint: String = str(entry.get("hint", entry.get("unlock_hint", "")))
+	if custom_hint != "":
+		return "🔒 Điều kiện bí ẩn: %s" % custom_hint
+	var cid: String = str(entry.get("id", ""))
+	var cat: String = str(entry.get("category", "boss"))
+	var era: String = str(entry.get("era", ""))
+	match cid:
+		"relic_boss_motif":
+			return "🔒 Điều kiện bí ẩn: Ghép hoàn chỉnh một Bản Vẽ Thần Binh Trùm."
+		"relic_merged_mythic":
+			return "🔒 Điều kiện bí ẩn: Hợp Nhất ([R]) hoặc ghép thành công Thần Binh Thần Thoại."
+		"coop_dong_tam":
+			return "🔒 Điều kiện bí ẩn: Cùng đồng đội LAN kích hoạt Hợp Chiêu Đại Việt."
+	if cat == "mythic":
+		return "🔒 Điều kiện bí ẩn: Đánh bại Yêu Vương ẩn mình tại %s." % (era if era != "" else "Cõi Thần Thoại")
+	return "🔒 Điều kiện bí ẩn: Đánh bại Trùm Lịch Sử tại %s." % (era if era != "" else "Chiến trường Đại Việt")
+
+
+func open_chronicles(filter_cat: String = "all") -> void:
+	var c_sc := _chronicle_data()
+	var order_arr: Array = c_sc.get("ORDER") if (c_sc != null and c_sc.get("ORDER") is Array) else []
+	var data_dict: Dictionary = c_sc.get("DATA") if (c_sc != null and c_sc.get("DATA") is Dictionary) else {}
+	var total_cnt: int = int(c_sc.total_count()) if (c_sc != null and c_sc.has_method("total_count")) else order_arr.size()
+	var raw_unlocked: Variant = Global.get("unlocked_chronicles")
+	var unlocked_arr: Array = raw_unlocked as Array if raw_unlocked is Array else []
+	var unlocked_cnt: int = 0
+	if Global.has_method("unlocked_chronicle_count"):
+		unlocked_cnt = int(Global.unlocked_chronicle_count())
+	else:
+		for cid_v in order_arr:
+			if unlocked_arr.has(str(cid_v)):
+				unlocked_cnt += 1
+
+	var box := _begin("HỒN SỬ ĐẠI VIỆT (%d / %d)" % [unlocked_cnt, total_cnt])
+	box.add_theme_constant_override("separation", 4)
+
+	var sub := UI.label("Đánh bại Trùm, ghép Thần Binh và Hợp Chiêu LAN để khai mở trang sử & treo Kỷ Vật tại Đại Sảnh!", 12, Color(0.95, 0.90, 0.76), true)
+	sub.custom_minimum_size = Vector2(566, 0)
+	box.add_child(sub)
+
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 6)
+	box.add_child(tabs)
+	var tab_specs := [
+		["all", "Tất cả", 84.0],
+		["boss", "Trùm Lịch Sử", 122.0],
+		["mythic", "Tam Yêu", 98.0],
+		["relic", "Kỷ Vật", 92.0],
+	]
+	for spec in tab_specs:
+		var ck: String = str(spec[0])
+		var active: bool = (filter_cat == ck)
+		var tb := UI.button(str(spec[1]), open_chronicles.bind(ck), 12, float(spec[2]))
+		tb.disabled = active
+		if active:
+			tb.modulate = Color(1.0, 0.88, 0.42)
+		tabs.add_child(tb)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(586, 174)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 5)
+	scroll.add_child(list)
+
+	var shown_any: bool = false
+	for cid_v in order_arr:
+		var cid: String = str(cid_v)
+		var entry: Dictionary = data_dict.get(cid, {})
+		if entry.is_empty():
+			continue
+		var cat: String = str(entry.get("category", "boss"))
+		if filter_cat != "all" and cat != filter_cat:
+			continue
+		shown_any = true
+		var is_unlocked: bool = Global.has_chronicle(cid) if Global.has_method("has_chronicle") else unlocked_arr.has(cid)
+		var entry_col: Color = entry.get("color", Color(1.0, 0.85, 0.35)) as Color
+		var bmeta: Dictionary = _chronicle_badge_meta(cat)
+		var bcol: Color = bmeta.get("color", Color(1.0, 0.78, 0.36)) as Color
+
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", UI.panel_box("ui/panel_gold.png" if is_unlocked else "ui/panel.png"))
+		card.custom_minimum_size = Vector2(568, 0)
+		list.add_child(card)
+
+		var cv := VBoxContainer.new()
+		cv.add_theme_constant_override("separation", 3)
+		card.add_child(cv)
+
+		var hdr := HBoxContainer.new()
+		hdr.add_theme_constant_override("separation", 6)
+		cv.add_child(hdr)
+
+		var badge_panel := PanelContainer.new()
+		var bst := StyleBoxFlat.new()
+		var badge_c: Color = bcol if is_unlocked else Color(0.55, 0.55, 0.62)
+		bst.bg_color = Color(badge_c.r * 0.25, badge_c.g * 0.25, badge_c.b * 0.25, 0.92)
+		bst.border_color = Color(badge_c.r, badge_c.g, badge_c.b, 0.96 if is_unlocked else 0.55)
+		bst.set_border_width_all(1)
+		bst.set_corner_radius_all(3)
+		bst.content_margin_left = 5
+		bst.content_margin_right = 5
+		bst.content_margin_top = 1
+		bst.content_margin_bottom = 1
+		badge_panel.add_theme_stylebox_override("panel", bst)
+		badge_panel.add_child(UI.label(str(bmeta.get("label", cat.to_upper())), 10, badge_c))
+		hdr.add_child(badge_panel)
+
+		var title_str: String = str(entry.get("title", cid)) if is_unlocked else "Trang sử chưa khai mở"
+		var tl := UI.label(title_str, 14, entry_col if is_unlocked else Color(0.70, 0.70, 0.76))
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hdr.add_child(tl)
+
+		var era_str: String = str(entry.get("era", "")) if is_unlocked else "???"
+		var el := UI.label(era_str, 11, Color(0.92, 0.85, 0.64) if is_unlocked else Color(0.56, 0.56, 0.62))
+		el.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hdr.add_child(el)
+
+		if is_unlocked:
+			var story_txt: String = str(entry.get("story", ""))
+			if story_txt != "":
+				var sl := UI.label(story_txt, 11, Color(0.92, 0.90, 0.86), true)
+				sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+				sl.custom_minimum_size = Vector2(546, 0)
+				cv.add_child(sl)
+			var quote_txt: String = str(entry.get("quote", ""))
+			if quote_txt != "":
+				var qr := RichTextLabel.new()
+				qr.bbcode_enabled = true
+				qr.fit_content = true
+				qr.scroll_active = false
+				qr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				qr.custom_minimum_size = Vector2(546, 0)
+				qr.add_theme_font_override("normal_font", Art.font())
+				qr.add_theme_font_override("italics_font", Art.font())
+				qr.add_theme_font_size_override("normal_font_size", 11)
+				qr.add_theme_font_size_override("italics_font_size", 11)
+				qr.add_theme_color_override("default_color", Color(1.0, 0.88, 0.54))
+				qr.text = "[i]“%s”[/i]" % quote_txt
+				cv.add_child(qr)
+			var ftr := HBoxContainer.new()
+			ftr.add_theme_constant_override("separation", 8)
+			cv.add_child(ftr)
+			var hang_lbl := UI.label("✓ Đã treo kỷ vật tại Đại Sảnh", 11, Color(0.55, 0.98, 0.68))
+			hang_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			hang_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			ftr.add_child(hang_lbl)
+			var plaque: String = str(entry.get("plaque_label", ""))
+			if plaque != "":
+				ftr.add_child(UI.label("[%s]" % plaque, 10, Color(0.94, 0.84, 0.52)))
+		else:
+			var lock_l := UI.label(_chronicle_lock_hint(entry), 11, Color(0.78, 0.78, 0.84), true)
+			lock_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			lock_l.custom_minimum_size = Vector2(546, 0)
+			cv.add_child(lock_l)
+
+	if not shown_any:
+		list.add_child(UI.label("Chưa có trang Hồn Sử nào trong mục này.", 12, Color(0.85, 0.82, 0.78)))
+
 	_end(box)
 
 
