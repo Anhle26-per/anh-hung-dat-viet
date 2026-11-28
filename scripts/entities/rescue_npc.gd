@@ -6,7 +6,7 @@ const Fx = preload("res://scripts/effects/fx.gd")
 
 var npc_id: String = "than_y_tue_tinh"
 var rescued: bool = false
-var _spr: Sprite2D = null
+var _spr: AnimatedSprite2D = null
 var _light: PointLight2D = null
 var _has_tex: bool = false
 
@@ -26,9 +26,14 @@ func _ready() -> void:
 
 	if ResourceLoader.exists("res://assets/sprites/world/rescue_cage.png"):
 		_has_tex = true
-		_spr = Sprite2D.new()
-		_spr.texture = Art.tex("world/rescue_cage.png")
-		_spr.position = Vector2(0, -10)
+		var ctex: Texture2D = Art.tex("world/rescue_cage.png")
+		_spr = AnimatedSprite2D.new()
+		if ctex != null and ctex.get_width() >= 192:
+			_spr.sprite_frames = Art.strip("world/rescue_cage.png", 32, 34, 7.5, true)
+		else:
+			_spr.sprite_frames = Art.frames("world/rescue_cage.png", 32, 34, {"play": [[0], 1.0, false]})
+		_spr.play("play")
+		_spr.position = Vector2(0, -11)
 		add_child(_spr)
 
 	_light = Art.light(col, 0.9, 0.75)
@@ -38,7 +43,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
-	if not rescued:
+	if not rescued and _spr != null and is_instance_valid(_spr):
+		_spr.position.x = sin(_t * 7.5) * 0.6
 		queue_redraw()
 
 

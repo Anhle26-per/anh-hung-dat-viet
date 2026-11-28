@@ -189,59 +189,64 @@ func _ready() -> void:
 			_add_shadow(Vector2(0, 2), Vector2(0.95, 0.85))
 		"npc_blacksmith":
 			z_index = 1
-			_spr = AnimatedSprite2D.new()
-			_spr.sprite_frames = Art.strip("world/npc_blacksmith.png", 28, 30, 5.5, true)
+			_spr = _make_npc_anim("world/npc_blacksmith.png", 28, 30)
 			_base_spr_y = -12.0
 			_spr.position = Vector2(0, _base_spr_y)
-			_spr.play("play")
 			add_child(_spr)
-			_add_shadow(Vector2(0, 2), Vector2(1.15, 0.9))
+			_add_shadow(Vector2(2, 3), Vector2(1.2, 0.95))
 			_add_npc_particles(Vector2(8, -10), Color(1.0, 0.86, 0.35, 0.95), Color(1.0, 0.35, 0.1, 0.0), 8, 0.9, 18.0, -24.0)
 			var gl := Art.light(Color(1.0, 0.58, 0.24), 0.75, 0.55)
 			gl.position = Vector2(6, -10)
 			add_child(gl)
 		"npc_tea_lady":
 			z_index = 1
-			_spr = AnimatedSprite2D.new()
-			_spr.sprite_frames = Art.strip("world/npc_tea_lady.png", 24, 30, 4.2, true)
+			_spr = _make_npc_anim("world/npc_tea_lady.png", 24, 30)
 			_base_spr_y = -12.0
 			_spr.position = Vector2(0, _base_spr_y)
-			_spr.play("play")
 			add_child(_spr)
-			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.85))
+			_add_shadow(Vector2(2, 3), Vector2(1.05, 0.9))
 			_add_npc_particles(Vector2(6, -15), Color(0.95, 0.98, 1.0, 0.6), Color(0.95, 0.98, 1.0, 0.0), 6, 1.4, 8.0, -10.0)
 		"npc_strategist":
 			z_index = 1
-			_spr = AnimatedSprite2D.new()
-			_spr.sprite_frames = Art.strip("world/npc_strategist.png", 24, 30, 4.5, true)
+			_spr = _make_npc_anim("world/npc_strategist.png", 24, 30)
 			_base_spr_y = -12.0
 			_spr.position = Vector2(0, _base_spr_y)
-			_spr.play("play")
 			add_child(_spr)
-			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.85))
+			_add_shadow(Vector2(2, 3), Vector2(1.05, 0.9))
 			_add_npc_particles(Vector2(0, -16), Color(0.55, 0.9, 1.0, 0.75), Color(0.95, 0.85, 0.45, 0.0), 6, 1.5, 10.0, -12.0)
 		"npc_scholar":
 			z_index = 1
-			_spr = AnimatedSprite2D.new()
-			_spr.sprite_frames = Art.strip("world/npc_scholar.png", 24, 30, 3.8, true)
+			_spr = _make_npc_anim("world/npc_scholar.png", 24, 30)
 			_base_spr_y = -12.0
 			_spr.position = Vector2(0, _base_spr_y)
-			_spr.play("play")
 			add_child(_spr)
-			_add_shadow(Vector2(0, 2), Vector2(1.0, 0.85))
+			_add_shadow(Vector2(2, 3), Vector2(1.05, 0.9))
 			_add_npc_particles(Vector2(5, -14), Color(1.0, 0.9, 0.45, 0.8), Color(1.0, 0.85, 0.3, 0.0), 6, 1.6, 8.0, -10.0)
 		"npc_guard":
 			z_index = 1
-			_spr = AnimatedSprite2D.new()
-			_spr.sprite_frames = Art.strip("world/npc_guard.png", 24, 30, 4.0, true)
+			_spr = _make_npc_anim("world/npc_guard.png", 24, 30)
 			_base_spr_y = -12.0
 			_spr.position = Vector2(0, _base_spr_y)
-			_spr.play("play")
 			add_child(_spr)
-			_add_shadow(Vector2(0, 2), Vector2(1.05, 0.88))
+			_add_shadow(Vector2(2, 3), Vector2(1.1, 0.92))
 			_add_npc_particles(Vector2(5, -22), Color(1.0, 0.92, 0.55, 0.65), Color(1.0, 0.55, 0.25, 0.0), 4, 1.2, 8.0, -8.0)
 	if _resting_hidden:
 		set_resting_hidden(true)
+
+
+func _make_npc_anim(rel: String, fw: int, fh: int) -> AnimatedSprite2D:
+	var a := AnimatedSprite2D.new()
+	var tex: Texture2D = Art.tex(rel)
+	if tex != null and tex.get_width() >= fw * 8:
+		a.sprite_frames = Art.frames(rel, fw, fh, {
+			"idle": [[0, 1, 2, 3], 4.4, true],
+			"action": [[4, 5, 6, 7], 7.8, true],
+		})
+		a.play("idle")
+	else:
+		a.sprite_frames = Art.strip(rel, fw, fh, 4.5, true)
+		a.play("play")
+	return a
 
 
 func _build_pond() -> void:
@@ -417,12 +422,20 @@ func _process(delta: float) -> void:
 			var breath := sin(_t * 3.4) * 0.03
 			_spr.position.y = _base_spr_y + sin(_t * 3.4) * 0.7
 			_spr.scale = Vector2(1.0 - breath * 0.5, 1.0 + breath)
+			var np: Node = Global.nearest_player(global_position) if Global != null else null
+			var p_near: bool = np != null and is_instance_valid(np) and global_position.distance_to((np as Node2D).global_position) < 76.0
+			if p_near:
+				_spr.flip_h = (np as Node2D).global_position.x < global_position.x
+			var has_act: bool = _spr.sprite_frames != null and _spr.sprite_frames.has_animation("action")
+			var acting: bool = p_near or fmod(_t, 4.6) < 2.2
+			if has_act:
+				_spr.play("action" if acting else "idle")
 			if kind == "npc_blacksmith":
 				_npc_fx_t -= delta
-				if _npc_fx_t <= 0.0 and get_parent() != null and _spr.frame == 2:
-					_npc_fx_t = 0.65
+				if _npc_fx_t <= 0.0 and get_parent() != null and (not has_act or (_spr.animation == "action" and _spr.frame == 2)):
+					_npc_fx_t = 0.52
 					Fx.particles(get_parent(), global_position + Vector2(8, -10), Color(1.0, 0.85, 0.3), 5, 42.0, 0.32, 65.0, 1.4, 100.0, Vector2.UP, Color(1.0, 0.35, 0.1))
-			elif kind == "npc_guard":
+			elif kind == "npc_guard" and not p_near:
 				_look_t -= delta
 				if _look_t <= 0.0:
 					_look_t = randf_range(3.5, 6.5)

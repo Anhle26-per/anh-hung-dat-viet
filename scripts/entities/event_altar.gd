@@ -48,12 +48,19 @@ func _ready() -> void:
 		var tex: Texture2D = Art.tex("world/%s.png" % kind)
 		if tex != null:
 			_spr = AnimatedSprite2D.new()
-			if tex.get_width() >= 64:
+			if tex.get_width() >= 256:
+				_spr.sprite_frames = Art.frames("world/%s.png" % kind, 32, 32, {
+					"idle": [[0, 1, 2, 3], 4.8, true],
+					"action": [[4, 5, 6, 7], 8.0, true],
+				})
+				_spr.play("idle")
+			elif tex.get_width() >= 64:
 				_spr.sprite_frames = Art.strip("world/%s.png" % kind, 32, 32, 5.5, true)
+				_spr.play("play")
 			else:
 				_spr.sprite_frames = Art.frames("world/%s.png" % kind, 32, 32, {"play": [[0], 1.0, false]})
+				_spr.play("play")
 			_spr.position = Vector2(0, -10)
-			_spr.play("play")
 			add_child(_spr)
 	var lcol: Color = _accent_color()
 	_light = Art.light(lcol, 1.35, 0.85)
@@ -448,14 +455,19 @@ func mark_arena_cleared() -> void:
 func _process(delta: float) -> void:
 	super(delta)
 	if _spr != null and is_instance_valid(_spr):
+		var has_act: bool = _spr.sprite_frames != null and _spr.sprite_frames.has_animation("action")
 		if not used:
 			var bob := sin(_t * 3.2) * 1.1
 			var br := sin(_t * 3.2) * 0.035
 			_spr.position.y = -10.0 + bob
 			_spr.scale = Vector2(1.0 - br * 0.5, 1.0 + br)
+			if has_act:
+				_spr.play("action" if (near or fmod(_t, 4.2) < 1.8) else "idle")
 		else:
 			_spr.position.y = -10.0
 			_spr.scale = Vector2.ONE
+			if has_act:
+				_spr.play("idle")
 	if _light != null and not used:
 		_light.energy = 0.8 + 0.18 * sin(_t * 4.5)
 	queue_redraw()

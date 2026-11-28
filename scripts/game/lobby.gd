@@ -758,8 +758,12 @@ func _build_stations() -> void:
 		var htex: Texture2D = Art.tex("heroes/%s.png" % id)
 		var fcount: int = (maxi(1, int(htex.get_width()) / 32) * maxi(1, int(htex.get_height()) / 32)) if htex != null else 4
 		var idle_seq: Array = [0, 1, 16, 2, 17, 3] if fcount >= 28 else [0, 1, 2, 3]
+		var act_seq: Array = [4, 5, 18, 19, 20, 21, 6, 7] if fcount >= 28 else [0, 1, 2, 3]
 		var idle_fps: float = (4.8 if fcount >= 28 else 3.0) + float(i) * 0.18
-		a.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {"idle": [idle_seq, idle_fps, true]})
+		a.sprite_frames = Art.frames("heroes/%s.png" % id, 32, 32, {
+			"idle": [idle_seq, idle_fps, true],
+			"action": [act_seq, 7.5, true],
+		})
 		a.play("idle")
 		a.position = Vector2(0, -10)
 		var spot: Vector2 = HERO_SPOTS[i] if i < HERO_SPOTS.size() else SPAWN_POS
@@ -1137,9 +1141,31 @@ func _process(delta: float) -> void:
 			var spr := hs.get_child(0) as AnimatedSprite2D
 			if spr != null:
 				var br: float = sin(_sway_t * 3.4 + float(h_idx) * 0.7) * 0.035
-				var hov_boost: float = 1.12 if str(id) == _hovered_hero_id else 1.0
+				var hov: bool = str(id) == _hovered_hero_id
+				var hov_boost: float = 1.12 if hov else 1.0
 				spr.scale = Vector2((1.0 - br) * hov_boost, (1.0 + br) * hov_boost)
+				if player != null and is_instance_valid(player) and hero_confirmed:
+					spr.flip_h = player.global_position.x < hs.global_position.x
+				if spr.sprite_frames != null and spr.sprite_frames.has_animation("action"):
+					var near_pl: bool = player != null and is_instance_valid(player) and hero_confirmed and hs.global_position.distance_to(player.global_position) < 62.0
+					var train_pulse: bool = fmod(_sway_t + float(h_idx) * 1.15, 5.2) < 1.35
+					spr.play("action" if (hov or near_pl or train_pulse) else "idle")
 		h_idx += 1
+
+	var r_idx: int = 0
+	for rid in _rescued_npc_nodes:
+		var rnd: Node2D = _rescued_npc_nodes[rid] as Node2D
+		if rnd != null and is_instance_valid(rnd) and rnd.visible:
+			var rspr: AnimatedSprite2D = rnd.get_meta("npc_spr", null) as AnimatedSprite2D
+			if rspr != null and is_instance_valid(rspr):
+				if player != null and is_instance_valid(player) and hero_confirmed:
+					rspr.flip_h = player.global_position.x < rnd.global_position.x
+				if rspr.sprite_frames != null and rspr.sprite_frames.has_animation("action"):
+					var rnear: bool = player != null and is_instance_valid(player) and hero_confirmed and rnd.global_position.distance_to(player.global_position) < 72.0
+					var ract: bool = rnear or fmod(_sway_t + float(r_idx) * 1.3, 4.4) < 1.8
+					rspr.play("action" if ract else "idle")
+				rspr.position.y = -12.0 + sin(_sway_t * 3.2 + float(r_idx)) * 0.7
+		r_idx += 1
 
 	if player == null or not is_instance_valid(player):
 		return
@@ -1560,11 +1586,23 @@ func _refresh_rescued_npcs() -> void:
 		sh.z_index = -1
 		nd.add_child(sh)
 		var spr := AnimatedSprite2D.new()
-		spr.sprite_frames = Art.strip(str(sp.get("sheet", "world/npc_scholar.png")), int(sp.get("fw", 24)), int(sp.get("fh", 30)), 4.2, true)
+		var npc_rel: String = str(sp.get("sheet", "world/npc_scholar.png"))
+		var npc_fw: int = int(sp.get("fw", 24))
+		var npc_fh: int = int(sp.get("fh", 30))
+		var npc_tex: Texture2D = Art.tex(npc_rel)
+		if npc_tex != null and npc_tex.get_width() >= npc_fw * 8:
+			spr.sprite_frames = Art.frames(npc_rel, npc_fw, npc_fh, {
+				"idle": [[0, 1, 2, 3], 4.4, true],
+				"action": [[4, 5, 6, 7], 7.5, true],
+			})
+			spr.play("idle")
+		else:
+			spr.sprite_frames = Art.strip(npc_rel, npc_fw, npc_fh, 4.2, true)
+			spr.play("play")
 		spr.position = Vector2(0, -12)
 		spr.modulate = col.lerp(Color.WHITE, 0.55)
-		spr.play("play")
 		nd.add_child(spr)
+		nd.set_meta("npc_spr", spr)
 		var lb := Label.new()
 		lb.text = CampNpcs.npc_name(npc_id)
 		lb.position = Vector2(-56, -38)

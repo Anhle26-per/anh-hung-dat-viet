@@ -304,17 +304,25 @@ func _ready() -> void:
 	add_child(aura)
 
 	elephant = AnimatedSprite2D.new()
-	elephant.sprite_frames = Art.strip("fx/elephant.png", 40, 30, 14.0, true)
-	elephant.position = Vector2(0, -2)
+	var ele_tex: Texture2D = Art.tex("fx/elephant.png")
+	if ele_tex != null and ele_tex.get_width() >= 320:
+		elephant.sprite_frames = Art.strip("fx/elephant.png", 40, 34, 14.0, true)
+	else:
+		elephant.sprite_frames = Art.strip("fx/elephant.png", 40, 30, 14.0, true)
+	elephant.position = Vector2(0, -3)
 	elephant.visible = false
 	add_child(elephant)
 
 	iron_horse = AnimatedSprite2D.new()
 	if ResourceLoader.exists("res://assets/sprites/fx/iron_horse.png"):
-		iron_horse.sprite_frames = Art.strip("fx/iron_horse.png", 40, 30, 14.0, true)
+		var ih_tex: Texture2D = Art.tex("fx/iron_horse.png")
+		if ih_tex != null and ih_tex.get_width() >= 320:
+			iron_horse.sprite_frames = Art.strip("fx/iron_horse.png", 40, 34, 14.0, true)
+		else:
+			iron_horse.sprite_frames = Art.strip("fx/iron_horse.png", 40, 30, 14.0, true)
 	else:
 		iron_horse.sprite_frames = elephant.sprite_frames
-	iron_horse.position = Vector2(0, -2)
+	iron_horse.position = Vector2(0, -3)
 	iron_horse.visible = false
 	add_child(iron_horse)
 
@@ -920,14 +928,48 @@ func _process(delta: float) -> void:
 			if mount_sprite != null:
 				mount_sprite.visible = true
 				mount_sprite.flip_h = face_left
-				if moving:
-					mount_sprite.play("play")
+				var has_named: bool = mount_sprite.sprite_frames != null and mount_sprite.sprite_frames.has_animation("move")
+				var charging_m: bool = sprinting or absf(_recoil) > 0.6
+				var bob_m: float = sin(float(Time.get_ticks_msec()) * 0.0055) * 0.7 if not moving else 0.0
+				mount_sprite.position = Vector2(0, -5.0 + bob_m)
+				if has_named:
+					if charging_m and mount_sprite.sprite_frames.has_animation("charge"):
+						mount_sprite.play("charge")
+						mount_sprite.speed_scale = 1.15
+					elif moving:
+						mount_sprite.play("move")
+						mount_sprite.speed_scale = clampf(velocity.length() / maxf(1.0, speed), 0.85, 1.55)
+					else:
+						mount_sprite.play("idle")
+						mount_sprite.speed_scale = 1.0
 				else:
-					mount_sprite.stop()
-			body.position = Vector2(0, -14 + body_bob_y * 0.5)
+					mount_sprite.play("play")
+				if shadow != null:
+					shadow.scale = Vector2(2.2, 1.2)
+			body.position = Vector2(0, -16 + body_bob_y * 0.5)
+			if visible and get_parent() != null:
+				if moving and _step_dust_t <= 0.0:
+					_step_dust_t = 0.12 if sprinting else 0.20
+					var back_dir: Vector2 = -velocity.normalized()
+					if mount_id == "ngua_sat_mount":
+						Fx.particles(get_parent(), global_position + Vector2(back_dir.x * 10.0, 6.0), Color(1.0, 0.58, 0.20), 4, 48.0, 0.30, -18.0, 1.5, 45.0, back_dir, Color(1.0, 0.90, 0.35))
+					elif mount_id == "xe_tang_mount":
+						Fx.particles(get_parent(), global_position + Vector2(back_dir.x * 14.0, -4.0), Color(0.72, 0.74, 0.78, 0.75), 3, 28.0, 0.42, -26.0, 1.6, 35.0, Vector2.UP)
+						Fx.decal(get_parent(), global_position + Vector2(0.0, 7.0), "footstep", Color(0.28, 0.26, 0.22, 0.45), 1.1, velocity.angle())
+					else:
+						Fx.anim(get_parent(), global_position + Vector2(back_dir.x * 8.0, 8.0), "fx/dust.png", 10, 10, 12.0, 1.15)
+						Fx.decal(get_parent(), global_position + Vector2(0.0, 8.0), "footstep", Color(0.42, 0.38, 0.32, 0.40), 1.2, velocity.angle())
+				elif not moving and _idle_sparkle_t <= 0.0:
+					_idle_sparkle_t = randf_range(0.75, 1.35)
+					if mount_id == "ngua_sat_mount":
+						Fx.particles(get_parent(), global_position + Vector2(-8.0 if face_left else 8.0, -6.0), Color(1.0, 0.65, 0.25), 2, 24.0, 0.32, -16.0, 1.3)
+					elif mount_id == "xe_tang_mount":
+						Fx.particles(get_parent(), global_position + Vector2(10.0 if face_left else -10.0, -6.0), Color(0.75, 0.78, 0.82, 0.65), 2, 18.0, 0.45, -24.0, 1.4)
 		else:
 			if mount_sprite != null:
 				mount_sprite.visible = false
+			if shadow != null:
+				shadow.scale = Vector2.ONE
 			body.position = Vector2(0, -6 + body_bob_y)
 		if visible and get_parent() != null:
 			if sprinting and moving and _sprint_fx_t <= 0.0:
@@ -2990,20 +3032,38 @@ func _refresh_mount_visual() -> void:
 		return
 	if mount_id == "" or mount_hp <= 0:
 		mount_sprite.visible = false
+		if shadow != null:
+			shadow.scale = Vector2.ONE
 		return
 	var rel_world: String = "world/%s.png" % mount_id
 	if ResourceLoader.exists("res://assets/sprites/" + rel_world):
 		var tex: Texture2D = Art.tex(rel_world)
-		var fw: int = mini(32, tex.get_width()) if tex != null else 32
-		var fh: int = tex.get_height() if tex != null else 32
-		mount_sprite.sprite_frames = Art.strip(rel_world, fw, fh, 6.0, true)
+		if tex != null and tex.get_width() >= 576:
+			mount_sprite.sprite_frames = Art.frames(rel_world, 48, 38, {
+				"idle": [[0, 1, 2, 3], 5.5, true],
+				"move": [[4, 5, 6, 7, 8, 9], 11.5, true],
+				"charge": [[10, 11], 14.0, true],
+			})
+			mount_sprite.position = Vector2(0, -5)
+			mount_sprite.play("idle")
+		else:
+			var fw: int = mini(32, tex.get_width()) if tex != null else 32
+			var fh: int = tex.get_height() if tex != null else 32
+			mount_sprite.sprite_frames = Art.strip(rel_world, fw, fh, 6.0, true)
+			mount_sprite.position = Vector2(0, -2)
+			mount_sprite.play("play")
 	elif mount_id == "voi_chien_mount" and elephant != null:
 		mount_sprite.sprite_frames = elephant.sprite_frames
+		mount_sprite.play("play")
 	elif mount_id == "ngua_sat_mount" and iron_horse != null:
 		mount_sprite.sprite_frames = iron_horse.sprite_frames
+		mount_sprite.play("play")
 	elif ResourceLoader.exists("res://assets/sprites/enemies/xe_tang.png"):
 		mount_sprite.sprite_frames = Art.strip("enemies/xe_tang.png", 40, 30, 8.0, true)
+		mount_sprite.play("play")
 	mount_sprite.visible = true
+	if shadow != null:
+		shadow.scale = Vector2(2.2, 1.2)
 
 
 func board_mount(mid: String, mhp: int = -1) -> void:

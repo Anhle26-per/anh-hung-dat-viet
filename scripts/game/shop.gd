@@ -68,10 +68,18 @@ func _ready() -> void:
 	add_child(sh)
 
 	_merchant = AnimatedSprite2D.new()
-	_merchant.sprite_frames = Art.strip("world/merchant.png", 32, 32, 5.2, true)
+	var mtex: Texture2D = Art.tex("world/merchant.png")
+	if mtex != null and mtex.get_width() >= 256:
+		_merchant.sprite_frames = Art.frames("world/merchant.png", 32, 32, {
+			"idle": [[0, 1, 2, 3], 4.8, true],
+			"action": [[4, 5, 6, 7], 7.8, true],
+		})
+		_merchant.play("idle")
+	else:
+		_merchant.sprite_frames = Art.strip("world/merchant.png", 32, 32, 5.2, true)
+		_merchant.play("play")
 	_merchant.position = Vector2(0, -42)
 	_merchant.scale = Vector2(1.28, 1.28)
-	_merchant.play("play")
 	add_child(_merchant)
 
 	var goods: Array = _roll_goods()
@@ -225,6 +233,13 @@ func _process(delta: float) -> void:
 		_spark_t = 0.95
 		Fx.particles(get_parent(), global_position + Vector2(randf_range(-20, 20), -42), Color(1.0, 0.9, 0.45), 3, 22.0, 0.55, -16.0, 1.5, 45.0, Vector2.UP, Color(1.0, 0.65, 0.25))
 	var p: Node = Global.nearest_player(global_position)
+	if _merchant != null and is_instance_valid(_merchant):
+		var p_near: bool = p != null and is_instance_valid(p) and global_position.distance_to(p.global_position) < 95.0
+		if p != null and is_instance_valid(p):
+			_merchant.flip_h = p.global_position.x < global_position.x
+		if _merchant.sprite_frames != null and _merchant.sprite_frames.has_animation("action"):
+			var act: bool = p_near or _line_t > 0.0 or fmod(_t, 4.5) > 3.1
+			_merchant.play("action" if act else "idle")
 	if p != null and _line_t < -6.0 and global_position.distance_to(p.global_position) < 75.0:
 		_say(LINES.pick_random())
 	queue_redraw()

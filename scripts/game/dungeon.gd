@@ -93,6 +93,13 @@ class RoomOverlay extends Node2D:
 			var kind: String = it["kind"]
 			var col: Color = it["accent"]
 			var shape_kind: String = it["shape"]
+			var room_rect: Rect2 = it.get("rect", Rect2()) as Rect2
+			if room_rect.size.x > 0.0:
+				# Ánh sáng xiên ấm góc trên-trái và bóng đổ nhẹ ven tường dưới-phải tạo chiều sâu phòng
+				var p0 := room_rect.position + Vector2(24.0, 24.0)
+				draw_circle(p0 + Vector2(44.0, 32.0), 96.0, Color(1.0, 0.92, 0.72, 0.045))
+				draw_rect(Rect2(room_rect.position.x + 12.0, room_rect.end.y - 24.0, room_rect.size.x - 24.0, 14.0), Color(0.05, 0.03, 0.09, 0.14))
+				draw_rect(Rect2(room_rect.end.x - 20.0, room_rect.position.y + 18.0, 10.0, room_rect.size.y - 32.0), Color(0.05, 0.03, 0.09, 0.10))
 			# Mảng màu ấm nhẹ giữa phòng phá cảm giác đơn sắc
 			var glow_col: Color = Color(1.0, 0.85, 0.55, 0.08) if kind in ["treasure", "shop", "start", "victory_hall"] else Color(col.r, col.g, col.b, 0.07)
 			if kind == "boss" or kind == "legend":
@@ -360,7 +367,7 @@ func generate(level: int) -> void:
 		rooms[c] = r
 		rooms_by_key[r.room_key] = r
 		_decorate(c, r.kind, doors[c], chapter, floor_cells)
-		ov_items.append({"center": r.rect.get_center(), "kind": r.kind, "shape": str(room_shapes[c]), "accent": theme_accents[row % theme_accents.size()]})
+		ov_items.append({"center": r.rect.get_center(), "rect": r.rect, "kind": r.kind, "shape": str(room_shapes[c]), "accent": theme_accents[row % theme_accents.size()]})
 		if r.kind in ["start", "treasure", "shop", "boss", "legend", "victory_hall", "event"]:
 			var lcol: Color = Color(1.0, 0.55, 0.35) if r.kind in ["boss", "legend"] else (Color(0.45, 0.92, 1.0) if r.kind == "event" else (Color(0.84, 0.56, 1.0) if (r.kind == "victory_hall" and level >= 32) else Color(1.0, 0.86, 0.55)))
 			var pl := Art.light(lcol, 0.42 if r.kind == "boss" else 0.52, 2.2)

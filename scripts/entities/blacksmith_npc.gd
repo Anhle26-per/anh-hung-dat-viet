@@ -36,10 +36,18 @@ func _ready() -> void:
 	add_child(_forge)
 
 	_smith = AnimatedSprite2D.new()
-	_smith.sprite_frames = Art.strip("world/npc_blacksmith.png", 28, 30, 5.5, true)
+	var stex: Texture2D = Art.tex("world/npc_blacksmith.png")
+	if stex != null and stex.get_width() >= 224:
+		_smith.sprite_frames = Art.frames("world/npc_blacksmith.png", 28, 30, {
+			"idle": [[0, 1, 2, 3], 4.5, true],
+			"action": [[4, 5, 6, 7], 8.0, true],
+		})
+		_smith.play("action")
+	else:
+		_smith.sprite_frames = Art.strip("world/npc_blacksmith.png", 28, 30, 5.5, true)
+		_smith.play("play")
 	_smith.position = Vector2(13, -7)
 	_smith.flip_h = true
-	_smith.play("play")
 	add_child(_smith)
 
 	_light = Art.light(Color(1.0, 0.62, 0.28), 1.05, 0.8)
@@ -125,13 +133,23 @@ func _process(delta: float) -> void:
 	if _smith != null and is_instance_valid(_smith):
 		var br := sin(_t * 3.8) * 0.03
 		_smith.scale = Vector2(1.0 - br * 0.5, 1.0 + br)
+		var has_action: bool = _smith.sprite_frames != null and _smith.sprite_frames.has_animation("action")
 		if not used:
+			var np: Node = Global.nearest_player(global_position)
+			if np != null and is_instance_valid(np):
+				_smith.flip_h = (np as Node2D).global_position.x < global_position.x + 10.0
+			if has_action:
+				var hammering: bool = near or fmod(_t, 4.0) < 2.3
+				_smith.play("action" if hammering else "idle")
 			_spark_t -= delta
-			if _spark_t <= 0.0 and _smith.frame == 2:
-				_spark_t = 0.72
+			var hit_f: int = 2
+			if _spark_t <= 0.0 and _smith.frame == hit_f and (not has_action or _smith.animation == "action"):
+				_spark_t = 0.55
 				Fx.particles(_fx_parent(), global_position + Vector2(3, -8), Color(1.0, 0.86, 0.35), 6, 52.0, 0.38, 65.0, 1.6, 110.0, Vector2.UP, Color(1.0, 0.35, 0.1))
 		else:
-			_smith.speed_scale = 0.45
+			if has_action:
+				_smith.play("idle")
+			_smith.speed_scale = 0.65
 	if _light != null and not used:
 		_light.energy = 0.72 + 0.22 * sin(_t * 8.5)
 	queue_redraw()

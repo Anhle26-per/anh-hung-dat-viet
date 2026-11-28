@@ -33,8 +33,10 @@ const MOUNT_DATA: Dictionary = {
 var mount_id: String = "voi_chien_mount"
 var mount_hp: int = -1
 var _used: bool = false
-var _spr: Sprite2D = null
+var _spr: AnimatedSprite2D = null
 var _light: PointLight2D = null
+var _act_t: float = 0.0
+var _fx_cd: float = 0.4
 
 
 func _ready() -> void:
@@ -47,11 +49,22 @@ func _ready() -> void:
 		mount_hp = int(MOUNT_DATA[mount_id].get("hp", 12))
 	var info: Dictionary = MOUNT_DATA[mount_id]
 	var col: Color = info.get("color", Color(1.0, 0.85, 0.35)) as Color
-	var spr_path: String = "res://assets/sprites/" + str(info.get("sprite", ""))
+	var rel: String = str(info.get("sprite", ""))
+	var spr_path: String = "res://assets/sprites/" + rel
 	if ResourceLoader.exists(spr_path):
-		_spr = Sprite2D.new()
-		_spr.texture = Art.tex(str(info.get("sprite", "")))
-		_spr.position = Vector2(0, -6)
+		var tex: Texture2D = Art.tex(rel)
+		_spr = AnimatedSprite2D.new()
+		if tex != null and tex.get_width() >= 576:
+			_spr.sprite_frames = Art.frames(rel, 48, 38, {
+				"idle": [[0, 1, 2, 3], 5.5, true],
+				"move": [[4, 5, 6, 7, 8, 9], 9.5, true],
+				"charge": [[10, 11], 11.0, true],
+			})
+			_spr.play("idle")
+		else:
+			_spr.sprite_frames = Art.strip(rel, mini(32, tex.get_width()) if tex != null else 32, tex.get_height() if tex != null else 32, 4.0, true)
+			_spr.play("play")
+		_spr.position = Vector2(0, -10)
 		add_child(_spr)
 	_light = Art.light(col, 1.15, 0.75)
 	_light.position = Vector2(0, -4)
@@ -98,8 +111,21 @@ func interact() -> void:
 
 func _process(delta: float) -> void:
 	super(delta)
-	if _spr != null:
-		_spr.position.y = -6.0 + sin(_t * 3.5) * 1.5
+	_act_t += delta
+	_fx_cd -= delta
+	if _spr != null and is_instance_valid(_spr):
+		_spr.position.y = -10.0 + sin(_t * 3.5) * 1.2
+		if _spr.sprite_frames != null and _spr.sprite_frames.has_animation("move"):
+			var cycle: float = fmod(_act_t, 3.6)
+			if near or cycle > 2.4:
+				_spr.play("charge" if near and cycle > 3.1 else "move")
+			else:
+				_spr.play("idle")
+		if _fx_cd <= 0.0 and get_parent() != null:
+			_fx_cd = 0.45 if near else 0.95
+			var info: Dictionary = _mount_info()
+			var col: Color = info.get("color", Color(1.0, 0.85, 0.35)) as Color
+			Fx.particles(get_parent(), global_position + Vector2(randf_range(-8.0, 8.0), -6.0), col, 2, 26.0, 0.35, -18.0, 1.4)
 	queue_redraw()
 
 
@@ -107,9 +133,9 @@ func _draw() -> void:
 	var info: Dictionary = _mount_info()
 	var col: Color = info.get("color", Color(1.0, 0.85, 0.35)) as Color
 	var pulse: float = 0.5 + 0.5 * sin(_t * 4.0)
-	draw_circle(Vector2(0, 6), 15.0, Color(0.0, 0.0, 0.0, 0.32))
-	draw_set_transform(Vector2(0, 6), 0.0, Vector2(1.0, 0.42))
-	draw_arc(Vector2.ZERO, 17.0 + pulse * 1.5, 0.0, TAU, 24, Color(col, 0.35 + 0.25 * pulse), 1.4)
+	draw_set_transform(Vector2(2, 9), 0.0, Vector2(1.45, 0.55))
+	draw_circle(Vector2.ZERO, 15.0, Color(0.06, 0.04, 0.10, 0.36))
+	draw_arc(Vector2.ZERO, 16.0 + pulse * 1.5, 0.0, TAU, 24, Color(col, 0.35 + 0.25 * pulse), 1.4)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	if _spr == null:

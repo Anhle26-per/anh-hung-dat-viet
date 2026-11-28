@@ -24,11 +24,13 @@ def mix(c1, c2, k):
 
 
 def lighten(c, k):
-    return mix(c, (255, 244, 218), k)
+    # Hue-shift ánh sáng vàng nắng ấm
+    return mix(c, (255, 240, 202), k)
 
 
 def darken(c, k):
-    return mix(c, (24, 18, 34), k)
+    # Hue-shift bóng đổ tím lam lạnh tạo chiều sâu khối
+    return mix(c, (26, 18, 44), k)
 
 
 # Bảng màu đa sắc cho 8 bối cảnh (sàn, tường, mái, lối đi, viền cỏ/đá, nghi lễ)
@@ -333,31 +335,41 @@ def wall_pair(th, v, rng):
         if v == 1:
             du.rectangle([6, 8, 9, 11], fill=gold)
 
-    # Mái / viền nóc tường trên (màu khác thân tường tạo độ nổi khối)
+    # Mái / viền nóc tường trên có bóng đổ mái hiên phía dưới tạo chiều sâu 3D
     du.rectangle([0, 0, 15, 3], fill=roof)
-    du.line([(0, 0), (15, 0)], fill=lighten(roof, 0.22))
-    du.line([(0, 3), (15, 3)], fill=darken(roof, 0.28))
+    du.line([(0, 0), (15, 0)], fill=lighten(roof, 0.28))
+    du.line([(0, 3), (15, 3)], fill=darken(roof, 0.34))
+    du.line([(0, 4), (15, 4)], fill=darken(base, 0.42))
+    du.line([(0, 5), (15, 5)], fill=darken(base, 0.22))
     if k in ("brick", "plaster", "lacquer"):
         for x in range(0, T, 4):
-            du.line([(x + 1, 0), (x + 1, 2)], fill=lighten(roof, 0.14))
-    # Chân tường đậm tiếp giáp sàn (plinth)
-    plinth = darken(base, 0.35)
-    dl.rectangle([0, 12, 15, 15], fill=plinth)
-    dl.line([(0, 12), (15, 12)], fill=darken(base, 0.18))
-    dl.line([(0, 15), (15, 15)], fill=darken(plinth, 0.35))
+            du.line([(x + 1, 0), (x + 1, 2)], fill=lighten(roof, 0.18))
+            du.point([(x + 3) % T, 2], fill=darken(roof, 0.22))
+    elif k in ("stone", "bamboo"):
+        if v == 1:
+            # Dây leo rêu rủ từ mái xuống tường
+            du.line([(2, 3), (3, 9)], fill=darken(acc, 0.20))
+            du.line([(3, 4), (4, 7)], fill=acc)
+    # Chân tường đậm tiếp giáp sàn (plinth AO rõ nét)
+    plinth = darken(base, 0.44)
+    dl.rectangle([0, 11, 15, 15], fill=plinth)
+    dl.line([(0, 11), (15, 11)], fill=darken(base, 0.26))
+    dl.line([(0, 14), (15, 14)], fill=darken(plinth, 0.38))
+    dl.line([(0, 15), (15, 15)], fill=darken(plinth, 0.52))
     return up, lo
 
 
 def wall_top(th, rng):
     """Cột 8: nóc tường / mái vây hài hòa với nền bối cảnh, không kẻ ô vuông gắt."""
     roof = C(th["roof"])
-    base = darken(roof, 0.28)
+    base = darken(roof, 0.30)
     img = _img(base)
     px = img.load()
     d = ImageDraw.Draw(img)
     _soft_mottle(px, rng, 0, 0, 15, 15, base, 6, 0.08)
-    d.rectangle([1, 1, 14, 14], fill=mix(base, roof, 0.35))
-    d.line([(2, 2), (13, 2)], fill=lighten(roof, 0.10))
+    d.rectangle([1, 1, 14, 14], fill=mix(base, roof, 0.38))
+    d.line([(2, 2), (13, 2)], fill=lighten(roof, 0.14))
+    d.line([(2, 13), (13, 13)], fill=darken(roof, 0.36))
     return img
 
 
@@ -366,49 +378,60 @@ def shadows():
     px = img.load()
     for y in range(T):
         for x in range(T):
-            top = max(0.0, 1.0 - y / 10.0)
-            left = max(0.0, 1.0 - x / 6.0)
+            top = max(0.0, 1.0 - y / 13.0)
+            left = max(0.0, 1.0 - x / 8.0)
             if top > 0.0:
-                px[x, y] = (14, 8, 22, int(135 * top * top))
+                px[x, y] = (16, 10, 28, int(155 * top * top))
             if left > 0.0:
-                px[T + x, y] = (14, 8, 22, int(95 * left * left))
+                px[T + x, y] = (16, 10, 28, int(112 * left * left))
             c = max(top, left)
             if c > 0.0:
-                px[T * 2 + x, y] = (14, 8, 22, int(135 * c * c))
+                px[T * 2 + x, y] = (16, 10, 28, int(155 * c * c))
     save(img, "world/shadows.png")
 
 
 def details():
     img = Image.new("RGBA", (T * 8, T), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    o = 0   # sỏi nhiều cỡ
+    o = 0   # sỏi nhiều cỡ có bóng đổ & ánh sáng
     for x, y in ((4, 9), (8, 11), (11, 7)):
-        d.ellipse([o + x, y, o + x + 3, y + 2], fill=C("b4ac9c"))
-        d.point([o + x + 1, y + 2], fill=C("6a645a"))
-    o = T   # bụi cỏ xanh tươi 2 tầng
+        d.ellipse([o + x, y + 1, o + x + 3, y + 3], fill=(22, 16, 30, 120))
+        d.ellipse([o + x, y, o + x + 3, y + 2], fill=C("b8b09e"))
+        d.point([o + x + 1, y], fill=C("e6dec8"))
+        d.point([o + x + 2, y + 2], fill=C("6a6458"))
+    o = T   # bụi cỏ xanh tươi 3 tầng
     for x, h in ((4, 5), (7, 7), (9, 6), (11, 4)):
-        d.line([(o + x, 13), (o + x + (1 if x % 2 else -1), 13 - h)], fill=C("528e34"))
-    d.line([(o + 7, 13), (o + 7, 6)], fill=C("86d254"))
-    o = T * 2   # lá rụng thu
-    for x, y, c in ((4, 6, "d08438"), (9, 10, "b46028"), (11, 5, "e6aa42")):
+        d.line([(o + x, 13), (o + x + (1 if x % 2 else -1), 13 - h)], fill=C("386824"))
+    d.line([(o + 7, 13), (o + 7, 6)], fill=C("62aa42"))
+    d.point([o + 7, 6], fill=C("a8e878"))
+    o = T * 2   # lá rụng thu nhiều sắc độ
+    for x, y, c, ch in ((4, 6, "c8762c", "f0a648"), (9, 10, "9e4e20", "d47a38"), (11, 5, "d89632", "f8ce66")):
+        d.ellipse([o + x, y + 1, o + x + 3, y + 3], fill=(24, 16, 28, 95))
         d.ellipse([o + x, y, o + x + 3, y + 2], fill=C(c))
-    o = T * 3   # hoa dại nhiều màu
-    for x, y, pet in ((5, 7, "ffffff"), (10, 10, "ffbfd4")):
+        d.point([o + x + 1, y], fill=C(ch))
+    o = T * 3   # hoa dại có lá nền & cánh nổi
+    for x, y, pet in ((5, 7, "fff6ec"), (10, 10, "ffbfd4")):
+        d.ellipse([o + x - 1, y + 1, o + x + 1, y + 2], fill=C("3e722a"))
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
             d.point([o + x + dx, y + dy], fill=C(pet))
         d.point([o + x, y], fill=C("ffd048"))
-    o = T * 4   # vết nứt mềm
-    d.line([(o + 3, 4), (o + 7, 8), (o + 6, 12), (o + 10, 14)], fill=(34, 24, 34, 110))
-    o = T * 5   # mảnh xương
-    d.line([(o + 4, 9), (o + 11, 7)], fill=C("ede4d0"), width=2)
+    o = T * 4   # vết nứt có viền sáng cạnh vỡ
+    d.line([(o + 4, 4), (o + 8, 8), (o + 7, 12), (o + 11, 14)], fill=(255, 240, 210, 50))
+    d.line([(o + 3, 4), (o + 7, 8), (o + 6, 12), (o + 10, 14)], fill=(28, 18, 34, 135))
+    o = T * 5   # mảnh xương có khối
+    d.line([(o + 4, 10), (o + 11, 8)], fill=(24, 16, 30, 105), width=2)
+    d.line([(o + 4, 9), (o + 11, 7)], fill=C("d8ceb8"), width=2)
+    d.line([(o + 5, 8), (o + 10, 7)], fill=C("fff8ec"), width=1)
     d.point([o + 3, 9], fill=C("ede4d0"))
     d.point([o + 12, 7], fill=C("ede4d0"))
-    o = T * 6   # vũng nước lấp lánh
-    d.ellipse([o + 2, 6, o + 13, 11], fill=(70, 118, 168, 145))
-    d.line([(o + 4, 8), (o + 9, 8)], fill=(208, 238, 255, 190))
-    o = T * 7   # rơm vàng
+    o = T * 6   # vũng nước lấp lánh đa sắc
+    d.ellipse([o + 2, 6, o + 13, 11], fill=(48, 88, 138, 155))
+    d.ellipse([o + 3, 7, o + 11, 10], fill=(78, 136, 192, 165))
+    d.line([(o + 4, 8), (o + 9, 8)], fill=(224, 246, 255, 210))
+    o = T * 7   # rơm vàng 2 lớp
     for i in range(5):
-        d.line([(o + 3 + i * 2, 11), (o + 6 + i * 2, 8 - i % 2)], fill=C("e8cc74"))
+        d.line([(o + 3 + i * 2, 12), (o + 6 + i * 2, 9 - i % 2)], fill=C("b08c3e"))
+        d.line([(o + 3 + i * 2, 11), (o + 6 + i * 2, 8 - i % 2)], fill=C("f0d478"))
     save(img, "world/details.png")
 
 

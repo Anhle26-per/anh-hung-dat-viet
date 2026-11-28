@@ -14,7 +14,8 @@ var hp: int = 3
 var max_hp: int = 3
 var radius: float = 7.5
 
-var _spr: Sprite2D = null
+var _spr: Node2D = null
+var _light: PointLight2D = null
 var _dead: bool = false
 var _t: float = 0.0
 
@@ -87,29 +88,53 @@ func _ready() -> void:
 
 	var sh := Sprite2D.new()
 	sh.texture = Art.tex("fx/shadow.png")
-	sh.position = Vector2(0, 6 if kind in ["wall_h", "wall_v", "pillar"] else 4)
-	sh.scale = Vector2(2.8, 1.1) if kind == "wall_h" else (Vector2(1.4, 1.1) if kind in ["sandbag", "pillar", "wall_v"] else Vector2(1.1, 0.9))
+	sh.position = Vector2(3, 6 if kind in ["wall_h", "wall_v", "pillar", "stele"] else 5)
+	sh.scale = Vector2(3.1, 1.25) if kind == "wall_h" else (Vector2(1.75, 1.2) if kind in ["sandbag", "pillar", "wall_v", "stele"] else Vector2(1.3, 1.0))
+	sh.modulate = Color(0.22, 0.16, 0.32, 0.76)
 	sh.z_index = -1
 	add_child(sh)
 
-	if kind in ["pot", "crate", "stele", "sandbag"]:
-		_spr = Sprite2D.new()
-		_spr.texture = Art.tex("world/%s.png" % kind)
-		if kind == "stele":
-			_spr.scale = Vector2(0.75, 0.75)
-			_spr.position = Vector2(0, -7)
-		else:
-			_spr.position = Vector2(0, -4)
-		add_child(_spr)
+	if kind == "barrel_boom" and ResourceLoader.exists("res://assets/sprites/world/barrel_boom.png"):
+		var anim := AnimatedSprite2D.new()
+		anim.sprite_frames = Art.strip("world/barrel_boom.png", 18, 22, 8.5, true)
+		anim.play("play")
+		anim.position = Vector2(0, -6)
+		add_child(anim)
+		_spr = anim
+		_light = Art.light(Color(1.0, 0.62, 0.24), 0.75, 0.55)
+		_light.position = Vector2(2, -14)
+		add_child(_light)
+	elif kind in ["pot", "crate", "stele", "sandbag", "pillar", "wall_h", "wall_v"]:
+		var rel: String = "world/%s.png" % ("cover_" + kind if kind in ["wall_h", "wall_v"] else kind)
+		if ResourceLoader.exists("res://assets/sprites/" + rel):
+			var sp := Sprite2D.new()
+			sp.texture = Art.tex(rel)
+			if kind == "stele":
+				sp.position = Vector2(0, -10)
+			elif kind == "pillar":
+				sp.position = Vector2(0, -9)
+			elif kind == "wall_h":
+				sp.position = Vector2(0, -3)
+			elif kind == "wall_v":
+				sp.position = Vector2(0, -2)
+			else:
+				sp.position = Vector2(0, -6)
+			add_child(sp)
+			_spr = sp
 
 
 func _process(delta: float) -> void:
 	if kind == "barrel_boom":
 		_t += delta
-		queue_redraw()
+		if _light != null and is_instance_valid(_light):
+			_light.energy = 0.45 + 0.18 * sin(_t * 11.0)
+		if _spr == null:
+			queue_redraw()
 
 
 func _draw() -> void:
+	if _spr != null:
+		return
 	match kind:
 		"wall_h":
 			# Mảng tường đá / gạch cổ nằm ngang (46x22) không thể phá
