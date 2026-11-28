@@ -1,7 +1,7 @@
 """Chạy file này để vẽ lại toàn bộ đồ họa vào assets/sprites/.
    python3 tools/sprites/build_all.py
 """
-import art_heroes, art_chars, art_demons, art_legends, art_weapons, art_enemies, art_fx, art_world, art_soldiers, art_buffs, art_tiles, art_lobby, art_lobby_props, art_v30
+import art_heroes, art_chars, art_demons, art_legends, art_weapons, art_enemies, art_fx, art_world, art_soldiers, art_buffs, art_tiles, art_lobby, art_lobby_props, art_v30, art_coloa
 from px import save, outline, Image, OUT
 import os
 
@@ -21,6 +21,7 @@ art_tiles.build()     # gạch nền + tường 2 tầng (ghi đè bản cũ)
 art_lobby.build()     # tranh nền doanh trại
 art_lobby_props.build()  # công trình & đồ trang trí sảnh chính
 art_v30.build()       # mở rộng v3.0.0: 3 trùm mới, 4 thần thú, Cổ Loa & doanh trại
+art_coloa.build()     # nâng cấp chi tiết Thành Ốc Cổ Loa (v3.0.0 polish)
 # biểu tượng Hịch tướng sĩ = mặt trống đồng nhỏ có viền
 with Image.open(os.path.join(OUT, "ui/skill_hich_tuong_si_raw.png")) as f_raw:
 	f_raw.load()

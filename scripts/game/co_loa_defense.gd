@@ -1,5 +1,6 @@
 extends Node2D
-## Đấu trường Thủ Thành Cổ Loa (v3.0.0): bảo vệ Nỏ Thần Cổ Loa qua các đợt tiến công vô tận.
+## Đấu trường Thủ Thành Cổ Loa (v3.0.0): Thành Ốc 3 vòng, hào nước cầu gỗ, 4 cổng thành
+## sống động & bảo vệ Nỏ Thần Cổ Loa qua các đợt tiến công vô tận.
 
 signal portal_entered
 signal wave_started(wave: int)
@@ -9,7 +10,6 @@ signal core_destroyed
 const CoLoaData = preload("res://scripts/data/co_loa_data.gd")
 const CoLoaCore = preload("res://scripts/entities/co_loa_core.gd")
 const DefenseTower = preload("res://scripts/entities/defense_tower.gd")
-const Dungeon = preload("res://scripts/game/dungeon.gd")
 const Enemy = preload("res://scripts/entities/enemy.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const MaterialData = preload("res://scripts/data/materials.gd")
@@ -17,10 +17,9 @@ const Pickup = preload("res://scripts/entities/pickup.gd")
 const Art = preload("res://scripts/art/art.gd")
 const Fx = preload("res://scripts/effects/fx.gd")
 
-const T := 16
-const HALF_W := 34
-const HALF_H := 24
 const PREP_DURATION := 10.0
+const COLOA_BG_PATH := "res://assets/sprites/world/coloa_bg.png"
+const GATE_ARCH_PATH := "res://assets/sprites/world/coloa_gate_arch.png"
 
 
 class ArenaRoom extends RefCounted:
@@ -39,6 +38,7 @@ var tiles: TileMapLayer = null
 var rooms: Dictionary = {}
 var links: Array = []
 
+var _arena_built: bool = false
 var _enemies: Array = []
 var _spawn_queue: Array[String] = []
 var _spawn_t: float = 0.0
@@ -46,6 +46,8 @@ var _spawn_interval: float = 0.8
 var _elite_chance: float = 0.08
 var _lane_cursor: int = 0
 var _start_f_down: bool = false
+var _fx_t: float = 0.0
+var _sway_nodes: Array = []
 
 
 func _ready() -> void:
@@ -55,28 +57,22 @@ func _ready() -> void:
 
 
 func setup_arena() -> void:
-	if tiles != null and is_instance_valid(tiles):
+	if _arena_built:
 		return
+	_arena_built = true
 	var ar := ArenaRoom.new()
 	ar.rect = CoLoaData.ARENA_RECT
 	rooms[Vector2i.ZERO] = ar
 
-	tiles = TileMapLayer.new()
-	tiles.tile_set = _make_tileset()
-	tiles.z_index = -2
-	add_child(tiles)
+	if ResourceLoader.exists(COLOA_BG_PATH):
+		var bg := Sprite2D.new()
+		bg.texture = Art.tex("world/coloa_bg.png")
+		bg.position = Vector2.ZERO
+		bg.z_index = -5
+		add_child(bg)
 
-	var floor_cells: Dictionary = {}
-	for x in range(-HALF_W, HALF_W + 1):
-		for y in range(-HALF_H, HALF_H + 1):
-			floor_cells[Vector2i(x, y)] = true
-
-	Dungeon.paint(tiles, floor_cells, 2)
-	var shade := TileMapLayer.new()
-	shade.tile_set = tiles.tile_set
-	shade.z_index = -1
-	add_child(shade)
-	Dungeon.paint_shadows(shade, floor_cells)
+	_build_perimeter_walls()
+	_build_fortress_props()
 
 	core = CoLoaCore.new()
 	core.position = CoLoaData.CORE_POS
@@ -93,13 +89,148 @@ func setup_arena() -> void:
 		add_child(tw)
 		towers.append(tw)
 
+	if Global != null and Global.run_coins < 45:
+		var bonus: int = 20 if (Global.rescued_npcs is Array and Global.rescued_npcs.has("quan_su_co_loa")) else 0
+		Global.run_coins = 45 + bonus
+
 	state = "prep"
 	prep_time = PREP_DURATION
 	queue_redraw()
 
 
+func _add_wall_rect(r: Rect2) -> void:
+	var body := StaticBody2D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var cs := CollisionShape2D.new()
+	var sh := RectangleShape2D.new()
+	sh.size = r.size
+	cs.shape = sh
+	cs.position = r.get_center()
+	body.add_child(cs)
+	add_child(body)
+
+
+func _build_perimeter_walls() -> void:
+	var r: Rect2 = CoLoaData.ARENA_RECT
+	var t: float = 24.0
+	_add_wall_rect(Rect2(r.position.x - t, r.position.y - t, r.size.x + t * 2.0, t))
+	_add_wall_rect(Rect2(r.position.x - t, r.end.y, r.size.x + t * 2.0, t))
+	_add_wall_rect(Rect2(r.position.x - t, r.position.y, t, r.size.y))
+	_add_wall_rect(Rect2(r.end.x, r.position.y, t, r.size.y))
+
+
+func _prop(rel: String, pos: Vector2, z: int = 0) -> Sprite2D:
+	if not ResourceLoader.exists("res://assets/sprites/" + rel):
+		return null
+	var sp := Sprite2D.new()
+	sp.texture = Art.tex(rel)
+	sp.position = pos
+	sp.z_index = z
+	add_child(sp)
+	return sp
+
+
+func _anim_prop(rel: String, fw: int, fh: int, fps: float, pos: Vector2, light_col: Color = Color.TRANSPARENT, z: int = 1) -> AnimatedSprite2D:
+	if not ResourceLoader.exists("res://assets/sprites/" + rel):
+		return null
+	var a := AnimatedSprite2D.new()
+	a.sprite_frames = Art.strip(rel, fw, fh, fps, true)
+	a.play("play")
+	a.position = pos
+	a.z_index = z
+	add_child(a)
+	if light_col != Color.TRANSPARENT:
+		var lt := Art.light(light_col, 1.05, 0.78)
+		lt.position = Vector2(0.0, -6.0)
+		a.add_child(lt)
+	return a
+
+
+func _build_fortress_props() -> void:
+	# 4 Cổng Thành mái ngói cong + Đỉnh lửa sáng rực
+	var gate_positions: Array[Vector2] = [
+		Vector2(0.0, -214.0),
+		Vector2(0.0, 206.0),
+		Vector2(-306.0, -4.0),
+		Vector2(306.0, -4.0),
+	]
+	if ResourceLoader.exists(GATE_ARCH_PATH):
+		for gp in gate_positions:
+			_prop("world/coloa_gate_arch.png", gp + Vector2(0.0, -14.0), 3)
+
+	var braziers: Array[Vector2] = [
+		Vector2(-46.0, -196.0), Vector2(46.0, -196.0),
+		Vector2(-46.0, 214.0), Vector2(46.0, 214.0),
+		Vector2(-290.0, -42.0), Vector2(-290.0, 40.0),
+		Vector2(290.0, -42.0), Vector2(290.0, 40.0),
+		Vector2(-68.0, -48.0), Vector2(68.0, -48.0),
+		Vector2(-68.0, 50.0), Vector2(68.0, 50.0),
+	]
+	for bp in braziers:
+		_anim_prop("world/prop_brazier.png", 26, 32, 6.5, bp, Color(1.0, 0.60, 0.24), 1)
+
+	# Tượng Nghê chầu Nỏ Thần & Cờ chiến Cổ Loa tại 4 góc quảng trường
+	for np in [Vector2(-46.0, -6.0), Vector2(46.0, -6.0)]:
+		var nsp := _prop("world/nghe.png", np, 1)
+		if nsp != null and np.x < 0.0:
+			nsp.flip_h = true
+	for fp in [Vector2(-224.0, -146.0), Vector2(224.0, -146.0), Vector2(-224.0, 146.0), Vector2(224.0, 146.0)]:
+		_prop("world/prop_flag_stand.png", fp + Vector2(0.0, -12.0), 1)
+		_anim_prop("world/prop_stone_lantern.png", 32, 48, 4.0, fp + Vector2(24.0 if fp.x < 0.0 else -24.0, 6.0), Color(1.0, 0.78, 0.42), 1)
+
+	# Bao cát phòng tuyến ngoài cầu & khóm tre xanh 4 góc đồng cỏ
+	for sb in [
+		Vector2(-42.0, -298.0), Vector2(42.0, -298.0),
+		Vector2(-42.0, 298.0), Vector2(42.0, 298.0),
+		Vector2(-404.0, -44.0), Vector2(-404.0, 44.0),
+		Vector2(404.0, -44.0), Vector2(404.0, 44.0),
+	]:
+		_prop("world/sandbag.png", sb, 0)
+
+	for cp in [
+		Vector2(-485.0, -330.0), Vector2(-438.0, -345.0),
+		Vector2(485.0, -330.0), Vector2(438.0, -345.0),
+		Vector2(-485.0, 330.0), Vector2(-438.0, 345.0),
+		Vector2(485.0, 330.0), Vector2(438.0, 345.0),
+	]:
+		var piv := Node2D.new()
+		piv.position = cp
+		add_child(piv)
+		if ResourceLoader.exists("res://assets/sprites/world/lobby_bamboo.png"):
+			var bsp := Sprite2D.new()
+			bsp.texture = Art.tex("world/lobby_bamboo.png")
+			bsp.position = Vector2(0.0, -22.0)
+			piv.add_child(bsp)
+		_sway_nodes.append(piv)
+
+	# Đom đóm & tàn lửa vàng nhạt bay khắp chiến trường Cổ Loa
+	var motes := CPUParticles2D.new()
+	motes.position = Vector2.ZERO
+	motes.amount = 34
+	motes.lifetime = 4.2
+	motes.preprocess = 4.2
+	motes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	motes.emission_rect_extents = Vector2(520.0, 360.0)
+	motes.direction = Vector2(0.3, -1.0)
+	motes.spread = 35.0
+	motes.gravity = Vector2(0.0, -6.0)
+	motes.initial_velocity_min = 6.0
+	motes.initial_velocity_max = 15.0
+	motes.scale_amount_min = 1.0
+	motes.scale_amount_max = 2.0
+	var mg := Gradient.new()
+	mg.set_color(0, Color(1.0, 0.88, 0.42, 0.0))
+	mg.add_point(0.45, Color(1.0, 0.86, 0.42, 0.72))
+	mg.set_color(mg.get_point_count() - 1, Color(1.0, 0.72, 0.28, 0.0))
+	motes.color_ramp = mg
+	motes.material = Art.additive()
+	motes.z_index = 4
+	add_child(motes)
+
+
 func start_position() -> Vector2:
-	return Vector2(0.0, 56.0)
+	return Vector2(0.0, 62.0)
 
 
 func neighbors_of(_c: Vector2i) -> Array:
@@ -136,6 +267,11 @@ func start_next_wave() -> void:
 
 
 func _process(delta: float) -> void:
+	_fx_t += delta
+	for i in _sway_nodes.size():
+		var nd: Node2D = _sway_nodes[i] as Node2D
+		if nd != null and is_instance_valid(nd):
+			nd.rotation = sin(_fx_t * 1.5 + float(i) * 1.2) * 0.03
 	if state == "gameover":
 		return
 	var is_auth: bool = Net == null or not Net.is_online() or Net.is_host()
@@ -181,7 +317,7 @@ func _spawn_lane_enemy(kind: String) -> void:
 		return
 	var lane_pos: Vector2 = CoLoaData.SPAWN_LANES[_lane_cursor % CoLoaData.SPAWN_LANES.size()]
 	_lane_cursor += 1
-	var jitter := Vector2(randf_range(-18.0, 18.0), randf_range(-18.0, 18.0))
+	var jitter := Vector2(randf_range(-16.0, 16.0), randf_range(-16.0, 16.0))
 	var spawn_pos: Vector2 = lane_pos + jitter
 	var eff_level: int = maxi(1, wave)
 
@@ -215,7 +351,6 @@ func _update_enemy_pressure(delta: float) -> void:
 			continue
 		var e2: Node2D = e as Node2D
 		var eradius: float = float(e.get("radius"))
-		# Nếu người chơi ở xa, kéo nhẹ giặc tiến về Nỏ Thần Cổ Loa
 		var np: Node = Global.nearest_player(e2.global_position) if Global != null else null
 		var dist_player: float = e2.global_position.distance_to((np as Node2D).global_position) if (np != null and is_instance_valid(np)) else INF
 		if dist_player > 165.0 and core != null and is_instance_valid(core):
@@ -224,7 +359,6 @@ func _update_enemy_pressure(delta: float) -> void:
 				var spd: float = clampf(float(e.get("speed")) * 0.5, 16.0, 44.0)
 				e2.global_position += to_core.normalized() * spd * delta
 
-		# Tấn công cận chiến vào Nỏ Thần Cổ Loa
 		if core != null and is_instance_valid(core) and core.has_method("distance_to_hurtbox"):
 			if float(core.distance_to_hurtbox(e2.global_position)) <= eradius + 10.0:
 				var cd_until: float = float(e.get_meta("coloa_core_cd", 0.0))
@@ -233,7 +367,6 @@ func _update_enemy_pressure(delta: float) -> void:
 					var dmg_core: int = 3 if (e.has_method("is_boss") and e.is_boss()) else (2 if bool(e.get("elite")) else 1)
 					core.take_damage(dmg_core)
 
-		# Tấn công vào Tháp phòng thủ lân cận
 		for tw in towers:
 			if tw == null or not is_instance_valid(tw) or int(tw.get("tier")) <= 0:
 				continue
@@ -268,7 +401,6 @@ func _on_wave_cleared() -> void:
 		if lp != null and is_instance_valid(lp) and lp.has_signal("stats_changed"):
 			lp.stats_changed.emit()
 
-	# Rơi nguyên liệu quanh tâm
 	var mat_pool: Array = MaterialData.ORDER
 	if not mat_pool.is_empty():
 		var pk := Pickup.new()
@@ -278,7 +410,6 @@ func _on_wave_cleared() -> void:
 		pk.position = Vector2(randf_range(-32.0, 32.0), 34.0)
 		add_child(pk)
 
-	# Mỗi 4 đợt tặng Cổ Vật nếu hệ thống Cổ Vật sẵn sàng
 	if wave % 4 == 0:
 		_roll_wave_relic()
 
@@ -312,7 +443,7 @@ func _roll_wave_relic() -> void:
 		(Global.get("run_relics") as Array).append(rid)
 	var rname: String = str(rinfo.get("name", rid))
 	var rcol: Color = rinfo.get("color", Color(1.0, 0.85, 0.35))
-	Fx.float_text(self, Vector2(0.0, -36.0), "★ Cổ Vật: %s ★" % rname, rcol, 15)
+	Fx.float_text(self, Vector2(0.0, -48.0), "★ Cổ Vật: %s ★" % rname, rcol, 15)
 
 
 func _on_core_destroyed() -> void:
@@ -324,45 +455,21 @@ func _on_core_destroyed() -> void:
 	queue_redraw()
 
 
-func _make_tileset() -> TileSet:
-	var ts := TileSet.new()
-	ts.tile_size = Vector2i(T, T)
-	ts.add_physics_layer()
-	ts.set_physics_layer_collision_layer(0, 1)
-	ts.set_physics_layer_collision_mask(0, 0)
-	var src := TileSetAtlasSource.new()
-	src.texture = Art.tex("world/tiles.png")
-	src.texture_region_size = Vector2i(T, T)
-	ts.add_source(src, 0)
-	var h := T / 2.0
-	var square := PackedVector2Array([Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)])
-	for row in int(src.texture.get_height() / T):
-		for col in int(src.texture.get_width() / T):
-			src.create_tile(Vector2i(col, row))
-			if col >= 4 and col <= 8:
-				var td := src.get_tile_data(Vector2i(col, row), 0)
-				td.add_collision_polygon(0)
-				td.set_collision_polygon_points(0, 0, square)
-	var sh := TileSetAtlasSource.new()
-	sh.texture = Art.tex("world/shadows.png")
-	sh.texture_region_size = Vector2i(T, T)
-	ts.add_source(sh, 1)
-	for i in 3:
-		sh.create_tile(Vector2i(i, 0))
-	return ts
-
-
 func _draw() -> void:
-	# 4 đường hành quân dẫn vào Nỏ Thần
-	var road_col := Color(0.86, 0.68, 0.32, 0.14)
-	draw_line(Vector2(0.0, -340.0), Vector2(0.0, 340.0), road_col, 24.0)
-	draw_line(Vector2(-490.0, 0.0), Vector2(490.0, 0.0), road_col, 24.0)
-	draw_arc(CoLoaData.CORE_POS, 120.0, 0.0, TAU, 48, Color(0.95, 0.78, 0.34, 0.18), 2.0)
-	draw_arc(CoLoaData.CORE_POS, 245.0, 0.0, TAU, 56, Color(0.95, 0.78, 0.34, 0.10), 1.5)
-	for lane in CoLoaData.SPAWN_LANES:
-		draw_circle(lane, 18.0, Color(0.95, 0.30, 0.26, 0.18))
-		draw_arc(lane, 18.0, 0.0, TAU, 24, Color(1.0, 0.44, 0.34, 0.55), 1.5)
-	if state == "prep":
-		Art.draw_text(self, Vector2(0.0, -56.0), "Chuẩn bị Đợt %d (%.0fs) — [F] Gọi giặc ngay" % [wave + 1, maxf(0.0, prep_time)], 13, Color(1.0, 0.92, 0.55), true)
-	elif state == "fighting":
-		Art.draw_text(self, Vector2(0.0, -56.0), "Đợt %d — Đang giao chiến (%d giặc)" % [wave, _spawn_queue.size() + _enemies.size()], 13, Color(1.0, 0.58, 0.44), true)
+	# Dấu cổng tiến công 4 hướng (mũi tên cảnh báo hướng giặc xuất hiện)
+	var pulse: float = 0.45 + 0.45 * sin(_fx_t * 5.0)
+	var warn_col := Color(1.0, 0.42, 0.30, (0.35 + 0.45 * pulse) if state == "prep" else 0.32)
+	for i in CoLoaData.SPAWN_LANES.size():
+		var lane: Vector2 = CoLoaData.SPAWN_LANES[i]
+		var inward: Vector2 = (-lane).normalized()
+		var side := Vector2(-inward.y, inward.x)
+		draw_circle(lane, 20.0, Color(0.95, 0.28, 0.24, 0.16))
+		draw_arc(lane, 20.0, 0.0, TAU, 24, warn_col, 1.5)
+		var tip: Vector2 = lane + inward * (28.0 + pulse * 5.0)
+		draw_colored_polygon(PackedVector2Array([
+			tip + inward * 8.0,
+			tip - inward * 4.0 + side * 7.0,
+			tip - inward * 4.0 - side * 7.0,
+		]), warn_col)
+		if i < CoLoaData.GATE_NAMES.size():
+			Art.draw_text(self, lane + inward * 42.0, CoLoaData.GATE_NAMES[i], 10, Color(1.0, 0.82, 0.48, 0.85), true)

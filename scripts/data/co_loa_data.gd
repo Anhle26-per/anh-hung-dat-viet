@@ -12,11 +12,13 @@ const TOWER_ORDER: Array = [
 const TOWERS: Dictionary = {
 	"luy_tre_nga": {
 		"name": "Lũy Tre Ngà",
+		"short_label": "Lũy Tre",
 		"desc": "Thành tre kiên cố chắn đường, phản gai & làm chậm giặc áp sát.",
 		"color": Color(0.45, 0.85, 0.42),
 		"max_tier": 3,
 		"costs": [20, 35, 55],
 		"sprite": "world/tower_luy_tre.png",
+		"short": "luy_tre",
 		"hp": 120,
 		"cd": 0.75,
 		"range": 45.0,
@@ -24,11 +26,13 @@ const TOWERS: Dictionary = {
 	},
 	"thap_no_than": {
 		"name": "Tháp Nỏ Thần",
+		"short_label": "Nỏ Thần",
 		"desc": "Phóng loạt tên Kim Quy xuyên thấu nhiều mục tiêu tầm trung.",
 		"color": Color(0.96, 0.78, 0.30),
 		"max_tier": 3,
 		"costs": [25, 40, 65],
 		"sprite": "world/tower_no_than.png",
+		"short": "no_than",
 		"hp": 80,
 		"cd": 0.95,
 		"range": 260.0,
@@ -36,11 +40,13 @@ const TOWERS: Dictionary = {
 	},
 	"bai_coc_bach_dang": {
 		"name": "Bãi Cọc Bạch Đằng",
+		"short_label": "Bãi Cọc",
 		"desc": "Trồi cọc nhọn diện rộng, sát thương & làm chậm đội hình địch.",
 		"color": Color(0.38, 0.82, 0.96),
 		"max_tier": 3,
 		"costs": [25, 40, 65],
 		"sprite": "world/tower_bai_coc.png",
+		"short": "bai_coc",
 		"hp": 95,
 		"cd": 1.35,
 		"range": 92.0,
@@ -48,11 +54,13 @@ const TOWERS: Dictionary = {
 	},
 	"phao_dai_dien_bien": {
 		"name": "Pháo Đài Điện Biên",
+		"short_label": "Pháo Đài",
 		"desc": "Nã đạn pháo tầm xa nổ lan dữ dội vào cụm giặc ở xa.",
 		"color": Color(0.98, 0.46, 0.30),
 		"max_tier": 3,
 		"costs": [35, 55, 85],
 		"sprite": "world/tower_phao_dai.png",
+		"short": "phao_dai",
 		"hp": 90,
 		"cd": 2.1,
 		"range": 340.0,
@@ -60,11 +68,13 @@ const TOWERS: Dictionary = {
 	},
 	"lo_ren_da_chien": {
 		"name": "Lò Rèn Dã Chiến",
+		"short_label": "Lò Rèn",
 		"desc": "Hồi Giáp & Linh Khí cho đồng đội, đồng thời tu sửa Nỏ Thần Cổ Loa.",
 		"color": Color(1.0, 0.65, 0.28),
 		"max_tier": 3,
 		"costs": [30, 50, 75],
 		"sprite": "world/tower_lo_ren.png",
+		"short": "lo_ren",
 		"hp": 100,
 		"cd": 4.5,
 		"range": 160.0,
@@ -93,10 +103,22 @@ const SPAWN_LANES: Array[Vector2] = [
 	Vector2(490.0, 0.0),
 ]
 
+const GATE_NAMES: Array[String] = ["Bắc Môn", "Nam Môn", "Tây Môn", "Đông Môn"]
+
 
 static func tower_info(tid: String) -> Dictionary:
 	var raw: Variant = TOWERS.get(tid, {})
 	return (raw as Dictionary).duplicate(true) if raw is Dictionary else {}
+
+
+static func tower_tier_sprite(tid: String, tier: int) -> String:
+	var info: Dictionary = tower_info(tid)
+	var short_id: String = str(info.get("short", ""))
+	if short_id != "":
+		var rel: String = "world/tower_%s_t%d.png" % [short_id, clampi(tier, 1, 3)]
+		if ResourceLoader.exists("res://assets/sprites/" + rel):
+			return rel
+	return str(info.get("sprite", ""))
 
 
 static func tower_upgrade_cost(tid: String, next_tier: int) -> int:

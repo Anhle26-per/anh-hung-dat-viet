@@ -13,6 +13,8 @@ const Art = preload("res://scripts/art/art.gd")
 const EnemyData = preload("res://scripts/data/enemies.gd")
 const RelicData = preload("res://scripts/data/relics.gd")
 const HaoKhiData = preload("res://scripts/data/hao_khi_data.gd")
+const CoLoaData = preload("res://scripts/data/co_loa_data.gd")
+const DefenseTower = preload("res://scripts/entities/defense_tower.gd")
 
 const MOUNT_NAMES := {
 	"voi_chien_mount": "Voi Chiến",
@@ -365,18 +367,22 @@ func draw_hud(ci: Control) -> void:
 			var cmax: int = maxi(1, int(core.get("max_hp"))) if core != null else 250
 			var gauge_w: float = 228.0
 			var gx: float = (w - gauge_w) * 0.5
-			var gy: float = 36.0 if has_boss else 4.0
-			var gh: float = 38.0 if cl_state == "prep" else 26.0
+			var gy: float = 38.0 if has_boss else 4.0
+			var gh: float = 36.0 if cl_state == "prep" else 25.0
 			_panel(ci, Rect2(gx, gy, gauge_w, gh))
 			var show_w: int = maxi(1, cl_w + (1 if cl_state == "prep" and cl_w == 0 else 0))
-			var hdr_txt: String = "Đợt Cổ Loa %d  |  Lõi Cổ Loa: %d/%d" % [show_w, chp, cmax]
-			Art.draw_text(ci, Vector2(w * 0.5, gy + 12.0), hdr_txt, 11, Color(1.0, 0.90, 0.45), true)
+			var hdr_txt: String = "Đợt Cổ Loa %d  |  Nỏ Thần: %d/%d" % [show_w, chp, cmax]
+			Art.draw_text(ci, Vector2(w * 0.5, gy + 11.5), hdr_txt, 11, Color(1.0, 0.90, 0.45), true)
 			var cratio: float = clampf(float(chp) / float(cmax), 0.0, 1.0)
 			var c_col: Color = Color(0.35, 0.92, 0.62) if cratio > 0.5 else (Color(1.0, 0.78, 0.28) if cratio > 0.25 else Color(0.96, 0.32, 0.30))
-			ci.draw_rect(Rect2(gx + 10.0, gy + 17.0, gauge_w - 20.0, 5.0), Color(0.18, 0.08, 0.08))
-			ci.draw_rect(Rect2(gx + 10.0, gy + 17.0, (gauge_w - 20.0) * cratio, 5.0), c_col)
+			ci.draw_rect(Rect2(gx + 10.0, gy + 16.0, gauge_w - 20.0, 5.0), Color(0.18, 0.08, 0.08))
+			ci.draw_rect(Rect2(gx + 10.0, gy + 16.0, (gauge_w - 20.0) * cratio, 5.0), c_col)
 			if cl_state == "prep":
-				Art.draw_text(ci, Vector2(w * 0.5, gy + 32.0), "Chuẩn bị %.0fs — Nhấn [F] gọi đợt sớm" % maxf(0.0, cl_prep), 11, Color(0.55, 0.95, 1.0), true)
+				Art.draw_text(ci, Vector2(w * 0.5, gy + 30.0), "Chuẩn bị %.0fs — Nhấn [F] gọi đợt sớm" % maxf(0.0, cl_prep), 10, Color(0.55, 0.95, 1.0), true)
+
+	# --- Thanh xây Tháp Cổ Loa góc dưới trái ([1]..[5])
+	if is_coloa and not Global.touch_mode:
+		_draw_coloa_build_bar(ci, w, h)
 
 	# --- Vũ khí + kỹ năng (máy tính). Trên điện thoại thì nằm trên nút ảo.
 	if not Global.touch_mode:
@@ -515,8 +521,16 @@ func draw_hud(ci: Control) -> void:
 		Art.draw_text(ci, Vector2(w / 2.0, h * 0.24 + 56), _chapter.intro, 14, Color(0.95, 0.9, 0.85, a))
 	elif _banner_t > 0.0:
 		var a2 := clampf(_banner_t / 0.5, 0.0, 1.0)
-		var b_sz: int = 18 if _banner.length() > 34 else 26
-		Art.draw_text(ci, Vector2(w / 2.0, h * 0.3), _banner, b_sz, Color(1, 0.85, 0.4, a2))
+		if is_coloa:
+			var b_sz: int = 12 if _banner.length() > 30 else 14
+			var b_y: float = 80.0 if has_boss else 54.0
+			var bw_pill: float = clampf(float(_banner.length()) * 6.8 + 26.0, 180.0, 292.0)
+			ci.draw_rect(Rect2((w - bw_pill) * 0.5, b_y - 11.0, bw_pill, 22.0), Color(0.05, 0.03, 0.04, 0.78 * a2))
+			ci.draw_rect(Rect2((w - bw_pill) * 0.5, b_y - 11.0, bw_pill, 22.0), Color(0.95, 0.78, 0.32, 0.50 * a2), false, 1.0)
+			Art.draw_text(ci, Vector2(w * 0.5, b_y + 3.0), _banner, b_sz, Color(1, 0.85, 0.4, a2))
+		else:
+			var b_sz: int = 18 if _banner.length() > 34 else 24
+			Art.draw_text(ci, Vector2(w / 2.0, h * 0.30), _banner, b_sz, Color(1, 0.85, 0.4, a2))
 
 
 func _draw_shop_inspect(ci: Control, _w: float, h: float, target: Node) -> void:
@@ -711,7 +725,86 @@ func _draw_cutin(ci: Control, w: float, h: float) -> void:
 	Art.draw_text(ci, Vector2(x + 93.0, y + 36.0), "%s  •  Chiêu %d" % [str(hero.get("name", "")), sk_idx], 13, Color(0.96, 0.94, 0.92, 0.95 * a), false)
 
 
+func _draw_coloa_build_bar(ci: Control, _w: float, h: float) -> void:
+	var sel_idx: int = DefenseTower.shared_choice_idx % maxi(1, CoLoaData.TOWER_ORDER.size())
+	var slot_w: float = 54.0
+	var slot_h: float = 36.0
+	var gap: float = 3.0
+	var bx0: float = 4.0
+	var by0: float = h - slot_h - 4.0
+	for i in CoLoaData.TOWER_ORDER.size():
+		var tid: String = str(CoLoaData.TOWER_ORDER[i])
+		var info: Dictionary = CoLoaData.tower_info(tid)
+		var cost: int = CoLoaData.tower_upgrade_cost(tid, 1)
+		var col: Color = info.get("color", Color(0.95, 0.80, 0.35))
+		var active: bool = (i == sel_idx)
+		var can_buy: bool = Global.run_coins >= cost
+		var rx: float = bx0 + float(i) * (slot_w + gap)
+		var rect := Rect2(rx, by0, slot_w, slot_h)
+		ci.draw_rect(rect, Color(0.14, 0.08, 0.09, 0.90) if active else Color(0.06, 0.04, 0.07, 0.78))
+		ci.draw_rect(rect, Color(1.0, 0.88, 0.36) if active else Color(col.r, col.g, col.b, 0.45), false, 1.5 if active else 1.0)
+		Art.draw_text(ci, Vector2(rx + 4.0, by0 + 10.0), "[%d]" % (i + 1), 9, Color(1.0, 0.92, 0.48) if active else Color(0.75, 0.75, 0.80), false)
+		var trel: String = str(info.get("sprite", ""))
+		if trel != "" and ResourceLoader.exists("res://assets/sprites/" + trel):
+			var tex: Texture2D = Art.tex(trel)
+			if tex != null:
+				ci.draw_texture_rect(tex, Rect2(rx + 26.0, by0 + 2.0, 18.0, 18.0), false)
+		var slbl: String = str(info.get("short_label", tid))
+		Art.draw_text(ci, Vector2(rx + slot_w * 0.5, by0 + 24.0), slbl, 9, Color(0.96, 0.92, 0.84), true)
+		Art.draw_text(ci, Vector2(rx + slot_w * 0.5, by0 + 33.0), "%dxu" % cost, 9, Color(0.55, 1.0, 0.65) if can_buy else Color(1.0, 0.48, 0.45), true)
+
+
+func _draw_coloa_minimap(ci: Control, origin: Vector2, area: Vector2) -> void:
+	ci.draw_rect(Rect2(origin, area), Color(0.04, 0.06, 0.08, 0.86))
+	ci.draw_rect(Rect2(origin, area), Color(0.65, 0.52, 0.28, 0.7), false, 1.0)
+	var b: Rect2 = CoLoaData.ARENA_RECT
+	var to_map := func(wp: Vector2) -> Vector2:
+		var nx: float = clampf((wp.x - b.position.x) / b.size.x, 0.04, 0.96)
+		var ny: float = clampf((wp.y - b.position.y) / b.size.y, 0.06, 0.94)
+		return origin + Vector2(nx * area.x, ny * area.y)
+	var ctr: Vector2 = to_map.call(Vector2.ZERO)
+	# 4 trục đường & vòng hào nước Cổ Loa thu nhỏ
+	ci.draw_line(to_map.call(Vector2(0.0, -360.0)), to_map.call(Vector2(0.0, 360.0)), Color(0.45, 0.36, 0.24, 0.55), 2.0)
+	ci.draw_line(to_map.call(Vector2(-500.0, 0.0)), to_map.call(Vector2(500.0, 0.0)), Color(0.45, 0.36, 0.24, 0.55), 2.0)
+	ci.draw_arc(ctr, minf(area.x, area.y) * 0.34, 0.0, TAU, 24, Color(0.24, 0.72, 0.92, 0.55), 1.4)
+	# 8 bệ tháp
+	for tw in get_tree().get_nodes_in_group("defense_towers"):
+		if not is_instance_valid(tw):
+			continue
+		var tp: Vector2 = to_map.call((tw as Node2D).global_position)
+		var tw_tier: int = int(tw.get("tier"))
+		if tw_tier <= 0:
+			ci.draw_circle(tp, 1.6, Color(0.55, 0.52, 0.48, 0.65))
+		else:
+			var tinfo: Dictionary = CoLoaData.tower_info(str(tw.get("tower_id")))
+			var tcol: Color = tinfo.get("color", Color(0.95, 0.80, 0.35))
+			ci.draw_rect(Rect2(tp - Vector2(2.2, 2.2), Vector2(4.4, 4.4)), tcol)
+			if tw_tier >= 3:
+				ci.draw_rect(Rect2(tp - Vector2(2.6, 2.6), Vector2(5.2, 5.2)), Color(1.0, 0.92, 0.42), false, 1.0)
+	# Nỏ Thần trung tâm
+	ci.draw_colored_polygon(PackedVector2Array([
+		ctr + Vector2(0.0, -4.0), ctr + Vector2(4.0, 0.0), ctr + Vector2(0.0, 4.0), ctr + Vector2(-4.0, 0.0),
+	]), Color(0.38, 0.98, 0.88))
+	# Giặc & Boss công thành
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(e) or bool(e.get("dead")):
+			continue
+		var ep: Vector2 = to_map.call((e as Node2D).global_position)
+		if e.has_method("is_boss") and e.is_boss():
+			ci.draw_rect(Rect2(ep - Vector2(2.5, 2.5), Vector2(5.0, 5.0)), Color(1.0, 0.22, 0.36))
+		else:
+			ci.draw_circle(ep, 1.4, Color(1.0, 0.38, 0.30))
+	# Người chơi
+	for pl in Global.all_players():
+		if is_instance_valid(pl) and not bool(pl.get("dead")):
+			var pp: Vector2 = to_map.call((pl as Node2D).global_position)
+			ci.draw_circle(pp, 2.4, Color.WHITE)
+
+
 func _draw_minimap(ci: Control, origin: Vector2, area: Vector2) -> void:
+	if Global.has_method("is_co_loa") and Global.is_co_loa():
+		_draw_coloa_minimap(ci, origin, area)
+		return
 	var d = get_tree().get_first_node_in_group("dungeon")
 	if d == null or d.rooms.is_empty():
 		return
