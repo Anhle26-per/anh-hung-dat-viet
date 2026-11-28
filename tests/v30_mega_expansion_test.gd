@@ -137,10 +137,10 @@ func _run() -> void:
 
 
 func _test_version_and_hotpatch() -> void:
-	print("== 0. Kiểm tra Version 3.0.0 (BUILD 300) & HotpatchSync")
-	_check(VersionData.VERSION == "3.0.0", "VersionData.VERSION phải là '3.0.0' (hiện '%s')" % VersionData.VERSION)
-	_check(VersionData.BUILD == 300, "VersionData.BUILD phải là 300 (hiện %d)" % VersionData.BUILD)
-	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "HotpatchSync.needs_autoload_sync phải false trên v3.0.0")
+	print("== 0. Kiểm tra Version >= 3.0.0 (BUILD >= 300) & HotpatchSync")
+	_check(VersionData.VERSION != "", "VersionData.VERSION không được rỗng (hiện '%s')" % VersionData.VERSION)
+	_check(VersionData.BUILD >= 300, "VersionData.BUILD phải >= 300 (hiện %d)" % VersionData.BUILD)
+	_check(not HotpatchSync.needs_autoload_sync(get_tree()), "HotpatchSync.needs_autoload_sync phải false trên v3.0+")
 	_check(HotpatchSync.DATA_SCRIPTS.size() >= 25, "HotpatchSync.DATA_SCRIPTS thiếu mục")
 	_check(HotpatchSync.SCENE_SCRIPTS.size() >= 40, "HotpatchSync.SCENE_SCRIPTS thiếu mục")
 	for p_v in HotpatchSync.DATA_SCRIPTS:

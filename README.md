@@ -2,11 +2,11 @@
 
 # ⚔️ ANH HÙNG ĐẤT VIỆT ⚔️
 
-### Phiên bản `v3.0.0` — *Giang Sơn Gấm Vóc*
+### Phiên bản `v3.0.1` — *Hoạt Ảnh Sống Động & Hầm Ngục Phủ Bóng*
 
 *Game hành động Roguelike bắn quái góc nhìn từ trên xuống (Top-Down Bullet-Hell) kết hợp Thủ Thành Cổ Loa & LAN Co-op — Tái hiện hào khí 2.000 năm lịch sử & truyền thuyết Việt Nam bằng đồ họa Pixel Art và âm nhạc ngũ cung Stereo.*
 
-[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v3.0.0-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
+[![Phiên bản](https://img.shields.io/badge/Phiên_bản-v3.0.1-c92a2a?style=for-the-badge)](https://github.com/Anhle26-per/anh-hung-dat-viet/releases/latest)
 [![Godot](https://img.shields.io/badge/Godot-4.7.2-478cbf?style=for-the-badge&logo=godot-engine&logoColor=white)](https://godotengine.org/)
 [![Binh khí](https://img.shields.io/badge/Kho_Binh_Khí-225_Món-f59f00?style=for-the-badge)](#%EF%B8%8F-225-binh-khí-hợp-nhất--thần-binh-đỏ)
 [![Danh tướng](https://img.shields.io/badge/Danh_Tướng-14_Tướng_•_28_Chiêu-7950f2?style=for-the-badge)](#-14-danh-tướng--nội-tại-chiêu-1--chiêu-2)
@@ -41,6 +41,14 @@ Tất cả bản dựng chính thức được phát hành tại trang [**GitHub
 
 > 💡 **Tự Động Cập Nhật Ngay Trong Game (Hotpatch `patch.pck`)**  
 > Từ các phiên bản `v1.2.9+`, khi mở game ở màn hình chính, hệ thống tự kiểm tra bản mới nhất trên GitHub và cho phép **bấm 1 nút để tải bản vá `.pck`**, áp dụng ngay không cần tải lại cả bộ cài và vẫn **giữ nguyên toàn bộ file lưu cũ** (tướng, xu, nguyên liệu, bản vẽ, cây thiên phú, thành tựu).
+
+---
+
+## ✨ Điểm Nhấn Mới Trong `v3.0.1 — Hoạt Ảnh Sống Động & Hầm Ngục Phủ Bóng`
+
+- **Thú Cưỡi & Xe Đẩy Hoạt Ảnh 12 Khung Hình**: Toàn bộ 5 thú cưỡi/phương tiện (*Voi Chiến Bà Triệu*, *Ngựa Ô*, *Ngựa Xích Thố*, *Ngựa Sắt Phù Đổng*, *Lợn Rừng Núi Nưa*) sở hữu 3 hành động **Đứng / Chạy / Giậm-Tấn công** có nhịp nhún, bước chân, vẫy đuôi/tai và vung vòi.
+- **NPC Doanh Trại & Hầm Ngục Đa Hành Động (8 Khung) + Lồng Cứu 6 Khung**: Toàn bộ NPC không còn đứng tĩnh — tự chuyển **Nghỉ / Nói chuyện / Rèn-Giã-Pha trà-Chăm vườn-Vẫy tay**, kèm người tù vùng vẫy trong lồng (`6 khung`).
+- **Đại Tu Mỹ Thuật Hầm Ngục Thường Phủ Bóng Đa Tầng**: Gạch nền & tường nứt rêu đa sắc độ, tán cây nhiều lớp ánh sáng hướng từ trên-trái, vật cản đổ bóng thể tích mềm dưới chân (`12` loại cover phủ bóng & nhấn sáng cạnh).
 
 ---
 
