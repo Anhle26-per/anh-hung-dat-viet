@@ -97,7 +97,7 @@ func _run() -> void:
 		Sfx.play_skill(hid)
 		await _frames(1)
 	Sfx.stop_all_sfx()
-	_check(skill_keys.size() >= 11, "phải có >= 11 khóa SFX kỹ năng riêng biệt (hiện %d)" % skill_keys.size())
+	_check(skill_keys.size() >= 14, "phải có >= 14 khóa SFX kỹ năng riêng biệt (hiện %d)" % skill_keys.size())
 
 	print("== 2. Kiểm tra toàn bộ vũ khí có weapon_sfx_profile hợp lệ & phân biệt")
 	_check(WeaponData.DATA.size() >= 217, "WeaponData.DATA phải có >= 217 vũ khí (hiện %d)" % WeaponData.DATA.size())

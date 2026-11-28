@@ -44,7 +44,7 @@ const SFX_FILES: Dictionary = {
 	"hit_boss": "res://assets/audio/sfx/hit_boss.wav",
 	"pickup_material": "res://assets/audio/sfx/pickup_material.wav",
 	"forge": "res://assets/audio/sfx/forge.wav",
-	# 11 kỹ năng tướng riêng biệt
+	# 14 kỹ năng tướng riêng biệt + Chiêu 2 + Cổ Loa + Ping + Thiên Phú/Thần Thú
 	"skill_hai_ba_trung": "res://assets/audio/sfx/skill_hai_ba_trung.wav",
 	"skill_ba_trieu": "res://assets/audio/sfx/skill_ba_trieu.wav",
 	"skill_ngo_quyen": "res://assets/audio/sfx/skill_ngo_quyen.wav",
@@ -56,7 +56,23 @@ const SFX_FILES: Dictionary = {
 	"skill_hoang_hoa_tham": "res://assets/audio/sfx/skill_hoang_hoa_tham.wav",
 	"skill_chien_si_dien_bien": "res://assets/audio/sfx/skill_chien_si_dien_bien.wav",
 	"skill_thanh_giong": "res://assets/audio/sfx/skill_thanh_giong.wav",
-	# 32 nhóm âm thanh vũ khí (phủ toàn bộ 200 binh khí)
+	"skill_an_duong_vuong": "res://assets/audio/sfx/skill_an_duong_vuong.wav",
+	"skill_lac_long_quan": "res://assets/audio/sfx/skill_lac_long_quan.wav",
+	"skill_son_tinh": "res://assets/audio/sfx/skill_son_tinh.wav",
+	"skill2_cast": "res://assets/audio/sfx/skill2_cast.wav",
+	"tower_build": "res://assets/audio/sfx/tower_build.wav",
+	"tower_upgrade": "res://assets/audio/sfx/tower_upgrade.wav",
+	"core_repair": "res://assets/audio/sfx/core_repair.wav",
+	"core_crossbow": "res://assets/audio/sfx/core_crossbow.wav",
+	"war_drum": "res://assets/audio/sfx/war_drum.wav",
+	"core_alarm": "res://assets/audio/sfx/core_alarm.wav",
+	"ping_focus": "res://assets/audio/sfx/ping_focus.wav",
+	"ping_danger": "res://assets/audio/sfx/ping_danger.wav",
+	"ping_loot": "res://assets/audio/sfx/ping_loot.wav",
+	"ping_combo": "res://assets/audio/sfx/ping_combo.wav",
+	"skill_tree_unlock": "res://assets/audio/sfx/skill_tree_unlock.wav",
+	"pet_awaken": "res://assets/audio/sfx/pet_awaken.wav",
+	# 32 nhóm âm thanh vũ khí (phủ toàn bộ 225 binh khí)
 	"w_bamboo": "res://assets/audio/sfx/w_bamboo.wav",
 	"w_dagger": "res://assets/audio/sfx/w_dagger.wav",
 	"w_sword": "res://assets/audio/sfx/w_sword.wav",
@@ -188,6 +204,16 @@ const WEAPON_ARCHETYPE: Dictionary = {
 	# Sáo / Đàn / Chuông
 	"sao_truc": "w_flute", "sao_truc_bao_to": "w_flute", "dan_than": "w_flute",
 	"chuong_dong": "w_flute", "chuong_chieu_hon": "w_flute", "chuong_phat_to": "w_flute", "sach_gio_loc": "w_flute",
+	# 25 Binh Khí Hợp Nhất / Thần Binh Đỏ / Tướng v3.0
+	"no_co_loa": "w_crossbow", "long_uyen_kiem": "w_sword", "bua_tan_vien": "w_hammer",
+	"thai_cuc_kiem": "w_greatsword", "cung_loi_hoa": "w_bow", "phao_thien_long": "w_rocket",
+	"luoi_hai_am_duong": "w_scythe", "long_than_hai_kich": "w_spear", "thien_loi_than_cung": "w_bow",
+	"huyet_dao_to_dinh": "w_greatsword", "kich_luc_dan": "w_spear", "dinh_ba_hoang_thao": "w_spear",
+	"cung_quach_quy": "w_bow", "ong_dong_thoat_hoan": "w_cannon", "bua_lieu_thang": "w_axe",
+	"phao_ton_si_nghi": "w_cannon", "hoa_phao_hy_vong": "w_cannon", "sung_don_truong": "w_rifle",
+	"phao_coi_do_cat": "w_rocket", "ho_ly_cuu_vi": "w_fire", "truong_xuong_cuong": "w_drum",
+	"hai_than_hac_hai": "w_jade", "dinh_ba_thuy_tinh_than": "w_spear", "loi_chuy_thien_de": "w_hammer",
+	"thai_to_thien_kiem": "w_greatsword",
 }
 
 const TIER_PITCHES: Dictionary = {
@@ -213,6 +239,11 @@ const MUSIC_FILES: Dictionary = {
 	"boss_legend": "res://assets/audio/music/boss_legend.wav",
 	"boss_mythic": "res://assets/audio/music/boss_mythic.wav",
 	"victory": "res://assets/audio/music/victory.wav",
+	"coloa_defense": "res://assets/audio/music/coloa_defense.wav",
+	"coloa_siege": "res://assets/audio/music/coloa_siege.wav",
+	"secret_thuy_cung": "res://assets/audio/music/secret_thuy_cung.wav",
+	"secret_tan_vien": "res://assets/audio/music/secret_tan_vien.wav",
+	"boss_hon_mang": "res://assets/audio/music/boss_hon_mang.wav",
 }
 
 const MUSIC_TITLES: Dictionary = {
@@ -230,6 +261,11 @@ const MUSIC_TITLES: Dictionary = {
 	"boss_legend": "Tam Yêu Hiện Hình",
 	"boss_mythic": "Thần Thoại Đại Chiến",
 	"victory": "Khải Hoàn Ca",
+	"coloa_defense": "Hào Khí Thành Cổ Loa",
+	"coloa_siege": "Cổ Loa Công Thành",
+	"secret_thuy_cung": "Thủy Cung Long Vương",
+	"secret_tan_vien": "Đỉnh Tản Viên Linh Thiêng",
+	"boss_hon_mang": "Hỗn Mang Diệt Thế",
 }
 
 var _sfx_streams: Dictionary = {}
@@ -315,8 +351,11 @@ func skill_sfx_id(hero_id: String) -> String:
 	return "skill"
 
 
-func play_skill(hero_id: String, volume_db: float = 0.0) -> void:
-	play_pitched(skill_sfx_id(hero_id), 1.0, volume_db, 0.03)
+func play_skill(hero_id: String, volume_db: float = 0.0, skill_slot: int = 1) -> void:
+	var pitch: float = 1.06 if skill_slot == 2 else 1.0
+	play_pitched(skill_sfx_id(hero_id), pitch, volume_db, 0.03)
+	if skill_slot == 2 and SFX_FILES.has("skill2_cast"):
+		play_pitched("skill2_cast", 1.0, volume_db - 2.5, 0.03)
 
 
 func _hash_id(s: String) -> int:
@@ -472,7 +511,7 @@ func music_title(id: String) -> String:
 
 
 func is_boss_music(id: String) -> bool:
-	return id in ["boss", "boss_frenzy", "boss_legend", "boss_mythic"]
+	return id in ["boss", "boss_frenzy", "boss_legend", "boss_mythic", "coloa_siege", "boss_hon_mang"]
 
 
 func stage_playlist(level: int) -> Array[String]:
@@ -515,11 +554,27 @@ func stage_music_id(level: int, room_seq: int = 0) -> String:
 func boss_music_id(level: int, kind: String = "boss", enraged: bool = false) -> String:
 	if enraged:
 		return "boss_frenzy"
+	if level == 33:
+		return "boss_hon_mang"
 	if kind == "legend":
 		return "boss_legend"
 	if EnemyData.is_mythic_level(level):
 		return "boss_mythic"
 	return "boss"
+
+
+func secret_biome_music_id(biome_id: String) -> String:
+	if biome_id == "thuy_cung":
+		return "secret_thuy_cung"
+	if biome_id == "dinh_tan_vien":
+		return "secret_tan_vien"
+	return "battle_mythic"
+
+
+func play_secret_biome_music(biome_id: String, fade_s: float = 0.75) -> String:
+	var mid: String = secret_biome_music_id(biome_id)
+	play_music(mid, fade_s)
+	return mid
 
 
 func play_stage_music(level: int, room_seq: int = 0, fade_s: float = 0.75) -> String:

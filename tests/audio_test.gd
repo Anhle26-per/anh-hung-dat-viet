@@ -56,7 +56,7 @@ func _run() -> void:
 		_check(st is AudioStreamWAV, "không nạp được AudioStreamWAV: " + path)
 		if st is AudioStreamWAV:
 			var wav: AudioStreamWAV = st as AudioStreamWAV
-			_check(wav.mix_rate == 22050 and not wav.stereo, "SFX không phải mono 22050 Hz: " + path)
+			_check(wav.mix_rate == 44100 and not wav.stereo, "SFX không phải mono 44100 Hz: " + path)
 
 	for id in Sfx.MUSIC_FILES:
 		var path: String = str(Sfx.MUSIC_FILES[id])
@@ -66,7 +66,7 @@ func _run() -> void:
 		if st is AudioStreamWAV:
 			var wav: AudioStreamWAV = st as AudioStreamWAV
 			var len_s: float = wav.get_length()
-			_check(wav.mix_rate == 22050 and not wav.stereo, "nhạc không phải mono 22050 Hz: " + path)
+			_check(wav.mix_rate == 44100 and wav.stereo, "nhạc không phải stereo 44100 Hz: " + path)
 			_check(len_s >= 30.0 and len_s <= 60.0, "nhạc %s dài %.2fs (cần 30-60s)" % [path, len_s])
 
 	var rx_sfx := RegEx.new()

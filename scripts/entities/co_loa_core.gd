@@ -22,6 +22,7 @@ var _t: float = 0.0
 var _flash: float = 0.0
 var _shot_cd: float = 1.6
 var _pulse_shot: float = 0.0
+var _alarm_cd: float = 0.0
 
 var _spr: Node2D = null
 var _light: PointLight2D = null
@@ -121,7 +122,7 @@ func manual_repair() -> bool:
 		lp.stats_changed.emit()
 	repair(MANUAL_REPAIR_HP)
 	if Sfx != null:
-		Sfx.play("forge")
+		Sfx.play("core_repair")
 	if get_parent() != null:
 		Fx.burst(get_parent(), global_position, Color(0.45, 0.96, 0.85), 42.0, 0.42)
 	return true
@@ -139,6 +140,9 @@ func take_damage(amount: int) -> void:
 		Fx.particles(get_parent(), global_position, Color(1.0, 0.75, 0.3), 5, 60.0, 0.35)
 	if Sfx != null:
 		Sfx.play("hit_metal")
+		if hp > 0 and hp <= int(float(max_hp) * 0.4) and _alarm_cd <= 0.0:
+			_alarm_cd = 2.5
+			Sfx.play("core_alarm")
 	if hp <= 0:
 		_destroyed = true
 		if is_inside_tree() and get_parent() != null:
@@ -173,6 +177,8 @@ func distance_to_hurtbox(pt: Vector2) -> float:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _alarm_cd > 0.0:
+		_alarm_cd = maxf(0.0, _alarm_cd - delta)
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta * 5.0)
 	if _pulse_shot > 0.0:
@@ -234,7 +240,7 @@ func _tick_self_defense(delta: float) -> void:
 		get_parent().add_child(b)
 	Fx.burst(get_parent(), global_position + Vector2(0.0, -10.0), Color(0.45, 1.0, 0.90), 34.0, 0.3)
 	if Sfx != null:
-		Sfx.play("arrow")
+		Sfx.play("core_crossbow")
 
 
 func _draw() -> void:

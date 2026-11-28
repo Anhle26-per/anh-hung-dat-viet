@@ -1,7 +1,7 @@
-"""Sinh toàn bộ hiệu ứng âm thanh (8-bit) và nhạc nền (ngũ cung Việt Nam) cho Anh Hùng Đất Việt.
+"""Sinh toàn bộ hiệu ứng âm thanh (mono 44.1 kHz) và nhạc nền (stereo 44.1 kHz ngũ cung Việt Nam) cho Anh Hùng Đất Việt.
 
 Chỉ dùng thư viện chuẩn Python (wave, struct, math, random, os).
-Xuất tệp .wav mono 16-bit 22050 Hz vào assets/audio/sfx/ và assets/audio/music/.
+Xuất tệp .wav 16-bit 44100 Hz vào assets/audio/sfx/ (mono) và assets/audio/music/ (stereo có reverb).
 Chạy trên Windows: python tools/audio/build_audio.py (hoặc py tools/audio/build_audio.py).
 """
 
@@ -11,7 +11,7 @@ import random
 import struct
 import wave
 
-SAMPLE_RATE = 22050
+SAMPLE_RATE = 44100
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SFX_DIR = os.path.join(ROOT_DIR, "assets", "audio", "sfx")
 MUSIC_DIR = os.path.join(ROOT_DIR, "assets", "audio", "music")
@@ -24,24 +24,46 @@ PENTA = {
     "C6": 1046.50, "D6": 1174.66, "E6": 1318.51, "G6": 1567.98, "A6": 1760.00,
 }
 
+_TANH_NORM = math.tanh(1.15)
 
-def save_wav(path: str, samples: list[float], peak: float = 0.85) -> None:
+
+def _soft_clip(x: float) -> float:
+    if -0.75 <= x <= 0.75:
+        return x
+    return math.tanh(x * 1.15) / _TANH_NORM
+
+
+def save_wav(path: str, samples, peak: float = 0.85) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    max_abs = max((abs(x) for x in samples), default=0.0)
-    scale = (peak / max_abs) if max_abs > 1e-6 else 1.0
-    if max_abs > 0.0 and max_abs < peak and max_abs < 0.25:
-        scale = peak / max_abs
-    elif max_abs <= peak:
-        scale = 1.0
-    frames = bytearray()
-    for x in samples:
-        v = max(-1.0, min(1.0, x * scale))
-        frames.extend(struct.pack("<h", int(round(v * 32767.0))))
+    if isinstance(samples, tuple) and len(samples) == 2:
+        left, right = samples
+        channels = 2
+        max_abs = max(
+            max((abs(x) for x in left), default=0.0),
+            max((abs(x) for x in right), default=0.0),
+        )
+        scale = (peak / max_abs) if (max_abs > 1e-6 and (max_abs > peak or max_abs < 0.25)) else 1.0
+        pcm = []
+        append = pcm.append
+        for l_val, r_val in zip(left, right):
+            lv = _soft_clip(l_val * scale)
+            rv = _soft_clip(r_val * scale)
+            append(max(-32767, min(32767, int(round(lv * 32767.0)))))
+            append(max(-32767, min(32767, int(round(rv * 32767.0)))))
+    else:
+        channels = 1
+        max_abs = max((abs(x) for x in samples), default=0.0)
+        scale = (peak / max_abs) if (max_abs > 1e-6 and (max_abs > peak or max_abs < 0.25)) else 1.0
+        pcm = [
+            max(-32767, min(32767, int(round(_soft_clip(x * scale) * 32767.0))))
+            for x in samples
+        ]
+    raw = struct.pack(f"<{len(pcm)}h", *pcm) if pcm else b""
     with wave.open(path, "wb") as wf:
-        wf.setnchannels(1)
+        wf.setnchannels(channels)
         wf.setsampwidth(2)
         wf.setframerate(SAMPLE_RATE)
-        wf.writeframes(bytes(frames))
+        wf.writeframes(raw)
 
 
 def normalize(samples: list[float], target_peak: float = 0.78) -> list[float]:
@@ -50,6 +72,14 @@ def normalize(samples: list[float], target_peak: float = 0.78) -> list[float]:
         return samples
     k = target_peak / m
     return [x * k for x in samples]
+
+
+def normalize_stereo(left: list[float], right: list[float], target_peak: float = 0.78) -> tuple[list[float], list[float]]:
+    m = max(max((abs(x) for x in left), default=0.0), max((abs(x) for x in right), default=0.0))
+    if m < 1e-6:
+        return left, right
+    k = target_peak / m
+    return ([x * k for x in left], [x * k for x in right])
 
 
 def square(phase: float, duty: float = 0.5) -> float:
@@ -471,8 +501,9 @@ def gen_sfx() -> dict[str, list[float]]:
     add_tone_seq(buf, [(0.0, 0.055, "sq25", PENTA["A5"]), (0.045, 0.06, "sq25", PENTA["C6"]), (0.095, 0.12, "sq25", PENTA["E6"])], 0.52)
     out["pickup_coin"] = normalize(buf, 0.76)
 
-    # ------------------------------------------------------------------ 11 Kỹ năng tướng riêng biệt
+    # ------------------------------------------------------------------ 14 Kỹ năng tướng + Chiêu 2 + Cổ Loa + Ping + Thiên Phú/Thức Tỉnh
     out.update(_gen_hero_skills())
+    out.update(_gen_v30_sfx())
 
     # ------------------------------------------------------------------ 32 Âm thanh nhóm vũ khí (w_*)
     out.update(_gen_weapon_archetypes())
@@ -696,7 +727,141 @@ def _gen_hero_skills() -> dict[str, list[float]]:
     _add_bell(buf, 0.04, 0.16, 1180.0, [(1.0, 0.4), (1.6, 0.3)], 0.35)
     skills["skill_thanh_giong"] = normalize(buf, 0.86)
 
+    # 12. An Dương Vương (Mưa tên Cổ Loa): dây nỏ Kim Quy căng bật + chuông vàng thần khí + loạt tên xuyên
+    n = int(0.56 * SAMPLE_RATE)
+    buf = [0.0] * n
+    snap = _sweep_buf(0.16, 1120.0, 290.0, 312, "tri", 0.36, 0.42, 0.002, 1.8)
+    for j, x in enumerate(snap):
+        buf[j] += x * 0.75
+    _add_bell(buf, 0.03, 0.46, PENTA["D5"], [(1.0, 0.45), (1.5, 0.32), (2.5, 0.22)], 0.48)
+    for k, off in enumerate((0.12, 0.21, 0.30, 0.38)):
+        bolt = _sweep_buf(0.11, 1480.0 - k * 90.0, 520.0, 3120 + k, "sq25", 0.35, 0.38, 0.002, 2.0)
+        i0 = int(off * SAMPLE_RATE)
+        for j, x in enumerate(bolt):
+            if i0 + j < n:
+                buf[i0 + j] += x * 0.45
+    skills["skill_an_duong_vuong"] = normalize(buf, 0.86)
+
+    # 13. Lạc Long Quân (Thủy long triều): sóng biển dâng trào + tiếng rồng gầm trầm + linh thủy vang ngân
+    rng = random.Random(313)
+    n = int(0.62 * SAMPLE_RATE)
+    buf = []
+    ph = 0.0
+    lp = 0.0
+    for i in range(n):
+        t = i / SAMPLE_RATE
+        lp = lp * 0.82 + rng.uniform(-1.0, 1.0) * 0.18
+        f = 155.0 + 75.0 * math.sin(math.pi * t / 0.55)
+        ph += f / SAMPLE_RATE
+        wave_surf = lp * math.sin(math.pi * min(1.0, t / 0.55)) * 0.72
+        roar = (0.55 * math.sin(2.0 * math.pi * ph) + 0.30 * triangle(ph * 1.5)) * env_asr(t, 0.62, 0.06, 0.22) * 0.55
+        buf.append(wave_surf + roar)
+    _add_bell(buf, 0.08, 0.44, PENTA["E5"], [(1.0, 0.42), (1.5, 0.26), (2.0, 0.20)], 0.42)
+    skills["skill_lac_long_quan"] = normalize(buf, 0.86)
+
+    # 14. Sơn Tinh (Dời non lấp bể): địa chấn gầm vang + 3 trụ đá trồi lên + chuông núi Tản Viên
+    n = int(0.60 * SAMPLE_RATE)
+    buf = [0.0] * n
+    rumble = _sweep_buf(0.58, 128.0, 44.0, 314, "sin", 0.55, 0.82, 0.02, 1.4, 1.0, 0.5)
+    for j, x in enumerate(rumble):
+        buf[j] += x * 0.70
+    for k, off in enumerate((0.02, 0.15, 0.28)):
+        pillar = _sweep_buf(0.18, 220.0 + k * 45.0, 68.0, 3140 + k, "tri", 0.42, 0.68, 0.004, 1.9)
+        i0 = int(off * SAMPLE_RATE)
+        for j, x in enumerate(pillar):
+            if i0 + j < n:
+                buf[i0 + j] += x * 0.58
+    _add_bell(buf, 0.05, 0.48, 293.66, [(1.0, 0.50), (1.49, 0.30), (2.02, 0.18)], 0.46)
+    skills["skill_son_tinh"] = normalize(buf, 0.87)
+
     return skills
+
+
+def _gen_v30_sfx() -> dict[str, list[float]]:
+    out: dict[str, list[float]] = {}
+
+    # skill2_cast: hào quang ngân vang khi tung Chiêu 2
+    n = int(0.32 * SAMPLE_RATE)
+    buf = [0.0] * n
+    add_tone_seq(buf, [(0.0, 0.11, "tri", PENTA["D5"]), (0.05, 0.14, "tri", PENTA["A5"]), (0.10, 0.20, "sin", PENTA["D6"])], 0.45)
+    _add_bell(buf, 0.02, 0.26, PENTA["A5"], [(1.0, 0.4), (1.5, 0.25)], 0.35)
+    out["skill2_cast"] = normalize(buf, 0.80)
+
+    # tower_build: đóng cọc gỗ & đặt bệ đá dựng tháp Cổ Loa
+    n = int(0.28 * SAMPLE_RATE)
+    buf = [0.0] * n
+    thud = _sweep_buf(0.14, 195.0, 62.0, 501, "sin", 0.40, 0.65, 0.002, 1.9)
+    for j, x in enumerate(thud):
+        buf[j] += x * 0.72
+    add_tone_seq(buf, [(0.06, 0.08, "tri", PENTA["D4"]), (0.13, 0.12, "tri", PENTA["A4"])], 0.46)
+    out["tower_build"] = normalize(buf, 0.82)
+
+    # tower_upgrade: gõ đe ánh kim + hợp âm thăng cấp 3 nốt
+    n = int(0.34 * SAMPLE_RATE)
+    buf = [0.0] * n
+    _add_bell(buf, 0.0, 0.24, 920.0, [(1.0, 0.45), (1.52, 0.30), (2.3, 0.20)], 0.48)
+    add_tone_seq(buf, [(0.04, 0.09, "tri", PENTA["E5"]), (0.11, 0.09, "tri", PENTA["G5"]), (0.18, 0.15, "sin", PENTA["C6"])], 0.44)
+    out["tower_upgrade"] = normalize(buf, 0.82)
+
+    # core_repair: hàn ngọc nỏ thần + hồi phục ánh sáng
+    n = int(0.30 * SAMPLE_RATE)
+    buf = [0.0] * n
+    add_tone_seq(buf, [(0.0, 0.10, "sin", PENTA["C5"]), (0.06, 0.11, "sin", PENTA["E5"]), (0.12, 0.17, "sin", PENTA["G5"])], 0.48)
+    _add_bell(buf, 0.08, 0.20, PENTA["C6"], [(1.0, 0.38), (1.5, 0.20)], 0.32)
+    out["core_repair"] = normalize(buf, 0.78)
+
+    # core_crossbow: Nỏ Thần Kim Quy bật dây + luồng sáng xuyên
+    n = int(0.24 * SAMPLE_RATE)
+    buf = _sweep_buf(0.24, 1320.0, 410.0, 504, "tri", 0.30, 0.35, 0.002, 1.8)
+    _add_bell(buf, 0.01, 0.18, PENTA["A5"], [(1.0, 0.40), (2.0, 0.25)], 0.38)
+    out["core_crossbow"] = normalize(buf, 0.84)
+
+    # war_drum: hồi trống đồng Cổ Loa xuất quân (2 nhịp trống + ngân đồng)
+    n = int(0.55 * SAMPLE_RATE)
+    buf = [0.0] * n
+    d1 = _sweep_buf(0.24, 155.0, 46.0, 505, "sin", 0.34, 0.78, 0.003, 1.5, 1.0, 0.45)
+    d2 = _sweep_buf(0.36, 175.0, 42.0, 506, "sin", 0.36, 0.80, 0.003, 1.4, 1.0, 0.50)
+    for j, x in enumerate(d1):
+        buf[j] += x * 0.72
+    i2 = int(0.16 * SAMPLE_RATE)
+    for j, x in enumerate(d2):
+        if i2 + j < n:
+            buf[i2 + j] += x * 0.90
+    _add_bell(buf, 0.16, 0.35, 220.0, [(1.0, 0.35), (1.5, 0.25), (2.1, 0.14)], 0.40)
+    out["war_drum"] = normalize(buf, 0.88)
+
+    # core_alarm: chuông cảnh báo Nỏ Thần nguy cấp (2 hồi ngân gấp)
+    n = int(0.42 * SAMPLE_RATE)
+    buf = [0.0] * n
+    add_tone_seq(buf, [(0.0, 0.14, "sq25", 740.0), (0.18, 0.20, "sq25", 880.0)], 0.38)
+    _add_bell(buf, 0.0, 0.18, 740.0, [(1.0, 0.45), (1.42, 0.30)], 0.36)
+    _add_bell(buf, 0.18, 0.22, 880.0, [(1.0, 0.45), (1.42, 0.30)], 0.38)
+    out["core_alarm"] = normalize(buf, 0.82)
+
+    # 4 Ping chiến thuật LAN
+    for name, notes in (
+        ("ping_focus", [(0.0, 0.08, "tri", PENTA["G5"]), (0.06, 0.14, "sin", PENTA["D6"])]),
+        ("ping_danger", [(0.0, 0.09, "sq25", 622.25), (0.08, 0.14, "sq25", 466.16)]),
+        ("ping_loot", [(0.0, 0.07, "tri", PENTA["E5"]), (0.05, 0.08, "tri", PENTA["G5"]), (0.10, 0.14, "sin", PENTA["C6"])]),
+        ("ping_combo", [(0.0, 0.08, "tri", PENTA["A5"]), (0.06, 0.15, "sin", PENTA["E6"])]),
+    ):
+        pbuf = [0.0] * int(0.24 * SAMPLE_RATE)
+        add_tone_seq(pbuf, notes, 0.55)
+        out[name] = normalize(pbuf, 0.78)
+
+    # skill_tree_unlock: khánh ngọc thiên phú vang sáng
+    buf = [0.0] * int(0.34 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.10, "tri", PENTA["C5"]), (0.07, 0.10, "tri", PENTA["E5"]), (0.14, 0.18, "sin", PENTA["G5"])], 0.45)
+    _add_bell(buf, 0.12, 0.20, PENTA["C6"], [(1.0, 0.42), (1.5, 0.24)], 0.36)
+    out["skill_tree_unlock"] = normalize(buf, 0.80)
+
+    # pet_awaken: hồi chuông thức tỉnh Thần Thú
+    buf = [0.0] * int(0.48 * SAMPLE_RATE)
+    add_tone_seq(buf, [(0.0, 0.10, "tri", PENTA["D5"]), (0.08, 0.10, "tri", PENTA["G5"]), (0.16, 0.12, "tri", PENTA["A5"]), (0.25, 0.22, "sin", PENTA["D6"])], 0.46)
+    _add_bell(buf, 0.22, 0.24, PENTA["D6"], [(1.0, 0.45), (1.5, 0.30)], 0.40)
+    out["pet_awaken"] = normalize(buf, 0.84)
+
+    return out
 
 
 def _gen_weapon_archetypes() -> dict[str, list[float]]:
@@ -1196,6 +1361,56 @@ def _add_layer_note(buf: list[float], inst: str, start_s: float, dur_s: float, n
         add_pluck_loop(buf, start_s, dur_s, freq, vol)
 
 
+_INST_PAN = {
+    "flute": -0.22,
+    "dan_tranh": 0.28,
+    "pluck": 0.18,
+    "sq25": -0.14,
+    "brass": 0.0,
+    "pad": 0.0,
+    "bass": 0.0,
+}
+
+
+def _apply_warm_lp(buf: list[float], alpha: float) -> list[float]:
+    prev = buf[-1] if buf else 0.0
+    out = [0.0] * len(buf)
+    a1 = 1.0 - alpha
+    for i, x in enumerate(buf):
+        prev = alpha * x + a1 * prev
+        out[i] = prev
+    return out
+
+
+def _apply_circular_stereo_reverb(left: list[float], right: list[float], wet: float = 0.16) -> tuple[list[float], list[float]]:
+    total = len(left)
+    if total == 0 or wet <= 0.0:
+        return left, right
+    taps_ms = (29, 43, 61, 83)
+    dels = [int(ms * SAMPLE_RATE / 1000.0) % total for ms in taps_ms]
+    gains = (0.38, 0.28, 0.20, 0.14)
+    out_l = [0.0] * total
+    out_r = [0.0] * total
+    d0, d1, d2, d3 = dels
+    g0, g1, g2, g3 = gains
+    for i in range(total):
+        rev_l = (
+            right[(i - d0) % total] * g0
+            + left[(i - d1) % total] * g1
+            + right[(i - d2) % total] * g2
+            + left[(i - d3) % total] * g3
+        )
+        rev_r = (
+            left[(i - d0) % total] * g0
+            + right[(i - d1) % total] * g1
+            + left[(i - d2) % total] * g2
+            + right[(i - d3) % total] * g3
+        )
+        out_l[i] = left[i] + wet * rev_l
+        out_r[i] = right[i] + wet * rev_r
+    return out_l, out_r
+
+
 def render_arranged_track(
     bpm: float,
     bars: int,
@@ -1205,27 +1420,70 @@ def render_arranged_track(
     drum_vol: float,
     beats_per_bar: float = 4.0,
     peak: float = 0.74,
-) -> list[float]:
+) -> tuple[list[float], list[float]]:
     beat_s = 60.0 / bpm
     total_beats = bars * beats_per_bar
     total_samples = int(round(total_beats * beat_s * SAMPLE_RATE))
-    buf = [0.0] * total_samples
+    buf_l = [0.0] * total_samples
+    buf_r = [0.0] * total_samples
     rng = random.Random(seed)
+    haas_wide = int(0.014 * SAMPLE_RATE)
+    haas_brass = int(0.009 * SAMPLE_RATE)
 
-    for b in range(bars):
-        bar_beat = b * beats_per_bar
-        for inst, vol, pat_bars in layers:
+    for inst, vol, pat_bars in layers:
+        lbuf = [0.0] * total_samples
+        for b in range(bars):
+            bar_beat = b * beats_per_bar
             for beat_off, dur_beats, note in pat_bars[b % len(pat_bars)]:
-                _add_layer_note(buf, inst, (bar_beat + beat_off) * beat_s, dur_beats * beat_s, note, vol)
-        if drum_bars:
+                _add_layer_note(lbuf, inst, (bar_beat + beat_off) * beat_s, dur_beats * beat_s, note, vol)
+        if inst == "sq25":
+            lbuf = _apply_warm_lp(lbuf, 0.56)
+        if inst in ("pad", "brass"):
+            d_off = haas_wide if inst == "pad" else haas_brass
+            for i in range(total_samples):
+                x = lbuf[i]
+                xd = lbuf[(i - d_off) % total_samples]
+                buf_l[i] += 0.78 * x + 0.24 * xd
+                buf_r[i] += 0.78 * xd + 0.24 * x
+        else:
+            pan = _INST_PAN.get(inst, 0.0)
+            gl = 0.5 * (1.0 - pan) * 1.35
+            gr = 0.5 * (1.0 + pan) * 1.35
+            for i, x in enumerate(lbuf):
+                if x != 0.0:
+                    buf_l[i] += x * gl
+                    buf_r[i] += x * gr
+
+    if drum_bars:
+        dc_buf = [0.0] * total_samples
+        ds_buf = [0.0] * total_samples
+        dh_buf = [0.0] * total_samples
+        dw_buf = [0.0] * total_samples
+        for b in range(bars):
+            bar_beat = b * beats_per_bar
             for beat_off, dkind, dmul in drum_bars[b % len(drum_bars)]:
-                add_drum_loop(buf, (bar_beat + beat_off) * beat_s, rng, dkind, drum_vol * dmul)
+                target = dc_buf
+                if dkind == "snare":
+                    target = ds_buf
+                elif dkind == "hat":
+                    target = dh_buf
+                elif dkind == "wood":
+                    target = dw_buf
+                add_drum_loop(target, (bar_beat + beat_off) * beat_s, rng, dkind, drum_vol * dmul)
+        for i in range(total_samples):
+            c = dc_buf[i]
+            s = ds_buf[i]
+            h = dh_buf[i]
+            w = dw_buf[i]
+            buf_l[i] += c + 0.74 * s + 0.52 * h + 0.80 * w
+            buf_r[i] += c + 0.62 * s + 0.84 * h + 0.56 * w
 
-    return normalize(buf, peak)
+    buf_l, buf_r = _apply_circular_stereo_reverb(buf_l, buf_r, 0.16)
+    return normalize_stereo(buf_l, buf_r, peak)
 
 
-def gen_music() -> dict[str, list[float]]:
-    out: dict[str, list[float]] = {}
+def gen_music() -> dict[str, tuple[list[float], list[float]]]:
+    out: dict[str, tuple[list[float], list[float]]] = {}
 
     # 1. lobby.wav (~45.18s, 85 BPM, 16 bars) - Doanh Trại Yên Bình
     lobby_mel = [
@@ -1626,6 +1884,129 @@ def gen_music() -> dict[str, list[float]]:
         vic_drums, 202614, 0.22,
     )
 
+    # 15. coloa_defense.wav (~36.61s, 118 BPM, 18 bars) - Hào Khí Thành Cổ Loa (D pentatonic heroic fortress march)
+    cl_mel = [
+        [(0.0, 1.0, "D5"), (1.0, 0.5, "E5"), (1.5, 0.5, "G5"), (2.0, 1.5, "A5"), (3.5, 0.5, "G5")],
+        [(0.0, 1.0, "A5"), (1.0, 0.5, "C6"), (1.5, 0.5, "D6"), (2.0, 2.0, "A5")],
+        [(0.0, 0.75, "G5"), (0.75, 0.75, "E5"), (1.5, 0.5, "D5"), (2.0, 1.5, "E5"), (3.5, 0.5, "D5")],
+        [(0.0, 1.5, "C5"), (1.5, 0.5, "D5"), (2.0, 2.0, "A4")],
+        [(0.0, 1.0, "D5"), (1.0, 0.5, "G5"), (1.5, 0.5, "A5"), (2.0, 1.5, "D6"), (3.5, 0.5, "C6")],
+        [(0.0, 2.0, "D5"), (2.0, 1.0, "E5"), (3.0, 1.0, "A4")],
+    ]
+    cl_dan = [
+        [(0.0, 0.45, "D5"), (0.5, 0.45, "A5"), (1.0, 0.45, "G5"), (1.5, 0.45, "E5"), (2.0, 0.45, "D5"), (2.5, 0.45, "A4"), (3.0, 0.45, "C5"), (3.5, 0.45, "E5")],
+        [(0.0, 0.45, "G4"), (0.5, 0.45, "D5"), (1.0, 0.45, "A5"), (1.5, 0.45, "G5"), (2.0, 0.45, "A4"), (2.5, 0.45, "E5"), (3.0, 0.45, "D5"), (3.5, 0.45, "A4")],
+    ]
+    cl_brass = [
+        [(0.0, 1.5, "D3"), (2.0, 1.5, "A3")],
+        [(0.0, 1.5, "G3"), (2.0, 1.5, "C4")],
+    ]
+    cl_bass = [
+        [(0.0, 0.9, "D3"), (1.0, 0.9, "A2"), (2.0, 0.9, "D3"), (3.0, 0.9, "C3")],
+        [(0.0, 0.9, "G2"), (1.0, 0.9, "D3"), (2.0, 0.9, "A2"), (3.0, 0.9, "A2")],
+    ]
+    cl_drums = [
+        [(0.0, "gong", 0.65), (0.0, "kick", 0.9), (1.0, "wood", 0.72), (2.0, "kick", 0.85), (2.5, "hat", 0.48), (3.0, "snare", 0.78), (3.5, "wood", 0.65)],
+        [(0.0, "kick", 0.9), (1.0, "snare", 0.75), (1.5, "kick", 0.65), (2.0, "kick", 0.88), (2.5, "hat", 0.5), (3.0, "snare", 0.8), (3.5, "wood", 0.65)],
+    ]
+    out["coloa_defense"] = render_arranged_track(
+        118.0, 18,
+        [("flute", 0.25, cl_mel), ("dan_tranh", 0.20, cl_dan), ("brass", 0.20, cl_brass), ("bass", 0.25, cl_bass)],
+        cl_drums, 202615, 0.25,
+    )
+
+    # 16. coloa_siege.wav (~34.74s, 152 BPM, 22 bars) - Cổ Loa Công Thành (D minor furious siege)
+    cs_lead = [
+        [(0.0, 0.5, "D5"), (0.5, 0.5, "F5"), (1.0, 0.5, "A5"), (1.5, 0.5, "Bb5"), (2.0, 1.0, "A5"), (3.0, 1.0, "G5")],
+        [(0.0, 0.75, "F5"), (0.75, 0.75, "E5"), (1.5, 0.5, "D5"), (2.0, 1.5, "A4"), (3.5, 0.5, "C#5")],
+        [(0.0, 0.5, "D5"), (0.5, 0.5, "A5"), (1.0, 0.5, "D6"), (1.5, 0.5, "C6"), (2.0, 1.0, "Bb5"), (3.0, 1.0, "A5")],
+        [(0.0, 1.0, "G5"), (1.0, 0.5, "F5"), (1.5, 0.5, "E5"), (2.0, 2.0, "A4")],
+    ]
+    cs_brass = [
+        [(0.0, 0.8, "D3"), (0.0, 0.8, "A3"), (2.0, 0.8, "Bb3")],
+        [(0.0, 0.8, "G3"), (2.0, 0.8, "A3")],
+    ]
+    cs_bass = [
+        [(0.0, 0.45, "D2"), (0.5, 0.45, "D3"), (1.0, 0.45, "D2"), (1.5, 0.45, "A2"), (2.0, 0.45, "Bb2"), (2.5, 0.45, "Bb2"), (3.0, 0.45, "A2"), (3.5, 0.45, "C#3")],
+    ]
+    cs_drums = [
+        [(0.0, "gong", 0.76), (0.0, "kick", 0.98), (0.5, "kick", 0.72), (1.0, "snare", 0.90), (1.5, "kick", 0.75),
+         (2.0, "kick", 0.98), (2.5, "hat", 0.62), (3.0, "snare", 0.94), (3.5, "wood", 0.74)],
+        [(0.0, "kick", 0.98), (0.5, "hat", 0.58), (1.0, "snare", 0.90), (1.5, "kick", 0.72),
+         (2.0, "kick", 0.98), (2.5, "kick", 0.75), (3.0, "snare", 0.95), (3.5, "snare", 0.60)],
+    ]
+    out["coloa_siege"] = render_arranged_track(
+        152.0, 22,
+        [("sq25", 0.21, cs_lead), ("brass", 0.24, cs_brass), ("bass", 0.27, cs_bass)],
+        cs_drums, 202616, 0.28,
+    )
+
+    # 17. secret_thuy_cung.wav (~40.00s, 96 BPM, 16 bars) - Thủy Cung Long Vương (E minor mystic underwater)
+    tc_mel = [
+        [(0.0, 1.5, "E5"), (1.5, 0.5, "G5"), (2.0, 1.5, "B5"), (3.5, 0.5, "A5")],
+        [(0.0, 1.5, "G5"), (1.5, 0.5, "E5"), (2.0, 2.0, "D5")],
+        [(0.0, 1.0, "E5"), (1.0, 1.0, "A5"), (2.0, 1.5, "B5"), (3.5, 0.5, "D6")],
+        [(0.0, 1.5, "B5"), (1.5, 0.5, "A5"), (2.0, 2.0, "E5")],
+    ]
+    tc_dan = [
+        [(0.0, 0.7, "E5"), (0.5, 0.7, "B5"), (1.0, 0.7, "E6"), (1.5, 0.7, "B5"), (2.0, 0.7, "G5"), (2.5, 0.7, "D5"), (3.0, 0.7, "A4"), (3.5, 0.7, "B4")],
+        [(0.0, 0.7, "C5"), (0.5, 0.7, "G5"), (1.0, 0.7, "B5"), (1.5, 0.7, "G5"), (2.0, 0.7, "D5"), (2.5, 0.7, "A5"), (3.0, 0.7, "B5"), (3.5, 0.7, "E5")],
+    ]
+    tc_pad = [[(0.0, 3.9, "E3")], [(0.0, 3.9, "C3")], [(0.0, 3.9, "D3")], [(0.0, 3.9, "B2")]]
+    tc_bass = [[(0.0, 1.8, "E2"), (2.0, 1.8, "B2")], [(0.0, 1.8, "C3"), (2.0, 1.8, "D3")]]
+    tc_drums = [[(0.0, "gong", 0.65), (0.0, "kick", 0.72), (2.0, "wood", 0.55), (3.0, "hat", 0.42)]]
+    out["secret_thuy_cung"] = render_arranged_track(
+        96.0, 16,
+        [("flute", 0.28, tc_mel), ("dan_tranh", 0.22, tc_dan), ("pad", 0.16, tc_pad), ("bass", 0.22, tc_bass)],
+        tc_drums, 202617, 0.21,
+    )
+
+    # 18. secret_tan_vien.wav (~38.57s, 112 BPM, 18 bars) - Đỉnh Tản Viên Linh Thiêng (G major sacred peak)
+    tv_mel = [
+        [(0.0, 1.0, "G5"), (1.0, 0.5, "A5"), (1.5, 0.5, "B5"), (2.0, 1.5, "D6"), (3.5, 0.5, "B5")],
+        [(0.0, 1.5, "A5"), (1.5, 0.5, "G5"), (2.0, 2.0, "E5")],
+        [(0.0, 1.0, "D5"), (1.0, 1.0, "G5"), (2.0, 1.0, "B5"), (3.0, 1.0, "A5")],
+        [(0.0, 2.0, "G5"), (2.0, 2.0, "D5")],
+    ]
+    tv_dan = [
+        [(0.0, 0.5, "G5"), (0.5, 0.5, "D5"), (1.0, 0.5, "B4"), (1.5, 0.5, "D5"), (2.0, 0.5, "E5"), (2.5, 0.5, "G5"), (3.0, 0.5, "A5"), (3.5, 0.5, "D5")],
+    ]
+    tv_brass = [[(0.0, 1.6, "G3"), (2.0, 1.6, "D4")], [(0.0, 1.6, "E3"), (2.0, 1.6, "B3")]]
+    tv_bass = [[(0.0, 0.9, "G2"), (1.0, 0.9, "D3"), (2.0, 0.9, "E3"), (3.0, 0.9, "D3")]]
+    tv_drums = [[(0.0, "gong", 0.68), (0.0, "kick", 0.84), (1.0, "wood", 0.65), (2.0, "kick", 0.8), (3.0, "snare", 0.68), (3.5, "hat", 0.48)]]
+    out["secret_tan_vien"] = render_arranged_track(
+        112.0, 18,
+        [("flute", 0.27, tv_mel), ("dan_tranh", 0.19, tv_dan), ("brass", 0.21, tv_brass), ("bass", 0.24, tv_bass)],
+        tv_drums, 202618, 0.23,
+    )
+
+    # 19. boss_hon_mang.wav (~36.92s, 156 BPM, 24 bars) - Hỗn Mang Diệt Thế (C minor apocalyptic true ending)
+    hm_lead = [
+        [(0.0, 0.5, "C5"), (0.5, 0.5, "Eb5"), (1.0, 0.5, "G5"), (1.5, 0.5, "B5"), (2.0, 1.0, "C6"), (3.0, 1.0, "Ab5")],
+        [(0.0, 0.75, "G5"), (0.75, 0.75, "F5"), (1.5, 0.5, "Eb5"), (2.0, 1.5, "D5"), (3.5, 0.5, "B4")],
+        [(0.0, 0.5, "C5"), (0.5, 0.5, "G5"), (1.0, 0.5, "C6"), (1.5, 0.5, "Eb6"), (2.0, 1.0, "D6"), (3.0, 1.0, "B5")],
+        [(0.0, 1.0, "C6"), (1.0, 0.5, "G5"), (1.5, 0.5, "Eb5"), (2.0, 2.0, "G4")],
+    ]
+    hm_brass = [
+        [(0.0, 0.9, "C3"), (0.0, 0.9, "G3"), (2.0, 0.9, "Ab3")],
+        [(0.0, 0.9, "F3"), (0.0, 0.9, "C4"), (2.0, 0.9, "G3")],
+    ]
+    hm_pad = [[(0.0, 3.8, "C3"), (0.0, 3.8, "G3")], [(0.0, 3.8, "Ab2"), (0.0, 3.8, "G2")]]
+    hm_bass = [
+        [(0.0, 0.42, "C2"), (0.5, 0.42, "C3"), (1.0, 0.42, "C2"), (1.5, 0.42, "G2"), (2.0, 0.42, "Ab2"), (2.5, 0.42, "Ab2"), (3.0, 0.42, "G2"), (3.5, 0.42, "B2")],
+    ]
+    hm_drums = [
+        [(0.0, "gong", 0.85), (0.0, "kick", 1.0), (0.5, "kick", 0.76), (1.0, "snare", 0.95), (1.5, "kick", 0.78),
+         (2.0, "kick", 1.0), (2.5, "hat", 0.65), (3.0, "snare", 0.98), (3.5, "wood", 0.75)],
+        [(0.0, "kick", 1.0), (0.5, "kick", 0.76), (1.0, "snare", 0.95), (1.5, "hat", 0.65),
+         (2.0, "kick", 1.0), (2.5, "kick", 0.78), (3.0, "snare", 1.0), (3.5, "snare", 0.66)],
+    ]
+    out["boss_hon_mang"] = render_arranged_track(
+        156.0, 24,
+        [("sq25", 0.22, hm_lead), ("brass", 0.23, hm_brass), ("pad", 0.14, hm_pad), ("bass", 0.28, hm_bass)],
+        hm_drums, 202619, 0.29,
+    )
+
     return out
 
 
@@ -1634,8 +2015,8 @@ def main() -> None:
     for name, samples in sfx.items():
         save_wav(os.path.join(SFX_DIR, f"{name}.wav"), samples)
     music = gen_music()
-    for name, samples in music.items():
-        save_wav(os.path.join(MUSIC_DIR, f"{name}.wav"), samples)
+    for name, stereo_samples in music.items():
+        save_wav(os.path.join(MUSIC_DIR, f"{name}.wav"), stereo_samples)
     print(f"Generated {len(sfx)} SFX and {len(music)} music tracks.")
 
 

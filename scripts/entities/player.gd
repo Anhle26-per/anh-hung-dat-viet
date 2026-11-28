@@ -1805,7 +1805,7 @@ func _use_skill() -> void:
 	var e_refund: int = int(_skill_tree_bonuses.get("skill_energy_refund", 0))
 	if e_refund > 0:
 		add_energy(e_refund)
-	Sfx.play_skill(hero_id)
+	Sfx.play_skill(hero_id, 0.0, sk_idx)
 	if body != null and not dead:
 		_anim_lock_t = 0.44
 		body.play("skill")

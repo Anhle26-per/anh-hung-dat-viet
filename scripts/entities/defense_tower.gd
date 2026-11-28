@@ -104,7 +104,7 @@ func build_tower(tid: String) -> bool:
 	_recoil_t = 0.28
 	_refresh_visual()
 	if Sfx != null:
-		Sfx.play("forge")
+		Sfx.play("tower_build")
 	if get_parent() != null:
 		var col: Color = info.get("color", Color(1.0, 0.85, 0.35))
 		Fx.burst(get_parent(), global_position, col, 36.0, 0.38)
@@ -136,7 +136,7 @@ func upgrade_tower() -> bool:
 	_recoil_t = 0.34
 	_refresh_visual()
 	if Sfx != null:
-		Sfx.play("forge")
+		Sfx.play("tower_upgrade")
 	if get_parent() != null:
 		var col: Color = info.get("color", Color(1.0, 0.85, 0.35))
 		Fx.burst(get_parent(), global_position, col, 44.0, 0.42)
@@ -160,7 +160,7 @@ func repair_or_upgrade() -> bool:
 		_notify_local_stats()
 		hp = max_hp
 		if Sfx != null:
-			Sfx.play("forge")
+			Sfx.play("core_repair")
 		if get_parent() != null:
 			Fx.float_text(get_parent(), global_position + Vector2(0.0, -24.0), "Đã tu sửa!", Color(0.55, 1.0, 0.65), 12)
 		queue_redraw()
@@ -347,7 +347,7 @@ func _fire_no_than(target: Node) -> void:
 		get_parent().add_child(b)
 	Fx.particles(get_parent(), global_position + Vector2(0.0, -10.0), Color(1.0, 0.90, 0.42), 4, 48.0, 0.25)
 	if Sfx != null:
-		Sfx.play("arrow")
+		Sfx.play("core_crossbow" if tier >= 2 else "w_crossbow")
 
 
 func _erupt_bach_dang(hits: Array, rng_px: float) -> void:

@@ -98,6 +98,11 @@ static func spawn_ping(parent: Node, pos: Vector2, p_kind: String = "focus", p_s
 	node.ping_color = col_override if col_override.a > 0.01 else base_col
 	node.z_index = 8
 	parent.add_child(node)
+	var tree: SceneTree = parent.get_tree()
+	if tree != null:
+		var sfx_node: Node = tree.root.get_node_or_null("Sfx")
+		if sfx_node != null and sfx_node.has_method("play"):
+			sfx_node.call("play", "ping_" + valid_kind)
 	return node
 
 

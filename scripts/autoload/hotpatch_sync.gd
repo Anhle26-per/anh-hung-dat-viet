@@ -131,7 +131,7 @@ static func needs_autoload_sync(tree: SceneTree) -> bool:
 		return true
 	var s: Node = tree.root.get_node_or_null("Sfx")
 	if s != null:
-		for sm in ["play_stage_music", "play_weapon", "play_skill"]:
+		for sm in ["play_stage_music", "play_weapon", "play_skill", "play_secret_biome_music"]:
 			if not s.has_method(sm):
 				return true
 	var n: Node = tree.root.get_node_or_null("Net")

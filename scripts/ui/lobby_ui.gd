@@ -2389,7 +2389,7 @@ func open_skill_tree(branch_filter: String = "all", last_msg: String = "") -> vo
 				var can_up: bool = SkillTreeData.can_upgrade_node(tree_dict, nid, Global.coins, Global.materials)
 				var b_up := UI.button("Nâng cấp", func():
 					if Global.has_method("upgrade_skill_tree_node") and bool(Global.call("upgrade_skill_tree_node", nid)):
-						Sfx.play("forge")
+						Sfx.play("skill_tree_unlock")
 						if lobby != null and lobby.has_method("on_station_fx"):
 							lobby.on_station_fx(Vector2(680, 326), "%s Bậc %d!" % [str(nd.name), cur_r + 1], bcol)
 						open_skill_tree(branch_filter, "Đã nâng %s lên Bậc %d!" % [str(nd.name), cur_r + 1]), 12, 118.0)
@@ -2484,7 +2484,7 @@ func open_pet_shrine(last_msg: String = "") -> void:
 			var can_aw: bool = _can_awaken_pet(pid)
 			var b_aw := UI.button("Thức Tỉnh", func():
 				if Global.has_method("awaken_pet") and bool(Global.call("awaken_pet", pid)):
-					Sfx.play("level_clear")
+					Sfx.play("pet_awaken")
 					if lobby != null:
 						if lobby.has_method("refresh_pet_stations"):
 							lobby.refresh_pet_stations()

@@ -51,13 +51,14 @@ func _run() -> void:
 	Global.chapter_order = []
 	Global.boss_order = []
 
-	print("== 1. Kiểm tra 14 bản nhạc nền trong MUSIC_FILES & MUSIC_TITLES (mono 22050 Hz, 30..60s)")
-	_check(Sfx.MUSIC_FILES.size() == 14, "MUSIC_FILES phải có 14 bài (hiện %d)" % Sfx.MUSIC_FILES.size())
-	_check(Sfx.MUSIC_TITLES.size() == 14, "MUSIC_TITLES phải có 14 tiêu đề (hiện %d)" % Sfx.MUSIC_TITLES.size())
+	print("== 1. Kiểm tra 19 bản nhạc nền trong MUSIC_FILES & MUSIC_TITLES (stereo 44100 Hz, 30..60s)")
+	_check(Sfx.MUSIC_FILES.size() >= 19, "MUSIC_FILES phải có >= 19 bài (hiện %d)" % Sfx.MUSIC_FILES.size())
+	_check(Sfx.MUSIC_TITLES.size() >= 19, "MUSIC_TITLES phải có >= 19 tiêu đề (hiện %d)" % Sfx.MUSIC_TITLES.size())
 	var expected_ids: Array[String] = [
 		"lobby", "basement",
 		"battle", "battle_forest", "battle_river", "battle_citadel", "battle_modern", "battle_sprint", "battle_mythic",
 		"boss", "boss_frenzy", "boss_legend", "boss_mythic", "victory",
+		"coloa_defense", "coloa_siege", "secret_thuy_cung", "secret_tan_vien", "boss_hon_mang",
 	]
 	for mid in expected_ids:
 		_check(Sfx.MUSIC_FILES.has(mid), "MUSIC_FILES thiếu: " + mid)
@@ -71,7 +72,7 @@ func _run() -> void:
 		if st is AudioStreamWAV:
 			var wav: AudioStreamWAV = st as AudioStreamWAV
 			var len_s: float = wav.get_length()
-			_check(wav.mix_rate == 22050 and not wav.stereo, "%s không phải mono 22050 Hz" % path)
+			_check(wav.mix_rate == 44100 and wav.stereo, "%s không phải stereo 44100 Hz" % path)
 			_check(len_s >= 30.0 and len_s <= 60.0, "%s dài %.2fs (cần 30.0..60.0s)" % [path, len_s])
 
 	print("== 2. Kiểm tra Sfx.stage_music_id(level, room_seq) luân phiên theo màn & phòng")
@@ -97,10 +98,13 @@ func _run() -> void:
 	_check(Sfx.boss_music_id(5, "boss", false) == "boss", "trùm thường phải trả về 'boss'")
 	_check(Sfx.boss_music_id(3, "legend", false) == "boss_legend", "Tam Yêu phải trả về 'boss_legend'")
 	_check(Sfx.boss_music_id(21, "boss", false) == "boss_mythic", "trùm Thần Thoại phải trả về 'boss_mythic'")
+	_check(Sfx.boss_music_id(33, "boss", false) == "boss_hon_mang", "Hỗn Mang Yêu Đế màn 33 phải trả về 'boss_hon_mang'")
 	_check(Sfx.boss_music_id(5, "boss", true) == "boss_frenzy", "trùm cuồng nộ phải trả về 'boss_frenzy'")
 	_check(Sfx.boss_music_id(21, "boss", true) == "boss_frenzy", "trùm Thần Thoại cuồng nộ phải trả về 'boss_frenzy'")
 	_check(Sfx.boss_music_id(3, "legend", true) == "boss_frenzy", "Tam Yêu cuồng nộ phải trả về 'boss_frenzy'")
-	for bid in ["boss", "boss_legend", "boss_mythic", "boss_frenzy"]:
+	_check(Sfx.secret_biome_music_id("thuy_cung") == "secret_thuy_cung", "thuy_cung phải trả về 'secret_thuy_cung'")
+	_check(Sfx.secret_biome_music_id("dinh_tan_vien") == "secret_tan_vien", "dinh_tan_vien phải trả về 'secret_tan_vien'")
+	for bid in ["boss", "boss_legend", "boss_mythic", "boss_frenzy", "coloa_siege", "boss_hon_mang"]:
 		_check(Sfx.is_boss_music(bid), "is_boss_music(%s) phải là true" % bid)
 	for nbid in ["lobby", "basement", "battle", "victory", ""]:
 		_check(not Sfx.is_boss_music(nbid), "is_boss_music(%s) phải là false" % nbid)

@@ -262,7 +262,10 @@ func start_next_wave() -> void:
 		var msg: String = "Đợt %d — %s" % [wave, "ĐẠI TƯỚNG CÔNG THÀNH!" if bool(cfg.get("is_boss", false)) else "Quân giặc tràn vào Cổ Loa!"]
 		get_tree().call_group("hud", "show_banner", msg)
 	if Sfx != null:
-		Sfx.play("boss_appear" if bool(cfg.get("is_boss", false)) else "door_close")
+		Sfx.play("war_drum")
+		if bool(cfg.get("is_boss", false)):
+			Sfx.play("boss_appear")
+			Sfx.play_music("coloa_siege", 0.45)
 	queue_redraw()
 
 
@@ -415,6 +418,8 @@ func _on_wave_cleared() -> void:
 
 	if Sfx != null:
 		Sfx.play("level_clear")
+		if bool(cfg.get("is_boss", false)):
+			Sfx.play_music("coloa_defense", 0.75)
 	if is_inside_tree():
 		get_tree().call_group("hud", "show_banner", "Vượt Đợt %d! (+%d xu)  [F] Gọi đợt kế" % [wave, reward])
 	wave_cleared.emit(wave)

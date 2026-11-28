@@ -371,10 +371,10 @@ func _build_level() -> void:
 	_is_co_loa_mode = co_loa_mode
 	if co_loa_mode:
 		darkness.color = Color(0.84, 0.78, 0.70)
-		if Sfx.has_method("play_stage_music"):
-			Sfx.play_stage_music(5, 0)
+		if Sfx.has_method("play_music"):
+			Sfx.play_music("coloa_defense")
 		else:
-			Sfx.play_music("battle")
+			Sfx.play_stage_music(5, 0)
 		dungeon = CoLoaDefense.new()
 		world.add_child(dungeon)
 		world.move_child(dungeon, 0)
@@ -401,10 +401,14 @@ func _build_level() -> void:
 	var ch := EnemyData.chapter(Global.level)
 	darkness.color = ch.dark
 	var is_br_hall: bool = Global.is_boss_rush() and Global.level >= 13
+	var sb_music_raw: Variant = Global.get("secret_biome_override")
+	var sb_music_id: String = str(sb_music_raw) if sb_music_raw != null else ""
 	if is_br_hall or Global.level == 16 or Global.level == 32 or Global.level >= 34:
 		Sfx.play_music("victory")
+	elif sb_music_id != "" and Sfx.has_method("play_secret_biome_music"):
+		Sfx.play_secret_biome_music(sb_music_id)
 	elif Global.level == 33:
-		Sfx.play_music("boss")
+		Sfx.play_music("boss_hon_mang")
 	elif Sfx.has_method("play_stage_music"):
 		Sfx.play_stage_music(Global.level, 0)
 	else:
